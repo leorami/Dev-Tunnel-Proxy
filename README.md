@@ -3,7 +3,7 @@
 A standalone, reusable **development proxy + ngrok tunnel** for teams.
 - Tiny **core** Nginx config that `include`s one file per app from `apps/`.
 - Separate **ngrok** container tunnels to the proxy.
-- Each app contributes exactly **one** snippet (e.g., `encast.conf`, `mxtk.conf`). No monolithic config to edit.
+- Each app contributes exactly **one** snippet (e.g., `sample-prefix.conf`, `sample-api.conf`). No monolithic config to edit.
 - All apps that should be exposed join the shared Docker network: **`devproxy`**.
 
 ## Quick start
@@ -21,13 +21,13 @@ A standalone, reusable **development proxy + ngrok tunnel** for teams.
 
 3) Bring up the proxy + ngrok:
    ```bash
-   docker compose up -d
+   ./scripts/smart-build.sh up
    ```
 
 4) Install app routes (from the dev-tunnel-proxy repo root):
    ```bash
-   ./scripts/install-app.sh encast ./examples/encast.conf
-   ./scripts/install-app.sh mxtk   ./examples/mxtk.conf
+   ./scripts/install-app.sh sample-prefix examples/sample-prefix-app.conf
+   ./scripts/install-app.sh sample-api    examples/sample-root-api-strip.conf
    ```
 
 5) In each app's docker-compose, join the shared network:
@@ -44,20 +44,24 @@ A standalone, reusable **development proxy + ngrok tunnel** for teams.
    ```
 
 6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
-   Your routes (e.g., `/impact`, `/api`, `/mxtk`) should work immediately.
+   Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
 ## Local vs Tunnel path strategy
 
 - **Local**: run apps at `/` (no basePath) for ergonomics.
-- **Tunnel**: enable a prefix (e.g., `/mxtk`) only when going through this proxy.
-  - For Next.js, gate `basePath`/`assetPrefix` behind an env var (e.g., `MXTK_BEHIND_PROXY=1`).
+- **Tunnel**: enable a prefix (e.g., `/myapp`) only when going through this proxy.
+  - For Next.js, gate `basePath`/`assetPrefix` behind an env var (e.g., `BEHIND_PROXY=1`).
 
 ## Scripts
 
 - `scripts/install-app.sh` — copies a snippet into `apps/<name>.conf` and hot-reloads Nginx.
 - `scripts/reload.sh` — safe Nginx reload.
 - `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs.
-- `scripts/setup-mxtk-site.sh` — helper to install an MXTK snippet with configurable container name, port, and prefix (`/mxtk` by default).
+
+## Examples
+
+- `examples/sample-prefix-app.conf` — App served under `/myapp/` (keeps prefix)
+- `examples/sample-root-api-strip.conf` — API mounted at `/api/` (strips prefix)
 
 ## Project layout
 
@@ -69,14 +73,13 @@ dev-tunnel-proxy/
 │  ├─ ngrok.dynamic.yml      # dynamic domain template
 │  └─ ngrok.yml              # (legacy, replaced by entrypoint)
 ├─ examples/
-│  ├─ encast.conf
-│  └─ mxtk.conf
+│  ├─ sample-prefix-app.conf
+│  └─ sample-root-api-strip.conf
 ├─ scripts/
 │  ├─ install-app.sh
 │  ├─ ngrok-entrypoint.sh    # conditional static/dynamic domain
 │  ├─ reload.sh
-│  ├─ smart-build.sh
-│  └─ setup-mxtk-site.sh
+│  └─ smart-build.sh
 ├─ docker-compose.yml
 ├─ .env.example
 ├─ .gitignore
