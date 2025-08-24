@@ -1,0 +1,7 @@
+version: "2"
+tunnels:
+  proxy:
+    proto: http
+    addr: proxy:80
+    bind_tls: true
+    inspect: true

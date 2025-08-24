@@ -20,11 +20,13 @@ services:
   ngrok:
     image: ngrok/ngrok:latest
     container_name: dev-ngrok
-    command: ["start", "--all", "--config", "/etc/ngrok.yml"]
+    command: ["sh", "/entrypoint.sh"]
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      - NGROK_STATIC_DOMAIN=${NGROK_STATIC_DOMAIN}
     volumes:
-      - ./config/ngrok.yml:/etc/ngrok.yml:ro
+      - ./scripts/ngrok-entrypoint.sh:/entrypoint.sh:ro
+      - ./config/ngrok.dynamic.yml:/etc/ngrok.dynamic.yml:ro
     depends_on:
       - proxy
     networks:

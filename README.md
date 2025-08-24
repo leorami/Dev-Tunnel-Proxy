@@ -13,7 +13,11 @@ A standalone, reusable **development proxy + ngrok tunnel** for teams.
    export NGROK_AUTHTOKEN=YOUR_TOKEN
    ```
 
-2) (Optional) If you own a reserved ngrok domain, set `NGROK_DOMAIN` in `.env` and uncomment `hostname` in `config/ngrok.yml`.
+2) (Optional) If you own a reserved ngrok domain, set `NGROK_STATIC_DOMAIN` in `.env`:
+   ```bash
+   export NGROK_STATIC_DOMAIN=your-domain.ngrok.app
+   ```
+   If not set (or empty), ngrok will use a dynamic domain.
 
 3) Bring up the proxy + ngrok:
    ```bash
@@ -62,12 +66,14 @@ dev-tunnel-proxy/
 ├─ apps/                     # per-app snippets live here (mounted read-only)
 ├─ config/
 │  ├─ default.conf           # core: includes apps/*.conf
-│  └─ ngrok.yml              # tunnels to proxy
+│  ├─ ngrok.dynamic.yml      # dynamic domain template
+│  └─ ngrok.yml              # (legacy, replaced by entrypoint)
 ├─ examples/
 │  ├─ encast.conf
 │  └─ mxtk.conf
 ├─ scripts/
 │  ├─ install-app.sh
+│  ├─ ngrok-entrypoint.sh    # conditional static/dynamic domain
 │  ├─ reload.sh
 │  ├─ smart-build.sh
 │  └─ setup-mxtk-site.sh
