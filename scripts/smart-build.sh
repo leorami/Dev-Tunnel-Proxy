@@ -14,22 +14,18 @@ ensure_network() {
 
 usage() {
   cat <<'USAGE'
-smart-build.sh — convenience wrapper
+smart-build.sh
 
 Commands:
   up                 Start proxy + ngrok (detached)
   down               Stop and remove containers
-  restart            Restart both services
+  restart            Down then up (recreates containers)
   logs [service]     Tail logs (default: all). service=proxy|ngrok
   reload             Hot reload Nginx config
-  install-app NAME PATH/TO/snippet.conf  Install a per-app snippet
-  uninstall-app NAME                      Remove apps/NAME.conf and reload
-  list-apps                                 List installed app snippets
-  status                                    Show container status
-
-Env:
-  NGROK_AUTHTOKEN   ngrok token (or set in .env)
-  NGROK_DOMAIN      reserved domain (optional)
+  install-app NAME PATH/TO/snippet.conf
+  uninstall-app NAME
+  list-apps
+  status
 USAGE
 }
 
@@ -43,37 +39,25 @@ case "$cmd" in
     (cd "$ROOT_DIR" && $COMPOSE down)
     ;;
   restart)
-    (cd "$ROOT_DIR" && $COMPOSE down)
+    (cd "$ROOT_DIR" && $COMPOSE down --remove-orphans)
     ensure_network
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   logs)
     svc="${2:-}"
-    if [ -n "$svc" ]; then
-      (cd "$ROOT_DIR" && $COMPOSE logs -f "$svc")
-    else
-      (cd "$ROOT_DIR" && $COMPOSE logs -f)
-    fi
+    if [ -n "$svc" ]; then (cd "$ROOT_DIR" && $COMPOSE logs -f "$svc"); else (cd "$ROOT_DIR" && $COMPOSE logs -f); fi
     ;;
   reload)
     "$ROOT_DIR/scripts/reload.sh"
     ;;
   install-app)
-    name="${2:-}"; src="${3:-}"
-    if [ -z "${name}" ] || [ -z "${src}" ]; then usage; exit 1; fi
+    name="${2:-}"; src="${3:-}"; [ -n "$name" ] && [ -n "$src" ] || { usage; exit 1; }
     "$ROOT_DIR/scripts/install-app.sh" "$name" "$src"
     ;;
   uninstall-app)
-    name="${2:-}"
-    if [ -z "${name}" ]; then usage; exit 1; fi
+    name="${2:-}"; [ -n "$name" ] || { usage; exit 1; }
     dest="$ROOT_DIR/apps/${name}.conf"
-    if [ -f "$dest" ]; then
-      rm -f "$dest"
-      echo "Removed $dest"
-      "$ROOT_DIR/scripts/reload.sh"
-    else
-      echo "No such snippet: $dest"
-    fi
+    if [ -f "$dest" ]; then rm -f "$dest"; echo "Removed $dest"; "$ROOT_DIR/scripts/reload.sh"; else echo "No such snippet: $dest"; fi
     ;;
   list-apps)
     ls -1 "$ROOT_DIR/apps"/*.conf 2>/dev/null || echo "(none)"
@@ -85,8 +69,6 @@ case "$cmd" in
     usage
     ;;
   *)
-    echo "Unknown command: $cmd"
-    usage
-    exit 1
+    echo "Unknown command: $cmd"; usage; exit 1
     ;;
 esac
