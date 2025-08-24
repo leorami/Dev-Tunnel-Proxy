@@ -1,0 +1,15 @@
+# Environment
+.env
+.env.local
+.DS_Store
+
+# Apps runtime snippets (optional: uncomment to ignore runtime changes)
+# apps/*.conf
+
+# Logs
+logs/
+*.log
+
+# Editors
+.idea/
+.vscode/

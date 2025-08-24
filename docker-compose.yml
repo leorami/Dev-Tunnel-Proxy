@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: dev-proxy
+    ports:
+      - "8080:80"
+    volumes:
+      - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./apps:/etc/nginx/conf.d/apps:ro
+    networks:
+      - devproxy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: dev-ngrok
+    command: ["start", "--all", "--config", "/etc/ngrok.yml"]
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    volumes:
+      - ./config/ngrok.yml:/etc/ngrok.yml:ro
+    depends_on:
+      - proxy
+    networks:
+      - devproxy
+
+networks:
+  devproxy:
+    name: devproxy
