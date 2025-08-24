@@ -3,8 +3,8 @@
 .env.local
 .DS_Store
 
-# Apps runtime snippets (optional: uncomment to ignore runtime changes)
-# apps/*.conf
+# Apps runtime snippets (ignored to keep project generic)
+apps/*.conf
 
 # Logs
 logs/

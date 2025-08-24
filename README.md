@@ -91,6 +91,7 @@ dev-tunnel-proxy/
 - Never commit your ngrok authtoken. Use env vars or a local `.env` file.
 - Keep app snippets **app-specific**. No cross-references to other apps.
 - WebSockets/HMR: all example snippets include the required headers.
+- **App configs are git-ignored** - Each project manages its own `apps/*.conf` files locally.
 
 ## How to contribute
 
@@ -100,3 +101,5 @@ dev-tunnel-proxy/
 4. **Share**: Submit a PR with your example snippet for others to use
 
 Keep examples generic and focused on common patterns (prefix-kept vs prefix-stripped).
+
+**Note**: App configs in `apps/` are git-ignored to keep the project generic. Each team manages their own configurations locally.
