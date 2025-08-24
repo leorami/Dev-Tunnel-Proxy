@@ -7,8 +7,10 @@ services:
     volumes:
       - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./apps:/etc/nginx/conf.d/apps:ro
+      - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
     networks:
       - devproxy
+    command: ["sh", "/entrypoint.sh"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/"]
       interval: 30s
