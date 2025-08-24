@@ -91,3 +91,12 @@ dev-tunnel-proxy/
 - Never commit your ngrok authtoken. Use env vars or a local `.env` file.
 - Keep app snippets **app-specific**. No cross-references to other apps.
 - WebSockets/HMR: all example snippets include the required headers.
+
+## How to contribute
+
+1. **Add your app**: Create a snippet in `examples/` following the patterns shown
+2. **Install**: Use `./scripts/install-app.sh <name> <path>` to add your app
+3. **Test**: Ensure your app joins the `devproxy` network and works through the tunnel
+4. **Share**: Submit a PR with your example snippet for others to use
+
+Keep examples generic and focused on common patterns (prefix-kept vs prefix-stripped).

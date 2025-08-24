@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-CFG="/etc/ngrok.yml"
+CFG="/tmp/ngrok.yml"
 
 if [ -n "${NGROK_STATIC_DOMAIN:-}" ]; then
   cat > "$CFG" <<EOF
@@ -11,7 +11,6 @@ tunnels:
     proto: http
     addr: proxy:80
     hostname: ${NGROK_STATIC_DOMAIN}
-    bind_tls: true
     inspect: true
 EOF
   echo "ngrok: using static domain '${NGROK_STATIC_DOMAIN}'"
