@@ -2,7 +2,7 @@
 set -eu
 
 # Start nginx without strict upstream validation
-echo "Starting nginx with relaxed upstream validation..."
+echo "Starting nginx with resilient config..."
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 

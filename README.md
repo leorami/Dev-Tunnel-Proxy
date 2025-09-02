@@ -1,6 +1,6 @@
-# dev-tunnel-proxy
+# Dev Tunnel Proxy
 
-A standalone, reusable **development proxy + ngrok tunnel** for teams.
+A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) for teams.
 - Tiny **core** Nginx config that `include`s one file per app from `apps/`.
 - Separate **ngrok** container tunnels to the proxy.
 - Each app contributes exactly **one** snippet (e.g., `sample-prefix.conf`, `sample-api.conf`). No monolithic config to edit.
@@ -46,6 +46,11 @@ A standalone, reusable **development proxy + ngrok tunnel** for teams.
 6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
    Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
+7) Built-in status endpoints (human + JSON):
+   - Human: `/` → `/status`, `/health`
+   - JSON: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
+   - Reports browser: `/reports/`
+
 ## Local vs Tunnel path strategy
 
 - **Local**: run apps at `/` (no basePath) for ergonomics.
@@ -58,10 +63,55 @@ A standalone, reusable **development proxy + ngrok tunnel** for teams.
 - `scripts/reload.sh` — safe Nginx reload.
 - `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs.
 
+## Connectivity tests (localhost and ngrok)
+
+Generic tests verify that configured apps are reachable through the dev proxy on localhost and via ngrok. Tests auto-discover routes from Nginx app configs and perform best-effort auto-fixes for common misconfigurations. Artifacts are written under `.artifacts/reports`.
+
+Run:
+
+```bash
+node ./test/run.js        # deep health for a specific page
+node ./test/scanApps.js   # generic scanner for all configured routes
+```
+
+Outputs:
+
+- JSON reports under `.artifacts/reports/` and visible at `/reports/`
+  - Latest shortcuts: `/status.json` (health-latest), `/routes.json` (scan-apps-latest)
+
+Notes:
+
+- Localhost checks hit `http://localhost:8080`.
+- Ngrok URL is auto-discovered from the `dev-ngrok` container (4040 API or logs). If not found, ngrok checks are marked `no_ngrok_url`.
+- Tests only verify app routes discovered from files in `apps/`.
+- If an app is down, it won’t block checks for other apps.
+
+### What the tests check
+
+- Asset availability (2xx, non-empty, no HTML for JS/CSS)
+- API discovery from HTML/JS and checks for both bare `/api/*` and prefixed `/myapp/api/*`
+- Websocket upgrade for HMR paths
+- Ownership conflicts (e.g., `/api` owned by another app)
+
 ## Examples
 
 - `examples/sample-prefix-app.conf` — App served under `/myapp/` (keeps prefix)
 - `examples/sample-root-api-strip.conf` — API mounted at `/api/` (strips prefix)
+- `examples/next/` — Full example for Next.js basePath pattern (compose overlay + nginx snippet)
+
+## Repo hygiene
+
+- App-specific names have been removed from core code. The included demo service lives under `dashboard/` only for local testing. You can remove it entirely and still use the proxy.
+- Status UI lives under `status/` and serves its own assets.
+- All app snippets are local-only (ignored by git). Use `examples/` as templates.
+
+### Next.js basePath pattern (summary)
+
+Run two dev instances from the same codebase:
+- Local dev at `/` (no basePath)
+- A second instance with `NEXT_PUBLIC_BASE_PATH=/myapp` and `NEXT_DIST_DIR=.next-myapp`, exposed only to the devproxy network
+
+Mount the second instance at `/myapp` in the proxy and do not strip the prefix. See `examples/next/` for the compose overlay and nginx snippet.
 
 ## Project layout
 

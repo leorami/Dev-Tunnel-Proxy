@@ -8,6 +8,8 @@ services:
       - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./apps:/etc/nginx/conf.d/apps:ro
       - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
+      - ./.artifacts:/usr/share/nginx/html/.artifacts:ro
+      - ./status:/usr/share/nginx/html/status:ro
     networks:
       - devproxy
     command: ["sh", "/entrypoint.sh"]
@@ -16,6 +18,20 @@ services:
       interval: 30s
       timeout: 5s
       retries: 5
+
+  dashboard-dev:
+    image: node:18-alpine
+    container_name: dashboard-dev
+    profiles: ["dashboard"]
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app
+    command: ["npm", "run", "dev"]
+    networks:
+      - devproxy
+    environment:
+      - PORT=2000
+      - NODE_ENV=development
 
   ngrok:
     image: ngrok/ngrok:latest

@@ -1,0 +1,11 @@
+{
+  "name": "dev-proxy-tests",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node run.js"
+  },
+  "dependencies": {}
+}
+
+

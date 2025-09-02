@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Dev Proxy Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
+    <link rel="shortcut icon" href="/status/assets/favicon.svg" />
+    <style>
+      :root{
+        --bg:#0b1220;--panel:#111a2b;--muted:#5b6b8a;--text:#d9e2f1;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640
+      }
+      *{box-sizing:border-box}
+      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f2a44;background:rgba(10,16,30,.6);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
+      header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
+      .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+      .card{background:var(--panel);border:1px solid #1f2a44;border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+      .card h2{margin:0 0 10px 0;font-size:14px;color:#cfe0ff;letter-spacing:.2px}
+      .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+      .label{color:var(--muted)}
+      .value{font-weight:600}
+      .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+      .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#132140;border:1px solid #223054;color:#b8c8e6;font-weight:600}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      button, a.btn{appearance:none;border:1px solid #24406e;background:#132a4d;color:#cfe0ff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600}
+      button:hover, a.btn:hover{background:#16345f}
+      .split{display:grid;grid-template-columns: repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+      pre{margin:0;background:#0a1223;border:1px solid #1b2a48;padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      footer{margin:24px 0;color:#7f90b3;text-align:center}
+      @media (max-width:1280px){.split{grid-template-columns:1fr}}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
+        <span>Dev Tunnel Proxy</span>
+        Health Dashboard
+      </h1>
+      <div class="toolbar">
+        <a class="btn" href="/status" title="Open status dashboard">View Status</a>
+        <a class="btn" href="/reports/" title="Browse generated reports">Browse Reports</a>
+        <button id="refresh">Refresh</button>
+      </div>
+    </header>
+    <div class="container">
+      <div class="grid">
+        <div class="card">
+          <h2>Overall</h2>
+          <div class="row"><div class="label">Status</div><div class="value ok" id="overall-status">—</div></div>
+          <div class="row"><div class="label">Ngrok</div><div class="value" id="ngrok-url">—</div></div>
+          <div class="row"><div class="label">API owner</div><div class="value" id="api-owner">—</div></div>
+        </div>
+        <div class="card">
+          <h2>Checks</h2>
+          <div class="row"><div class="label">Last run</div><div class="value" id="last-run">—</div></div>
+          <div class="row"><div class="label">Targets</div><div class="value" id="targets">—</div></div>
+        </div>
+        <div class="card">
+          <h2>Quick Actions</h2>
+          <div class="row"><a class="btn" href="/health.json">Health JSON</a></div>
+          <div class="row"><a class="btn" href="/status.json">Status JSON</a></div>
+          <div class="row"><a class="btn" href="/routes.json">Routes JSON</a></div>
+          <div class="row"><a class="btn" href="/reports/">Open Reports Directory</a></div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="card">
+          <h2>Latest Status JSON</h2>
+          <pre id="status-json">Loading…</pre>
+        </div>
+        <div class="card">
+          <h2>Latest Routes JSON</h2>
+          <pre id="routes-json">Loading…</pre>
+        </div>
+      </div>
+
+      <footer>
+        Built for fast, reliable local development.
+      </footer>
+    </div>
+    <script>
+      async function getJson(url){
+        const res=await fetch(url,{headers:{'ngrok-skip-browser-warning':'true'}});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        return res.json();
+      }
+      async function refresh(){
+        try{
+          const health = await getJson('/health.json');
+          const status = await getJson('/status.json');
+          const routes = await getJson('/routes.json');
+          // overall
+          document.getElementById('overall-status').textContent=health.status||'ok';
+          document.getElementById('overall-status').className='value '+(health.status==='ok'?'ok':health.status==='warn'?'warn':'err');
+          document.getElementById('ngrok-url').textContent=status.ngrok||'not discovered';
+          document.getElementById('api-owner').textContent=status.results?.apiOwner||routes.apiOwner||'unknown';
+          document.getElementById('last-run').textContent=status.generatedAt||new Date().toISOString();
+          const t = status.results? Object.keys(status.results).join(', '): '—';
+          document.getElementById('targets').textContent=t;
+          // panels
+          document.getElementById('status-json').textContent=JSON.stringify(status,null,2);
+          document.getElementById('routes-json').textContent=JSON.stringify(routes,null,2);
+        }catch(e){
+          document.getElementById('status-json').textContent='Error: '+e.message;
+        }
+      }
+      document.getElementById('refresh').addEventListener('click',refresh);
+      refresh();
+    </script>
+  </body>
+  </html>
+
+

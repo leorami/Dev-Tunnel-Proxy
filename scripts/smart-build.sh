@@ -33,6 +33,8 @@ cmd="${1:-}"
 case "$cmd" in
   up)
     ensure_network
+    # Harden upstreams before starting so reloads won't fail if some services are down
+    node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   down)
@@ -41,6 +43,7 @@ case "$cmd" in
   restart)
     (cd "$ROOT_DIR" && $COMPOSE down --remove-orphans)
     ensure_network
+    node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   logs)
@@ -53,6 +56,8 @@ case "$cmd" in
   install-app)
     name="${2:-}"; src="${3:-}"; [ -n "$name" ] && [ -n "$src" ] || { usage; exit 1; }
     "$ROOT_DIR/scripts/install-app.sh" "$name" "$src"
+    # Re-harden after installing new snippet
+    node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     ;;
   uninstall-app)
     name="${2:-}"; [ -n "$name" ] || { usage; exit 1; }

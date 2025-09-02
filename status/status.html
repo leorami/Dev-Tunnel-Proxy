@@ -1,0 +1,430 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dev Proxy Status</title>
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
+    <link rel="shortcut icon" href="/status/assets/favicon.svg" />
+    <style>
+      :root{--bg:#0c111c;--panel:#101827;--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--chip:#1a2440;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff}
+      *{box-sizing:border-box}
+      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(10,16,30,.55);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+      header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
+      header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      .btn{appearance:none;border:1px solid rgba(58,110,174,.55);background:rgba(19,42,77,.45);color:#cfe0ff;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
+      .btn:hover{background:rgba(22,52,95,.6)}
+      .btn:active{transform:translateY(1px)}
+      .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
+      .container{max-width:1100px;margin:24px auto;padding:0 16px}
+      .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+      .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+      .card h2{margin:0 0 10px 0;font-size:14px;color:#cfe0ff;letter-spacing:.2px}
+      .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+      .label{color:var(--muted)}
+      .value{font-weight:600}
+      .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+      .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+      .app{background:#0d1424;border:1px solid var(--border);border-radius:10px;padding:12px}
+      .app .route{font-weight:700}
+      .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+      .groupHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:#132140;border:1px solid #263455;color:#b8c8e6;font-weight:600;position:relative}
+      .chip.ok{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.35);color:#8ef0c3}
+      .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#ffd38a}
+      .chip.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffb1b1}
+      .chip[data-tip]:hover:after{content:attr(data-tip);position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 8px);white-space:pre-wrap;max-width:280px;background:#0a1223;color:#d9e2f1;border:1px solid #1b2a48;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.45);z-index:30}
+      .chip[data-tip]:hover:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:100%;border:6px solid transparent;border-top-color:#1b2a48}
+      .chip a{color:var(--lnk);text-decoration:none}
+      .view{margin-top:12px}
+      pre{margin:0;background:#0a1223;border:1px solid #1b2a48;padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      .switch{display:flex;gap:8px;align-items:center}
+      .hidden{display:none}
+      /* Modal */
+      .backdrop{position:fixed;inset:0;background:rgba(3,8,20,.55);backdrop-filter:saturate(160%) blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:2000;overflow:auto}
+      .modal{max-width:860px;width:min(860px,96vw);background:rgba(16,24,39,.92);backdrop-filter:saturate(160%) blur(6px);border:1px solid #2a3a62;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.04);padding:16px;max-height:calc(100vh - 48px);overflow:auto;z-index:2002}
+      .modal h2{margin:0 0 8px 0;color:#cfe0ff;font-size:16px}
+      .modal .section{margin:10px 0;padding:10px;border:1px dashed #2a3a62;border-radius:8px;background:#0d1424}
+      .modal .section h3{margin:0 0 6px 0;font-size:13px;color:#bcd3ff}
+      .modal pre{max-height:280px}
+      .modal .toolbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;position:sticky;bottom:0;background:linear-gradient(180deg, rgba(16,24,39,0), rgba(16,24,39,.85) 30%, rgba(16,24,39,.95));padding-top:12px;border-top:1px solid #2a3a62;backdrop-filter:saturate(160%) blur(6px);z-index:5}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
+        <span>Dev Tunnel Proxy</span>
+        Status
+      </h1>
+      <div class="toolbar">
+        <a class="btn" href="/health">Health</a>
+        <a class="btn" href="/reports/">Reports</a>
+        <button class="btn" id="recommend">Recommend</button>
+        <div class="switch">
+          <button class="btn" id="toggle">Show JSON</button>
+        </div>
+      </div>
+    </header>
+    <div class="container">
+      <div class="grid">
+        <div class="card">
+          <h2>Overview</h2>
+          <div class="row"><div class="label">Generated</div><div class="value" id="generated">—</div></div>
+          <div class="row"><div class="label">Ngrok</div><div class="value" id="ngrok">—</div></div>
+          <div class="row"><div class="label">API owner</div><div class="value" id="apiOwner">—</div></div>
+        </div>
+        <div class="card">
+          <h2>Targets</h2>
+          <div class="row"><div class="label">Detected</div><div class="value" id="targets">—</div></div>
+        </div>
+      </div>
+
+      <div class="card" id="appsCard">
+        <h2>Configured Apps</h2>
+        <div class="apps" id="apps">Loading…</div>
+      </div>
+
+      <div class="card view hidden" id="jsonView">
+        <h2>Raw JSON</h2>
+        <pre id="routesRaw">Loading…</pre>
+      </div>
+    </div>
+
+    <script>
+      const toggleBtn = document.getElementById('toggle');
+      const appsCard = document.getElementById('appsCard');
+      const jsonView = document.getElementById('jsonView');
+      const recommendBtn = document.getElementById('recommend');
+      let showingJson = false;
+      toggleBtn.addEventListener('click', () => {
+        showingJson = !showingJson;
+        appsCard.classList.toggle('hidden', showingJson);
+        jsonView.classList.toggle('hidden', !showingJson);
+        toggleBtn.textContent = showingJson ? 'Show Apps' : 'Show JSON';
+      });
+      recommendBtn.addEventListener('click', (e)=>{ e.preventDefault(); if (routesData) openRecommendModal(routesData); });
+
+      function chip(label, cls, tip){
+        const s = document.createElement('span');
+        s.className = 'chip '+(cls||'');
+        s.textContent = label;
+        if (tip) s.setAttribute('data-tip', tip);
+        return s;
+      }
+
+      // Choose best URL to open (prefer local-proxy successful, else ngrok successful, else first available)
+      function chooseOpenUrl(routes, targets, routeKey){
+        const pref = ['local-proxy','ngrok'];
+        for (const t of pref){
+          const info = (routes.summary?.[t]||{})[routeKey];
+          if (info && info.url && (info.status>=200 && info.status<400)) return info.url;
+        }
+        for (const t of pref){
+          const info = (routes.summary?.[t]||{})[routeKey];
+          if (info && info.url) return info.url;
+        }
+        // fallback: first any target with url
+        for (const t of Object.keys(routes.summary||{})){
+          const info = (routes.summary?.[t]||{})[routeKey];
+          if (info && info.url) return info.url;
+        }
+        return null;
+      }
+
+      async function loadJSON(url){
+        const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning':'true' } });
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        return res.json();
+      }
+
+      let routesData = null;
+      (async function init(){
+        const routes = await loadJSON('/routes.json');
+        routesData = routes;
+        const ngrokTxt = (routes.ngrok || 'not discovered');
+        document.getElementById('generated').textContent = routes.generatedAt || '—';
+        document.getElementById('ngrok').textContent = ngrokTxt;
+        document.getElementById('apiOwner').textContent = routes.apiOwner || 'unknown';
+        document.getElementById('routesRaw').textContent = JSON.stringify(routes, null, 2);
+
+        const targets = Object.keys(routes.summary||{});
+        document.getElementById('targets').textContent = targets.join(', ') || '—';
+
+        // Group by source file from metadata
+        const bySource = {};
+        const meta = routes.metadata || {};
+        const allRoutes = new Set();
+        for (const t of targets) {
+          Object.keys(routes.summary[t]||{}).forEach(r => allRoutes.add(r));
+        }
+        // Only show top-level routes like /api/ or /myapp/ — hide nested like /api/media/
+        const topLevel = Array.from(allRoutes).filter(r => r === '/api/' || /^\/[A-Za-z0-9_-]+\/$/.test(r));
+        topLevel.forEach(r => {
+          const source = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          bySource[source] = bySource[source] || [];
+          bySource[source].push(r);
+        });
+
+        const appsEl = document.getElementById('apps');
+        appsEl.innerHTML = '';
+        Object.keys(bySource).sort().forEach(source => {
+          const groupCard = document.createElement('div');
+          groupCard.className = 'card';
+          const head = document.createElement('div');
+          head.className = 'groupHead';
+          const h2 = document.createElement('h2');
+          h2.textContent = source;
+          const recBtn = document.createElement('a');
+          recBtn.className = 'btn'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
+          recBtn.addEventListener('click', (e)=>{ e.preventDefault(); openRecommendModal(routesData, bySource[source]); });
+          head.appendChild(h2);
+          head.appendChild(recBtn);
+          groupCard.appendChild(head);
+
+          const list = document.createElement('div');
+          list.className = 'apps';
+          bySource[source].sort().forEach(r => {
+            const app = document.createElement('div');
+            app.className = 'app';
+            const title = document.createElement('div');
+            title.className = 'route';
+            title.textContent = r;
+            app.appendChild(title);
+            const chips = document.createElement('div');
+            chips.className = 'chips';
+            for (const t of targets) {
+              const info = (routes.summary[t]||{})[r];
+              if (!info) continue;
+              const status = info.status || 0;
+              const cls = status>=200 && status<300 ? 'ok' : status===0 ? 'warn' : 'err';
+              let reason = '';
+              if (status===0) reason = 'No response from upstream or timed out';
+              else if (status>=300 && status<400) reason = 'Redirect received via proxy';
+              else if (status>=400 && status<500) reason = 'Client-side error through proxy';
+              else if (status>=500) reason = 'Upstream server error';
+              const label = `${t}: ${status}` + (info.websocket && info.websocket.ok ? ' • ws' : '');
+              chips.appendChild(chip(label, cls, reason));
+              if (info.websocket && !info.websocket.ok) {
+                chips.appendChild(chip('ws fail', 'warn', 'WebSocket upgrade failed. Ensure proxy_http_version 1.1 and Upgrade/Connection headers; verify dev server is running.'));
+              }
+              // Only show API conflict if /api is owned by a DIFFERENT config than this route's config
+              const meta = routes.metadata || {};
+              const apiOwnerSrc = (meta['/api/'] && meta['/api/'].sourceFile) || routes.apiOwner || null;
+              const routeSrc = (meta[r] && meta[r].sourceFile) || source;
+              if (info.apiConflict && apiOwnerSrc && routeSrc && apiOwnerSrc !== routeSrc) {
+                chips.appendChild(chip('api conflict', 'warn', info.apiConflict));
+              }
+            }
+            app.appendChild(chips);
+            const diag = document.createElement('div');
+            diag.className='chips';
+            const openBtn = document.createElement('a');
+            openBtn.className='btn'; openBtn.textContent='Open'; openBtn.href='#';
+            openBtn.addEventListener('click', (e)=>{ e.preventDefault(); const u = chooseOpenUrl(routesData, targets, r); if (u) window.open(u,'_blank','noopener'); });
+            const diagBtn = document.createElement('a');
+            diagBtn.className='btn'; diagBtn.textContent='Diagnose'; diagBtn.href='#';
+            diagBtn.addEventListener('click', (e)=>{ e.preventDefault(); openDiagnoseModal(r, targets, routesData); });
+            diag.appendChild(openBtn);
+            diag.appendChild(diagBtn);
+            app.appendChild(diag);
+            list.appendChild(app);
+          });
+          groupCard.appendChild(list);
+          appsEl.appendChild(groupCard);
+        });
+      })().catch(err => {
+        document.getElementById('apps').textContent = 'Error: '+err.message;
+      });
+
+      // Modal logic
+      function openDiagnoseModal(routeKey, targets, routes){
+        const bd = document.createElement('div');
+        bd.className='backdrop';
+        const modal = document.createElement('div');
+        modal.className='modal';
+        modal.innerHTML = `<h2>Diagnose: <code>${routeKey}</code></h2>
+          <div class="section"><h3>Detected Issues</h3><div id="issues"></div></div>
+          <div class="section"><h3>Suggested Nginx Snippet</h3><pre id="snippet"></pre></div>
+          <div class="section"><h3>Repair Commands</h3><pre id="commands"></pre></div>
+          <div class="toolbar"><button class="btn" id="copySnippet">Copy snippet</button><button class="btn" id="copyCmds">Copy commands</button><button class="btn" id="close">Close</button></div>`;
+        bd.appendChild(modal);
+        document.body.appendChild(bd);
+
+        // Build issues list
+        const issues = [];
+        for (const t of targets){
+          const info = (routes.summary?.[t]||{})[routeKey];
+          if (!info) continue;
+          const status = info.status||0;
+          if (!(status>=200 && status<300)) issues.push(`${t}: HTTP ${status}`);
+          if (info.apiConflict) issues.push(`${t}: ${info.apiConflict}`);
+          if (info.websocket && !info.websocket.ok) issues.push(`${t}: websocket upgrade failed`);
+        }
+        if (!issues.length) issues.push('No obvious issues detected.');
+        modal.querySelector('#issues').innerHTML = `<ul>${issues.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+
+        // Build snippet template
+        const name = routeKey.replace(/^\/(.*?)\/?$/, '$1');
+        let snippet='';
+        if (routeKey === '/api/') {
+          snippet = `# Preserve /api prefix to upstream service\nlocation /api/ {\n  proxy_http_version 1.1;\n  proxy_set_header Host $host;\n  proxy_set_header X-Forwarded-Proto $scheme;\n  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n  proxy_set_header Upgrade $http_upgrade;\n  proxy_set_header Connection "upgrade";\n  proxy_read_timeout 300;\n  proxy_send_timeout 300;\n  proxy_pass http://SERVICE_ALIAS:PORT;\n}`;
+        } else if (/^\/[A-Za-z0-9_-]+\/$/.test(routeKey)) {
+          snippet = `# Keep prefix, enable HMR\nlocation = ${routeKey.slice(0,-1)} { rewrite ^ ${routeKey} last; }\nlocation ^~ ${routeKey}_next/ {\n  proxy_http_version 1.1;\n  proxy_set_header Upgrade $http_upgrade;\n  proxy_set_header Connection "upgrade";\n  proxy_pass http://${name}-app:2000${routeKey}_next/;\n}\nlocation ^~ ${routeKey} {\n  proxy_http_version 1.1;\n  proxy_set_header Host $host;\n  proxy_set_header X-Forwarded-Proto $scheme;\n  proxy_set_header X-Forwarded-Host $host;\n  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n  proxy_set_header X-Forwarded-Prefix ${routeKey.slice(0,-1)};\n  proxy_read_timeout 300;\n  proxy_send_timeout 300;\n  proxy_pass http://${name}-app:2000${routeKey};\n}`;
+        } else {
+          snippet = `# Example mapping\nlocation ^~ ${routeKey} {\n  proxy_pass http://SERVICE_ALIAS:PORT${routeKey};\n}`;
+        }
+        modal.querySelector('#snippet').textContent = snippet;
+
+        // Commands
+        const cmd = `# Copy snippet to apps/${name||'myapp'}.conf and reload\n./scripts/install-app.sh ${name||'myapp'} examples/next/myapp.conf || true\n# Or place the generated snippet into apps/${name||'myapp'}.conf then:\ndocker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
+        modal.querySelector('#commands').textContent = cmd;
+
+        // Copy handlers
+        modal.querySelector('#copySnippet').addEventListener('click',()=>{
+          navigator.clipboard.writeText(snippet);
+        });
+        modal.querySelector('#copyCmds').addEventListener('click',()=>{
+          navigator.clipboard.writeText(cmd);
+        });
+        const close = ()=>{ document.body.removeChild(bd); };
+        modal.querySelector('#close').addEventListener('click', close);
+        bd.addEventListener('click', (e)=>{ if (e.target===bd) close(); });
+        window.addEventListener('keydown', (e)=>{ if (e.key==='Escape') close(); }, { once:true });
+      }
+
+      // Recommend modal – aggregates issues and provides generic fixes/snippets
+      function openRecommendModal(routes, onlyRoutes){
+        const targets = Object.keys(routes.summary||{});
+        const bd = document.createElement('div');
+        bd.className='backdrop';
+        const modal = document.createElement('div');
+        modal.className='modal';
+        modal.innerHTML = `<h2>Recommendations</h2>
+          <div class=\"section\"><h3>Detected Issues</h3><div id=\"issues\"></div></div>
+          <div class="section"><h3>Standard Fixes</h3><ul id="fixes"></ul></div>
+          <div class="section"><h3>Snippets</h3>
+            <p><strong>Keep prefix (Next.js basePath)</strong></p>
+            <pre id="snKeep"></pre>
+            <p><strong>Strip prefix (CRA/Storybook)</strong></p>
+            <pre id="snStrip"></pre>
+            <p><strong>Preserve /api prefix</strong></p>
+            <pre id="snApi"></pre>
+          </div>
+          <div class="section"><h3>Commands</h3><pre id="cmds"></pre></div>
+          <div class="toolbar"><button class="btn" id="copyAll">Copy all</button><button class="btn" id="close">Close</button></div>`;
+        bd.appendChild(modal);
+        document.body.appendChild(bd);
+
+        // Group issues by endpoint for readability
+        const issuesByRoute = {};
+        targets.forEach(t=>{
+          const m = routes.summary[t]||{};
+          const routeKeys = onlyRoutes && onlyRoutes.length ? onlyRoutes : Object.keys(m);
+          routeKeys.forEach(r=>{
+            const info = m[r]||{};
+            const st = info.status||0;
+            const msgs = [];
+            if (!(st>=200 && st<300)) msgs.push(`${t}: HTTP ${st}`);
+            if (info.websocket && !info.websocket.ok) msgs.push(`${t}: websocket upgrade failed`);
+            // Only flag API ownership conflicts if owned by different config
+            const meta = routes.metadata || {};
+            const apiOwnerSrc = (meta['/api/'] && meta['/api/'].sourceFile) || routes.apiOwner || null;
+            const routeSrc = (meta[r] && meta[r].sourceFile) || null;
+            if (info.apiConflict && apiOwnerSrc && routeSrc && apiOwnerSrc !== routeSrc) msgs.push(`${t}: ${info.apiConflict}`);
+            if (msgs.length) {
+              issuesByRoute[r] = issuesByRoute[r] || [];
+              issuesByRoute[r].push(...msgs);
+            }
+          });
+        });
+        const blocks = Object.keys(issuesByRoute).sort().map(r => `<div class=\"section\"><h3>${r}</h3><ul>${issuesByRoute[r].map(i=>`<li>${i}</li>`).join('')}</ul></div>`);
+        modal.querySelector('#issues').innerHTML = blocks.length ? blocks.join('') : '<p>No warnings/errors detected.</p>';
+
+        const fixes = [
+          'Ensure all dev services join the external "devproxy" network and use service aliases as upstream hosts.',
+          'Avoid proxy_pass variables for dev routes; use fixed upstreams. Use trailing slash to strip prefix when needed.',
+          'For HMR: set proxy_http_version 1.1 and Upgrade/Connection headers on prefix routes.',
+          'For Next.js behind a path: run a basePath-aware dev instance and DO NOT strip the prefix in the proxy.',
+          'For CRA/Storybook behind a path: strip the prefix with trailing-slash proxy_pass and configure PUBLIC_URL or builder base/publicPath.',
+          'If multiple projects share /api, keep /api mapped to the API app and ensure other apps call a prefixed API or separate domain.',
+        ];
+        modal.querySelector('#fixes').innerHTML = fixes.map(f=>`<li>${f}</li>`).join('');
+
+        const snKeep = `# Keep prefix (Next.js basePath example)
+location = /myapp { rewrite ^ /myapp/ last; }
+location ^~ /myapp/_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_pass http://myapp-app:2000/myapp/_next/;
+}
+location ^~ /myapp/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /myapp;
+  proxy_read_timeout 300; proxy_send_timeout 300;
+  proxy_pass http://myapp-app:2000/myapp/;
+}`;
+
+        const snStrip = `# Strip prefix (CRA/Storybook example)
+location ^~ /ui/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300; proxy_send_timeout 300;
+  proxy_pass http://ui-app:3000/;  # trailing slash strips /ui/
+}`;
+
+        const snApi = `# Preserve /api prefix to API upstream
+location /api/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300; proxy_send_timeout 300;
+  proxy_pass http://api-app:8000;
+}`;
+
+        modal.querySelector('#snKeep').textContent = snKeep;
+        modal.querySelector('#snStrip').textContent = snStrip;
+        modal.querySelector('#snApi').textContent = snApi;
+
+        const cmds = `# Re-scan and update status JSON
+node ./test/scanApps.js
+
+# Install a snippet into apps/<name>.conf and reload
+./scripts/install-app.sh myapp examples/next/myapp.conf || true
+docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
+        modal.querySelector('#cmds').textContent = cmds;
+
+        const copyAllBtn = modal.querySelector('#copyAll');
+        modal.querySelector('#copyAll').addEventListener('click',()=>{
+          const all = [snKeep, snStrip, snApi, cmds].join('\n\n');
+          navigator.clipboard.writeText(all).then(()=>{
+            copyAllBtn.classList.add('copied');
+            const prev = copyAllBtn.textContent;
+            copyAllBtn.textContent = 'Copied!';
+            setTimeout(()=>{ copyAllBtn.textContent = prev; copyAllBtn.classList.remove('copied'); }, 1500);
+          });
+        });
+        const close = ()=>{ document.body.removeChild(bd); };
+        modal.querySelector('#close').addEventListener('click', close);
+        bd.addEventListener('click', (e)=>{ if (e.target===bd) close(); });
+        window.addEventListener('keydown', (e)=>{ if (e.key==='Escape') close(); }, { once:true });
+      }
+    </script>
+  </body>
+  </html>
+
+

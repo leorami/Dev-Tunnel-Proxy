@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  next_path:
+    image: node:20-alpine
+    working_dir: /app
+    command: ["sh","-lc","corepack enable || true; npm i; npm run dev"]
+    environment:
+      - HOST=0.0.0.0
+      - PORT=2000
+      - NEXT_PUBLIC_BASE_PATH=/myapp         # base path for the proxied instance
+      - NEXT_DIST_DIR=.next-myapp            # separate build dir so local root build isn't clobbered
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next-myapp
+    expose:
+      - "2000"
+    networks:
+      - default
+      devproxy:
+        aliases: [ myapp-app ]               # upstream hostname seen by the dev proxy
+
+networks:
+  devproxy:
+    external: true
+
+
