@@ -9,27 +9,34 @@
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
     <style>
       :root{
-        --bg:#0b1220;--panel:#111a2b;--muted:#5b6b8a;--text:#d9e2f1;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640
+        --bg:#0b1220;--bg2:#0e1627;--panel:#111a2b;--panelGlass:rgba(17,26,43,.92);--muted:#5b6b8a;--text:#d9e2f1;--heading:#cfe0ff;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640;
+        --btnBg:#132a4d;--btnBgHover:#16345f;--btnBorder:#24406e;--btnText:#cfe0ff;--border:#1f2a44;--headerBg:rgba(10,16,30,.55)
+      }
+      :root[data-theme="light"]{
+        --bg:#edf2fb;--bg2:#f8fbff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--accent:#2d6cdf;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--chip:#e8eefc;
+        --btnBg:#eef2ff;--btnBgHover:#e2e8ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--border:#d6e0f5;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5
       }
       *{box-sizing:border-box}
-      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f2a44;background:rgba(10,16,30,.6);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
-      .card{background:var(--panel);border:1px solid #1f2a44;border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
-      .card h2{margin:0 0 10px 0;font-size:14px;color:#cfe0ff;letter-spacing:.2px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:transform .12s ease, box-shadow .12s ease}
+      .card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.30)}
+      .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
       .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
       .label{color:var(--muted)}
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#132140;border:1px solid #223054;color:#b8c8e6;font-weight:600}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-      button, a.btn{appearance:none;border:1px solid #24406e;background:#132a4d;color:#cfe0ff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600}
-      button:hover, a.btn:hover{background:#16345f}
+      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+      button:hover, a.btn:hover{background:var(--btnBgHover)}
       .split{display:grid;grid-template-columns: repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
-      pre{margin:0;background:#0a1223;border:1px solid #1b2a48;padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      pre{margin:0;background:var(--codeBg, #0a1223);border:1px solid var(--codeBorder, #1b2a48);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
       footer{margin:24px 0;color:#7f90b3;text-align:center}
       @media (max-width:1280px){.split{grid-template-columns:1fr}}
     </style>
@@ -45,6 +52,7 @@
         <a class="btn" href="/status" title="Open status dashboard">View Status</a>
         <a class="btn" href="/reports/" title="Browse generated reports">Browse Reports</a>
         <button id="refresh">Refresh</button>
+        <button id="themeToggle" class="btn" title="Toggle theme" aria-label="Toggle theme">🌙</button>
       </div>
     </header>
     <div class="container">
@@ -62,10 +70,12 @@
         </div>
         <div class="card">
           <h2>Quick Actions</h2>
-          <div class="row"><a class="btn" href="/health.json">Health JSON</a></div>
-          <div class="row"><a class="btn" href="/status.json">Status JSON</a></div>
-          <div class="row"><a class="btn" href="/routes.json">Routes JSON</a></div>
-          <div class="row"><a class="btn" href="/reports/">Open Reports Directory</a></div>
+          <div class="actions">
+            <a class="btn" href="/health.json">Health JSON</a>
+            <a class="btn" href="/status.json">Status JSON</a>
+            <a class="btn" href="/routes.json">Routes JSON</a>
+            <a class="btn" href="/reports/">Open Reports Directory</a>
+          </div>
         </div>
       </div>
 
@@ -81,7 +91,7 @@
       </div>
 
       <footer>
-        Built for fast, reliable local development.
+        Built for fast, reliable, <strong>sharable</strong> local development.
       </footer>
     </div>
     <script>
@@ -89,6 +99,21 @@
         const res=await fetch(url,{headers:{'ngrok-skip-browser-warning':'true'}});
         if(!res.ok) throw new Error('HTTP '+res.status);
         return res.json();
+      }
+      function initTheme(){
+        const stored = localStorage.getItem('dtpTheme');
+        const theme = stored || 'dark';
+        document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
+        document.getElementById('themeToggle').textContent = theme==='light' ? '🌙' : '☀️';
+        document.getElementById('themeToggle').setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
+      }
+      function toggleTheme(){
+        const cur = document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+        const next = cur==='light'?'dark':'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('dtpTheme', next);
+        document.getElementById('themeToggle').textContent = next==='light' ? '🌙' : '☀️';
+        document.getElementById('themeToggle').setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
       }
       async function refresh(){
         try{
@@ -111,6 +136,8 @@
         }
       }
       document.getElementById('refresh').addEventListener('click',refresh);
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      initTheme();
       refresh();
     </script>
   </body>

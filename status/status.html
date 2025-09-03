@@ -8,31 +8,37 @@
     <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
     <style>
-      :root{--bg:#0c111c;--panel:#101827;--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--chip:#1a2440;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff}
+      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10}
+      :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14}
       *{box-sizing:border-box}
-      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(10,16,30,.55);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+      body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
-      header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
+      header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-      .btn{appearance:none;border:1px solid rgba(58,110,174,.55);background:rgba(19,42,77,.45);color:#cfe0ff;border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
-      .btn:hover{background:rgba(22,52,95,.6)}
+      .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
+      .btn:hover{background:var(--btnBgHover)}
       .btn:active{transform:translateY(1px)}
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .container{max-width:1100px;margin:24px auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
-      .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.3)}
-      .card h2{margin:0 0 10px 0;font-size:14px;color:#cfe0ff;letter-spacing:.2px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease}
+      .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.30)}
+      .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
       .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
       .label{color:var(--muted)}
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-      .app{background:#0d1424;border:1px solid var(--border);border-radius:10px;padding:12px}
+      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+      .app:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+      .app.ok{border-color:rgba(22,199,132,.7);box-shadow:0 0 0 2px rgba(22,199,132,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
+      .app.warn{border-color:rgba(245,158,11,.7);box-shadow:0 0 0 2px rgba(245,158,11,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
+      .app.err{border-color:rgba(239,68,68,.8);box-shadow:0 0 0 2px rgba(239,68,68,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
       .app .route{font-weight:700}
       .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
       .groupHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-      .chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:#132140;border:1px solid #263455;color:#b8c8e6;font-weight:600;position:relative}
+      .chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:var(--chipBg);border:1px solid var(--chipBorder);color:var(--chipText);font-weight:600;position:relative}
       .chip.ok{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.35);color:#8ef0c3}
       .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#ffd38a}
       .chip.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffb1b1}
@@ -40,7 +46,7 @@
       .chip[data-tip]:hover:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:100%;border:6px solid transparent;border-top-color:#1b2a48}
       .chip a{color:var(--lnk);text-decoration:none}
       .view{margin-top:12px}
-      pre{margin:0;background:#0a1223;border:1px solid #1b2a48;padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      pre{margin:0;background:var(--codeBg, #0a1223);border:1px solid var(--codeBorder, #1b2a48);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
       .switch{display:flex;gap:8px;align-items:center}
       .hidden{display:none}
       /* Modal */
@@ -67,6 +73,7 @@
         <div class="switch">
           <button class="btn" id="toggle">Show JSON</button>
         </div>
+        <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
       </div>
     </header>
     <div class="container">
@@ -75,7 +82,6 @@
           <h2>Overview</h2>
           <div class="row"><div class="label">Generated</div><div class="value" id="generated">—</div></div>
           <div class="row"><div class="label">Ngrok</div><div class="value" id="ngrok">—</div></div>
-          <div class="row"><div class="label">API owner</div><div class="value" id="apiOwner">—</div></div>
         </div>
         <div class="card">
           <h2>Targets</h2>
@@ -95,6 +101,24 @@
     </div>
 
     <script>
+      function initTheme(){
+        const stored = localStorage.getItem('dtpTheme');
+        // Default to dark if nothing stored
+        const theme = stored || 'dark';
+        document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
+        const tbtn = document.getElementById('themeToggle');
+        tbtn.textContent = theme==='light' ? '🌙' : '☀️';
+        tbtn.setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
+      }
+      function toggleTheme(){
+        const cur = document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+        const next = cur==='light'?'dark':'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('dtpTheme', next);
+        const tbtn = document.getElementById('themeToggle');
+        tbtn.textContent = next==='light' ? '🌙' : '☀️';
+        tbtn.setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
+      }
       const toggleBtn = document.getElementById('toggle');
       const appsCard = document.getElementById('appsCard');
       const jsonView = document.getElementById('jsonView');
@@ -148,7 +172,6 @@
         const ngrokTxt = (routes.ngrok || 'not discovered');
         document.getElementById('generated').textContent = routes.generatedAt || '—';
         document.getElementById('ngrok').textContent = ngrokTxt;
-        document.getElementById('apiOwner').textContent = routes.apiOwner || 'unknown';
         document.getElementById('routesRaw').textContent = JSON.stringify(routes, null, 2);
 
         const targets = Object.keys(routes.summary||{});
@@ -162,7 +185,7 @@
           Object.keys(routes.summary[t]||{}).forEach(r => allRoutes.add(r));
         }
         // Only show top-level routes like /api/ or /myapp/ — hide nested like /api/media/
-        const topLevel = Array.from(allRoutes).filter(r => r === '/api/' || /^\/[A-Za-z0-9_-]+\/$/.test(r));
+        const topLevel = Array.from(allRoutes).filter(r => (r === '/api/' || /^\/[A-Za-z0-9_-]+\/$/.test(r)) && !['/health/','/status/','/reports/'].includes(r));
         topLevel.forEach(r => {
           const source = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
           bySource[source] = bySource[source] || [];
@@ -196,19 +219,24 @@
             app.appendChild(title);
             const chips = document.createElement('div');
             chips.className = 'chips';
+            // Compute most severe status for this route across localhost/ngrok and conflicts
+            let severity = 'ok';
+            let hasConflict = false;
             for (const t of targets) {
               const info = (routes.summary[t]||{})[r];
               if (!info) continue;
               const status = info.status || 0;
-              const cls = status>=200 && status<300 ? 'ok' : status===0 ? 'warn' : 'err';
+              const cls = status>=200 && status<400 ? 'ok' : status===0 ? 'warn' : 'err';
               let reason = '';
               if (status===0) reason = 'No response from upstream or timed out';
-              else if (status>=300 && status<400) reason = 'Redirect received via proxy';
+              else if (status>=300 && status<400) reason = 'Redirect received via proxy (considered OK)';
               else if (status>=400 && status<500) reason = 'Client-side error through proxy';
               else if (status>=500) reason = 'Upstream server error';
-              const label = `${t}: ${status}` + (info.websocket && info.websocket.ok ? ' • ws' : '');
+              const labelName = (t==='local-proxy') ? 'localhost' : t;
+              const label = `${labelName}: ${status}` + (info.websocket && info.websocket.ok ? ' • ws' : '');
               chips.appendChild(chip(label, cls, reason));
-              if (info.websocket && !info.websocket.ok) {
+              // Only show websocket failure if base HTTP is 2xx and route is not /api/
+              if (r !== '/api/' && info.websocket && !info.websocket.ok && (status>=200 && status<300)) {
                 chips.appendChild(chip('ws fail', 'warn', 'WebSocket upgrade failed. Ensure proxy_http_version 1.1 and Upgrade/Connection headers; verify dev server is running.'));
               }
               // Only show API conflict if /api is owned by a DIFFERENT config than this route's config
@@ -217,7 +245,10 @@
               const routeSrc = (meta[r] && meta[r].sourceFile) || source;
               if (info.apiConflict && apiOwnerSrc && routeSrc && apiOwnerSrc !== routeSrc) {
                 chips.appendChild(chip('api conflict', 'warn', info.apiConflict));
+                hasConflict = true;
               }
+              // Track overall severity
+              severity = (cls==='err' || hasConflict) ? 'err' : (cls==='warn' && severity==='ok' ? 'warn' : severity);
             }
             app.appendChild(chips);
             const diag = document.createElement('div');
@@ -231,6 +262,8 @@
             diag.appendChild(openBtn);
             diag.appendChild(diagBtn);
             app.appendChild(diag);
+            // Apply severity to card border
+            app.classList.add(severity);
             list.appendChild(app);
           });
           groupCard.appendChild(list);
@@ -423,6 +456,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         bd.addEventListener('click', (e)=>{ if (e.target===bd) close(); });
         window.addEventListener('keydown', (e)=>{ if (e.key==='Escape') close(); }, { once:true });
       }
+      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      initTheme();
     </script>
   </body>
   </html>
