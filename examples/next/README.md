@@ -41,9 +41,13 @@ location ^~ /myapp/_next/ {
   proxy_http_version 1.1;
   proxy_set_header Upgrade $http_upgrade;
   proxy_set_header Connection "upgrade";
-  proxy_pass http://myapp-app:2000/myapp/_next/;
+  set $myapp_upstream myapp-app:2000;
+  proxy_pass http://$myapp_upstream/myapp/_next/;
 }
-location ^~ /myapp/ { proxy_pass http://myapp-app:2000/myapp/; }
+location ^~ /myapp/ { 
+  set $myapp_upstream myapp-app:2000;
+  proxy_pass http://$myapp_upstream/myapp/; 
+}
 ```
 
 ## App adjustments

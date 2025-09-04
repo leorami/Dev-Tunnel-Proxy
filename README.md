@@ -99,6 +99,41 @@ Notes:
 - `examples/sample-root-api-strip.conf` — API mounted at `/api/` (strips prefix)
 - `examples/next/` — Full example for Next.js basePath pattern (compose overlay + nginx snippet)
 
+## Nginx Configuration Patterns
+
+### Dynamic Upstream Resolution
+
+All example configurations use nginx variables for upstream resolution to ensure reliable startup:
+
+```nginx
+location /myapp/ {
+  # Use variable for dynamic upstream resolution
+  set $upstream_app "myapp:3000";
+  proxy_pass http://$upstream_app;
+  # ... other directives
+}
+```
+
+**Why variables?** Nginx performs DNS resolution at startup when using hardcoded upstreams like `proxy_pass http://myapp:3000`. If the service isn't running, nginx fails to start. Using variables defers DNS lookups until runtime, allowing the proxy to start successfully and gracefully handle unavailable upstreams.
+
+### Common Headers
+
+All configurations include essential proxy headers:
+- **WebSocket support**: `Upgrade` and `Connection` headers for HMR and real-time features
+- **Forwarding context**: `X-Forwarded-Proto`, `X-Forwarded-Host` for proper URL generation
+- **Development helpers**: `ngrok-skip-browser-warning` to bypass ngrok's browser warning
+
+### Resolver Configuration
+
+When using variables, include the Docker DNS resolver:
+
+```nginx
+resolver 127.0.0.11 ipv6=off;
+resolver_timeout 5s;
+```
+
+This enables nginx to resolve Docker service names dynamically within the `devproxy` network.
+
 ## Repo hygiene
 
 - App-specific names have been removed from core code. The included demo service lives under `dashboard/` only for local testing. You can remove it entirely and still use the proxy.
@@ -150,6 +185,6 @@ dev-tunnel-proxy/
 3. **Test**: Ensure your app joins the `devproxy` network and works through the tunnel
 4. **Share**: Submit a PR with your example snippet for others to use
 
-Keep examples generic and focused on common patterns (prefix-kept vs prefix-stripped).
+Keep examples generic and focused on common patterns (prefix-kept vs prefix-stripped). **Always use variable resolution** for upstream services to ensure reliable proxy startup.
 
 **Note**: App configs in `apps/` are git-ignored to keep the project generic. Each team manages their own configurations locally.
