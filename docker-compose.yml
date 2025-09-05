@@ -8,7 +8,7 @@ services:
       - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./apps:/etc/nginx/conf.d/apps:ro
       - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
-      - ./.artifacts:/usr/share/nginx/html/.artifacts:ro
+      - ./.artifacts:/usr/share/nginx/html/.artifacts
       - ./status:/usr/share/nginx/html/status:ro
     networks:
       - devproxy

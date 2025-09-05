@@ -45,7 +45,7 @@ function saveResolutions(resolutions) {
  * 
  * Strategy:
  * 1. Check for existing resolution in persistent storage
- * 2. If no resolution exists, use alphabetical order (first file wins)
+ * 2. If no resolution exists, use "first config wins" (order of file discovery)
  * 3. Save the resolution for future proxy restarts
  * 
  * @param {Map} conflicts - Map of route -> array of conflicting declarations
@@ -70,15 +70,16 @@ function resolveConflicts(conflicts) {
       winner = storedResolution.winner;
       warnings.push(`Route ${route}: Using persisted resolution - ${winner} wins (conflicts with ${currentFiles.filter(f => f !== winner).join(', ')})`);
     } else {
-      // Create new resolution: alphabetical order (deterministic)
-      winner = currentFiles[0];
+      // Create new resolution: first config file wins (order of discovery)
+      // Since declarations array preserves the order files were processed
+      winner = declarations[0].sourceFile;
       newResolutions[conflictKey] = {
         winner,
         conflictingFiles: currentFiles,
         resolvedAt: new Date().toISOString(),
-        strategy: 'alphabetical-first'
+        strategy: 'first-config-wins'
       };
-      warnings.push(`Route ${route}: NEW CONFLICT - ${winner} wins alphabetically (conflicts with ${currentFiles.filter(f => f !== winner).join(', ')})`);
+      warnings.push(`Route ${route}: NEW CONFLICT - ${winner} wins (first config) over ${currentFiles.filter(f => f !== winner).join(', ')}`);
     }
     
     // Find the winning declaration

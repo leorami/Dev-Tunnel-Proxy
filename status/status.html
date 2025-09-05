@@ -240,13 +240,7 @@
                 chips.appendChild(chip('ws fail', 'warn', 'WebSocket upgrade failed. Ensure proxy_http_version 1.1 and Upgrade/Connection headers; verify dev server is running.'));
               }
               // Only show API conflict if /api is owned by a DIFFERENT config than this route's config
-              const meta = routes.metadata || {};
-              const apiOwnerSrc = (meta['/api/'] && meta['/api/'].sourceFile) || routes.apiOwner || null;
-              const routeSrc = (meta[r] && meta[r].sourceFile) || source;
-              if (info.apiConflict && apiOwnerSrc && routeSrc && apiOwnerSrc !== routeSrc) {
-                chips.appendChild(chip('api conflict', 'warn', info.apiConflict));
-                hasConflict = true;
-              }
+              // Note: API conflict detection was removed - apps using /api is normal behavior
               // Track overall severity
               severity = (cls==='err' || hasConflict) ? 'err' : (cls==='warn' && severity==='ok' ? 'warn' : severity);
             }
@@ -294,7 +288,7 @@
           if (!info) continue;
           const status = info.status||0;
           if (!(status>=200 && status<300)) issues.push(`${t}: HTTP ${status}`);
-          if (info.apiConflict) issues.push(`${t}: ${info.apiConflict}`);
+          // Note: API conflict detection removed
           if (info.websocket && !info.websocket.ok) issues.push(`${t}: websocket upgrade failed`);
         }
         if (!issues.length) issues.push('No obvious issues detected.');
@@ -364,10 +358,7 @@
             if (!(st>=200 && st<300)) msgs.push(`${t}: HTTP ${st}`);
             if (info.websocket && !info.websocket.ok) msgs.push(`${t}: websocket upgrade failed`);
             // Only flag API ownership conflicts if owned by different config
-            const meta = routes.metadata || {};
-            const apiOwnerSrc = (meta['/api/'] && meta['/api/'].sourceFile) || routes.apiOwner || null;
-            const routeSrc = (meta[r] && meta[r].sourceFile) || null;
-            if (info.apiConflict && apiOwnerSrc && routeSrc && apiOwnerSrc !== routeSrc) msgs.push(`${t}: ${info.apiConflict}`);
+            // Note: API conflict detection removed
             if (msgs.length) {
               issuesByRoute[r] = issuesByRoute[r] || [];
               issuesByRoute[r].push(...msgs);
