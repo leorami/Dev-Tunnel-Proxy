@@ -63,7 +63,7 @@ function extractApiCandidatesFromHtml(html) {
     let m;
     while ((m = re.exec(html)) !== null) {
       const p = (m[1] || '').trim();
-      if (p.startsWith('/api') || p.startsWith('/mxtk/api')) set.add(p);
+      if (p.startsWith('/api') || p.includes('/api')) set.add(p);
     }
   }
   // Fallback plain '/api/...'

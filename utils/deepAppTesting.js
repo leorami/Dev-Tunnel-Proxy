@@ -7,7 +7,7 @@
 const https = require('https');
 const http = require('http');
 
-// Test all critical endpoints and assets for Encast apps
+// Test all critical endpoints and assets for configured apps
 const testMatrix = {
   impact: {
     name: 'Impact App',

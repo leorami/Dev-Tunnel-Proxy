@@ -71,7 +71,95 @@ location /myapp/ {
 ./scripts/install-app.sh myapp path/to/your-app.conf
 ```
 
-### 4. Framework-Specific Considerations
+### 4. Configure Your App for Proxy Usage
+
+Your app needs configuration to work correctly behind a proxy. Here are common patterns:
+
+#### React/Create React App Configuration
+
+**Environment Variables:**
+```bash
+# ❌ Wrong - Hardcoded localhost won't work through proxy
+REACT_APP_API_URL=http://localhost:8000
+
+# ✅ Correct - Use relative paths that work through proxy
+REACT_APP_API_URL=/api
+PUBLIC_URL=/myapp
+```
+
+**Code Changes:**
+```javascript
+// ❌ Wrong: Hardcoded absolute URLs
+const API_BASE = 'http://localhost:8000';
+
+// ✅ Correct: Environment-aware configuration
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
+
+// ✅ Alternative: Always use relative paths
+const API_BASE = '/api';
+```
+
+#### Storybook Configuration
+
+**For subpath deployment (e.g., `/storybook`):**
+```javascript
+// .storybook/main.js
+module.exports = {
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)'],
+  
+  viteFinal: async (config) => {
+    // Configure for subpath deployment
+    if (process.env.STORYBOOK_BASE_PATH) {
+      config.base = process.env.STORYBOOK_BASE_PATH;
+    }
+    
+    // Handle WebSocket connections through proxy
+    if (process.env.PROXY_MODE) {
+      config.server = config.server || {};
+      config.server.hmr = {
+        port: 443,
+        clientPort: 443
+      };
+    }
+    
+    return config;
+  },
+};
+```
+
+**Environment Variables:**
+```bash
+STORYBOOK_BASE_PATH=/storybook
+PROXY_MODE=true
+```
+
+#### Generic Web App Best Practices
+
+**API Calls:**
+```javascript
+// Use relative paths for API calls
+const response = await fetch('/api/data'); // ✅ Works through proxy
+const badResponse = await fetch('http://localhost:3000/api/data'); // ❌ Fails
+```
+
+**Asset References:**
+```html
+<!-- ❌ Wrong: Absolute paths from root -->
+<img src="/images/logo.png">
+
+<!-- ✅ Correct: Relative paths -->
+<img src="./images/logo.png">
+```
+
+**Hash Routing:**
+```javascript
+// Ensure hash routing works correctly behind proxy
+const router = new HashRouter({
+  basename: process.env.PUBLIC_URL || '/'
+});
+```
+
+### 5. Framework-Specific Proxy Configuration
 
 #### Next.js with basePath
 

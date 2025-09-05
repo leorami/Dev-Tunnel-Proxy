@@ -98,7 +98,7 @@ function normalizeLocationPath(pathSpec) {
   // pathSpec examples:
   // - /impact/
   // - = / (exact)
-  // - ~* ^/mxtk(?<rest>/.*)?$
+  // - ~* ^/myapp(?<rest>/.*)?$
   // - ^~ /_next/
   // We want a testable public route prefix.
 
@@ -108,7 +108,7 @@ function normalizeLocationPath(pathSpec) {
 
   // If regex-style beginning with ^/, try to extract the first literal segment
   if (noMod.startsWith('^/')) {
-    // Common pattern: ^/mxtk(?<rest>/.*)?$
+    // Common pattern: ^/myapp(?<rest>/.*)?$
     const m = noMod.match(/^\^\/(\w+)/);
     if (m) return `/${m[1]}/`;
     return null;

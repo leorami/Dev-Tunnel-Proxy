@@ -4,6 +4,49 @@
 
 This guide documents common problems and their solutions when integrating apps with the dev tunnel proxy.
 
+### 0. Critical: proxy_pass Trailing Slash Behavior
+
+**Problem**: Adding a trailing slash to `proxy_pass` directives can break apps that expect their URL prefix preserved.
+
+**Wrong Configuration:**
+```nginx
+location /myapp/ {
+    proxy_pass http://upstream:3000/;  # ❌ Strips /myapp/ prefix
+}
+```
+
+**Correct Configuration:**
+```nginx
+location /myapp/ {
+    proxy_pass http://upstream:3000;   # ✅ Preserves /myapp/ prefix
+}
+```
+
+**Why This Matters:**
+- With trailing slash: Request to `/myapp/api/data` becomes `/api/data` to upstream
+- Without trailing slash: Request to `/myapp/api/data` stays `/myapp/api/data` to upstream
+- Apps expecting their prefix (like React apps with `PUBLIC_URL` or Next.js with `basePath`) break when prefix is stripped
+- JavaScript bundles return HTML fallback instead of JS, causing `Uncaught SyntaxError: Unexpected token '<'`
+
+**Common Symptoms:**
+- App loads but JavaScript fails with syntax errors
+- Assets return HTML instead of expected content (JS/CSS)
+- API calls fail with 404 because paths don't match
+- Bundle size unexpectedly small (~2KB instead of ~MB)
+
+**Prevention:**
+- Always comment why trailing slash is/isn't used
+- Test immediately after changing proxy_pass directives
+- Check that bundles return correct Content-Type
+
+```nginx
+# Example with clear intent
+location /myapp/ {
+    set $myapp_upstream myapp-service:3000;
+    proxy_pass http://$myapp_upstream;  # no trailing slash preserves /myapp/
+}
+```
+
 ### 1. Container Name Mismatches
 
 **Problem**: Nginx config references wrong container names, causing connection failures.

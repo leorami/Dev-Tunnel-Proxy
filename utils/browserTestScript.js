@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Browser-equivalent testing for Encast apps
+ * Browser-equivalent testing for configured apps
  * Tests the actual browser behavior that curl tests miss
  */
 
@@ -9,7 +9,7 @@ const https = require('https');
 const http = require('http');
 
 async function testBrowserLikeRequests() {
-  console.log('🌐 Testing Browser-like Behavior for Encast Apps\n');
+  console.log('🌐 Testing Browser-like Behavior for Configured Apps\n');
   
   const tests = [
     {
