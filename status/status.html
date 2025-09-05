@@ -97,6 +97,19 @@
       .conflict-badge button:hover{opacity:0.9;transform:translateY(-1px)}
       @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
 
+      /* Hierarchical Route Styles */
+      .expandable-route{position:relative}
+      .route-header{cursor:pointer;padding:8px;border-radius:6px;transition:background-color 0.2s;display:flex;align-items:center;justify-content:space-between}
+      .route-header:hover{background:rgba(255,255,255,.05)}
+      .route-title{display:flex;align-items:center;gap:8px;font-weight:600}
+      .expand-icon{transition:transform 0.2s;font-size:12px;width:12px}
+      .route-name{font-size:16px}
+      .child-count{font-size:12px;color:var(--muted);font-weight:400}
+      .route-children{margin-top:8px;margin-left:20px;border-left:2px solid var(--border);padding-left:16px}
+      .route-children.hidden{display:none}
+      .child-route{margin-bottom:8px;padding:8px;background:var(--appBgGlass);border-radius:6px;border-left:3px solid var(--border)}
+      .child-route-name{font-size:14px;color:var(--muted);margin-bottom:4px}
+
       @media (max-width:768px){
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
@@ -237,8 +250,8 @@
         for (const t of targets) {
           Object.keys(routes.summary[t]||{}).forEach(r => allRoutes.add(r));
         }
-        // Only show top-level routes like /api/ or /myapp/ — hide nested like /api/media/
-        const topLevel = Array.from(allRoutes).filter(r => (r === '/api/' || /^\/[A-Za-z0-9_-]+\/$/.test(r)) && !['/health/','/status/','/reports/'].includes(r));
+        // Build hierarchical route structure
+        const { topLevel, hierarchical } = buildRouteHierarchy(Array.from(allRoutes));
         topLevel.forEach(r => {
           const source = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
           bySource[source] = bySource[source] || [];
@@ -269,13 +282,63 @@
 
           const list = document.createElement('div');
           list.className = 'apps';
-          bySource[source].sort().forEach(r => {
+          
+          // Group routes by parent-child relationships
+          const routeGroups = groupRoutesByHierarchy(bySource[source], hierarchical);
+          
+          routeGroups.forEach(group => {
             const app = document.createElement('div');
             app.className = 'app';
-            const title = document.createElement('div');
-            title.className = 'route';
-            title.textContent = r;
-            app.appendChild(title);
+            
+            if (group.children && group.children.length > 0) {
+              // Parent route with children - make it expandable
+              app.classList.add('expandable-route');
+              
+              const header = document.createElement('div');
+              header.className = 'route-header';
+              header.innerHTML = `
+                <div class="route-title">
+                  <span class="expand-icon">▶</span>
+                  <span class="route-name">${group.route}</span>
+                  <span class="child-count">(${group.children.length} sub-routes)</span>
+                </div>
+              `;
+              
+              const childrenContainer = document.createElement('div');
+              childrenContainer.className = 'route-children hidden';
+              
+              // Add parent route info
+              addRouteInfo(app, group.route, targets, routes);
+              
+              // Add children
+              group.children.forEach(child => {
+                const childApp = document.createElement('div');
+                childApp.className = 'child-route';
+                const childTitle = document.createElement('div');
+                childTitle.className = 'route child-route-name';
+                childTitle.textContent = child;
+                childApp.appendChild(childTitle);
+                addRouteInfo(childApp, child, targets, routes);
+                childrenContainer.appendChild(childApp);
+              });
+              
+              // Toggle functionality
+              header.addEventListener('click', () => {
+                const isExpanded = !childrenContainer.classList.contains('hidden');
+                childrenContainer.classList.toggle('hidden', isExpanded);
+                header.querySelector('.expand-icon').textContent = isExpanded ? '▶' : '▼';
+              });
+              
+              app.appendChild(header);
+              app.appendChild(childrenContainer);
+            } else {
+              // Regular standalone route
+              const title = document.createElement('div');
+              title.className = 'route';
+              title.textContent = group.route;
+              app.appendChild(title);
+              addRouteInfo(app, group.route, targets, routes);
+            }
             const chips = document.createElement('div');
             chips.className = 'chips';
             // Compute most severe status for this route across localhost/ngrok and conflicts
@@ -662,6 +725,180 @@
           `;
           document.body.appendChild(indicator);
         }
+      }
+
+      // Hierarchical route structure helpers
+      function buildRouteHierarchy(allRoutes) {
+        const hierarchical = new Map();
+        
+        // Filter to meaningful routes (exclude system routes)
+        const meaningfulRoutes = allRoutes.filter(r => 
+          !['/health/', '/status/', '/reports/', '/api/config/', '/api/resolve-conflict', '/api/rename-route'].includes(r)
+        );
+        
+        // Build parent-child relationships
+        meaningfulRoutes.forEach(route => {
+          const parent = findParentRoute(route, meaningfulRoutes);
+          if (parent && parent !== route) {
+            if (!hierarchical.has(parent)) {
+              hierarchical.set(parent, []);
+            }
+            hierarchical.get(parent).push(route);
+          }
+        });
+        
+        // Top level routes are those without parents or are parents themselves
+        const topLevel = meaningfulRoutes.filter(r => {
+          const parent = findParentRoute(r, meaningfulRoutes);
+          return !parent || parent === r || hierarchical.has(r);
+        });
+        
+        return { topLevel: [...new Set(topLevel)], hierarchical };
+      }
+      
+      function findParentRoute(route, allRoutes) {
+        // Common parent route patterns
+        if (route.includes('/node_modules/') || route.includes('/sockjs-node/') || 
+            route.includes('/storybook-server-channel/')) {
+          // These are typically sub-routes of /static/ or app-specific paths
+          for (const candidate of allRoutes) {
+            if (candidate !== route && route.startsWith(candidate) && candidate.length > 1) {
+              return candidate;
+            }
+          }
+        }
+        
+        // For API sub-routes like /api/static/, parent is /api/
+        if (route.startsWith('/api/') && route !== '/api/') {
+          return '/api/';
+        }
+        
+        return null;
+      }
+      
+      function groupRoutesByHierarchy(routes, hierarchical) {
+        const groups = [];
+        const processed = new Set();
+        
+        routes.forEach(route => {
+          if (processed.has(route)) return;
+          
+          const children = hierarchical.get(route) || [];
+          const validChildren = children.filter(child => routes.includes(child));
+          
+          groups.push({
+            route: route,
+            children: validChildren
+          });
+          
+          processed.add(route);
+          validChildren.forEach(child => processed.add(child));
+        });
+        
+        return groups;
+      }
+      
+      function addRouteInfo(appElement, route, targets, routes) {
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        
+        let severity = 'ok';
+        let hasValidResponse = false;
+        
+        for (const t of targets) {
+          const info = (routes.summary[t] || {})[route];
+          if (!info) continue;
+          
+          const status = info.status || 0;
+          
+          // More intelligent status interpretation
+          const isApiRoute = route.includes('/api');
+          const isStaticRoute = route.includes('/static') || route.includes('/node_modules') || route.includes('/sockjs-node');
+          const isPaymentRoute = route.includes('/payment');
+          
+          let cls, reason;
+          
+          if (status >= 200 && status < 300) {
+            cls = 'ok';
+            hasValidResponse = true;
+            reason = 'Working correctly';
+          } else if (status >= 300 && status < 400) {
+            cls = 'ok'; // Redirects are often expected
+            hasValidResponse = true;
+            reason = 'Redirect (often expected behavior)';
+          } else if (status === 404) {
+            // 404 is not always an error - depends on route type
+            if (isStaticRoute) {
+              cls = 'warn';
+              reason = 'Static resource not found (may be dynamically loaded)';
+            } else if (isApiRoute || isPaymentRoute) {
+              // For API/payment routes, check if the service is actually up
+              cls = 'warn';
+              reason = 'Endpoint returned 404 - check if service expects different path or method';
+            } else {
+              cls = 'err';
+              reason = 'Route not found';
+            }
+          } else if (status === 0) {
+            cls = 'err';
+            reason = 'No response - service may be down';
+          } else if (status >= 400 && status < 500) {
+            cls = 'warn';
+            reason = 'Client error - check route configuration';
+          } else if (status >= 500) {
+            cls = 'err';
+            reason = 'Server error - upstream service issue';
+          }
+          
+          const labelName = (t === 'local-proxy') ? 'localhost' : t;
+          const label = `${labelName}: ${status}`;
+          chips.appendChild(chip(label, cls, reason));
+          
+          // WebSocket status for development routes
+          if (info.websocket && route !== '/api/' && !isStaticRoute) {
+            if (!info.websocket.ok && status >= 200 && status < 300) {
+              chips.appendChild(chip('ws fail', 'warn', 'WebSocket upgrade failed - may affect hot reload'));
+            } else if (info.websocket.ok) {
+              chips.appendChild(chip('ws ok', 'ok', 'WebSocket connection successful'));
+            }
+          }
+          
+          // Update overall severity
+          if (cls === 'err') severity = 'err';
+          else if (cls === 'warn' && severity === 'ok') severity = 'warn';
+        }
+        
+        appElement.appendChild(chips);
+        
+        // Add action buttons
+        const diag = document.createElement('div');
+        diag.className = 'chips';
+        
+        const openBtn = document.createElement('a');
+        openBtn.className = 'btn';
+        openBtn.textContent = 'Open';
+        openBtn.href = '#';
+        openBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = chooseOpenUrl(routes, targets, route);
+          if (url) window.open(url, '_blank', 'noopener');
+        });
+        
+        const diagBtn = document.createElement('a');
+        diagBtn.className = 'btn';
+        diagBtn.textContent = 'Diagnose';
+        diagBtn.href = '#';
+        diagBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          openDiagnoseModal(route, targets, routes);
+        });
+        
+        diag.appendChild(openBtn);
+        diag.appendChild(diagBtn);
+        appElement.appendChild(diag);
+        
+        // Apply severity styling
+        appElement.classList.add(severity);
       }
 
       // Modal logic
