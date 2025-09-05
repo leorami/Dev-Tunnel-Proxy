@@ -57,6 +57,38 @@
       .modal .section h3{margin:0 0 6px 0;font-size:13px;color:#bcd3ff}
       .modal pre{max-height:280px}
       .modal .toolbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px;position:sticky;bottom:0;background:linear-gradient(180deg, rgba(16,24,39,0), rgba(16,24,39,.85) 30%, rgba(16,24,39,.95));padding-top:12px;border-top:1px solid #2a3a62;backdrop-filter:saturate(160%) blur(6px);z-index:5}
+
+      /* Conflict Management Styles */
+      .conflict-item{border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;background:var(--panelGlass);backdrop-filter:saturate(160%) blur(6px)}
+      .conflict-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+      .conflict-header h3{margin:0;color:var(--heading);font-size:16px}
+      .conflict-status{color:var(--muted);font-size:14px}
+      .conflict-options{display:flex;flex-direction:column;gap:15px}
+      .conflict-configs{display:flex;flex-direction:column;gap:10px}
+      .config-option{display:flex;align-items:center;padding:12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;background:var(--appBgGlass);transition:all 0.2s;backdrop-filter:saturate(160%) blur(4px)}
+      .config-option:hover{border-color:var(--lnk);transform:translateY(-1px)}
+      .config-option.active{border-color:var(--ok);background:rgba(22,199,132,.08)}
+      .config-option input[type="radio"]{margin-right:10px}
+      .config-name{font-weight:500;flex:1;color:var(--heading)}
+      .config-actions{display:flex;gap:8px;margin-left:auto}
+      .conflict-actions{display:flex;gap:10px;justify-content:flex-end}
+      .btn-small{padding:6px 12px;font-size:12px;border:1px solid var(--border);background:var(--btnBg);color:var(--btnText);border-radius:6px;cursor:pointer;transition:all 0.2s}
+      .btn-small:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+
+      /* Config Modal Styles */
+      .modal.large{max-width:1200px;width:min(1200px,96vw)}
+      .config-modal{color:var(--text)}
+      .config-actions{margin-bottom:15px;display:flex;gap:10px}
+      .config-display{width:100%;font-family:var(--mono, 'SF Mono', Consolas, monospace);font-size:13px;line-height:1.5;border:1px solid var(--codeBorder);border-radius:8px;padding:12px;background:var(--codeBg);color:var(--codeText);max-height:500px;overflow:auto}
+      .config-editor{width:100%;font-family:var(--mono, 'SF Mono', Consolas, monospace);font-size:13px;line-height:1.5;border:1px solid var(--codeBorder);border-radius:8px;padding:12px;background:#0d1424;color:#d9e2f1;resize:vertical;min-height:400px}
+      .edit-actions{margin-top:15px;display:flex;gap:10px;justify-content:flex-end}
+
+      @media (max-width:768px){
+        .conflict-options{gap:10px}
+        .config-option{flex-direction:column;align-items:flex-start;gap:10px}
+        .config-actions{margin-left:0}
+        .conflict-actions{flex-direction:column}
+      }
     </style>
   </head>
   <body>
@@ -87,6 +119,12 @@
           <h2>Targets</h2>
           <div class="row"><div class="label">Detected</div><div class="value" id="targets">—</div></div>
         </div>
+      </div>
+
+      <div class="card hidden" id="conflictCard">
+        <h2>⚠️ Route Conflicts</h2>
+        <p>Multiple configuration files are declaring the same routes. Choose which config should win:</p>
+        <div id="conflicts">Loading conflicts...</div>
       </div>
 
       <div class="card" id="appsCard">
@@ -192,6 +230,9 @@
           bySource[source].push(r);
         });
 
+        // Show conflict management section if there are conflicts
+        showConflictManagement(routes);
+
         const appsEl = document.getElementById('apps');
         appsEl.innerHTML = '';
         Object.keys(bySource).sort().forEach(source => {
@@ -266,6 +307,232 @@
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
+
+      // Conflict Management Functions
+      function showConflictManagement(routes) {
+        const conflictCard = document.getElementById('conflictCard');
+        const conflictsDiv = document.getElementById('conflicts');
+        
+        const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
+                            (routes.conflictSummary && routes.conflictSummary.totalConflicts > 0);
+        
+        if (!hasConflicts) {
+          conflictCard.classList.add('hidden');
+          return;
+        }
+        
+        conflictCard.classList.remove('hidden');
+        conflictsDiv.innerHTML = '';
+        
+        // Parse nginx warnings to extract conflict information
+        const conflicts = parseConflictWarnings(routes.nginxWarnings || []);
+        
+        conflicts.forEach(conflict => {
+          const conflictDiv = document.createElement('div');
+          conflictDiv.className = 'conflict-item';
+          conflictDiv.innerHTML = `
+            <div class="conflict-header">
+              <h3>Route: ${conflict.route}</h3>
+              <div class="conflict-status">
+                Current winner: <strong>${conflict.winner}</strong>
+              </div>
+            </div>
+            <div class="conflict-options">
+              <div class="conflict-configs">
+                ${conflict.configs.map(config => `
+                  <label class="config-option ${config === conflict.winner ? 'active' : ''}">
+                    <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''}>
+                    <span class="config-name">${config}</span>
+                    <div class="config-actions">
+                      <button class="btn-small" onclick="viewConfig('${config}')">View</button>
+                      <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')">Rename Route</button>
+                    </div>
+                  </label>
+                `).join('')}
+              </div>
+              <div class="conflict-actions">
+                <button class="btn" onclick="resolveConflict('${conflict.route}')">Apply Selection</button>
+                <button class="btn" onclick="autoFixConflict('${conflict.route}')">Auto-Fix</button>
+              </div>
+            </div>
+          `;
+          conflictsDiv.appendChild(conflictDiv);
+        });
+      }
+
+      function parseConflictWarnings(warnings) {
+        const conflicts = [];
+        warnings.forEach(warning => {
+          // Parse warning like: "Route /api/: NEW CONFLICT - encast.conf wins (first config) over test-conflict.conf"
+          const routeMatch = warning.match(/Route ([^:]+):/);
+          const winnerMatch = warning.match(/- ([^\\s]+)\\.conf wins.*over ([^\\s,]+(?:\\.conf)?)/);
+          
+          if (routeMatch && winnerMatch) {
+            const route = routeMatch[1];
+            const winner = winnerMatch[1] + '.conf';
+            const loser = winnerMatch[2].endsWith('.conf') ? winnerMatch[2] : winnerMatch[2] + '.conf';
+            
+            conflicts.push({
+              route,
+              winner,
+              configs: [winner, loser]
+            });
+          }
+        });
+        return conflicts;
+      }
+
+      async function resolveConflict(route) {
+        const selectedRadio = document.querySelector(`input[name="conflict-${route}"]:checked`);
+        if (!selectedRadio) return;
+        
+        const newWinner = selectedRadio.value;
+        
+        try {
+          const response = await fetch('/api/resolve-conflict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ route, winner: newWinner })
+          });
+          
+          if (response.ok) {
+            // Refresh the page to show updated conflicts
+            location.reload();
+          } else {
+            alert('Failed to resolve conflict. Check console for details.');
+          }
+        } catch (error) {
+          alert('Error resolving conflict: ' + error.message);
+        }
+      }
+
+      function viewConfig(configFile) {
+        openConfigModal(configFile);
+      }
+
+      function renameRoute(route, configFile) {
+        const newRoute = prompt(`Rename route ${route} in ${configFile} to:`, route);
+        if (newRoute && newRoute !== route) {
+          renameRouteInConfig(route, newRoute, configFile);
+        }
+      }
+
+      function autoFixConflict(route) {
+        // Implement auto-fix logic - could suggest prefix changes, route renames, etc.
+        alert(`Auto-fix for ${route} - This would suggest specific fixes like adding prefixes or renaming routes.`);
+      }
+
+      async function renameRouteInConfig(oldRoute, newRoute, configFile) {
+        try {
+          const response = await fetch('/api/rename-route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldRoute, newRoute, configFile })
+          });
+          
+          if (response.ok) {
+            alert(`Route renamed successfully. Please restart the proxy for changes to take effect.`);
+            location.reload();
+          } else {
+            const error = await response.text();
+            alert('Failed to rename route: ' + error);
+          }
+        } catch (error) {
+          alert('Error renaming route: ' + error.message);
+        }
+      }
+
+      function openConfigModal(configFile) {
+        // Create and show config viewing modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-content large">
+            <div class="modal-header">
+              <h2>Config File: ${configFile}</h2>
+              <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            </div>
+            <div class="modal-body">
+              <div class="config-actions">
+                <button class="btn" onclick="downloadConfig('${configFile}')">Download</button>
+                <button class="btn" onclick="enableConfigEdit(this)">Edit</button>
+              </div>
+              <pre id="config-content" class="config-display">Loading...</pre>
+              <textarea id="config-editor" class="config-editor hidden" rows="30"></textarea>
+              <div class="edit-actions hidden">
+                <button class="btn" onclick="saveConfig('${configFile}')">Save Changes</button>
+                <button class="btn" onclick="cancelConfigEdit()">Cancel</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        loadConfigContent(configFile);
+      }
+
+      async function loadConfigContent(configFile) {
+        try {
+          const response = await fetch(`/api/config/${configFile}`);
+          const content = await response.text();
+          
+          if (response.ok) {
+            document.getElementById('config-content').textContent = content;
+            document.getElementById('config-editor').value = content;
+          } else {
+            document.getElementById('config-content').textContent = `Error loading config: ${content}`;
+          }
+        } catch (error) {
+          document.getElementById('config-content').textContent = `Error: ${error.message}`;
+        }
+      }
+
+      function enableConfigEdit(button) {
+        document.getElementById('config-content').classList.add('hidden');
+        document.getElementById('config-editor').classList.remove('hidden');
+        document.querySelector('.edit-actions').classList.remove('hidden');
+        button.style.display = 'none';
+      }
+
+      function cancelConfigEdit() {
+        document.getElementById('config-content').classList.remove('hidden');
+        document.getElementById('config-editor').classList.add('hidden');
+        document.querySelector('.edit-actions').classList.add('hidden');
+        document.querySelector('.config-actions button:nth-child(2)').style.display = '';
+      }
+
+      async function saveConfig(configFile) {
+        const content = document.getElementById('config-editor').value;
+        
+        try {
+          const response = await fetch(`/api/config/${configFile}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: content
+          });
+          
+          if (response.ok) {
+            alert('Config saved successfully. Restart the proxy for changes to take effect.');
+            document.querySelector('.modal').remove();
+            location.reload();
+          } else {
+            const error = await response.text();
+            alert('Failed to save config: ' + error);
+          }
+        } catch (error) {
+          alert('Error saving config: ' + error.message);
+        }
+      }
+
+      function downloadConfig(configFile) {
+        const content = document.getElementById('config-content').textContent;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = configFile;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
 
       // Modal logic
       function openDiagnoseModal(routeKey, targets, routes){
