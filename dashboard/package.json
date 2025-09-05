@@ -1,7 +1,7 @@
 {
   "name": "dashboard",
   "version": "1.0.0",
-  "description": "Placeholder for MXTK site",
+  "description": "Development dashboard for testing proxy routes",
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",

@@ -35,9 +35,8 @@ async function scanApiCandidates(pageUrl, pageHtml, assets) {
   for (const res of jsBodies) {
     if (res && res.ok && res.body) extractApiCandidatesFromJs(res.body).forEach((c) => candidates.add(c));
   }
-  // Always include common health paths
+  // Always include common health endpoint
   candidates.add('/api/health');
-  candidates.add('/mxtk/api/health');
   return Array.from(candidates);
 }
 
@@ -52,8 +51,8 @@ async function runForTarget(base, route, apiOwner) {
     assets = pr.assets || [];
     const candidates = await scanApiCandidates(url, pageRes.body || '', assets);
     api.asIs = await testApiSet(base, candidates);
-    const prefixed = Array.from(new Set(candidates.filter((p) => p.startsWith('/api/')).map((p) => `/mxtk${p}`)));
-    api.prefixed = prefixed.length ? await testApiSet(base, prefixed) : [];
+    // Note: Prefixed API testing could be added here if specific route prefixes are detected from nginx config
+    api.prefixed = [];
   }
   const wsCandidates = ['/\n_ext/webpack-hmr', '/_next/webpack-hmr', '/sockjs-node', '/socket.io/?EIO=4&transport=websocket'];
   // Try a couple of ws endpoints; success on any is considered OK

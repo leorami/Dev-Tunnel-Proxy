@@ -16,23 +16,19 @@ app.get('/', (req, res) => {
   });
 });
 
-// Route that matches the /mxtk/ path
-app.get('/mxtk/', (req, res) => {
+// Generic dynamic route handler for testing any proxy path
+app.get('*', (req, res) => {
+  // Skip favicon requests and static assets
+  if (req.path === '/favicon.ico' || req.path.startsWith('/static/')) {
+    return res.status(404).send('Not Found');
+  }
+  
   res.json({
-    message: 'Dashboard - /mxtk/ endpoint',
+    message: 'Dashboard - dynamic route handler',
     timestamp: new Date().toISOString(),
     path: req.path,
+    originalUrl: req.originalUrl,
     baseUrl: req.baseUrl
-  });
-});
-
-// Catch-all route for /mxtk/* paths
-app.get('/mxtk/*', (req, res) => {
-  res.json({
-    message: 'Dashboard - dynamic route',
-    timestamp: new Date().toISOString(),
-    path: req.path,
-    originalUrl: req.originalUrl
   });
 });
 

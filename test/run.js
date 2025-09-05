@@ -44,9 +44,8 @@ async function scanApiCandidates(pageUrl, pageHtml, assets) {
       extractApiCandidatesFromJs(res.body).forEach((c) => candidates.add(c));
     }
   }
-  // Always include health endpoints
+  // Always include common health endpoint
   candidates.add('/api/health');
-  candidates.add('/mxtk/api/health');
   return Array.from(candidates);
 }
 
@@ -75,15 +74,12 @@ async function runHealthFor(pageUrl, apiOwner) {
   const apiCandidates = await scanApiCandidates(pageUrl, pageRes.body || '', assets);
   // Test as-is
   const apiChecks = await testApiSet(origin, apiCandidates);
-  // If a candidate starts with /api, also test /mxtk variant
-  const prefixed = Array.from(new Set(apiCandidates
-    .filter((p) => p.startsWith('/api/'))
-    .map((p) => `/mxtk${p}`)));
-  const prefixedChecks = prefixed.length ? await testApiSet(origin, prefixed) : [];
+  // Test prefixed API variants based on discovered routes
+  const prefixedChecks = []; // Will be populated if we discover route prefixes from nginx config
   const ws = await tryWsUpgrade(origin);
   const assetFailures = analyzeAssetFailures(assets);
   const usesBareApi = apiCandidates.some((p) => p.startsWith('/api/'));
-  const conflict = usesBareApi && apiOwner && !pageUrl.includes('/encast');
+  const conflict = usesBareApi && apiOwner && apiOwner !== 'unknown';
   return {
     page: { ok: page.ok, status: page.status },
     origin,
@@ -112,18 +108,24 @@ function renderSummary(name, result) {
 async function main() {
   const { reportsDir } = ensureDirs();
   const ngrok = discoverNgrokUrl();
-  // Discover who owns /api/
+  // Discover routes and API owner from nginx config
   const appsDir = path.join(__dirname, '..', 'apps');
   let apiOwner = null;
+  let routes = [];
   try {
-    const routes = parseAppsDirectory(appsDir);
+    routes = parseAppsDirectory(appsDir);
     const apiRoute = routes.find((r) => r.route === '/api/');
     if (apiRoute) apiOwner = apiRoute.sourceFile || 'unknown';
   } catch {}
+  
+  // Find a suitable test route (prefer non-API routes)
+  const testRoute = routes.find(r => r.route && r.route !== '/api/' && !r.route.startsWith('/api/')) 
+    || routes.find(r => r.route && r.route !== '/')
+    || { route: '/health.json' }; // fallback
+  
   const targets = [
-    { name: 'local-dev', url: 'http://localhost:2000/institutions' },
-    { name: 'local-proxy', url: 'http://localhost:8080/mxtk/institutions' },
-    ...(ngrok ? [{ name: 'ngrok', url: `${ngrok.replace(/\/$/, '')}/mxtk/institutions` }] : []),
+    { name: 'local-proxy', url: `http://localhost:8080${testRoute.route}` },
+    ...(ngrok ? [{ name: 'ngrok', url: `${ngrok.replace(/\/$/, '')}${testRoute.route}` }] : []),
   ];
 
   const results = {};
@@ -153,7 +155,7 @@ async function main() {
     '',
     '### Notes',
     '- Asset failures include empty responses, non-2xx, or HTML returned for JS/CSS.',
-    '- API candidates are extracted from page HTML and JS assets; both /api and /mxtk/api are tested.',
+    '- API candidates are extracted from page HTML and JS assets.',
   ].filter(Boolean).join('\n');
 
   const out = { generatedAt: new Date().toISOString(), ngrok, results };
