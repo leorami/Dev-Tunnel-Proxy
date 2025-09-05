@@ -178,6 +178,11 @@ dev-tunnel-proxy/
 - WebSockets/HMR: all example snippets include the required headers.
 - **App configs are git-ignored** - Each project manages its own `apps/*.conf` files locally.
 
+## Documentation
+
+- **[Project Integration Guide](PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
+- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+
 ## How to contribute
 
 1. **Add your app**: Create a snippet in `examples/` following the patterns shown
