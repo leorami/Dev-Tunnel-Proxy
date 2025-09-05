@@ -2,7 +2,7 @@ version: "2"
 tunnels:
   proxy:
     proto: http
-    addr: proxy:80
+    addr: dev-proxy:80
     # If you have a reserved domain, uncomment and set:
     # hostname: ${NGROK_DOMAIN}
     bind_tls: true
