@@ -19,3 +19,11 @@ logs/
 # Editors
 .idea/
 .vscode/
+
+# Private app-specific analyses and debugging files
+# Engineers can create their own without committing to the shared repo
+.private/
+*-ISSUE.md
+*-DEBUG.md
+*-ANALYSIS.md
+*-NOTES.md
