@@ -93,39 +93,67 @@ location /myapp/ {
 }
 ```
 
-### 3. Next.js basePath Trailing Slash Issues
+### 3. Next.js Redirect Loop Issues (Critical)
 
-**Problem**: Next.js apps with `basePath` have specific URL canonicalization behavior.
+**Problem**: Next.js apps with `basePath` can cause redirect loops, especially with `/_next/` assets.
 
-**Symptoms**:
-- Infinite redirect loops
-- 308 Permanent Redirect responses
-- App works in direct access but not through proxy
+**Common Symptoms**:
+- **308 Permanent Redirects** on `/_next/` directory requests
+- Infinite redirect loops between `/myapp` and `/myapp/`  
+- Assets fail to load with redirect errors
+- HMR connections fail
 
-**Understanding Next.js Behavior**:
-- Next.js prefers canonical URLs (usually without trailing slash for routes)
-- `/myapp/` often redirects to `/myapp` 
-- HMR and assets expect exact path matching
+**Root Cause**: Competing nginx rules and improper trailing slash handling.
 
-**Solution**: Handle both slash variants in nginx.
-
+**❌ Problematic Patterns**:
 ```nginx
-# Handle both /myapp and /myapp/ 
+# This causes 308 redirects
+location /myapp/_next/ {
+  proxy_pass http://upstream/myapp/_next/;  # trailing slash problematic
+}
+
+# This can cause redirect loops
+location = /myapp { rewrite ^ /myapp/ last; }
+```
+
+**✅ Proven Solutions (from MXTK success)**:
+
+**1. Use Regex for Route Variants**
+```nginx
+# Handles both /myapp and /myapp/ without redirects
 location ~ ^/myapp/?$ {
   resolver 127.0.0.11 ipv6=off;
   resolver_timeout 5s;
   set $myapp_upstream myapp-service:2000;
-  proxy_pass http://$myapp_upstream/myapp;
-}
-
-# Handle sub-routes /myapp/anything
-location ~ ^/myapp/.+ {
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $myapp_upstream myapp-service:2000;
-  proxy_pass http://$myapp_upstream;
+  proxy_pass http://$myapp_upstream/myapp;  # no trailing slash
 }
 ```
+
+**2. Split _next/ Handling**
+```nginx
+# Handle bare directory (prevents 308)
+location = /myapp/_next/ {
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/myapp/_next;  # no trailing slash!
+}
+
+# Handle specific files
+location ~ ^/myapp/_next/(.+)$ {
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/myapp/_next/$1;
+}
+```
+
+**3. Handle Root Assets**  
+```nginx
+# Many Next.js apps reference /icons/ without basePath
+location /icons/ {
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/icons/;
+}
+```
+
+**Prevention**: Always test both `/myapp` and `/myapp/_next/` for redirects after configuration changes.
 
 ### 4. Essential Proxy Headers
 
