@@ -7,6 +7,7 @@ Quick guide for integrating your app with the dev tunnel proxy.
 1. **Docker Compose setup**: Your app should run in containers
 2. **Shared network**: Join the `devproxy` Docker network
 3. **Stable container names**: Use consistent naming across environments
+4. **🆕 Route Planning**: Avoid conflicts by using unique route prefixes
 
 ## Integration Steps
 
@@ -27,7 +28,30 @@ networks:
     name: devproxy
 ```
 
-### 2. Create Nginx Configuration
+### 2. Plan Your Routes (🆕 Important)
+
+**Before creating your nginx config**, check existing routes to avoid conflicts:
+
+1. Visit `/status` on the running proxy to see current routes
+2. Choose unique route prefixes (e.g., `/myapp/api/` instead of `/api/`)
+3. Follow team naming conventions
+
+Common conflict patterns to avoid:
+```nginx
+# ❌ Likely to conflict with other apps
+location /api/ { ... }
+location /admin/ { ... }  
+location /health/ { ... }
+
+# ✅ App-specific routes (recommended)
+location /myapp/api/ { ... }
+location /myapp/admin/ { ... }
+location /myapp/ { ... }
+```
+
+If conflicts occur, the proxy will detect them automatically and you can resolve them via the `/status` interface.
+
+### 3. Create Nginx Configuration
 
 Create a configuration file following this template:
 

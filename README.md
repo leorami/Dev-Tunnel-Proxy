@@ -51,6 +51,13 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    - JSON: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
    - Reports browser: `/reports/`
 
+8) **🆕 Interactive Conflict Management**:
+   - Detects when multiple apps declare the same nginx route
+   - Visual conflict resolution UI at `/status`
+   - Route renaming and config editing capabilities
+   - Persistent conflict decisions across proxy restarts
+   - API endpoints for programmatic conflict management
+
 ## Local vs Tunnel path strategy
 
 - **Local**: run apps at `/` (no basePath) for ergonomics.
@@ -62,6 +69,43 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 - `scripts/install-app.sh` — copies a snippet into `apps/<name>.conf` and hot-reloads Nginx.
 - `scripts/reload.sh` — safe Nginx reload.
 - `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs.
+
+## Conflict Management
+
+When multiple app configs declare the same nginx route (e.g., both `app1.conf` and `app2.conf` define `location /api/`), the proxy automatically detects and resolves conflicts using a **"first config wins"** strategy.
+
+### Visual Conflict Resolution
+
+Visit `/status` to see detected conflicts and resolve them interactively:
+
+- **Choose Winner**: Select which config should own the conflicted route
+- **Rename Routes**: Rename routes in config files (e.g., `/api/` → `/app2-api/`)
+- **Edit Configs**: View and edit nginx config files directly
+- **Auto-Fix**: Get intelligent suggestions for resolving conflicts
+
+### Persistence
+
+All conflict resolution decisions are saved to `.artifacts/route-resolutions.json` and persist across proxy restarts. This ensures consistent behavior in team environments.
+
+### API Endpoints
+
+Programmatic access for advanced workflows:
+
+```bash
+# View config file
+GET /api/config/myapp.conf
+
+# Save config file  
+POST /api/config/myapp.conf
+
+# Resolve conflict (choose winner)
+POST /api/resolve-conflict
+{"route": "/api/", "winner": "myapp.conf"}
+
+# Rename route in config
+POST /api/rename-route  
+{"oldRoute": "/api/", "newRoute": "/myapp-api/", "configFile": "myapp.conf"}
+```
 
 ## Connectivity tests (localhost and ngrok)
 
