@@ -83,11 +83,26 @@
       .config-editor{width:100%;font-family:var(--mono, 'SF Mono', Consolas, monospace);font-size:13px;line-height:1.5;border:1px solid var(--codeBorder);border-radius:8px;padding:12px;background:#0d1424;color:#d9e2f1;resize:vertical;min-height:400px}
       .edit-actions{margin-top:15px;display:flex;gap:10px;justify-content:flex-end}
 
+      /* Auto-Fix Suggestions Styles */
+      .suggestion-item{border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:12px;background:var(--appBgGlass);backdrop-filter:saturate(160%) blur(4px)}
+      .suggestion-item h3{margin:0 0 8px 0;color:var(--ok);font-size:14px}
+      .suggestion-item p{margin:0 0 8px 0;color:var(--text);font-size:13px}
+      .suggestion-item code{display:block;background:var(--codeBg);color:var(--codeText);padding:8px;border-radius:4px;margin:8px 0;font-family:var(--mono, monospace);font-size:12px}
+      .suggestion-item .btn{margin-top:8px;font-size:12px}
+
+      /* Global Conflict Indicator */
+      .global-conflict-indicator{position:fixed;top:20px;right:20px;z-index:1000;animation:slideIn 0.3s ease-out}
+      .conflict-badge{background:rgba(245,158,11,.15);border:2px solid var(--warn);border-radius:8px;padding:12px 16px;color:var(--warn);font-weight:600;display:flex;align-items:center;gap:12px;backdrop-filter:saturate(160%) blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+      .conflict-badge button{background:var(--warn);color:#000;border:none;padding:6px 12px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px}
+      .conflict-badge button:hover{opacity:0.9;transform:translateY(-1px)}
+      @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
       @media (max-width:768px){
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
         .config-actions{margin-left:0}
         .conflict-actions{flex-direction:column}
+        .suggestion-item{padding:12px}
       }
     </style>
   </head>
@@ -232,6 +247,9 @@
 
         // Show conflict management section if there are conflicts
         showConflictManagement(routes);
+        
+        // Add global conflict status indicator
+        updateGlobalConflictIndicator(routes);
 
         const appsEl = document.getElementById('apps');
         appsEl.innerHTML = '';
@@ -418,8 +436,97 @@
       }
 
       function autoFixConflict(route) {
-        // Implement auto-fix logic - could suggest prefix changes, route renames, etc.
-        alert(`Auto-fix for ${route} - This would suggest specific fixes like adding prefixes or renaming routes.`);
+        // Smart auto-fix suggestions based on route type
+        const suggestions = getAutoFixSuggestions(route);
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Auto-Fix Suggestions for ${route}</h2>
+              <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            </div>
+            <div class="modal-body">
+              <p>Here are intelligent suggestions to resolve this conflict:</p>
+              ${suggestions.map(s => `
+                <div class="suggestion-item">
+                  <h3>${s.title}</h3>
+                  <p>${s.description}</p>
+                  <code>${s.example}</code>
+                  <button class="btn" onclick="applySuggestion('${route}', '${s.action}', '${s.params}')">Apply This Fix</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+
+      function getAutoFixSuggestions(route) {
+        const suggestions = [];
+        
+        if (route === '/api/') {
+          suggestions.push({
+            title: 'Add App Prefix',
+            description: 'Rename one route to be app-specific',
+            example: 'location /myapp/api/ { ... }',
+            action: 'rename',
+            params: '/myapp/api/'
+          });
+          suggestions.push({
+            title: 'Use Versioned API',
+            description: 'Add version to make routes unique',
+            example: 'location /api/v1/ { ... }',
+            action: 'rename', 
+            params: '/api/v1/'
+          });
+        } else if (route === '/admin/') {
+          suggestions.push({
+            title: 'App-Specific Admin',
+            description: 'Make admin path unique to your app',
+            example: 'location /myapp/admin/ { ... }',
+            action: 'rename',
+            params: route.replace('/admin/', '/myapp/admin/')
+          });
+        } else {
+          suggestions.push({
+            title: 'Add App Prefix',
+            description: 'Prepend your app name to make the route unique',
+            example: `location /myapp${route} { ... }`,
+            action: 'rename',
+            params: `/myapp${route}`
+          });
+        }
+        
+        suggestions.push({
+          title: 'Let First Config Win', 
+          description: 'Keep the current winner, no changes needed',
+          example: 'No configuration changes required',
+          action: 'accept',
+          params: ''
+        });
+        
+        return suggestions;
+      }
+
+      async function applySuggestion(route, action, params) {
+        if (action === 'accept') {
+          document.querySelector('.modal').remove();
+          return;
+        }
+        
+        if (action === 'rename') {
+          const selectedRadio = document.querySelector(`input[name="conflict-${route}"]:checked`);
+          if (!selectedRadio) {
+            alert('Please select a config file first');
+            return;
+          }
+          
+          const configFile = selectedRadio.value;
+          await renameRouteInConfig(route, params, configFile);
+          document.querySelector('.modal').remove();
+        }
       }
 
       async function renameRouteInConfig(oldRoute, newRoute, configFile) {
@@ -532,6 +639,29 @@
         a.download = configFile;
         a.click();
         URL.revokeObjectURL(url);
+      }
+
+      function updateGlobalConflictIndicator(routes) {
+        const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
+                            (routes.conflictSummary && routes.conflictSummary.totalConflicts > 0);
+        
+        const existingIndicator = document.querySelector('.global-conflict-indicator');
+        if (existingIndicator) existingIndicator.remove();
+        
+        if (hasConflicts) {
+          const conflictCount = routes.nginxWarnings ? routes.nginxWarnings.length : 1;
+          const indicator = document.createElement('div');
+          indicator.className = 'global-conflict-indicator';
+          indicator.innerHTML = `
+            <div class="conflict-badge">
+              ⚠️ ${conflictCount} Route Conflict${conflictCount > 1 ? 's' : ''}
+              <button onclick="document.getElementById('conflictCard').scrollIntoView({behavior: 'smooth'})">
+                Resolve
+              </button>
+            </div>
+          `;
+          document.body.appendChild(indicator);
+        }
       }
 
       // Modal logic

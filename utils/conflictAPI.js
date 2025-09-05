@@ -42,9 +42,67 @@ function sendText(res, text, status = 200) {
 function getConfigPath(configFile) {
   // Validate filename to prevent directory traversal
   if (!configFile || !/^[a-zA-Z0-9_-]+\.conf$/.test(configFile)) {
-    throw new Error('Invalid config filename');
+    throw new Error('Invalid config filename. Must be alphanumeric with underscores/hyphens and .conf extension');
   }
   return path.join(APPS_DIR, configFile);
+}
+
+function validateNginxConfig(configContent) {
+  const lines = configContent.split('\n');
+  let braceCount = 0;
+  let hasLocation = false;
+  let inLocationBlock = false;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const lineNum = i + 1;
+    
+    // Skip comments and empty lines
+    if (!line || line.startsWith('#')) continue;
+    
+    // Count braces for balance check
+    braceCount += (line.match(/{/g) || []).length;
+    braceCount -= (line.match(/}/g) || []).length;
+    
+    // Check for location blocks
+    if (line.startsWith('location ')) {
+      hasLocation = true;
+      inLocationBlock = true;
+      
+      // Basic location syntax check
+      if (!line.includes('{') && !lines[i + 1]?.trim().startsWith('{')) {
+        return { valid: false, error: `Line ${lineNum}: location block missing opening brace` };
+      }
+    }
+    
+    // Check for proxy_pass in location blocks
+    if (inLocationBlock && line.startsWith('proxy_pass ')) {
+      if (!line.endsWith(';')) {
+        return { valid: false, error: `Line ${lineNum}: proxy_pass directive missing semicolon` };
+      }
+    }
+    
+    if (line === '}') {
+      inLocationBlock = false;
+    }
+  }
+  
+  // Check brace balance
+  if (braceCount !== 0) {
+    return { valid: false, error: `Unbalanced braces (${braceCount > 0 ? 'missing' : 'extra'} closing braces)` };
+  }
+  
+  // Require at least one location or be a comment-only file
+  const hasContent = configContent.split('\n').some(line => {
+    const trimmed = line.trim();
+    return trimmed && !trimmed.startsWith('#');
+  });
+  
+  if (hasContent && !hasLocation) {
+    return { valid: false, error: 'Configuration must contain at least one location block' };
+  }
+  
+  return { valid: true };
 }
 
 async function handleGetConfig(res, configFile) {
@@ -77,9 +135,10 @@ async function handleSaveConfig(req, res, configFile) {
           return sendText(res, 'Config content cannot be empty', 400);
         }
         
-        // Check for basic nginx syntax
-        if (!body.includes('location') && !body.includes('#')) {
-          return sendText(res, 'Config appears to be invalid (no location blocks found)', 400);
+        // Enhanced nginx syntax validation
+        const validationResult = validateNginxConfig(body);
+        if (!validationResult.valid) {
+          return sendText(res, `Invalid nginx configuration: ${validationResult.error}`, 400);
         }
         
         // Create backup before saving

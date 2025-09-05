@@ -10,7 +10,7 @@ const { applyResolutions } = require('./conflictResolver');
  * - Ignores internal dev-only paths like Next.js internals.
  */
 function parseAppsDirectory(appsDir) {
-  const files = fs.readdirSync(appsDir).filter(f => f.endsWith('.conf'));
+  const files = fs.readdirSync(appsDir).filter(f => f.endsWith('.conf') && !f.startsWith('.'));
   const results = [];
 
   for (const file of files) {
