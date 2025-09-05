@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { applyResolutions } = require('./conflictResolver');
 
 /**
  * Parse Nginx app config files under apps/ and extract testable route prefixes
@@ -14,18 +15,44 @@ function parseAppsDirectory(appsDir) {
 
   for (const file of files) {
     const fullPath = path.join(appsDir, file);
-    const text = fs.readFileSync(fullPath, 'utf8');
+    const text = fs.readFileSync(fullPath, 'utf8').trim();
+    
+    // Skip empty files (like .gitkeep)
+    if (!text) continue;
+    
     const parsed = parseSingleFile(text, { file });
     results.push(...parsed);
   }
 
-  // De-duplicate by route path
-  const deduped = new Map();
+  // Detect route conflicts (multiple files declaring same route)
+  const routeMap = new Map();
+  const conflicts = new Map();
+  
   for (const r of results) {
     const key = `${r.route}`;
-    if (!deduped.has(key)) deduped.set(key, r);
+    if (!routeMap.has(key)) {
+      routeMap.set(key, r);
+    } else {
+      // Conflict detected!
+      if (!conflicts.has(key)) {
+        conflicts.set(key, [routeMap.get(key)]);
+      }
+      conflicts.get(key).push(r);
+    }
   }
-  return Array.from(deduped.values());
+  
+  const initialRoutes = Array.from(routeMap.values());
+  
+  // Apply conflict resolution
+  const resolution = applyResolutions(initialRoutes, conflicts);
+  
+  // Attach conflict information and warnings to results
+  const finalRoutes = resolution.routes;
+  finalRoutes.conflicts = conflicts;
+  finalRoutes.conflictWarnings = resolution.warnings;
+  finalRoutes.conflictSummary = resolution.conflictSummary;
+  
+  return finalRoutes;
 }
 
 function parseSingleFile(text, meta = {}) {
@@ -98,19 +125,36 @@ function normalizeLocationPath(pathSpec) {
   // pathSpec examples:
   // - /impact/
   // - = / (exact)
-  // - ~* ^/myapp(?<rest>/.*)?$
+  // - ~* ^/myapp(?<rest>/.*)?$  
   // - ^~ /_next/
+  // - ~ ^/mxtk/?$
   // We want a testable public route prefix.
 
   const trimmed = pathSpec.trim();
   // Strip modifiers like =, ~, ~*, ^~ at start
-  const noMod = trimmed.replace(/^([=~\^~]+)\s+/, '');
+  const noMod = trimmed.replace(/^([=~\^~*]+)\s+/, '');
 
   // If regex-style beginning with ^/, try to extract the first literal segment
   if (noMod.startsWith('^/')) {
-    // Common pattern: ^/myapp(?<rest>/.*)?$
-    const m = noMod.match(/^\^\/(\w+)/);
-    if (m) return `/${m[1]}/`;
+    // Common patterns: 
+    // ^/myapp(?<rest>/.*)?$ -> /myapp/
+    // ^/mxtk/?$ -> /mxtk/
+    // ^/mxtk/_next/(.+)$ -> /mxtk/_next/
+    // ^/mxtk/.+ -> ignore (too broad)
+    
+    // First, handle patterns that should be ignored
+    if (noMod.match(/\^\/.+\.\+/)) {
+      // Patterns like ^/mxtk/.+ are too broad - ignore them
+      return null;
+    }
+    
+    // Extract the literal path portion
+    const pathMatch = noMod.match(/^\^\/([^\/\(\?\$\*\+\.]+(?:\/[^\/\(\?\$\*\+\.]+)*)/);
+    if (pathMatch) {
+      const path = pathMatch[1];
+      // Ensure trailing slash for directory-like routes
+      return path.endsWith('/') ? `/${path}` : `/${path}/`;
+    }
     return null;
   }
 

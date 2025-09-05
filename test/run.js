@@ -67,7 +67,7 @@ function analyzeAssetFailures(assets) {
   return failures;
 }
 
-async function runHealthFor(pageUrl, apiOwner) {
+async function runHealthFor(pageUrl, _unused_apiOwner) {
   const { base, page, assets } = await probe(pageUrl);
   const origin = originOf(pageUrl);
   const pageRes = await fetchRaw(pageUrl);
@@ -78,8 +78,9 @@ async function runHealthFor(pageUrl, apiOwner) {
   const prefixedChecks = []; // Will be populated if we discover route prefixes from nginx config
   const ws = await tryWsUpgrade(origin);
   const assetFailures = analyzeAssetFailures(assets);
-  const usesBareApi = apiCandidates.some((p) => p.startsWith('/api/'));
-  const conflict = usesBareApi && apiOwner && apiOwner !== 'unknown';
+  // Note: Apps referencing /api in their code is NORMAL, not a conflict
+  // Real conflicts are nginx config route declarations, handled by nginxParser
+  const conflict = null; // Removed flawed API usage conflict detection
   return {
     page: { ok: page.ok, status: page.status },
     origin,
@@ -87,7 +88,7 @@ async function runHealthFor(pageUrl, apiOwner) {
     assetFailures,
     api: { asIs: apiChecks, prefixed: prefixedChecks },
     websocket: ws,
-    apiConflict: conflict ? `Page references /api while owned by ${apiOwner}` : null,
+    apiConflict: null, // Removed flawed conflict detection
   };
 }
 
@@ -108,14 +109,17 @@ function renderSummary(name, result) {
 async function main() {
   const { reportsDir } = ensureDirs();
   const ngrok = discoverNgrokUrl();
-  // Discover routes and API owner from nginx config
+  // Discover routes from nginx config and check for conflicts
   const appsDir = path.join(__dirname, '..', 'apps');
-  let apiOwner = null;
   let routes = [];
   try {
     routes = parseAppsDirectory(appsDir);
-    const apiRoute = routes.find((r) => r.route === '/api/');
-    if (apiRoute) apiOwner = apiRoute.sourceFile || 'unknown';
+    
+    // Display nginx config conflicts (route declaration conflicts)
+    if (routes.conflictWarnings && routes.conflictWarnings.length > 0) {
+      console.log('\n⚠️  Nginx Configuration Conflicts:');
+      routes.conflictWarnings.forEach(warning => console.log(`   ${warning}`));
+    }
   } catch {}
   
   // Find a suitable test route (prefer non-API routes)
@@ -131,7 +135,7 @@ async function main() {
   const results = {};
   for (const t of targets) {
     try {
-      results[t.name] = await runHealthFor(t.url, apiOwner);
+      results[t.name] = await runHealthFor(t.url, null); // No longer need apiOwner
     } catch (e) {
       results[t.name] = { error: e.message };
     }
@@ -145,7 +149,6 @@ async function main() {
     `# Dev Proxy Health Report`,
     `Generated: ${new Date().toISOString()}`,
     `Ngrok: ${ngrok || 'not discovered'}`,
-    `API owner: ${apiOwner || 'unknown'}`,
     '',
     renderSummary('local-dev', results['local-dev']),
     '',

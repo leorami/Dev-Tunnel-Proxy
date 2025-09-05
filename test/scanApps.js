@@ -40,7 +40,7 @@ async function scanApiCandidates(pageUrl, pageHtml, assets) {
   return Array.from(candidates);
 }
 
-async function runForTarget(base, route, apiOwner) {
+async function runForTarget(base, route, _unused_apiOwner) {
   const url = `${base.replace(/\/$/, '')}${route}`;
   const pageRes = await fetchRaw(url);
   const htmlLike = pageRes.ok && /text\/html/i.test(pageRes.headers && pageRes.headers['content-type'] || '');
@@ -63,8 +63,9 @@ async function runForTarget(base, route, apiOwner) {
     if (o.ok) break;
   }
   const ws = wsAttempts.find((a) => a.ok) || wsAttempts[wsAttempts.length - 1] || { ok: false };
-  const usesBareApi = (api.asIs || []).some((c) => c.path && c.path.startsWith('/api/'));
-  const apiConflict = usesBareApi && apiOwner ? `page references /api while owned by ${apiOwner}` : null;
+  // Note: Apps referencing /api in their code is NORMAL behavior, not a conflict
+  // Real conflicts are when multiple nginx configs declare the same route
+  const apiConflict = null; // No longer flag apps for using /api endpoints
   return {
     url,
     status: pageRes.status || 0,
@@ -80,7 +81,14 @@ async function main() {
   const { reportsDir } = ensureDirs();
   const routes = parseAppsDirectory(path.join(__dirname, '..', 'apps'));
   const ngrok = discoverNgrokUrl();
-  const apiOwner = (routes.find((r) => r.route === '/api/') || {}).sourceFile || null;
+  
+  // Check for nginx config conflicts (multiple .conf files declaring same route)
+  const nginxConflicts = routes.conflictWarnings || [];
+  if (nginxConflicts.length > 0) {
+    console.log('⚠️  Nginx Configuration Conflicts:');
+    nginxConflicts.forEach(warning => console.log(`   ${warning}`));
+    console.log('');
+  }
   const metadata = {};
   for (const r of routes) {
     metadata[r.route] = { sourceFile: r.sourceFile, upstream: r.upstream };
@@ -96,7 +104,7 @@ async function main() {
     for (const r of routes) {
       // Only probe likely HTML routes deeply; still record simple status for others
       try {
-        summary[t.name][r.route] = await runForTarget(t.base, r.route, apiOwner);
+        summary[t.name][r.route] = await runForTarget(t.base, r.route, null); // No longer need apiOwner
       } catch (e) {
         summary[t.name][r.route] = { error: e.message };
       }
@@ -105,7 +113,14 @@ async function main() {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const jsonPath = path.join(reportsDir, `scan-apps-${stamp}.json`);
-  const body = { generatedAt: new Date().toISOString(), ngrok, apiOwner, metadata, summary };
+  const body = { 
+    generatedAt: new Date().toISOString(), 
+    ngrok, 
+    metadata, 
+    summary,
+    nginxConflicts: routes.conflictSummary || {},
+    nginxWarnings: routes.conflictWarnings || []
+  };
   fs.writeFileSync(jsonPath, JSON.stringify(body, null, 2));
   fs.writeFileSync(path.join(reportsDir, 'scan-apps-latest.json'), JSON.stringify(body, null, 2));
   console.log(`Scanned ${routes.length} route(s). Report: ${jsonPath}`);
