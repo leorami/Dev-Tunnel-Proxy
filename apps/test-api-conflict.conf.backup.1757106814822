@@ -1,0 +1,10 @@
+# Test conflict for demonstration
+location /api/ {
+  proxy_pass http://alternative-api:9000;
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+}
+
+location /test-app/ {
+  proxy_pass http://test-app:3000;
+}
