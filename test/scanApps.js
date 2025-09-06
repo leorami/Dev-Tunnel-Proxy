@@ -93,8 +93,9 @@ async function main() {
   for (const r of routes) {
     metadata[r.route] = { sourceFile: r.sourceFile, upstream: r.upstream };
   }
+  const localBase = process.env.LOCAL_PROXY_BASE || 'http://localhost:8080';
   const targets = [
-    { name: 'local-proxy', base: 'http://localhost:8080' },
+    { name: 'local-proxy', base: localBase },
     ...(ngrok ? [{ name: 'ngrok', base: ngrok }] : []),
   ];
 

@@ -58,8 +58,13 @@ function resolveConflicts(conflicts) {
   const resolved = new Map();
   
   for (const [route, declarations] of conflicts) {
+    // Ignore false positives: need at least 2 distinct source files
+    const distinct = Array.from(new Set(declarations.map(d => d.sourceFile)));
+    if (distinct.length < 2) {
+      continue;
+    }
     const conflictKey = `${route}`;
-    const currentFiles = declarations.map(d => d.sourceFile).sort();
+    const currentFiles = distinct.sort();
     
     // Check if we have a stored resolution
     const storedResolution = resolutions[conflictKey];

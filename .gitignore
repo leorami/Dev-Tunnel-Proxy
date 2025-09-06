@@ -4,6 +4,9 @@ dashboard/node_modules/
 mxtk-site/
 dev-proxy-report.*
 
+# Build artifacts
+build/
+
 # Environment
 .env
 .env.local

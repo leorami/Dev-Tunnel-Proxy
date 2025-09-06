@@ -4,6 +4,10 @@ set -euo pipefail
 # Soft reload policy: never fail the overall reload if upstream DNS is not resolvable at test time.
 # We test; if test fails, we still try a graceful reload to keep healthy routes up.
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Re-generate composed app bundle before reload
+node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+
 if docker exec dev-proxy nginx -t; then
   docker exec dev-proxy nginx -s reload
   echo "nginx reloaded (config test passed)"

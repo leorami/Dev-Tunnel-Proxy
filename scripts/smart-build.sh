@@ -35,6 +35,8 @@ case "$cmd" in
     ensure_network
     # Harden upstreams before starting so reloads won't fail if some services are down
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
+    # Generate composed app bundle used by Nginx
+    node "$ROOT_DIR/utils/generateAppsBundle.js" || true
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   down)
@@ -44,6 +46,7 @@ case "$cmd" in
     (cd "$ROOT_DIR" && $COMPOSE down --remove-orphans)
     ensure_network
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
+    node "$ROOT_DIR/utils/generateAppsBundle.js" || true
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   logs)
