@@ -252,3 +252,81 @@ dev-tunnel-proxy/
 Keep examples generic and focused on common patterns (prefix-kept vs prefix-stripped). **Always use variable resolution** for upstream services to ensure reliable proxy startup.
 
 **Note**: App configs in `apps/` are git-ignored to keep the project generic. Each team manages their own configurations locally.
+
+## Architecture: Why Separate Containers?
+
+The Dev Tunnel Proxy uses a **multi-container architecture** instead of consolidating everything into a single container. Here's the rationale behind this design:
+
+### Container Responsibilities
+
+- **`dev-proxy` (nginx)**: Pure reverse proxy + static file serving
+- **`conflict-api` (Node.js)**: REST API for config management and conflict resolution
+- **`auto-scan` (Node.js)**: Periodic route health monitoring and status generation
+- **`ngrok`**: Secure tunnel service to external networks
+
+### Why This Approach Works Better
+
+#### 🎯 **Single Responsibility Principle**
+Each container has a focused, well-defined purpose:
+- nginx excels at high-performance proxying and static content
+- Node.js services handle dynamic APIs and background processing
+- ngrok provides specialized tunnel functionality
+
+#### 🚀 **Operational Benefits**
+```bash
+# Restart just the API without affecting proxy traffic
+docker-compose restart conflict-api
+
+# Debug individual services independently
+docker-compose logs conflict-api --tail=50
+
+# Scale specific services if needed
+docker-compose up --scale auto-scan=2
+```
+
+#### 📊 **Resource Optimization**
+- **nginx**: Minimal footprint (~5MB alpine), optimized for proxy workloads
+- **Node.js services**: Only consume resources when actively processing
+- **Independent lifecycles**: Can start/stop services without affecting others
+
+#### 🔧 **Fault Isolation**
+- Conflict API crash → Status UI loses some features, but proxy continues working
+- Auto-scan failure → Health monitoring affected, but routing unimpacted
+- nginx issues → Only proxy affected, APIs remain functional for diagnostics
+
+#### 🏗️ **Development Flexibility**
+- Change API logic without nginx config reloads
+- Modify nginx configuration without Node.js service restarts
+- Each service can use optimized Docker images and configurations
+
+#### 🎭 **Environment Adaptation**
+```yaml
+# Easily disable development-only services in production
+services:
+  conflict-api:
+    profiles: ["development"]
+  auto-scan:
+    profiles: ["development"]
+```
+
+### Alternative: Monolithic Container
+
+A single container **could** work for simple scenarios, but would sacrifice:
+- ❌ Independent service restarts during development
+- ❌ Resource optimization (nginx + Node.js always running together)
+- ❌ Technology specialization (forced to use same base image)
+- ❌ Fault isolation (single point of failure)
+- ❌ Production deployment flexibility
+
+### Evolution Path
+
+The current architecture allows **future consolidation** if needed:
+```yaml
+# Could merge services later if requirements change
+services:
+  proxy:
+    image: nginx-with-node  # Custom image combining both
+    command: ["sh", "-c", "node /conflict-api.js & nginx"]
+```
+
+However, the **multi-container approach provides superior flexibility** without meaningful complexity overhead, making it the better choice for development environments where reliability and maintainability are paramount.
