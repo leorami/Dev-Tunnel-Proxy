@@ -1,6 +1,6 @@
 # Conflict Management Guide
 
-The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes.
+The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes. Config serving now uses a generated bundle that composes inputs from `apps/` and `overrides/` so proxy-owned decisions always take precedence.
 
 ## What Are Route Conflicts?
 
@@ -22,7 +22,7 @@ In this example, both apps want to handle `/api/` requests, creating a conflict.
 
 ## Automatic Detection
 
-The proxy automatically scans all configuration files and detects conflicts:
+The proxy scans `apps/*.conf` and detects conflicts:
 
 ```bash
 ⚠️  Nginx Configuration Conflicts:
@@ -38,30 +38,37 @@ Conflicts are detected during:
 
 ### 1. Default Resolution (First Config Wins)
 
-By default, the proxy uses a **"first config wins"** strategy:
+By default, the proxy uses a **"first config wins"** strategy when scanning app inputs:
 - The first configuration file processed gets to keep the route
 - Other files declaring the same route are ignored for that specific location
 - The decision is logged and persisted for consistency
 
-### 2. Visual Resolution Interface
+### 2. Enhanced Visual Interface (🆕)
 
-Visit `/status` in your browser to manage conflicts interactively:
+The `/status` page now features a completely redesigned interface for conflict management:
 
-#### Conflict Selection
-- Radio button interface to choose which config should win
-- See all conflicting files for each route
-- One-click resolution with immediate effect
+#### Smart Route Organization
+- **Route Grouping**: All routes automatically grouped by base upstream URL
+- **Visual Hierarchy**: Parent-child relationships clearly displayed
+- **Promotion System**: Designate parent routes within each upstream group
+- **Collapsible Groups**: Expand/collapse route groups for better organization
 
-#### Route Renaming  
-- Rename conflicted routes directly in the interface
-- Automatically updates the nginx configuration file
-- Creates backups before making changes
+#### Advanced Conflict Resolution
+- **One-Click Winners**: Choose conflict winners with immediate visual feedback
+- **Live Conflict Indicators**: Real-time highlighting of conflicted routes
+- **Route Renaming**: Rename conflicted routes directly in the enhanced interface
+- **Persistent Decisions**: All conflict resolutions saved and persist across restarts
 
-#### Config File Management
-- View any configuration file in the browser
-- Edit nginx configs with syntax highlighting
-- Download configs for local editing
-- Save changes with automatic backup creation
+#### Improved Config Management
+- **Per-Config Views**: Filter and view routes by specific config files
+- **JSON Export**: Export filtered route data for each config file  
+- **Live Reload**: Refresh configurations without leaving the interface
+- **Enhanced Editor**: View and edit nginx configs with better UX
+
+#### Quick Actions
+- **Open in Tunnel**: Direct links to access routes via ngrok URL
+- **Diagnose Issues**: Detailed route information and troubleshooting
+- **Status Indicators**: Color-coded health status for each route
 
 ### 3. API-Based Resolution
 
@@ -115,6 +122,55 @@ This ensures:
 - Team members see the same resolution decisions  
 - Audit trail of conflict resolution history
 
+## Route Promotion System (🆕)
+
+The enhanced Status Dashboard introduces a powerful **route promotion system** for managing complex route hierarchies:
+
+### How Promotion Works
+
+**Route Grouping**: Routes are automatically grouped by their normalized base upstream URL:
+```
+http://myapp-api:8000 group:
+├── /api/ (can be promoted as parent)
+├── /api/admin/
+├── /api/static/
+└── /health/
+```
+
+**Parent Selection**: Within each group, you can promote one route as the "parent":
+- **Auto-promotion**: If there's only one shallowest route, it's auto-selected
+- **Manual promotion**: Click "Promote as Root" on any route in the group
+- **Visual hierarchy**: Parent routes show children as collapsible chips
+
+### Benefits of Promotion
+
+1. **Visual Organization**: Related routes grouped under logical parents
+2. **Reduced Clutter**: Child routes collapsed by default, expand when needed
+3. **Quick Navigation**: Parent route actions (Open, Diagnose) work for the entire group
+4. **Persistent State**: Promotion choices saved in localStorage and persist across sessions
+
+### Managing Promotions
+
+```javascript
+// View current promotions (browser console)
+localStorage.getItem('routePromotions')
+// Returns: {"http://myapp-api:8000": "/api/"}
+
+// Clear all promotions
+localStorage.removeItem('routePromotions')
+
+// Clear specific promotion
+const promotions = JSON.parse(localStorage.getItem('routePromotions') || '{}');
+delete promotions['http://myapp-api:8000'];
+localStorage.setItem('routePromotions', JSON.stringify(promotions));
+```
+
+### Best Practices for Promotion
+
+- **Promote logical parents**: Choose the main application route (e.g., `/myapp/` over `/myapp/api/`)
+- **Consider user workflow**: Promote the route users access first
+- **Maintain consistency**: Use similar promotion patterns across different upstream groups
+
 ## Best Practices
 
 ### Prevention
@@ -124,6 +180,7 @@ This ensures:
 4. **Route planning**: Document route ownership in your team
 
 ### Resolution
+5. When a proxy-side fix must win regardless of app snippets, add a minimal snippet under `overrides/` with the desired `location` block.
 1. **Prefer renaming**: Better than arbitrary winner selection
 2. **Document decisions**: Use descriptive route names
 3. **Test after changes**: Verify apps work after conflict resolution
@@ -189,25 +246,49 @@ location /team2-api/ {
 
 ## Troubleshooting
 
-### Conflict Not Detected
-- Check file naming: only `*.conf` files are scanned
-- Verify nginx syntax: invalid configs may be ignored
-- Run manual scan: `node test/scanApps.js`
+### Enhanced Status Dashboard Issues
 
-### Resolution Not Applied  
-- Check persistence: Look for `.artifacts/route-resolutions.json`
-- Restart proxy: Some changes require proxy restart
-- Verify config syntax: Invalid nginx syntax prevents application
+#### Route Grouping Not Working
+- **Routes appear ungrouped**: Check upstream URL consistency in configs
+- **Routes missing entirely**: Verify nginx syntax and file naming (`*.conf`)
+- **Wrong upstream groups**: Ensure identical upstream strings across related routes
 
-### UI Not Loading
-- Ensure conflict API is running: Check `utils/conflictAPI.js`
-- Check browser console: Look for JavaScript errors
-- Verify network access: Ensure API endpoints are reachable
+#### Promotion System Problems  
+- **Cannot promote routes**: Check browser console for localStorage errors
+- **Promotions not persisting**: Clear corrupted localStorage data
+- **Auto-promotion not working**: Verify only one shallowest route exists in group
 
-### API Errors
-- Check authentication: Some operations may require auth
-- Verify JSON format: POST requests need proper Content-Type
-- Check file permissions: Config editing requires write access
+#### Open Button Issues
+- **Wrong URLs**: Check ngrok URL detection in `/status.json`
+- **404 errors**: Verify route paths handle both `/path` and `/path/`
+- **Localhost instead of ngrok**: Check that global ngrok URL is properly loaded
+
+#### Live Reload Problems
+- **Reload button fails**: Check browser console for JavaScript errors
+- **Stale data after reload**: Clear browser cache or force refresh
+- **No visual feedback**: Verify button shows loading → success states
+
+### Traditional Troubleshooting
+
+#### Conflict Detection Issues
+- **Conflicts not detected**: Check file naming (only `*.conf` files are scanned)
+- **Invalid configs ignored**: Verify nginx syntax with `nginx -t`
+- **Run manual scan**: Execute `node test/scanApps.js` to see parsing errors
+
+#### Resolution Problems  
+- **Changes not applied**: Check persistence in `.artifacts/route-resolutions.json`
+- **Proxy restart needed**: Some nginx changes require container restart
+- **Config syntax errors**: Invalid nginx syntax prevents successful application
+
+#### Interface Problems
+- **Status page not loading**: Ensure conflict API is running (`utils/conflictAPI.js`)
+- **JavaScript errors**: Check browser console for runtime errors
+- **Network issues**: Verify API endpoints are accessible from browser
+
+#### API Troubleshooting
+- **Authentication errors**: Some operations may require proper headers
+- **JSON format issues**: POST requests need correct `Content-Type`
+- **Permission errors**: Config editing requires filesystem write access
 
 ## Advanced Usage
 

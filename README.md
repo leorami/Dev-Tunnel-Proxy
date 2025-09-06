@@ -1,9 +1,9 @@
 # Dev Tunnel Proxy
 
 A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) for teams.
-- Tiny **core** Nginx config that `include`s one file per app from `apps/`.
+- Tiny **core** Nginx config that `include`s generated app routes only.
 - Separate **ngrok** container tunnels to the proxy.
-- Each app contributes exactly **one** snippet (e.g., `sample-prefix.conf`, `sample-api.conf`). No monolithic config to edit.
+- Each app contributes **local snippets** (e.g., `sample-prefix.conf`, `sample-api.conf`) that are composed into a single generated file. No monolithic config to edit.
 - All apps that should be exposed join the shared Docker network: **`devproxy`**.
 
 ## Quick start
@@ -46,14 +46,22 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
    Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
-7) Built-in status endpoints (human + JSON):
-   - Human: `/` → `/status`, `/health`
-   - JSON: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
-   - Reports browser: `/reports/`
+7) **📊 Enhanced Status Dashboard** (`/status`):
+   - **Route Grouping**: Routes automatically grouped by base upstream URL  
+   - **Promotion System**: Designate parent routes within each upstream group
+   - **Visual Organization**: Collapsible route groups with status indicators
+   - **One-Click Actions**: Open routes in ngrok tunnel, diagnose issues
+   - **Live Reload**: Refresh configurations without leaving the browser
+   - **Per-Config JSON**: View filtered route data for each config file
 
-8) **🆕 Interactive Conflict Management**:
+8) Built-in endpoints (human + JSON):
+   - **Human**: `/` → `/status`, `/health` (enhanced dashboards)
+   - **JSON**: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
+   - **Reports**: `/reports/` directory browser
+
+9) **🛠️ Advanced Conflict Management**:
    - Detects when multiple apps declare the same nginx route
-   - Visual conflict resolution UI at `/status`
+   - **Enhanced Visual UI**: Improved conflict resolution at `/status`
    - Route renaming and config editing capabilities
    - Persistent conflict decisions across proxy restarts
    - API endpoints for programmatic conflict management
@@ -67,21 +75,23 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 ## Scripts
 
 - `scripts/install-app.sh` — copies a snippet into `apps/<name>.conf` and hot-reloads Nginx.
-- `scripts/reload.sh` — safe Nginx reload.
-- `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs.
+- `scripts/reload.sh` — safe Nginx reload; regenerates composed config before reload.
+- `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs. Generates composed config at start/restart.
 
 ## Conflict Management
 
 When multiple app configs declare the same nginx route (e.g., both `app1.conf` and `app2.conf` define `location /api/`), the proxy automatically detects and resolves conflicts using a **"first config wins"** strategy.
 
-### Visual Conflict Resolution
+### Enhanced Visual Interface
 
-Visit `/status` to see detected conflicts and resolve them interactively:
+Visit `/status` for the completely redesigned conflict management experience:
 
-- **Choose Winner**: Select which config should own the conflicted route
-- **Rename Routes**: Rename routes in config files (e.g., `/api/` → `/app2-api/`)
-- **Edit Configs**: View and edit nginx config files directly
-- **Auto-Fix**: Get intelligent suggestions for resolving conflicts
+- **Grouped Routes**: Routes organized by base upstream URL for clarity
+- **Smart Promotion**: Designate parent routes within upstream groups  
+- **One-Click Resolution**: Choose conflict winners with immediate visual feedback
+- **Route Renaming**: Rename conflicted routes directly in the interface
+- **Config Management**: View, edit, and download nginx config files  
+- **Live Reload**: Refresh configurations and see changes immediately
 
 ### Persistence
 
@@ -196,7 +206,11 @@ Mount the second instance at `/myapp` in the proxy and do not strip the prefix. 
 
 ```
 dev-tunnel-proxy/
-├─ apps/                     # per-app snippets live here (mounted read-only)
+├─ apps/                     # per-app snippets (local, gitignored)
+├─ overrides/                # proxy-owned override snippets (optional)
+├─ build/
+│  └─ sites-enabled/
+│     └─ apps.generated.conf # composed output (mounted into nginx)
 ├─ config/
 │  ├─ default.conf           # core: includes apps/*.conf
 │  ├─ ngrok.dynamic.yml      # dynamic domain template
@@ -226,6 +240,7 @@ dev-tunnel-proxy/
 
 - **[Project Integration Guide](PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Config Composition & Precedence](docs/CONFIG-COMPOSITION.md)** - How the generator works, migration notes, overrides
 
 ## How to contribute
 

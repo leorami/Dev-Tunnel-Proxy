@@ -2,7 +2,7 @@
 
 ## Common Configuration Issues & Solutions
 
-This guide documents common problems and their solutions when integrating apps with the dev tunnel proxy.
+This guide documents common problems and their solutions when integrating apps with the dev tunnel proxy. Updated to include troubleshooting for the **enhanced Status Dashboard** with route grouping and promotion features.
 
 ### 0. Critical: proxy_pass Trailing Slash Behavior
 
@@ -217,6 +217,120 @@ docker exec dev-proxy nginx -t
 # Check proxy logs
 docker-compose logs proxy --tail=20
 ```
+
+### 7. Generated Bundle & Overrides (🆕)
+
+**Symptoms**:
+- A prior fix seems overwritten when another project updates its snippet
+- Changes in `apps/*.conf` don't apply after restart
+
+**Explanation**:
+- Nginx now serves a generated bundle from `build/sites-enabled/apps.generated.conf`.
+- Proxy-owned `overrides/*.conf` win over app snippets.
+
+**Actions**:
+- Inspect the generated file to see what was composed.
+- Put persistent proxy-side fixes into `overrides/*.conf`.
+- Regenerate explicitly if needed:
+  ```bash
+  node utils/generateAppsBundle.js
+  ./scripts/reload.sh
+  ```
+
+## Enhanced Status Dashboard Issues (🆕)
+
+### 8. Route Grouping Problems
+
+**Problem**: Routes not appearing in expected upstream groups or missing from status dashboard.
+
+**Common Causes & Solutions**:
+
+**Routes appear ungrouped or in wrong groups**:
+```bash
+# Check actual upstream values in your config
+grep -r "proxy_pass" apps/*.conf
+
+# Ensure consistent upstream naming
+# ❌ Wrong: Mixed upstream formats
+# apps/myapp.conf: proxy_pass http://myapp-service:3000/;
+# apps/myapp2.conf: proxy_pass http://myapp-service:3000;
+
+# ✅ Correct: Consistent upstream format  
+# Both configs should use identical upstream strings
+```
+
+**Routes missing from status entirely**:
+- **Check config syntax**: Invalid nginx configs are ignored
+- **Verify file names**: Only `*.conf` files in `apps/` are scanned
+- **Run manual scan**: `node test/scanApps.js` to see parsing errors
+
+### 9. Open Button URL Problems  
+
+**Problem**: "Open" buttons not using correct ngrok URLs or opening wrong pages.
+
+**Symptoms**:
+- Opens localhost URLs instead of ngrok tunnel
+- Opens wrong subdirectory (e.g., opens `/app` instead of `/app/admin`)
+- 404 errors when clicking Open button
+
+**Solutions**:
+```bash
+# 1. Check ngrok URL detection
+curl http://localhost:8080/status.json | jq '.ngrok'
+
+# 2. Verify route paths match expectations
+# Open button constructs: ngrok_url + route_path
+# For route "/api/", URL becomes "https://xyz.ngrok.app/api/"
+
+# 3. Check for trailing slash consistency
+# Your app should handle both /api and /api/ correctly
+```
+
+### 10. Route Promotion Issues
+
+**Problem**: Cannot promote routes or promotion state not persisting.
+
+**Debugging Steps**:
+```bash
+# Check localStorage persistence
+# In browser console on /status page:
+localStorage.getItem('routePromotions')
+
+# Should show: {"http://upstream:port":"/promoted/route"}
+
+# Clear corrupted promotion data if needed:
+localStorage.removeItem('routePromotions')
+```
+
+**Common Issues**:
+- **Routes with variables**: Routes using nginx variables (like `$upstream`) are treated as literal strings for grouping
+- **Multiple identical upstreams**: All routes pointing to the same upstream will be grouped together
+- **Broken localStorage**: Clear browser data if promotion state is corrupted
+
+### 11. Live Reload Button Problems
+
+**Problem**: Reload button shows errors or doesn't refresh data.
+
+**Expected Behavior**: 
+- Click reload → Shows spinning icon → Success checkmark → Data refreshes
+
+**Troubleshooting**:
+```bash
+# 1. Check if auto-scan service is running
+docker-compose ps auto-scan
+
+# 2. Manual config regeneration
+node test/scanApps.js
+./scripts/smart-build.sh
+
+# 3. Check browser console for JavaScript errors
+# Should show: "✅ Routes data refreshed"
+```
+
+**Common Reload Issues**:
+- **Stale data**: Browser cache preventing updates
+- **Config syntax errors**: Invalid nginx configs prevent successful reload
+- **File permissions**: Cannot write updated route data
 
 ## Project Integration Checklist
 

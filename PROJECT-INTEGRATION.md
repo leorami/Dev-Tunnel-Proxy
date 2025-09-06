@@ -28,13 +28,20 @@ networks:
     name: devproxy
 ```
 
-### 2. Plan Your Routes (🆕 Important)
+### 2. Plan Your Routes (🆕 Enhanced)
 
-**Before creating your nginx config**, check existing routes to avoid conflicts:
+**Before creating your nginx config**, check existing routes using the enhanced status interface:
 
-1. Visit `/status` on the running proxy to see current routes
-2. Choose unique route prefixes (e.g., `/myapp/api/` instead of `/api/`)
-3. Follow team naming conventions
+1. **Visit `/status`** on the running proxy to see current routes organized by upstream
+2. **Review route groups**: Routes are automatically grouped by base upstream URL
+3. **Choose unique prefixes**: Use app-specific routes (e.g., `/myapp/api/` vs `/api/`)
+4. **Follow team conventions**: Establish consistent naming patterns
+
+**Enhanced Status Interface Features**:
+- **Route Grouping**: See how routes are organized by upstream service
+- **Promotion System**: Designate parent routes within each upstream group
+- **Live Reload**: Refresh configurations without leaving the interface
+- **Per-Config Views**: Filter routes by specific config files
 
 Common conflict patterns to avoid:
 ```nginx
@@ -49,7 +56,7 @@ location /myapp/admin/ { ... }
 location /myapp/ { ... }
 ```
 
-If conflicts occur, the proxy will detect them automatically and you can resolve them via the `/status` interface.
+**Conflict Detection**: When conflicts occur, they're automatically detected and highlighted in the status interface with one-click resolution options.
 
 ### 3. Create Nginx Configuration
 
@@ -88,7 +95,7 @@ location /myapp/ {
 }
 ```
 
-### 3. Install Your Configuration
+### 3a. Install Your Configuration
 
 ```bash
 # From the dev-tunnel-proxy directory
@@ -254,7 +261,23 @@ location @myapp_fallback {
 
 ## Testing Your Integration
 
-### 1. Basic Connectivity
+### 1. Enhanced Status Dashboard Verification
+
+**Visit `/status`** to verify your integration visually:
+
+1. **Route Grouping**: Your routes should appear grouped by upstream service
+2. **Status Indicators**: Check HTTP status codes and overall health
+3. **Open Button**: Test the "Open" button to access your app via ngrok
+4. **Promotion System**: If multiple routes share an upstream, you can promote a parent route
+5. **Live Reload**: Use the reload button to refresh configurations
+
+**Key Checks**:
+- ✅ Routes appear in the correct upstream group  
+- ✅ Status indicators show green (2xx responses)
+- ✅ "Open" button uses ngrok URL correctly
+- ✅ No conflict warnings displayed
+
+### 2. Basic Connectivity Tests
 ```bash
 # Test direct container access
 docker exec dev-proxy wget -qO- http://your-service:3000/
@@ -262,17 +285,28 @@ docker exec dev-proxy wget -qO- http://your-service:3000/
 # Test through proxy
 curl http://localhost:8080/myapp/
 
-# Test through tunnel
+# Test through tunnel (verify ngrok URL from /status)
 curl https://your-ngrok-domain.ngrok.app/myapp/
 ```
 
-### 2. Run Automated Tests
+### 3. Automated Health Monitoring
 ```bash
 # From dev-tunnel-proxy directory
 node ./test/scanApps.js
+
+# Check both status endpoints
+curl http://localhost:8080/status.json
+curl http://localhost:8080/health.json
 ```
 
-### 3. Check Logs
+### 4. Troubleshooting Tools
+
+**Status Dashboard Features**:
+- **Diagnose Button**: Check detailed route information
+- **Per-Config JSON**: View filtered route data for your config
+- **Live Reload**: Refresh configurations after changes
+
+**Log Monitoring**:
 ```bash
 docker-compose logs proxy --tail=20
 ```
@@ -322,6 +356,15 @@ set $myapp_service myapp-site-dev-myapp:3000;  # Actual container name
 4. **Check container names**: `docker network inspect devproxy`
 
 ## Template Files
+# Notes on Config Composition (🆕)
+
+- The proxy composes `apps/*.conf` with optional `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`.
+- Nginx includes only generated files. Your `apps/*.conf` remain the source inputs.
+- To force proxy-owned behavior, place minimal snippets in `overrides/` (no app names required).
+- You can manually regenerate the bundle with:
+  ```bash
+  node utils/generateAppsBundle.js
+  ```
 
 Save these templates for quick setup:
 
