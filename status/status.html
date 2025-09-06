@@ -279,11 +279,15 @@
       }
       function applyFilter(routeGroups, filterValue, targets, routes){
         const q=(filterValue||'').trim().toLowerCase(); if(!q) return routeGroups;
-        return routeGroups.filter(g=>{
-          const name=(g.route||'').toLowerCase();
+        const matches = (route)=>{
+          const name=(route||'').toLowerCase();
           if (name.includes(q)) return true;
-          if (q==='ok'||q==='warn'||q==='err') return severityOf(g.route,targets,routes)===q;
+          if (q==='ok'||q==='warn'||q==='err') return severityOf(route,targets,routes)===q;
           return false;
+        };
+        return routeGroups.filter(g=>{
+          if (matches(g.route)) return true;
+          return (g.children||[]).some(c=>matches(c));
         });
       }
       function sortRoutes(routeGroups, sortMode, targets, routes){
@@ -387,6 +391,21 @@
               
               // Add parent route info
               addRouteInfo(app, group.route, targets, routes);
+              // Add child summary chips on parent header (worst-state coloring, show HTTP code where applicable)
+              const summaryChips = document.createElement('div');
+              summaryChips.className = 'chips';
+              const childWorst = { err:0, warn:0, ok:0 };
+              (group.children||[]).forEach(childRoute=>{
+                const sev = severityOf(childRoute, targets, routes);
+                childWorst[sev]++;
+                // Prefer showing status from ngrok, else local-proxy
+                const pref = ['ngrok','local-proxy'];
+                let code = null;
+                for (const t of pref){ const info=(routes.summary?.[t]||{})[childRoute]; if (info && typeof info.status==='number'){ code=info.status; break; } }
+                const label = `${childRoute} ${code??''}`.trim();
+                summaryChips.appendChild(chip(label, sev));
+              });
+              if ((group.children||[]).length){ header.appendChild(summaryChips); }
               
               // Add children
               group.children.forEach(child => {
@@ -407,6 +426,21 @@
                 header.querySelector('.expand-icon').textContent = isExpanded ? '▶' : '▼';
               });
               
+              // Auto-expand when filter matches any child
+              if (filterVal){
+                const q=(filterVal||'').trim().toLowerCase();
+                const anyMatch = (group.children||[]).some(c=>{
+                  const name=(c||'').toLowerCase();
+                  if (name.includes(q)) return true;
+                  if (q==='ok'||q==='warn'||q==='err') return severityOf(c, targets, routes)===q;
+                  return false;
+                });
+                if (anyMatch){
+                  childrenContainer.classList.remove('hidden');
+                  header.querySelector('.expand-icon').textContent = '▼';
+                }
+              }
+
               app.appendChild(header);
               app.appendChild(childrenContainer);
             } else {

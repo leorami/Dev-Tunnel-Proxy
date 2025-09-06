@@ -9,7 +9,7 @@ version: "2"
 tunnels:
   proxy:
     proto: http
-    addr: proxy:80
+    addr: dev-proxy:80
     hostname: ${NGROK_STATIC_DOMAIN}
     inspect: true
 EOF
