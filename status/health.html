@@ -18,7 +18,9 @@
       }
       *{box-sizing:border-box}
       body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      .header-row{display:flex;align-items:center;justify-content:space-between}
+      .header-actions{display:flex;gap:8px;align-items:center}
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
@@ -32,27 +34,36 @@
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#132140;border:1px solid #223054;color:#b8c8e6;font-weight:600}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none;text-align:center}
       button:hover, a.btn:hover{background:var(--btnBgHover)}
       .split{display:grid;grid-template-columns: repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
       pre{margin:0;background:var(--codeBg, #0a1223);border:1px solid var(--codeBorder, #1b2a48);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
       .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+      .quick-actions-card{grid-column:1 / -1}
+      .quick-actions{display:flex;gap:8px;flex-wrap:wrap}
       footer{margin:24px 0;color:#7f90b3;text-align:center}
       @media (max-width:1280px){.split{grid-template-columns:1fr}}
+      @media (max-width:1024px){
+        .header-row{flex-wrap:wrap;gap:8px}
+        .header-actions{gap:6px}
+        .quick-actions{gap:6px}
+      }
     </style>
   </head>
   <body>
     <header>
-      <h1>
-        <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
-        <span>Dev Tunnel Proxy</span>
-        Health Dashboard
-      </h1>
-      <div class="toolbar">
-        <a class="btn" href="/status" title="Open status dashboard">View Status</a>
-        <a class="btn" href="/reports/" title="Browse generated reports">Browse Reports</a>
-        <button id="refresh">Refresh</button>
-        <button id="themeToggle" class="btn" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+      <div class="header-row">
+        <h1>
+          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
+          <span>Dev Tunnel Proxy</span>
+          Health Dashboard
+        </h1>
+        <div class="header-actions">
+          <a class="btn" href="/status" title="Open status dashboard">Status</a>
+          <a class="btn" href="/reports/" title="Browse generated reports">Reports</a>
+          <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
+          <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+        </div>
       </div>
     </header>
     <div class="container">
@@ -68,13 +79,13 @@
           <div class="row"><div class="label">Last run</div><div class="value" id="last-run">—</div></div>
           <div class="row"><div class="label">Targets</div><div class="value" id="targets">—</div></div>
         </div>
-        <div class="card">
+        <div class="card quick-actions-card">
           <h2>Quick Actions</h2>
-          <div class="actions">
+          <div class="quick-actions">
             <a class="btn" href="/health.json">Health JSON</a>
             <a class="btn" href="/status.json">Status JSON</a>
             <a class="btn" href="/routes.json">Routes JSON</a>
-            <a class="btn" href="/reports/">Open Reports Directory</a>
+            <a class="btn" href="/reports/">Reports Directory</a>
           </div>
         </div>
       </div>
@@ -149,7 +160,78 @@
           document.getElementById('status-json').textContent='Error: '+e.message;
         }
       }
-      document.getElementById('refresh').addEventListener('click',refresh);
+
+      async function reloadConfigs() {
+        const reloadBtn = document.getElementById('reloadConfigs');
+        const originalText = reloadBtn.textContent;
+        
+        try {
+          // Show loading state
+          reloadBtn.textContent = '🔄';
+          reloadBtn.disabled = true;
+          
+          // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
+          let scanSuccess = false;
+          const timestamp = Date.now();
+          const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+            cache: 'no-cache'
+          });
+          if (freshRoutes.ok) {
+            scanSuccess = true;
+            console.log('✅ Routes data refreshed');
+          }
+          
+          if (scanSuccess) {
+            // Success feedback
+            reloadBtn.textContent = '✅';
+            reloadBtn.style.background = '#16402b';
+            reloadBtn.style.borderColor = '#2a7f54';
+            reloadBtn.style.color = '#a6f3cc';
+            
+            // Refresh the health data after successful reload
+            setTimeout(async () => {
+              await refresh();
+            }, 500);
+          } else {
+            throw new Error('Unable to reload configs');
+          }
+          
+        } catch (error) {
+          console.error('Config reload failed:', error);
+          
+          // Error feedback
+          reloadBtn.textContent = '❌';
+          reloadBtn.style.background = 'rgba(239,68,68,.15)';
+          reloadBtn.style.borderColor = '#ef4444';
+          reloadBtn.style.color = '#ef4444';
+          
+          // Show manual instructions
+          const instructions = `
+To reload manually, run:
+node test/scanApps.js
+./scripts/smart-build.sh
+
+Or check if config files have syntax errors.
+          `.trim();
+          
+          setTimeout(() => {
+            if (confirm(`Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page data anyway?`)) {
+              refresh();
+            }
+          }, 1500);
+        }
+        
+        // Reset button after delay
+        setTimeout(() => {
+          reloadBtn.textContent = originalText;
+          reloadBtn.disabled = false;
+          reloadBtn.style.background = '';
+          reloadBtn.style.borderColor = '';
+          reloadBtn.style.color = '';
+        }, 3000);
+      }
+      document.getElementById('reloadConfigs').addEventListener('click',reloadConfigs);
       document.getElementById('themeToggle').addEventListener('click', toggleTheme);
       initTheme();
       refresh();
