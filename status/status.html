@@ -12,15 +12,15 @@
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14}
       *{box-sizing:border-box}
       body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-      header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+      header{padding:16px 20px 12px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+      .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .header-actions{display:flex;gap:8px;align-items:center}
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
-      .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:4px}
       .toolbar .field{display:flex;gap:6px;align-items:center}
       .toolbar select,.toolbar input[type="text"]{background:var(--btnBg);border:1px solid var(--btnBorder);color:var(--btnText);border-radius:8px;padding:7px 10px}
-      .drag-btn{border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:6px;padding:4px 8px;cursor:pointer}
-      .drag-btn:hover{background:var(--btnBgHover)}
-      .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
+      .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;text-align:center;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
       .btn:hover{background:var(--btnBgHover)}
       .btn:active{transform:translateY(1px)}
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
@@ -42,6 +42,8 @@
       .app .route{font-weight:700}
       .chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
       .groupHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .groupHead .chips{gap:6px}
+      .groupHead .btn-small{font-size:12px;padding:6px 10px}
       .chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:var(--chipBg);border:1px solid var(--chipBorder);color:var(--chipText);font-weight:600;position:relative}
       .chip.ok{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.35);color:#8ef0c3}
       .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#ffd38a}
@@ -113,23 +115,56 @@
       .route-children.hidden{display:none}
       .child-route{margin-bottom:8px;padding:8px;background:var(--appBgGlass);border-radius:6px;border-left:3px solid var(--border)}
       .child-route-name{font-size:14px;color:var(--muted);margin-bottom:4px}
+      .chip.small{font-size:11px;padding:2px 6px;border-radius:10px}
+      .chip.upstream-base{background:var(--chip);color:var(--muted);font-size:11px;font-weight:400}
+      .chip.promoted-indicator{background:rgba(22,199,132,.2);border-color:rgba(22,199,132,.5);color:#16c784;font-size:10px;font-weight:700;margin-left:8px;padding:2px 6px}
+      .btn-small{padding:4px 8px;font-size:11px;min-height:24px}
+      .route-header{display:flex;flex-direction:column;gap:6px;padding:8px}
+      .route-header .chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+      .parent-status .chip{margin-right:4px}
+      .child-summary{margin-top:2px}
+      .child-summary .chip{background:var(--btnBg);border-color:var(--btnBorder);font-size:10px;padding:1px 4px}
+      .route-controls{margin-top:4px}
+      .route-controls .btn{margin-right:6px}
+      .route-actions{margin-top:4px}
+      .route-actions .btn{margin-right:6px;min-width:60px}
 
+      @media (max-width:1024px){
+        .container{padding:0 12px}
+        .grid{grid-template-columns:1fr}
+        .apps{grid-template-columns:1fr}
+        .header-row{flex-wrap:wrap;gap:8px}
+        .header-actions{gap:6px}
+      }
       @media (max-width:768px){
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
         .config-actions{margin-left:0}
         .conflict-actions{flex-direction:column}
         .suggestion-item{padding:12px}
+        .toolbar{gap:6px}
+        .toolbar .field{width:100%}
+        .toolbar select,.toolbar input[type="text"]{width:100%}
+        .route-header{padding:6px}
+        .child-route{padding:6px}
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>
-        <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
-        <span>Dev Tunnel Proxy</span>
-        Status
-      </h1>
+      <div class="header-row">
+        <h1>
+          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
+          <span>Dev Tunnel Proxy</span>
+          Status
+        </h1>
+        <div class="header-actions">
+          <a class="btn" href="/health">Health</a>
+          <a class="btn" href="/reports/">Reports</a>
+          <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
+          <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+        </div>
+      </div>
       <div class="toolbar">
         <div class="field">
           <label class="label">Sort</label>
@@ -144,14 +179,6 @@
           <label class="label">Filter</label>
           <input id="routeFilter" type="text" placeholder="/api, ok, err, mxtk" />
         </div>
-        <button class="btn" id="toggleReorder">Reorder</button>
-        <a class="btn" href="/health">Health</a>
-        <a class="btn" href="/reports/">Reports</a>
-        <button class="btn" id="recommend">Recommend</button>
-        <div class="switch">
-          <button class="btn" id="toggle">Show JSON</button>
-        </div>
-        <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
       </div>
     </header>
     <div class="container">
@@ -178,10 +205,6 @@
         <div class="apps" id="apps">Loading…</div>
       </div>
 
-      <div class="card view hidden" id="jsonView">
-        <h2>Raw JSON</h2>
-        <pre id="routesRaw">Loading…</pre>
-      </div>
     </div>
 
     <script>
@@ -203,18 +226,11 @@
         tbtn.textContent = next==='light' ? '🌙' : '☀️';
         tbtn.setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
       }
-      const toggleBtn = document.getElementById('toggle');
-      const appsCard = document.getElementById('appsCard');
-      const jsonView = document.getElementById('jsonView');
-      const recommendBtn = document.getElementById('recommend');
-      let showingJson = false;
-      toggleBtn.addEventListener('click', () => {
-        showingJson = !showingJson;
-        appsCard.classList.toggle('hidden', showingJson);
-        jsonView.classList.toggle('hidden', !showingJson);
-        toggleBtn.textContent = showingJson ? 'Show Apps' : 'Show JSON';
-      });
-      recommendBtn.addEventListener('click', (e)=>{ e.preventDefault(); if (routesData) openRecommendModal(routesData); });
+      // Make logo/title clickable for branding
+      (function enableHomeClicks(){
+        const brand=document.querySelector('header h1');
+        if (brand){ brand.style.cursor='pointer'; brand.addEventListener('click',()=>{ location.reload(); }); }
+      })();
 
       function chip(label, cls, tip){
         const s = document.createElement('span');
@@ -224,8 +240,17 @@
         return s;
       }
 
-      // Choose best URL to open (ALWAYS prefer ngrok over localhost)
+      // Choose best URL to open (ALWAYS use ngrok URL + route)
       function chooseOpenUrl(routes, targets, routeKey){
+        // ALWAYS use the global ngrok URL if available
+        if (globalNgrokUrl && globalNgrokUrl !== 'not discovered') {
+          // Ensure route starts with / and ngrok URL doesn't end with /
+          const cleanRoute = routeKey.startsWith('/') ? routeKey : '/' + routeKey;
+          const cleanNgrok = globalNgrokUrl.replace(/\/$/, '');
+          return cleanNgrok + cleanRoute;
+        }
+        
+        // Fallback to old logic if no global ngrok URL
         const pref = ['ngrok', 'local-proxy'];
         
         // First pass: try to find a successful response (2xx or 3xx for ngrok, only 2xx for localhost)
@@ -257,13 +282,68 @@
 
       let routesData = null;
       let preferences = null;
+      let promotedRoots = null; // { [baseKey]: '/api/' }
+      let globalNgrokUrl = null; // Store the global ngrok URL for Open buttons
 
       function loadPrefs(){
         try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
       }
       function savePrefs(p){ localStorage.setItem('statusPrefs', JSON.stringify(p||{})); }
+      function loadPromotions(){
+        try{ return JSON.parse(localStorage.getItem('routePromotions')||'{}'); }catch{ return {}; }
+      }
+      function savePromotions(p){ localStorage.setItem('routePromotions', JSON.stringify(p||{})); }
 
       function routeDepth(r){ return (r||'').split('/').filter(Boolean).length; }
+      function normalizeBase(up){
+        if (!up) return '';
+        
+        // Handle nginx variables like $inspire_upstream by treating them as literal keys
+        if (up.includes('$')) {
+          return up.replace(/\/$/, '');
+        }
+        
+        try{ 
+          const u = new URL(up.startsWith('http') ? up : `http://${up}`); 
+          return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
+        } catch { 
+          return up.replace(/\/$/, ''); 
+        }
+      }
+      function addStatusChips(container, route, targets, routes){
+        for (const t of targets) {
+          const info = (routes.summary?.[t] || {})[route];
+          if (!info) continue;
+          
+          const status = info.status || 0;
+          let cls = 'err', reason = '';
+          
+          if (status >= 200 && status < 300) {
+            cls = 'ok';
+            reason = 'Working correctly';
+          } else if (status >= 300 && status < 400) {
+            cls = 'ok';
+            reason = 'Redirect (often expected behavior)';
+          } else if (status === 404) {
+            cls = 'warn';
+            reason = 'Not found - check route configuration';
+          } else if (status === 0) {
+            cls = 'warn';
+            reason = 'No response from this target';
+          } else if (status >= 400 && status < 500) {
+            cls = 'warn';
+            reason = 'Client error - check route configuration';
+          } else if (status >= 500) {
+            cls = 'err';
+            reason = 'Server error - upstream service issue';
+          }
+          
+          const labelName = (t === 'local-proxy') ? 'localhost' : t;
+          const label = `${labelName}: ${status}`;
+          const statusChip = chip(label, cls, reason);
+          container.appendChild(statusChip);
+        }
+      }
       function severityOf(route, targets, routes){
         // ok if ANY target is ok; redirects/0 treated as warn
         let sev='err';
@@ -309,28 +389,81 @@
         preferences = loadPrefs();
         const routes = await loadJSON('/routes.json');
         routesData = routes;
-        const ngrokTxt = (routes.ngrok || 'not discovered');
+        
+        // Load ngrok URL from status.json like Health page does (more reliable source)
+        let ngrokTxt = 'not discovered';
+        try {
+          const status = await loadJSON('/status.json');
+          ngrokTxt = status.ngrok || 'not discovered';
+        } catch (e) {
+          // Fallback to routes.json if status.json fails
+          const ngrokUrl = routes.ngrok;
+          ngrokTxt = (ngrokUrl && ngrokUrl !== 'not discovered' && ngrokUrl !== 'null') ? ngrokUrl : 'not discovered';
+        }
+        
+        // Store globally for Open button functionality
+        globalNgrokUrl = ngrokTxt;
+        
         document.getElementById('generated').textContent = routes.generatedAt || '—';
         document.getElementById('ngrok').textContent = ngrokTxt;
-        document.getElementById('routesRaw').textContent = JSON.stringify(routes, null, 2);
 
         const targets = Object.keys(routes.summary||{});
         document.getElementById('targets').textContent = targets.join(', ') || '—';
 
-        // Group by source file from metadata
-        const bySource = {};
+        // Group by source file from metadata (data-driven)
         const meta = routes.metadata || {};
-        const allRoutes = new Set();
-        for (const t of targets) {
-          Object.keys(routes.summary[t]||{}).forEach(r => allRoutes.add(r));
-        }
-        // Build hierarchical route structure
-        const { topLevel, hierarchical } = buildRouteHierarchy(Array.from(allRoutes));
-        topLevel.forEach(r => {
-          const source = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
-          bySource[source] = bySource[source] || [];
-          bySource[source].push(r);
+        const bySource = {};
+        Object.keys(meta).forEach(r => {
+          const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          (bySource[src] = bySource[src] || []).push(r);
         });
+
+        // Build hierarchical route structure (no hardcoded roots)
+        const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
+        const isSystem = (r)=> systemRoutes.has(r);
+        const isTechnical = (r)=> r.startsWith('/static/') || r.startsWith('/sockjs-node') || r.startsWith('/node_modules/') || r.startsWith('/@') || r.startsWith('/_next/') || r.startsWith('/src/') || r.startsWith('/.storybook/') || r.startsWith('/sb-') || r==='/' || r==='/favicon.ico' || r==='/asset-manifest.json';
+        function normalizeBase(up){
+          if (!up) return '';
+          try{ const u=new URL(up.startsWith('http')?up:`http://${up}`); return `${u.protocol}//${u.hostname}${u.port?`:${u.port}`:''}`; }catch{ return up.replace(/\/$/,''); }
+        }
+        function buildGroupsByBase(routesInSource, meta){
+          const routes = routesInSource.filter(r=>!isSystem(r));
+          const byBase = new Map();
+          routes.forEach(r=>{
+            const up = (meta[r]||{}).upstream||'';
+            const baseKey = normalizeBase(up);
+            if (!byBase.has(baseKey)) byBase.set(baseKey, []);
+            byBase.get(baseKey).push(r);
+          });
+
+          promotedRoots = loadPromotions();
+          const groups = [];
+          byBase.forEach((list, baseKey)=>{
+            const unique = Array.from(new Set(list)).sort((a,b)=> a.localeCompare(b));
+            const promoted = promotedRoots?.[baseKey] || null;
+            if (promoted && unique.includes(promoted)){
+              const children = unique.filter(r=> r!==promoted);
+              groups.push({ route: promoted, children, baseKey });
+              return;
+            }
+            // Auto-parent ONLY if there is a single shallowest route
+            const depths = unique.map(r=>({ r, d:(r||'').split('/').filter(Boolean).length }));
+            const minD = Math.min.apply(null, depths.map(x=>x.d));
+            const shallow = depths.filter(x=>x.d===minD).map(x=>x.r);
+            if (shallow.length === 1){
+              const parent = shallow[0];
+              const children = unique.filter(r=> r!==parent);
+              groups.push({ route: parent, children, baseKey });
+            } else {
+              // No auto parent; present as standalone with baseKey so user can promote
+              unique.forEach(r=> groups.push({ route:r, children:[], baseKey }));
+            }
+          });
+          return groups;
+        }
+        // Distribute routes by their source file (single pass)
+        // Note: avoid duplicating entries across sources
+        // meta is keyed by route; each value contains its sourceFile
 
         // Show conflict management section if there are conflicts
         showConflictManagement(routes);
@@ -347,18 +480,32 @@
           head.className = 'groupHead';
           const h2 = document.createElement('h2');
           h2.textContent = source;
+          
+          const buttonGroup = document.createElement('div');
+          buttonGroup.className = 'chips';
+          
+          const jsonBtn = document.createElement('button');
+          jsonBtn.className = 'btn btn-small'; 
+          jsonBtn.textContent = 'JSON';
+          jsonBtn.addEventListener('click', (e)=>{ e.preventDefault(); viewSourceJson(source, bySource[source]); });
+          
           const recBtn = document.createElement('a');
-          recBtn.className = 'btn'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
+          recBtn.className = 'btn btn-small'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
           recBtn.addEventListener('click', (e)=>{ e.preventDefault(); openRecommendModal(routesData, bySource[source]); });
+          
+          buttonGroup.appendChild(jsonBtn);
+          buttonGroup.appendChild(recBtn);
           head.appendChild(h2);
-          head.appendChild(recBtn);
+          head.appendChild(buttonGroup);
           groupCard.appendChild(head);
 
           const list = document.createElement('div');
           list.className = 'apps';
           
-          // Group routes by parent-child relationships
-          let routeGroups = groupRoutesByHierarchy(bySource[source], hierarchical);
+          // Build a working list of routes belonging to this source
+          const inThisSource = Object.keys(meta).filter(r => (meta[r]||{}).sourceFile === source);
+          // Group by base (upstream host:port) and apply promotions
+          let routeGroups = buildGroupsByBase(inThisSource, meta);
           const targetsArr = Object.keys(routes.summary||{});
           // Filter + sort
           const sortEl = document.getElementById('sortMode');
@@ -378,34 +525,116 @@
               
               const header = document.createElement('div');
               header.className = 'route-header';
-              header.innerHTML = `
-                <div class="route-title">
-                  <span class="expand-icon">▶</span>
-                  <span class="route-name">${group.route}</span>
-                  <span class="child-count">(${group.children.length} sub-routes)</span>
-                </div>
+              
+              // 1. Title section with expand icon, route name, and child count
+              const titleSection = document.createElement('div');
+              titleSection.className = 'route-title';
+              titleSection.innerHTML = `
+                <span class="expand-icon">▶</span>
+                <span class="route-name">${group.route}</span>
+                <span class="child-count">(${group.children.length} sub-routes)</span>
               `;
+              header.appendChild(titleSection);
               
-              const childrenContainer = document.createElement('div');
-              childrenContainer.className = 'route-children hidden';
+              // 2. Add upstream base chip right after title
+              const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+              const baseChipContainer = document.createElement('div');
+              baseChipContainer.className = 'chips';
+              baseChipContainer.appendChild(baseChip);
+              header.appendChild(baseChipContainer);
               
-              // Add parent route info
-              addRouteInfo(app, group.route, targets, routes);
-              // Add child summary chips on parent header (worst-state coloring, show HTTP code where applicable)
+              // 3. Parent status chips
+              const parentStatusContainer = document.createElement('div');
+              parentStatusContainer.className = 'chips parent-status';
+              addStatusChips(parentStatusContainer, group.route, targets, routes);
+              header.appendChild(parentStatusContainer);
+              
+              // 4. Compact child summary chips
               const summaryChips = document.createElement('div');
-              summaryChips.className = 'chips';
-              const childWorst = { err:0, warn:0, ok:0 };
+              summaryChips.className = 'chips child-summary';
               (group.children||[]).forEach(childRoute=>{
                 const sev = severityOf(childRoute, targets, routes);
-                childWorst[sev]++;
                 // Prefer showing status from ngrok, else local-proxy
                 const pref = ['ngrok','local-proxy'];
                 let code = null;
-                for (const t of pref){ const info=(routes.summary?.[t]||{})[childRoute]; if (info && typeof info.status==='number'){ code=info.status; break; } }
+                for (const t of pref){ 
+                  const info=(routes.summary?.[t]||{})[childRoute]; 
+                  if (info && typeof info.status==='number'){ 
+                    code=info.status; 
+                    break; 
+                  } 
+                }
                 const label = `${childRoute} ${code??''}`.trim();
-                summaryChips.appendChild(chip(label, sev));
+                const sc = chip(label, `small ${sev}`);
+                summaryChips.appendChild(sc);
               });
-              if ((group.children||[]).length){ header.appendChild(summaryChips); }
+              header.appendChild(summaryChips);
+              
+              // 5. Control buttons (Promote/Clear + child Promote controls)
+              const controls = document.createElement('div');
+              controls.className = 'chips route-controls';
+              const clearBtn = document.createElement('button');
+              clearBtn.className = 'btn btn-small';
+              clearBtn.textContent = 'Clear Root';
+              clearBtn.addEventListener('click', (e)=>{
+                e.stopPropagation();
+                const base = group.baseKey;
+                console.log('🗑️ Clearing root for base:', base);
+                if (!promotedRoots) promotedRoots = loadPromotions();
+                delete promotedRoots[base];
+                savePromotions(promotedRoots);
+                console.log('Updated promotions:', promotedRoots);
+                location.reload();
+              });
+              controls.appendChild(clearBtn);
+              
+              // Add Promote buttons for children
+              group.children.forEach(childRoute => {
+                const promoteChildBtn = document.createElement('button');
+                promoteChildBtn.className = 'btn btn-small';
+                promoteChildBtn.textContent = `Promote ${childRoute}`;
+                promoteChildBtn.addEventListener('click', (e)=>{
+                  e.stopPropagation();
+                  const base = group.baseKey;
+                  console.log('⬆️ Promoting child route:', childRoute, 'for base:', base);
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = childRoute;
+                  savePromotions(promotedRoots);
+                  console.log('Updated promotions:', promotedRoots);
+                  location.reload();
+                });
+                controls.appendChild(promoteChildBtn);
+              });
+              header.appendChild(controls);
+              
+              // 6. Action buttons (Open + Diagnose)
+              const actions = document.createElement('div');
+              actions.className = 'chips route-actions';
+              const openBtn = document.createElement('a');
+              openBtn.className = 'btn';
+              openBtn.textContent = 'Open';
+              openBtn.href = '#';
+              openBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const url = chooseOpenUrl(routes, targets, group.route);
+                if (url) window.open(url, '_blank', 'noopener');
+              });
+              const diagBtn = document.createElement('a');
+              diagBtn.className = 'btn';
+              diagBtn.textContent = 'Diagnose';
+              diagBtn.href = '#';
+              diagBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                openDiagnoseModal(group.route, targets, routes);
+              });
+              actions.appendChild(openBtn);
+              actions.appendChild(diagBtn);
+              header.appendChild(actions);
+              
+              const childrenContainer = document.createElement('div');
+              childrenContainer.className = 'route-children hidden';
               
               // Add children
               group.children.forEach(child => {
@@ -415,10 +644,46 @@
                 childTitle.className = 'route child-route-name';
                 childTitle.textContent = child;
                 childApp.appendChild(childTitle);
-                addRouteInfo(childApp, child, targets, routes);
+                
+                // Add upstream base chip for child
+                const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
+                const childBaseContainer = document.createElement('div');
+                childBaseContainer.className = 'chips';
+                childBaseContainer.appendChild(childBaseChip);
+                childApp.appendChild(childBaseContainer);
+                
+                // Add status chips for child
+                const childStatusContainer = document.createElement('div');
+                childStatusContainer.className = 'chips route-status';
+                addStatusChips(childStatusContainer, child, targets, routes);
+                childApp.appendChild(childStatusContainer);
+                
+                // Add action buttons for child
+                const childActions = document.createElement('div');
+                childActions.className = 'chips route-actions';
+                const childOpenBtn = document.createElement('a');
+                childOpenBtn.className = 'btn btn-small';
+                childOpenBtn.textContent = 'Open';
+                childOpenBtn.href = '#';
+                childOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const url = chooseOpenUrl(routes, targets, child);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const childDiagBtn = document.createElement('a');
+                childDiagBtn.className = 'btn btn-small';
+                childDiagBtn.textContent = 'Diagnose';
+                childDiagBtn.href = '#';
+                childDiagBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  openDiagnoseModal(child, targets, routes);
+                });
+                childActions.appendChild(childOpenBtn);
+                childActions.appendChild(childDiagBtn);
+                childApp.appendChild(childActions);
                 childrenContainer.appendChild(childApp);
               });
-              
+
               // Toggle functionality
               header.addEventListener('click', () => {
                 const isExpanded = !childrenContainer.classList.contains('hidden');
@@ -443,30 +708,164 @@
 
               app.appendChild(header);
               app.appendChild(childrenContainer);
+              
+              // Apply severity styling to the app element
+              applySeverityToApp(app, group.route, targets, routes);
             } else {
-              // Regular standalone route
-              const title = document.createElement('div');
-              title.className = 'route';
-              title.textContent = group.route;
-              app.appendChild(title);
-              addRouteInfo(app, group.route, targets, routes);
-            }
-            // Reorder controls
-            if (document.body.classList.contains('reorder-mode')){
-              const controls=document.createElement('div');
-              controls.className='chips';
-              const up=document.createElement('button'); up.className='drag-btn'; up.textContent='↑';
-              const down=document.createElement('button'); down.className='drag-btn'; down.textContent='↓';
-              up.addEventListener('click',()=>{
-                const order = preferences.routeOrder||[]; const i=order.indexOf(group.route);
-                if (i>0){ [order[i-1],order[i]]=[order[i],order[i-1]]; savePrefs(preferences); location.reload(); }
-              });
-              down.addEventListener('click',()=>{
-                const order = preferences.routeOrder||[]; const i=order.indexOf(group.route);
-                if (i>-1 && i<order.length-1){ [order[i+1],order[i]]=[order[i],order[i+1]]; savePrefs(preferences); location.reload(); }
-              });
-              controls.appendChild(up); controls.appendChild(down);
-              app.appendChild(controls);
+              // Standalone route (no auto-parent in this base group)
+              
+              // Check if this standalone route is promoted (even without children)
+              const isPromoted = promotedRoots && promotedRoots[group.baseKey] === group.route;
+              
+              if (isPromoted) {
+                // Render promoted standalone routes like expandable routes for consistency
+                app.classList.add('expandable-route');
+                
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                
+                // 1. Title section (no expand icon, but similar layout)
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                titleSection.innerHTML = `
+                  <span class="route-name">${group.route}</span>
+                  <span class="child-count">(root)</span>
+                `;
+                header.appendChild(titleSection);
+                
+                // 2. Upstream base chip
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseChipContainer = document.createElement('div');
+                baseChipContainer.className = 'chips';
+                baseChipContainer.appendChild(baseChip);
+                header.appendChild(baseChipContainer);
+                
+                // 3. Status chips  
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips parent-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                header.appendChild(statusContainer);
+                
+                // 4. No child summary chips (empty container for layout consistency)
+                const summaryChips = document.createElement('div');
+                summaryChips.className = 'chips child-summary';
+                header.appendChild(summaryChips);
+                
+                // 5. Control buttons (Clear Root only)
+                const controls = document.createElement('div');
+                controls.className = 'chips route-controls';
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'btn btn-small';
+                clearBtn.textContent = 'Clear Root';
+                clearBtn.addEventListener('click', (e)=>{
+                  e.stopPropagation();
+                  const base = group.baseKey;
+                  console.log('🗑️ Clearing root for standalone route:', group.route, 'base:', base);
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  delete promotedRoots[base];
+                  savePromotions(promotedRoots);
+                  console.log('Updated promotions:', promotedRoots);
+                  location.reload();
+                });
+                controls.appendChild(clearBtn);
+                header.appendChild(controls);
+                
+                // 6. Action buttons (Open + Diagnose)
+                const actions = document.createElement('div');
+                actions.className = 'chips route-actions';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn';
+                openBtn.textContent = 'Open';
+                openBtn.href = '#';
+                openBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const diagBtn = document.createElement('a');
+                diagBtn.className = 'btn';
+                diagBtn.textContent = 'Diagnose';
+                diagBtn.href = '#';
+                diagBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openDiagnoseModal(group.route, targets, routes);
+                });
+                actions.appendChild(openBtn);
+                actions.appendChild(diagBtn);
+                header.appendChild(actions);
+                
+                app.appendChild(header);
+                
+              } else {
+                // Non-promoted standalone route - use simple layout
+                
+                // 1. Route title
+                const title = document.createElement('div');
+                title.className = 'route';
+                title.textContent = group.route;
+                app.appendChild(title);
+                
+                // 2. Upstream base chip
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseContainer = document.createElement('div');
+                baseContainer.className = 'chips';
+                baseContainer.appendChild(baseChip);
+                app.appendChild(baseContainer);
+                
+                // 3. Status chips
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips route-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                app.appendChild(statusContainer);
+                
+                // 4. Promote as Root button
+                const controls = document.createElement('div');
+                controls.className = 'chips route-controls';
+                const promoteBtn = document.createElement('button'); 
+                promoteBtn.className = 'btn btn-small'; 
+                promoteBtn.textContent = 'Promote as Root';
+                promoteBtn.addEventListener('click',(e)=>{
+                  e.preventDefault();
+                  const base = group.baseKey;
+                  console.log('⬆️ Promoting standalone route:', group.route, 'for base:', base);
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = group.route;
+                  savePromotions(promotedRoots);
+                  console.log('Updated promotions:', promotedRoots);
+                  location.reload();
+                });
+                controls.appendChild(promoteBtn);
+                app.appendChild(controls);
+                
+                // 5. Action buttons (Open + Diagnose)
+                const actions = document.createElement('div');
+                actions.className = 'chips route-actions';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn';
+                openBtn.textContent = 'Open';
+                openBtn.href = '#';
+                openBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const diagBtn = document.createElement('a');
+                diagBtn.className = 'btn';
+                diagBtn.textContent = 'Diagnose';
+                diagBtn.href = '#';
+                diagBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  openDiagnoseModal(group.route, targets, routes);
+                });
+                actions.appendChild(openBtn);
+                actions.appendChild(diagBtn);
+                app.appendChild(actions);
+              }
+              
+              // Apply severity styling to the app element
+              applySeverityToApp(app, group.route, targets, routes);
             }
             list.appendChild(app);
           });
@@ -487,12 +886,140 @@
       (function initControls(){
         const sortEl=document.getElementById('sortMode');
         const filterEl=document.getElementById('routeFilter');
-        const reorderEl=document.getElementById('toggleReorder');
         preferences = loadPrefs();
         if (sortEl){ if (preferences.sortMode) sortEl.value=preferences.sortMode; sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); location.reload(); }); }
         if (filterEl){ if (preferences.filter) filterEl.value=preferences.filter; filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; savePrefs(preferences); location.reload(); }); }
-        if (reorderEl){ reorderEl.addEventListener('click',()=>{ document.body.classList.toggle('reorder-mode'); }); }
       })();
+
+      // Reload configurations functionality
+      async function reloadConfigs() {
+        const reloadBtn = document.getElementById('reloadConfigs');
+        const originalText = reloadBtn.textContent;
+        
+        try {
+          // Show loading state
+          reloadBtn.textContent = '🔄 Reloading...';
+          reloadBtn.disabled = true;
+          
+          // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
+          let scanSuccess = false;
+          const timestamp = Date.now();
+          const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+            cache: 'no-cache'
+          });
+          if (freshRoutes.ok) {
+            scanSuccess = true;
+            console.log('✅ Routes data refreshed');
+          }
+          
+          if (scanSuccess) {
+            // Success feedback
+            reloadBtn.textContent = '✅ Reloaded!';
+            reloadBtn.style.background = '#16402b';
+            reloadBtn.style.borderColor = '#2a7f54';
+            reloadBtn.style.color = '#a6f3cc';
+            
+            // Reload the page after short delay to show success
+            setTimeout(() => {
+              location.reload();
+            }, 1000);
+          } else {
+            throw new Error('Unable to reload configs');
+          }
+          
+        } catch (error) {
+          console.error('Config reload failed:', error);
+          
+          // Error feedback
+          reloadBtn.textContent = '❌ Failed - Try Manual';
+          reloadBtn.style.background = 'rgba(239,68,68,.15)';
+          reloadBtn.style.borderColor = '#ef4444';
+          reloadBtn.style.color = '#ef4444';
+          
+          // Show manual instructions
+          const instructions = `
+To reload manually, run:
+node test/scanApps.js
+./scripts/smart-build.sh
+
+Or check if config files have syntax errors.
+          `.trim();
+          
+          setTimeout(() => {
+            if (confirm(`Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page anyway to check if configs were updated externally?`)) {
+              location.reload();
+            }
+          }, 1500);
+        }
+        
+        // Reset button after delay
+        setTimeout(() => {
+          reloadBtn.textContent = originalText;
+          reloadBtn.disabled = false;
+          reloadBtn.style.background = '';
+          reloadBtn.style.borderColor = '';
+          reloadBtn.style.color = '';
+        }, 3000);
+      }
+
+      // Wire up reload button
+      document.getElementById('reloadConfigs').addEventListener('click', reloadConfigs);
+
+      // View JSON for specific source file
+      function viewSourceJson(sourceFile, routesInSource) {
+        const filteredData = {
+          sourceFile: sourceFile,
+          routes: {},
+          metadata: {},
+          generatedAt: routesData.generatedAt,
+          ngrok: routesData.ngrok
+        };
+        
+        // Filter routes data to only include routes from this source
+        const targetsArr = Object.keys(routesData.summary || {});
+        targetsArr.forEach(target => {
+          filteredData.routes[target] = {};
+          if (routesData.summary && routesData.summary[target]) {
+            routesInSource.forEach(route => {
+              if (routesData.summary[target][route]) {
+                filteredData.routes[target][route] = routesData.summary[target][route];
+              }
+            });
+          }
+        });
+        
+        // Filter metadata to only include routes from this source
+        if (routesData.metadata) {
+          routesInSource.forEach(route => {
+            if (routesData.metadata[route]) {
+              filteredData.metadata[route] = routesData.metadata[route];
+            }
+          });
+        }
+        
+        const modal = document.createElement('div');
+        modal.className = 'backdrop';
+        modal.innerHTML = `
+          <div class="modal large">
+            <h2>JSON Data for ${sourceFile}</h2>
+            <div class="section">
+              <h3>Filtered Routes & Metadata</h3>
+              <p>Showing only routes from <strong>${sourceFile}</strong> (${routesInSource.length} routes)</p>
+              <pre class="config-display">${JSON.stringify(filteredData, null, 2)}</pre>
+            </div>
+            <div class="toolbar">
+              <button class="btn" onclick="navigator.clipboard.writeText('${JSON.stringify(filteredData, null, 2).replace(/'/g, "\\'")}').then(() => this.textContent = 'Copied!').then(() => setTimeout(() => this.textContent = 'Copy JSON', 1500))">Copy JSON</button>
+              <button class="btn" onclick="this.closest('.backdrop').remove()">Close</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) modal.remove();
+        });
+      }
 
       // Conflict Management Functions
       function showConflictManagement(routes) {
@@ -832,178 +1359,8 @@
         }
       }
 
-      // Hierarchical route structure helpers
-      function buildRouteHierarchy(allRoutes) {
-        const hierarchical = new Map();
-        
-        // Filter to meaningful routes (exclude system routes and technical sub-routes)  
-        const meaningfulRoutes = allRoutes.filter(r => 
-          !['/health/', '/status/', '/reports/', '/api/config/', '/api/resolve-conflict', '/api/rename-route'].includes(r) &&
-          !r.includes('/node_modules/') && !r.includes('/@') && !r.includes('/sockjs-node/') && 
-          !r.includes('/storybook-server-channel/') && !r.includes('/_next/') && !r.includes('/src/')
-        );
-        
-        // Build parent-child relationships
-        meaningfulRoutes.forEach(route => {
-          const parent = findParentRoute(route, meaningfulRoutes);
-          if (parent && parent !== route) {
-            if (!hierarchical.has(parent)) {
-              hierarchical.set(parent, []);
-            }
-            hierarchical.get(parent).push(route);
-          }
-        });
-        
-        // Top level routes are those without parents or are parents themselves
-        const topLevel = meaningfulRoutes.filter(r => {
-          const parent = findParentRoute(r, meaningfulRoutes);
-          return !parent || parent === r || hierarchical.has(r);
-        });
-        
-        return { topLevel: [...new Set(topLevel)], hierarchical };
-      }
-      
-      function findParentRoute(route, allRoutes) {        
-        // For API sub-routes like /api/static/, parent is /api/
-        if (route.startsWith('/api/') && route !== '/api/') {
-          return '/api/';
-        }
-        
-        // Only group very specific cases to avoid excessive sub-routes
-        if (route.startsWith('/static/') && route !== '/static/') {
-          return '/static/';
-        }
-        
-        return null;
-      }
-      
-      function groupRoutesByHierarchy(routes, hierarchical) {
-        const groups = [];
-        const processed = new Set();
-        
-        routes.forEach(route => {
-          if (processed.has(route)) return;
-          
-          const children = hierarchical.get(route) || [];
-          const validChildren = children.filter(child => routes.includes(child));
-          
-          groups.push({
-            route: route,
-            children: validChildren
-          });
-          
-          processed.add(route);
-          validChildren.forEach(child => processed.add(child));
-        });
-        
-        return groups;
-      }
-      
-      function addRouteInfo(appElement, route, targets, routes) {
-        const chips = document.createElement('div');
-        chips.className = 'chips';
-        
-        let severity = 'err';
-        let hasValidResponse = false;
-        
-        for (const t of targets) {
-          const info = (routes.summary[t] || {})[route];
-          if (!info) continue;
-          
-          const status = info.status || 0;
-          
-          // More intelligent status interpretation
-          const isApiRoute = route.includes('/api');
-          const isStaticRoute = route.includes('/static') || route.includes('/node_modules') || route.includes('/sockjs-node');
-          const isPaymentRoute = route.includes('/payment');
-          
-          let cls, reason;
-          
-          if (status >= 200 && status < 300) {
-            cls = 'ok';
-            hasValidResponse = true;
-            reason = 'Working correctly';
-          } else if (status >= 300 && status < 400) {
-            cls = 'ok'; // Redirects are often expected
-            hasValidResponse = true;
-            reason = 'Redirect (often expected behavior)';
-          } else if (status === 404) {
-            // 404 is not always an error - depends on route type
-            if (isStaticRoute) {
-              cls = 'warn';
-              reason = 'Static resource not found (may be dynamically loaded)';
-            } else if (isApiRoute || isPaymentRoute) {
-              // For API/payment routes, check if the service is actually up
-              cls = 'warn';
-              reason = 'Endpoint returned 404 - check if service expects different path or method';
-            } else {
-              cls = 'err';
-              reason = 'Route not found';
-            }
-          } else if (status === 0) {
-            cls = 'warn';
-            reason = 'No response from this target (connection failed)';
-          } else if (status >= 400 && status < 500) {
-            cls = 'warn';
-            reason = 'Client error - check route configuration';
-          } else if (status >= 500) {
-            cls = 'err';
-            reason = 'Server error - upstream service issue';
-          }
-          
-          const labelName = (t === 'local-proxy') ? 'localhost' : t;
-          const label = `${labelName}: ${status}`;
-          chips.appendChild(chip(label, cls, reason));
-          
-          // WebSocket status for development routes
-          if (info.websocket && route !== '/api/' && !isStaticRoute) {
-            if (!info.websocket.ok && status >= 200 && status < 300) {
-              chips.appendChild(chip('ws fail', 'warn', 'WebSocket upgrade failed - may affect hot reload'));
-            } else if (info.websocket.ok) {
-              chips.appendChild(chip('ws ok', 'ok', 'WebSocket connection successful'));
-            }
-          }
-          
-          // Update overall severity (green if ANY target is good)
-          if (cls === 'ok') severity = 'ok';
-          else if (cls === 'warn' && severity !== 'ok') severity = 'warn';
-        }
-        
-        appElement.appendChild(chips);
-        
-        // Hide noisy technical-only routes completely
-        const noisy = route.includes('/node_modules/') || route.includes('/@') || route.includes('/sockjs-node/') ||
-                      route.includes('/storybook-server-channel/') || route.includes('/_next/') || route === '/static/' || route === '/.storybook/';
-        if (noisy) return;
-
-        // Add action buttons
-        const diag = document.createElement('div');
-        diag.className = 'chips';
-        
-        const openBtn = document.createElement('a');
-        openBtn.className = 'btn';
-        openBtn.textContent = 'Open';
-        openBtn.href = '#';
-        openBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const url = chooseOpenUrl(routes, targets, route);
-          if (url) window.open(url, '_blank', 'noopener');
-        });
-        
-        const diagBtn = document.createElement('a');
-        diagBtn.className = 'btn';
-        diagBtn.textContent = 'Diagnose';
-        diagBtn.href = '#';
-        diagBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          openDiagnoseModal(route, targets, routes);
-        });
-        
-        diag.appendChild(openBtn);
-        diag.appendChild(diagBtn);
-        appElement.appendChild(diag);
-        
-        // Apply severity styling
+      function applySeverityToApp(appElement, route, targets, routes) {
+        const severity = severityOf(route, targets, routes);
         appElement.classList.add(severity);
       }
 
