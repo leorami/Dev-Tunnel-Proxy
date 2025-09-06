@@ -15,7 +15,11 @@
       header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
-      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .toolbar .field{display:flex;gap:6px;align-items:center}
+      .toolbar select,.toolbar input[type="text"]{background:var(--btnBg);border:1px solid var(--btnBorder);color:var(--btnText);border-radius:8px;padding:7px 10px}
+      .drag-btn{border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:6px;padding:4px 8px;cursor:pointer}
+      .drag-btn:hover{background:var(--btnBgHover)}
       .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
       .btn:hover{background:var(--btnBgHover)}
       .btn:active{transform:translateY(1px)}
@@ -127,6 +131,20 @@
         Status
       </h1>
       <div class="toolbar">
+        <div class="field">
+          <label class="label">Sort</label>
+          <select id="sortMode">
+            <option value="manual">Manual</option>
+            <option value="alpha">A–Z</option>
+            <option value="status">By status</option>
+            <option value="depth">By depth</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="label">Filter</label>
+          <input id="routeFilter" type="text" placeholder="/api, ok, err, mxtk" />
+        </div>
+        <button class="btn" id="toggleReorder">Reorder</button>
         <a class="btn" href="/health">Health</a>
         <a class="btn" href="/reports/">Reports</a>
         <button class="btn" id="recommend">Recommend</button>
@@ -238,7 +256,53 @@
       }
 
       let routesData = null;
+      let preferences = null;
+
+      function loadPrefs(){
+        try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
+      }
+      function savePrefs(p){ localStorage.setItem('statusPrefs', JSON.stringify(p||{})); }
+
+      function routeDepth(r){ return (r||'').split('/').filter(Boolean).length; }
+      function severityOf(route, targets, routes){
+        // ok if ANY target is ok; redirects/0 treated as warn
+        let sev='err';
+        for (const t of targets){
+          const info=(routes.summary?.[t]||{})[route];
+          if (!info) continue;
+          const s = info.status||0;
+          if (s>=200 && s<300) return 'ok';
+          if (s>=300 && s<400) sev = sev==='ok'?'ok':'warn';
+          else if (s===0) sev = sev==='ok'?'ok':'warn';
+        }
+        return sev;
+      }
+      function applyFilter(routeGroups, filterValue, targets, routes){
+        const q=(filterValue||'').trim().toLowerCase(); if(!q) return routeGroups;
+        return routeGroups.filter(g=>{
+          const name=(g.route||'').toLowerCase();
+          if (name.includes(q)) return true;
+          if (q==='ok'||q==='warn'||q==='err') return severityOf(g.route,targets,routes)===q;
+          return false;
+        });
+      }
+      function sortRoutes(routeGroups, sortMode, targets, routes){
+        if (sortMode==='manual'){
+          const order = preferences?.routeOrder||[];
+          const idx = (k)=>{ const i=order.indexOf(k); return i<0?Number.MAX_SAFE_INTEGER:i; };
+          return routeGroups.slice().sort((a,b)=> idx(a.route)-idx(b.route) || a.route.localeCompare(b.route));
+        }
+        if (sortMode==='alpha') return routeGroups.slice().sort((a,b)=> a.route.localeCompare(b.route));
+        if (sortMode==='depth') return routeGroups.slice().sort((a,b)=> routeDepth(a.route)-routeDepth(b.route) || a.route.localeCompare(b.route));
+        if (sortMode==='status'){
+          const rank={err:0,warn:1,ok:2};
+          return routeGroups.slice().sort((a,b)=> (rank[severityOf(a.route,targets,routes)]-rank[severityOf(b.route,targets,routes)]) || a.route.localeCompare(b.route));
+        }
+        return routeGroups;
+      }
+      function rememberOrder(rendered){ preferences.routeOrder = rendered.map(g=>g.route); savePrefs(preferences); }
       (async function init(){
+        preferences = loadPrefs();
         const routes = await loadJSON('/routes.json');
         routesData = routes;
         const ngrokTxt = (routes.ngrok || 'not discovered');
@@ -290,7 +354,15 @@
           list.className = 'apps';
           
           // Group routes by parent-child relationships
-          const routeGroups = groupRoutesByHierarchy(bySource[source], hierarchical);
+          let routeGroups = groupRoutesByHierarchy(bySource[source], hierarchical);
+          const targetsArr = Object.keys(routes.summary||{});
+          // Filter + sort
+          const sortEl = document.getElementById('sortMode');
+          const filterEl = document.getElementById('routeFilter');
+          const sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'manual';
+          const filterVal = (preferences?.filter) || (filterEl && filterEl.value) || '';
+          routeGroups = applyFilter(routeGroups, filterVal, targetsArr, routes);
+          routeGroups = sortRoutes(routeGroups, sortMode, targetsArr, routes);
           
           routeGroups.forEach(group => {
             const app = document.createElement('div');
@@ -345,14 +417,48 @@
               app.appendChild(title);
               addRouteInfo(app, group.route, targets, routes);
             }
+            // Reorder controls
+            if (document.body.classList.contains('reorder-mode')){
+              const controls=document.createElement('div');
+              controls.className='chips';
+              const up=document.createElement('button'); up.className='drag-btn'; up.textContent='↑';
+              const down=document.createElement('button'); down.className='drag-btn'; down.textContent='↓';
+              up.addEventListener('click',()=>{
+                const order = preferences.routeOrder||[]; const i=order.indexOf(group.route);
+                if (i>0){ [order[i-1],order[i]]=[order[i],order[i-1]]; savePrefs(preferences); location.reload(); }
+              });
+              down.addEventListener('click',()=>{
+                const order = preferences.routeOrder||[]; const i=order.indexOf(group.route);
+                if (i>-1 && i<order.length-1){ [order[i+1],order[i]]=[order[i],order[i+1]]; savePrefs(preferences); location.reload(); }
+              });
+              controls.appendChild(up); controls.appendChild(down);
+              app.appendChild(controls);
+            }
             list.appendChild(app);
           });
           groupCard.appendChild(list);
           appsEl.appendChild(groupCard);
         });
+
+        // Capture initial order if not set
+        if (!(preferences.routeOrder||[]).length){
+          const rendered = Array.from(document.querySelectorAll('.app .route')).map(el=>({route:el.textContent.trim()}));
+          rememberOrder(rendered);
+        }
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
+
+      // Controls wiring
+      (function initControls(){
+        const sortEl=document.getElementById('sortMode');
+        const filterEl=document.getElementById('routeFilter');
+        const reorderEl=document.getElementById('toggleReorder');
+        preferences = loadPrefs();
+        if (sortEl){ if (preferences.sortMode) sortEl.value=preferences.sortMode; sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); location.reload(); }); }
+        if (filterEl){ if (preferences.filter) filterEl.value=preferences.filter; filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; savePrefs(preferences); location.reload(); }); }
+        if (reorderEl){ reorderEl.addEventListener('click',()=>{ document.body.classList.toggle('reorder-mode'); }); }
+      })();
 
       // Conflict Management Functions
       function showConflictManagement(routes) {
