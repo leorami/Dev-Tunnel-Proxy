@@ -206,22 +206,28 @@
         return s;
       }
 
-      // Choose best URL to open (prefer local-proxy successful, else ngrok successful, else first available)
+      // Choose best URL to open (ALWAYS prefer ngrok over localhost)
       function chooseOpenUrl(routes, targets, routeKey){
-        const pref = ['local-proxy','ngrok'];
+        const pref = ['ngrok', 'local-proxy'];
+        
+        // First pass: try to find a successful response (2xx or 3xx for ngrok, only 2xx for localhost)
         for (const t of pref){
           const info = (routes.summary?.[t]||{})[routeKey];
-          if (info && info.url && (info.status>=200 && info.status<400)) return info.url;
+          if (info && info.url) {
+            if (t === 'ngrok' && info.status >= 200 && info.status < 400) {
+              return info.url;
+            } else if (t === 'local-proxy' && info.status >= 200 && info.status < 300) {
+              return info.url;
+            }
+          }
         }
+        
+        // Second pass: return ngrok URL even if not successful (better than localhost error)
         for (const t of pref){
           const info = (routes.summary?.[t]||{})[routeKey];
           if (info && info.url) return info.url;
         }
-        // fallback: first any target with url
-        for (const t of Object.keys(routes.summary||{})){
-          const info = (routes.summary?.[t]||{})[routeKey];
-          if (info && info.url) return info.url;
-        }
+        
         return null;
       }
 
@@ -690,9 +696,11 @@
       function buildRouteHierarchy(allRoutes) {
         const hierarchical = new Map();
         
-        // Filter to meaningful routes (exclude system routes)
+        // Filter to meaningful routes (exclude system routes and technical sub-routes)  
         const meaningfulRoutes = allRoutes.filter(r => 
-          !['/health/', '/status/', '/reports/', '/api/config/', '/api/resolve-conflict', '/api/rename-route'].includes(r)
+          !['/health/', '/status/', '/reports/', '/api/config/', '/api/resolve-conflict', '/api/rename-route'].includes(r) &&
+          !r.includes('/node_modules/') && !r.includes('/@') && !r.includes('/sockjs-node/') && 
+          !r.includes('/storybook-server-channel/') && !r.includes('/_next/') && !r.includes('/src/')
         );
         
         // Build parent-child relationships
@@ -715,21 +723,15 @@
         return { topLevel: [...new Set(topLevel)], hierarchical };
       }
       
-      function findParentRoute(route, allRoutes) {
-        // Common parent route patterns
-        if (route.includes('/node_modules/') || route.includes('/sockjs-node/') || 
-            route.includes('/storybook-server-channel/')) {
-          // These are typically sub-routes of /static/ or app-specific paths
-          for (const candidate of allRoutes) {
-            if (candidate !== route && route.startsWith(candidate) && candidate.length > 1) {
-              return candidate;
-            }
-          }
-        }
-        
+      function findParentRoute(route, allRoutes) {        
         // For API sub-routes like /api/static/, parent is /api/
         if (route.startsWith('/api/') && route !== '/api/') {
           return '/api/';
+        }
+        
+        // Only group very specific cases to avoid excessive sub-routes
+        if (route.startsWith('/static/') && route !== '/static/') {
+          return '/static/';
         }
         
         return null;
