@@ -763,7 +763,7 @@
         const chips = document.createElement('div');
         chips.className = 'chips';
         
-        let severity = 'ok';
+        let severity = 'err';
         let hasValidResponse = false;
         
         for (const t of targets) {
@@ -801,8 +801,8 @@
               reason = 'Route not found';
             }
           } else if (status === 0) {
-            cls = 'err';
-            reason = 'No response - service may be down';
+            cls = 'warn';
+            reason = 'No response from this target (connection failed)';
           } else if (status >= 400 && status < 500) {
             cls = 'warn';
             reason = 'Client error - check route configuration';
@@ -824,13 +824,18 @@
             }
           }
           
-          // Update overall severity
-          if (cls === 'err') severity = 'err';
-          else if (cls === 'warn' && severity === 'ok') severity = 'warn';
+          // Update overall severity (green if ANY target is good)
+          if (cls === 'ok') severity = 'ok';
+          else if (cls === 'warn' && severity !== 'ok') severity = 'warn';
         }
         
         appElement.appendChild(chips);
         
+        // Hide noisy technical-only routes completely
+        const noisy = route.includes('/node_modules/') || route.includes('/@') || route.includes('/sockjs-node/') ||
+                      route.includes('/storybook-server-channel/') || route.includes('/_next/') || route === '/static/' || route === '/.storybook/';
+        if (noisy) return;
+
         // Add action buttons
         const diag = document.createElement('div');
         diag.className = 'chips';
