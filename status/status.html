@@ -18,6 +18,7 @@
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-top:4px}
+      .toolbar.centered{justify-content:center;margin:20px auto 18px}
       .toolbar .field{display:flex;gap:6px;align-items:center}
       .toolbar select,.toolbar input[type="text"]{background:var(--btnBg);border:1px solid var(--btnBorder);color:var(--btnText);border-radius:8px;padding:7px 10px}
       .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:10px;padding:8px 12px;cursor:pointer;font-weight:600;text-decoration:none;text-align:center;backdrop-filter:saturate(160%) blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.25)}
@@ -165,11 +166,13 @@
           <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
         </div>
       </div>
-      <div class="toolbar">
+      
+    </header>
+    <div class="container">
+      <div class="toolbar centered">
         <div class="field">
           <label class="label">Sort</label>
           <select id="sortMode">
-            <option value="manual">Manual</option>
             <option value="alpha">A–Z</option>
             <option value="status">By status</option>
             <option value="depth">By depth</option>
@@ -180,8 +183,6 @@
           <input id="routeFilter" type="text" placeholder="/api, ok, err, mxtk" />
         </div>
       </div>
-    </header>
-    <div class="container">
       <div class="grid">
         <div class="card">
           <h2>Overview</h2>
@@ -371,11 +372,6 @@
         });
       }
       function sortRoutes(routeGroups, sortMode, targets, routes){
-        if (sortMode==='manual'){
-          const order = preferences?.routeOrder||[];
-          const idx = (k)=>{ const i=order.indexOf(k); return i<0?Number.MAX_SAFE_INTEGER:i; };
-          return routeGroups.slice().sort((a,b)=> idx(a.route)-idx(b.route) || a.route.localeCompare(b.route));
-        }
         if (sortMode==='alpha') return routeGroups.slice().sort((a,b)=> a.route.localeCompare(b.route));
         if (sortMode==='depth') return routeGroups.slice().sort((a,b)=> routeDepth(a.route)-routeDepth(b.route) || a.route.localeCompare(b.route));
         if (sortMode==='status'){
@@ -510,7 +506,8 @@
           // Filter + sort
           const sortEl = document.getElementById('sortMode');
           const filterEl = document.getElementById('routeFilter');
-          const sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'manual';
+          let sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'status';
+          if (sortMode==='manual') { sortMode='status'; preferences.sortMode='status'; savePrefs(preferences); if (sortEl) sortEl.value='status'; }
           const filterVal = (preferences?.filter) || (filterEl && filterEl.value) || '';
           routeGroups = applyFilter(routeGroups, filterVal, targetsArr, routes);
           routeGroups = sortRoutes(routeGroups, sortMode, targetsArr, routes);
@@ -873,11 +870,7 @@
           appsEl.appendChild(groupCard);
         });
 
-        // Capture initial order if not set
-        if (!(preferences.routeOrder||[]).length){
-          const rendered = Array.from(document.querySelectorAll('.app .route')).map(el=>({route:el.textContent.trim()}));
-          rememberOrder(rendered);
-        }
+        // No manual ordering; default sort is by status
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
@@ -887,7 +880,11 @@
         const sortEl=document.getElementById('sortMode');
         const filterEl=document.getElementById('routeFilter');
         preferences = loadPrefs();
-        if (sortEl){ if (preferences.sortMode) sortEl.value=preferences.sortMode; sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); location.reload(); }); }
+        if (sortEl){
+          const pref = (preferences.sortMode==='manual') ? 'status' : (preferences.sortMode||'status');
+          sortEl.value = pref;
+          sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); location.reload(); });
+        }
         if (filterEl){ if (preferences.filter) filterEl.value=preferences.filter; filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; savePrefs(preferences); location.reload(); }); }
       })();
 

@@ -34,9 +34,17 @@ case "$cmd" in
   up)
     ensure_network
     # Harden upstreams before starting so reloads won't fail if some services are down
-    node "$ROOT_DIR/utils/hardenUpstreams.js" || true
+    if command -v node >/dev/null 2>&1; then
+      node "$ROOT_DIR/utils/hardenUpstreams.js" || true
+    else
+      docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
+    fi
     # Generate composed app bundle used by Nginx
-    node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+    if command -v node >/dev/null 2>&1; then
+      node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+    else
+      docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    fi
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   down)
@@ -45,8 +53,13 @@ case "$cmd" in
   restart)
     (cd "$ROOT_DIR" && $COMPOSE down --remove-orphans)
     ensure_network
-    node "$ROOT_DIR/utils/hardenUpstreams.js" || true
-    node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+    if command -v node >/dev/null 2>&1; then
+      node "$ROOT_DIR/utils/hardenUpstreams.js" || true
+      node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+    else
+      docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
+      docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    fi
     (cd "$ROOT_DIR" && $COMPOSE up -d)
     ;;
   logs)

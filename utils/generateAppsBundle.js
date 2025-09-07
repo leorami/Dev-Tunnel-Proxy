@@ -125,6 +125,81 @@ function collectBlocksFromFiles(files) {
   return allBlocks;
 }
 
+// Rewrite proxy_pass http://host:port[/path] to variable-based form to defer DNS resolution
+// and ensure a resolver is present in the block. Avoid double-hardening if already variable-based.
+function hardenLocationFullText(fullText) {
+  // Find body range between the first '{' after 'location' and its matching '}'
+  const locIdx = fullText.indexOf('location');
+  if (locIdx === -1) return fullText;
+  const braceOpen = fullText.indexOf('{', locIdx);
+  if (braceOpen === -1) return fullText;
+
+  let depth = 1;
+  let i = braceOpen + 1;
+  while (i < fullText.length && depth > 0) {
+    const ch = fullText[i++];
+    if (ch === '{') depth++;
+    else if (ch === '}') depth--;
+  }
+  const bodyStart = braceOpen + 1;
+  const bodyEnd = i - 1;
+  const before = fullText.slice(0, bodyStart);
+  const body = fullText.slice(bodyStart, bodyEnd);
+  const after = fullText.slice(bodyEnd);
+
+  // If already uses variable-based proxy_pass, leave as-is (but still ensure resolver)
+  let changed = false;
+  const lines = body.split(/\r?\n/);
+  let varCounter = 0;
+  let hasResolver = /(^|\n)\s*resolver\b/.test(body);
+  let insertedResolver = false;
+
+  const proxyRegex = /(\s*)proxy_pass\s+http:\/\/([a-zA-Z0-9_.-]+:[0-9]+)([^;]*);/;
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx];
+    if (/\bproxy_pass\s+\$[A-Za-z0-9_]+/.test(line)) {
+      // Already variable-based; continue
+      continue;
+    }
+    const m = line.match(proxyRegex);
+    if (!m) continue;
+    const indent = m[1] || '';
+    const target = m[2]; // host:port
+    const restPath = m[3] || '';
+    const safeName = target.replace(/[^a-zA-Z0-9]/g, '_');
+    const varName = `$up_${safeName}_${++varCounter}`;
+
+    // Insert resolver if missing (before the set/proxy lines)
+    if (!hasResolver && !insertedResolver) {
+      lines.splice(idx, 0, `${indent}resolver 127.0.0.11 ipv6=off;`, `${indent}resolver_timeout 5s;`);
+      idx += 2;
+      insertedResolver = true;
+      hasResolver = true;
+    }
+
+    // Insert set line immediately before proxy_pass
+    lines.splice(idx, 0, `${indent}set ${varName} ${target};`);
+    idx += 1;
+
+    // Replace proxy_pass with variable form, preserving any path suffix
+    lines[idx] = `${indent}proxy_pass http://${varName}${restPath};`;
+    changed = true;
+  }
+
+  // If no proxy_pass rewrites happened but there is a variable-based proxy_pass, ensure resolver exists
+  if (!hasResolver && lines.some(l => /\bproxy_pass\s+\$[A-Za-z0-9_]+/.test(l))) {
+    const insertAt = Math.max(0, lines.findIndex(l => /\S/.test(l)));
+    const indent = (lines[insertAt] && (lines[insertAt].match(/^\s*/)[0] || '')) || '';
+    lines.splice(insertAt, 0, `${indent}resolver 127.0.0.11 ipv6=off;`, `${indent}resolver_timeout 5s;`);
+    changed = true;
+    hasResolver = true;
+  }
+
+  if (!changed) return fullText;
+  const newBody = lines.join('\n');
+  return before + newBody + after;
+}
+
 function ensureDirSync(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
@@ -157,7 +232,7 @@ function main() {
 
   // Emit overrides first, in file order
   for (const b of overrideBlocks) {
-    lines.push(b.fullText.trimEnd());
+    lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
   }
 
@@ -176,7 +251,7 @@ function main() {
     // Avoid exact duplicate raws among app blocks, but do not mark normalized key
     if (seen.has(rawKey)) continue;
     seen.add(rawKey);
-    lines.push(b.fullText.trimEnd());
+    lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
   }
 

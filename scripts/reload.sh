@@ -6,7 +6,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Re-generate composed app bundle before reload
-node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+if command -v node >/dev/null 2>&1; then
+  node "$ROOT_DIR/utils/generateAppsBundle.js" || true
+else
+  docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+fi
 
 if docker exec dev-proxy nginx -t; then
   docker exec dev-proxy nginx -s reload
