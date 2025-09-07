@@ -27,6 +27,9 @@
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .container{max-width:1100px;margin:24px auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+      .summaryRow{position:sticky;top:var(--headerH, 64px);z-index:600;backdrop-filter:saturate(180%) blur(8px)}
+      .appsHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;position:sticky;top:calc(var(--headerH, 64px) + var(--summaryH, 0px));z-index:590;background:var(--headerBg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
+      .appsHeader .toolbar{padding-top:0}
       .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease}
       .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.30)}
       .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
@@ -35,7 +38,7 @@
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative}
       .app:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
       .app.ok{border-color:rgba(22,199,132,.7);box-shadow:0 0 0 2px rgba(22,199,132,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
       .app.warn{border-color:rgba(245,158,11,.7);box-shadow:0 0 0 2px rgba(245,158,11,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
@@ -129,6 +132,12 @@
       .route-controls .btn{margin-right:6px}
       .route-actions{margin-top:4px}
       .route-actions .btn{margin-right:6px;min-width:60px}
+      /* Collapse controls */
+      .collapse-toggle{position:absolute;top:8px;right:8px;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:11px;line-height:1;padding:6px;cursor:pointer}
+      .collapse-toggle:hover{background:var(--btnBgHover)}
+      .collapsed-bar{display:none;align-items:center;gap:8px;font-weight:700}
+      .app.collapsed .collapsed-bar{display:flex}
+      .app.collapsed > *:not(.collapse-toggle):not(.collapsed-bar){display:none}
 
       @media (max-width:1024px){
         .container{padding:0 12px}
@@ -169,21 +178,7 @@
       
     </header>
     <div class="container">
-      <div class="toolbar centered">
-        <div class="field">
-          <label class="label">Sort</label>
-          <select id="sortMode">
-            <option value="alpha">A–Z</option>
-            <option value="status">By status</option>
-            <option value="depth">By depth</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="label">Filter</label>
-          <input id="routeFilter" type="text" placeholder="/api, ok, err, mxtk" />
-        </div>
-      </div>
-      <div class="grid">
+      <div class="grid summaryRow">
         <div class="card">
           <h2>Overview</h2>
           <div class="row"><div class="label">Generated</div><div class="value" id="generated">—</div></div>
@@ -202,7 +197,23 @@
       </div>
 
       <div class="card" id="appsCard">
-        <h2>Configured Apps</h2>
+        <div class="appsHeader">
+          <h2 style="margin:0">Configured Apps</h2>
+          <div class="toolbar">
+            <div class="field">
+              <label class="label">Sort</label>
+              <select id="sortMode">
+                <option value="alpha">A–Z</option>
+                <option value="status">By status</option>
+                <option value="depth">By depth</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="label">Filter</label>
+              <input id="routeFilter" type="text" placeholder="/api, ok, warn, err, 200, ngrok:200" />
+            </div>
+          </div>
+        </div>
         <div class="apps" id="apps">Loading…</div>
       </div>
 
@@ -218,6 +229,14 @@
         tbtn.textContent = theme==='light' ? '🌙' : '☀️';
         tbtn.setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
       }
+      function measureStickyHeights(){
+        const headerEl = document.querySelector('header');
+        const summaryEl = document.querySelector('.summaryRow');
+        const headerH = headerEl ? headerEl.getBoundingClientRect().height : 64;
+        const summaryH = summaryEl ? summaryEl.getBoundingClientRect().height : 0;
+        document.documentElement.style.setProperty('--headerH', headerH + 'px');
+        document.documentElement.style.setProperty('--summaryH', summaryH + 'px');
+      }
       function toggleTheme(){
         const cur = document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
         const next = cur==='light'?'dark':'light';
@@ -232,6 +251,8 @@
         const brand=document.querySelector('header h1');
         if (brand){ brand.style.cursor='pointer'; brand.addEventListener('click',()=>{ location.reload(); }); }
       })();
+      window.addEventListener('load', measureStickyHeights);
+      window.addEventListener('resize', measureStickyHeights);
 
       function chip(label, cls, tip){
         const s = document.createElement('span');
@@ -290,6 +311,17 @@
         try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
       }
       function savePrefs(p){ localStorage.setItem('statusPrefs', JSON.stringify(p||{})); }
+      function isCollapsed(route){
+        preferences = preferences || loadPrefs();
+        const c = preferences.collapsedRoutes || {};
+        return !!c[route];
+      }
+      function setCollapsed(route, val){
+        preferences = preferences || loadPrefs();
+        preferences.collapsedRoutes = preferences.collapsedRoutes || {};
+        if (val) preferences.collapsedRoutes[route] = true; else delete preferences.collapsedRoutes[route];
+        savePrefs(preferences);
+      }
       function loadPromotions(){
         try{ return JSON.parse(localStorage.getItem('routePromotions')||'{}'); }catch{ return {}; }
       }
@@ -301,7 +333,10 @@
         
         // Handle nginx variables like $inspire_upstream by treating them as literal keys
         if (up.includes('$')) {
-          return up.replace(/\/$/, '');
+          const m = up.match(/\$[A-Za-z_][A-Za-z0-9_]*/);
+          if (m && m[0]) return m[0];
+          // Fallback: strip protocol and take host token before first '/'
+          return up.replace(/^https?:\/\//,'').split('/')[0];
         }
         
         try{ 
@@ -309,6 +344,16 @@
           return `${u.protocol}//${u.hostname}${u.port ? `:${u.port}` : ''}`;
         } catch { 
           return up.replace(/\/$/, ''); 
+        }
+      }
+      function extractHostname(up){
+        if (!up) return '';
+        if (up.includes('$')) return up;
+        try{
+          const u = new URL(up.startsWith('http') ? up : `http://${up}`);
+          return u.hostname; // ignore port for grouping
+        }catch{
+          return up.replace(/:\d+.*$/, '').replace(/\/$/, '');
         }
       }
       function addStatusChips(container, route, targets, routes){
@@ -360,15 +405,409 @@
       }
       function applyFilter(routeGroups, filterValue, targets, routes){
         const q=(filterValue||'').trim().toLowerCase(); if(!q) return routeGroups;
+        const codeOnly = /^\d{3}$/.test(q) ? parseInt(q,10) : null;
+        const targetCodeMatch = q.match(/^(ngrok|localhost|local-proxy):(\d{3})$/);
+        const targetKey = targetCodeMatch ? (targetCodeMatch[1]==='localhost'?'local-proxy':targetCodeMatch[1]) : null;
+        const targetCode = targetCodeMatch ? parseInt(targetCodeMatch[2],10) : null;
         const matches = (route)=>{
           const name=(route||'').toLowerCase();
           if (name.includes(q)) return true;
           if (q==='ok'||q==='warn'||q==='err') return severityOf(route,targets,routes)===q;
+          // match upstream base host
+          const up = (routes.metadata?.[route]?.upstream || '').toLowerCase();
+          if (up && up.includes(q)) return true;
+          // status code anywhere
+          if (codeOnly!=null){
+            for (const t of targets){ const info=(routes.summary?.[t]||{})[route]; if (info && info.status===codeOnly) return true; }
+          }
+          // specific target:code
+          if (targetKey){ const info=(routes.summary?.[targetKey]||{})[route]; if (info && info.status===targetCode) return true; }
           return false;
         };
-        return routeGroups.filter(g=>{
-          if (matches(g.route)) return true;
-          return (g.children||[]).some(c=>matches(c));
+        return routeGroups.filter(g=> matches(g.route) || (g.children||[]).some(c=>matches(c)) );
+      }
+
+      function debounce(fn, wait){ let to=null; return function(...args){ clearTimeout(to); to=setTimeout(()=>fn.apply(this,args), wait); }; }
+
+      function rebuildApps(){
+        const routes = routesData;
+        const appsEl = document.getElementById('apps');
+        appsEl.innerHTML = '';
+        const targets = Object.keys(routes.summary||{});
+        const meta = routes.metadata || {};
+        const bySource = {};
+        Object.keys(meta).forEach(r => {
+          const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          (bySource[src] = bySource[src] || []).push(r);
+        });
+        function buildGroupsByBase(routesInSource, meta){
+          const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
+          const routesList = routesInSource.filter(r=>!systemRoutes.has(r));
+          const byBase = new Map();
+          routesList.forEach(r=>{
+            const up = (meta[r]||{}).upstream||'';
+            const baseKey = normalizeBase(up);
+            if (!byBase.has(baseKey)) byBase.set(baseKey, []);
+            byBase.get(baseKey).push(r);
+          });
+
+          promotedRoots = loadPromotions();
+          const groups = [];
+          byBase.forEach((list, baseKey)=>{
+            const unique = Array.from(new Set(list)).sort((a,b)=> a.localeCompare(b));
+            const promoted = promotedRoots?.[baseKey] || null;
+            if (promoted && unique.includes(promoted)){
+              const children = unique.filter(r=> r!==promoted);
+              groups.push({ route: promoted, children, baseKey });
+              return;
+            }
+            const depths = unique.map(r=>({ r, d:(r||'').split('/').filter(Boolean).length }));
+            const minD = Math.min.apply(null, depths.map(x=>x.d));
+            const shallow = depths.filter(x=>x.d===minD).map(x=>x.r);
+            if (shallow.length === 1){
+              const parent = shallow[0];
+              const children = unique.filter(r=> r!==parent);
+              groups.push({ route: parent, children, baseKey });
+            } else {
+              unique.forEach(r=> groups.push({ route:r, children:[], baseKey }));
+            }
+          });
+          return groups;
+        }
+
+        Object.keys(bySource).sort().forEach(source => {
+          const groupCard = document.createElement('div');
+          groupCard.className = 'card';
+          const head = document.createElement('div');
+          head.className = 'groupHead';
+          const h2 = document.createElement('h2');
+          h2.textContent = source;
+          const buttonGroup = document.createElement('div');
+          buttonGroup.className = 'chips';
+          const jsonBtn = document.createElement('button');
+          jsonBtn.className = 'btn btn-small';
+          jsonBtn.textContent = 'JSON';
+          jsonBtn.addEventListener('click', (e)=>{ e.preventDefault(); viewSourceJson(source, bySource[source]); });
+          const recBtn = document.createElement('a');
+          recBtn.className = 'btn btn-small'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
+          recBtn.addEventListener('click', (e)=>{ e.preventDefault(); openRecommendModal(routesData, bySource[source]); });
+          buttonGroup.appendChild(jsonBtn);
+          buttonGroup.appendChild(recBtn);
+          head.appendChild(h2);
+          head.appendChild(buttonGroup);
+          groupCard.appendChild(head);
+
+          const list = document.createElement('div');
+          list.className = 'apps';
+
+          const inThisSource = Object.keys(meta).filter(r => (meta[r]||{}).sourceFile === source);
+          let routeGroups = buildGroupsByBase(inThisSource, meta);
+          const targetsArr = Object.keys(routes.summary||{});
+          const sortEl = document.getElementById('sortMode');
+          const filterEl = document.getElementById('routeFilter');
+          let sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'status';
+          if (sortMode==='manual') { sortMode='status'; preferences.sortMode='status'; savePrefs(preferences); if (sortEl) sortEl.value='status'; }
+          const filterVal = (preferences?.filter) || (filterEl && filterEl.value) || '';
+          routeGroups = applyFilter(routeGroups, filterVal, targetsArr, routes);
+          routeGroups = sortRoutes(routeGroups, sortMode, targetsArr, routes);
+
+          routeGroups.forEach(group => {
+            const app = document.createElement('div');
+            app.className = 'app';
+
+            // Collapse toggle + collapsed summary bar
+            const toggle = document.createElement('button');
+            toggle.className = 'collapse-toggle';
+            toggle.type = 'button';
+            toggle.title = 'Collapse/Expand';
+            toggle.textContent = isCollapsed(group.route) ? '▢' : '▣';
+            app.appendChild(toggle);
+            const collapsedBar = document.createElement('div');
+            collapsedBar.className = 'collapsed-bar';
+            const rootTag = (group.children && group.children.length>0) ? ' (root)' : '';
+            collapsedBar.textContent = `${group.route}${rootTag}`;
+            app.appendChild(collapsedBar);
+            toggle.addEventListener('click', (e)=>{
+              e.stopPropagation();
+              const now = !app.classList.contains('collapsed');
+              app.classList.toggle('collapsed', now);
+              setCollapsed(group.route, now);
+              toggle.textContent = now ? '▢' : '▣';
+            });
+
+            if (group.children && group.children.length > 0) {
+              app.classList.add('expandable-route');
+              const header = document.createElement('div');
+              header.className = 'route-header';
+              const titleSection = document.createElement('div');
+              titleSection.className = 'route-title';
+              titleSection.innerHTML = `
+                <span class="expand-icon">▶</span>
+                <span class="route-name">${group.route}</span>
+                <span class="child-count">(${group.children.length} sub-routes)</span>
+              `;
+              header.appendChild(titleSection);
+              const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+              const baseChipContainer = document.createElement('div');
+              baseChipContainer.className = 'chips';
+              baseChipContainer.appendChild(baseChip);
+              header.appendChild(baseChipContainer);
+              const parentStatusContainer = document.createElement('div');
+              parentStatusContainer.className = 'chips parent-status';
+              addStatusChips(parentStatusContainer, group.route, targets, routes);
+              header.appendChild(parentStatusContainer);
+              const summaryChips = document.createElement('div');
+              summaryChips.className = 'chips child-summary';
+              (group.children||[]).forEach(childRoute=>{
+                const sev = severityOf(childRoute, targets, routes);
+                const pref = ['ngrok','local-proxy'];
+                let code = null;
+                for (const t of pref){ const info=(routes.summary?.[t]||{})[childRoute]; if (info && typeof info.status==='number'){ code=info.status; break; } }
+                const label = `${childRoute} ${code??''}`.trim();
+                const sc = chip(label, `small ${sev}`);
+                summaryChips.appendChild(sc);
+              });
+              header.appendChild(summaryChips);
+              const controls = document.createElement('div');
+              controls.className = 'chips route-controls';
+              const clearBtn = document.createElement('button');
+              clearBtn.className = 'btn btn-small';
+              clearBtn.textContent = 'Clear Root';
+              clearBtn.addEventListener('click', (e)=>{
+                e.stopPropagation();
+                const base = group.baseKey;
+                if (!promotedRoots) promotedRoots = loadPromotions();
+                delete promotedRoots[base];
+                savePromotions(promotedRoots);
+                rebuildApps();
+              });
+              controls.appendChild(clearBtn);
+              group.children.forEach(childRoute => {
+                const promoteChildBtn = document.createElement('button');
+                promoteChildBtn.className = 'btn btn-small';
+                promoteChildBtn.textContent = `Promote ${childRoute}`;
+                promoteChildBtn.addEventListener('click', (e)=>{
+                  e.stopPropagation();
+                  const base = group.baseKey;
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = childRoute;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                controls.appendChild(promoteChildBtn);
+              });
+              header.appendChild(controls);
+              const actions = document.createElement('div');
+              actions.className = 'chips route-actions';
+              const openBtn = document.createElement('a');
+              openBtn.className = 'btn';
+              openBtn.textContent = 'Open';
+              openBtn.href = '#';
+              openBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const url = chooseOpenUrl(routes, targets, group.route);
+                if (url) window.open(url, '_blank', 'noopener');
+              });
+              const diagBtn = document.createElement('a');
+              diagBtn.className = 'btn';
+              diagBtn.textContent = 'Diagnose';
+              diagBtn.href = '#';
+              diagBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                openDiagnoseModal(group.route, targets, routes);
+              });
+              actions.appendChild(openBtn);
+              actions.appendChild(diagBtn);
+              header.appendChild(actions);
+              const childrenContainer = document.createElement('div');
+              childrenContainer.className = 'route-children hidden';
+              group.children.forEach(child => {
+                const childApp = document.createElement('div');
+                childApp.className = 'child-route';
+                const childTitle = document.createElement('div');
+                childTitle.className = 'route child-route-name';
+                childTitle.textContent = child;
+                childApp.appendChild(childTitle);
+                const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
+                const childBaseContainer = document.createElement('div');
+                childBaseContainer.className = 'chips';
+                childBaseContainer.appendChild(childBaseChip);
+                childApp.appendChild(childBaseContainer);
+                const childStatusContainer = document.createElement('div');
+                childStatusContainer.className = 'chips route-status';
+                addStatusChips(childStatusContainer, child, targets, routes);
+                childApp.appendChild(childStatusContainer);
+                const childActions = document.createElement('div');
+                childActions.className = 'chips route-actions';
+                const childOpenBtn = document.createElement('a');
+                childOpenBtn.className = 'btn btn-small';
+                childOpenBtn.textContent = 'Open';
+                childOpenBtn.href = '#';
+                childOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const url = chooseOpenUrl(routes, targets, child);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const childDiagBtn = document.createElement('a');
+                childDiagBtn.className = 'btn btn-small';
+                childDiagBtn.textContent = 'Diagnose';
+                childDiagBtn.href = '#';
+                childDiagBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  openDiagnoseModal(child, targets, routes);
+                });
+                childActions.appendChild(childOpenBtn);
+                childActions.appendChild(childDiagBtn);
+                childApp.appendChild(childActions);
+                childrenContainer.appendChild(childApp);
+              });
+              header.addEventListener('click', () => {
+                const isExpanded = !childrenContainer.classList.contains('hidden');
+                childrenContainer.classList.toggle('hidden', isExpanded);
+                header.querySelector('.expand-icon').textContent = isExpanded ? '▶' : '▼';
+              });
+
+              const filterVal = (preferences?.filter)||'';
+              if (filterVal){
+                const q=(filterVal||'').trim().toLowerCase();
+                const anyMatch = (group.children||[]).some(c=>{
+                  const name=(c||'').toLowerCase();
+                  if (name.includes(q)) return true;
+                  if (q==='ok'||q==='warn'||q==='err') return severityOf(c, targets, routes)===q;
+                  const up = (routes.metadata?.[c]?.upstream || '').toLowerCase();
+                  if (up && up.includes(q)) return true;
+                  return false;
+                });
+                if (anyMatch){
+                  childrenContainer.classList.remove('hidden');
+                  header.querySelector('.expand-icon').textContent = '▼';
+                }
+              }
+              app.appendChild(header);
+              app.appendChild(childrenContainer);
+              applySeverityToApp(app, group.route, targets, routes);
+            } else {
+              const isPromoted = promotedRoots && promotedRoots[group.baseKey] === group.route;
+              if (isPromoted) {
+                app.classList.add('expandable-route');
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                titleSection.innerHTML = `
+                  <span class="route-name">${group.route}</span>
+                  <span class="child-count">(root)</span>
+                `;
+                header.appendChild(titleSection);
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseChipContainer = document.createElement('div');
+                baseChipContainer.className = 'chips';
+                baseChipContainer.appendChild(baseChip);
+                header.appendChild(baseChipContainer);
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips parent-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                header.appendChild(statusContainer);
+                const summaryChips = document.createElement('div');
+                summaryChips.className = 'chips child-summary';
+                header.appendChild(summaryChips);
+                const controls = document.createElement('div');
+                controls.className = 'chips route-controls';
+                const clearBtn = document.createElement('button');
+                clearBtn.className = 'btn btn-small';
+                clearBtn.textContent = 'Clear Root';
+                clearBtn.addEventListener('click', (e)=>{
+                  e.stopPropagation();
+                  const base = group.baseKey;
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  delete promotedRoots[base];
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                controls.appendChild(clearBtn);
+                header.appendChild(controls);
+                const actions = document.createElement('div');
+                actions.className = 'chips route-actions';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn';
+                openBtn.textContent = 'Open';
+                openBtn.href = '#';
+                openBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const diagBtn = document.createElement('a');
+                diagBtn.className = 'btn';
+                diagBtn.textContent = 'Diagnose';
+                diagBtn.href = '#';
+                diagBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  openDiagnoseModal(group.route, targets, routes);
+                });
+                actions.appendChild(openBtn);
+                actions.appendChild(diagBtn);
+                header.appendChild(actions);
+                app.appendChild(header);
+              } else {
+                const title = document.createElement('div');
+                title.className = 'route';
+                title.textContent = group.route;
+                app.appendChild(title);
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseContainer = document.createElement('div');
+                baseContainer.className = 'chips';
+                baseContainer.appendChild(baseChip);
+                app.appendChild(baseContainer);
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips route-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                app.appendChild(statusContainer);
+                const controls = document.createElement('div');
+                controls.className = 'chips route-controls';
+                const promoteBtn = document.createElement('button');
+                promoteBtn.className = 'btn btn-small';
+                promoteBtn.textContent = 'Promote as Root';
+                promoteBtn.addEventListener('click',(e)=>{
+                  e.preventDefault();
+                  const base = group.baseKey;
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = group.route;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                controls.appendChild(promoteBtn);
+                app.appendChild(controls);
+                const actions = document.createElement('div');
+                actions.className = 'chips route-actions';
+                const openBtn = document.createElement('a');
+                openBtn.className = 'btn';
+                openBtn.textContent = 'Open';
+                openBtn.href = '#';
+                openBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                const diagBtn = document.createElement('a');
+                diagBtn.className = 'btn';
+                diagBtn.textContent = 'Diagnose';
+                diagBtn.href = '#';
+                diagBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  openDiagnoseModal(group.route, targets, routes);
+                });
+                actions.appendChild(openBtn);
+                actions.appendChild(diagBtn);
+                app.appendChild(actions);
+              }
+              applySeverityToApp(app, group.route, targets, routes);
+            }
+            if (isCollapsed(group.route)) app.classList.add('collapsed');
+            list.appendChild(app);
+          });
+          groupCard.appendChild(list);
+          appsEl.appendChild(groupCard);
         });
       }
       function sortRoutes(routeGroups, sortMode, targets, routes){
@@ -420,6 +859,11 @@
         const isTechnical = (r)=> r.startsWith('/static/') || r.startsWith('/sockjs-node') || r.startsWith('/node_modules/') || r.startsWith('/@') || r.startsWith('/_next/') || r.startsWith('/src/') || r.startsWith('/.storybook/') || r.startsWith('/sb-') || r==='/' || r==='/favicon.ico' || r==='/asset-manifest.json';
         function normalizeBase(up){
           if (!up) return '';
+          if (up.includes('$')){
+            const m = up.match(/\$[A-Za-z_][A-Za-z0-9_]*/);
+            if (m && m[0]) return m[0];
+            return up.replace(/^https?:\/\//,'').split('/')[0];
+          }
           try{ const u=new URL(up.startsWith('http')?up:`http://${up}`); return `${u.protocol}//${u.hostname}${u.port?`:${u.port}`:''}`; }catch{ return up.replace(/\/$/,''); }
         }
         function buildGroupsByBase(routesInSource, meta){
@@ -467,408 +911,7 @@
         // Add global conflict status indicator
         updateGlobalConflictIndicator(routes);
 
-        const appsEl = document.getElementById('apps');
-        appsEl.innerHTML = '';
-        Object.keys(bySource).sort().forEach(source => {
-          const groupCard = document.createElement('div');
-          groupCard.className = 'card';
-          const head = document.createElement('div');
-          head.className = 'groupHead';
-          const h2 = document.createElement('h2');
-          h2.textContent = source;
-          
-          const buttonGroup = document.createElement('div');
-          buttonGroup.className = 'chips';
-          
-          const jsonBtn = document.createElement('button');
-          jsonBtn.className = 'btn btn-small'; 
-          jsonBtn.textContent = 'JSON';
-          jsonBtn.addEventListener('click', (e)=>{ e.preventDefault(); viewSourceJson(source, bySource[source]); });
-          
-          const recBtn = document.createElement('a');
-          recBtn.className = 'btn btn-small'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
-          recBtn.addEventListener('click', (e)=>{ e.preventDefault(); openRecommendModal(routesData, bySource[source]); });
-          
-          buttonGroup.appendChild(jsonBtn);
-          buttonGroup.appendChild(recBtn);
-          head.appendChild(h2);
-          head.appendChild(buttonGroup);
-          groupCard.appendChild(head);
-
-          const list = document.createElement('div');
-          list.className = 'apps';
-          
-          // Build a working list of routes belonging to this source
-          const inThisSource = Object.keys(meta).filter(r => (meta[r]||{}).sourceFile === source);
-          // Group by base (upstream host:port) and apply promotions
-          let routeGroups = buildGroupsByBase(inThisSource, meta);
-          const targetsArr = Object.keys(routes.summary||{});
-          // Filter + sort
-          const sortEl = document.getElementById('sortMode');
-          const filterEl = document.getElementById('routeFilter');
-          let sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'status';
-          if (sortMode==='manual') { sortMode='status'; preferences.sortMode='status'; savePrefs(preferences); if (sortEl) sortEl.value='status'; }
-          const filterVal = (preferences?.filter) || (filterEl && filterEl.value) || '';
-          routeGroups = applyFilter(routeGroups, filterVal, targetsArr, routes);
-          routeGroups = sortRoutes(routeGroups, sortMode, targetsArr, routes);
-          
-          routeGroups.forEach(group => {
-            const app = document.createElement('div');
-            app.className = 'app';
-            
-            if (group.children && group.children.length > 0) {
-              // Parent route with children - make it expandable
-              app.classList.add('expandable-route');
-              
-              const header = document.createElement('div');
-              header.className = 'route-header';
-              
-              // 1. Title section with expand icon, route name, and child count
-              const titleSection = document.createElement('div');
-              titleSection.className = 'route-title';
-              titleSection.innerHTML = `
-                <span class="expand-icon">▶</span>
-                <span class="route-name">${group.route}</span>
-                <span class="child-count">(${group.children.length} sub-routes)</span>
-              `;
-              header.appendChild(titleSection);
-              
-              // 2. Add upstream base chip right after title
-              const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
-              const baseChipContainer = document.createElement('div');
-              baseChipContainer.className = 'chips';
-              baseChipContainer.appendChild(baseChip);
-              header.appendChild(baseChipContainer);
-              
-              // 3. Parent status chips
-              const parentStatusContainer = document.createElement('div');
-              parentStatusContainer.className = 'chips parent-status';
-              addStatusChips(parentStatusContainer, group.route, targets, routes);
-              header.appendChild(parentStatusContainer);
-              
-              // 4. Compact child summary chips
-              const summaryChips = document.createElement('div');
-              summaryChips.className = 'chips child-summary';
-              (group.children||[]).forEach(childRoute=>{
-                const sev = severityOf(childRoute, targets, routes);
-                // Prefer showing status from ngrok, else local-proxy
-                const pref = ['ngrok','local-proxy'];
-                let code = null;
-                for (const t of pref){ 
-                  const info=(routes.summary?.[t]||{})[childRoute]; 
-                  if (info && typeof info.status==='number'){ 
-                    code=info.status; 
-                    break; 
-                  } 
-                }
-                const label = `${childRoute} ${code??''}`.trim();
-                const sc = chip(label, `small ${sev}`);
-                summaryChips.appendChild(sc);
-              });
-              header.appendChild(summaryChips);
-              
-              // 5. Control buttons (Promote/Clear + child Promote controls)
-              const controls = document.createElement('div');
-              controls.className = 'chips route-controls';
-              const clearBtn = document.createElement('button');
-              clearBtn.className = 'btn btn-small';
-              clearBtn.textContent = 'Clear Root';
-              clearBtn.addEventListener('click', (e)=>{
-                e.stopPropagation();
-                const base = group.baseKey;
-                console.log('🗑️ Clearing root for base:', base);
-                if (!promotedRoots) promotedRoots = loadPromotions();
-                delete promotedRoots[base];
-                savePromotions(promotedRoots);
-                console.log('Updated promotions:', promotedRoots);
-                location.reload();
-              });
-              controls.appendChild(clearBtn);
-              
-              // Add Promote buttons for children
-              group.children.forEach(childRoute => {
-                const promoteChildBtn = document.createElement('button');
-                promoteChildBtn.className = 'btn btn-small';
-                promoteChildBtn.textContent = `Promote ${childRoute}`;
-                promoteChildBtn.addEventListener('click', (e)=>{
-                  e.stopPropagation();
-                  const base = group.baseKey;
-                  console.log('⬆️ Promoting child route:', childRoute, 'for base:', base);
-                  if (!promotedRoots) promotedRoots = loadPromotions();
-                  promotedRoots[base] = childRoute;
-                  savePromotions(promotedRoots);
-                  console.log('Updated promotions:', promotedRoots);
-                  location.reload();
-                });
-                controls.appendChild(promoteChildBtn);
-              });
-              header.appendChild(controls);
-              
-              // 6. Action buttons (Open + Diagnose)
-              const actions = document.createElement('div');
-              actions.className = 'chips route-actions';
-              const openBtn = document.createElement('a');
-              openBtn.className = 'btn';
-              openBtn.textContent = 'Open';
-              openBtn.href = '#';
-              openBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const url = chooseOpenUrl(routes, targets, group.route);
-                if (url) window.open(url, '_blank', 'noopener');
-              });
-              const diagBtn = document.createElement('a');
-              diagBtn.className = 'btn';
-              diagBtn.textContent = 'Diagnose';
-              diagBtn.href = '#';
-              diagBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openDiagnoseModal(group.route, targets, routes);
-              });
-              actions.appendChild(openBtn);
-              actions.appendChild(diagBtn);
-              header.appendChild(actions);
-              
-              const childrenContainer = document.createElement('div');
-              childrenContainer.className = 'route-children hidden';
-              
-              // Add children
-              group.children.forEach(child => {
-                const childApp = document.createElement('div');
-                childApp.className = 'child-route';
-                const childTitle = document.createElement('div');
-                childTitle.className = 'route child-route-name';
-                childTitle.textContent = child;
-                childApp.appendChild(childTitle);
-                
-                // Add upstream base chip for child
-                const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
-                const childBaseContainer = document.createElement('div');
-                childBaseContainer.className = 'chips';
-                childBaseContainer.appendChild(childBaseChip);
-                childApp.appendChild(childBaseContainer);
-                
-                // Add status chips for child
-                const childStatusContainer = document.createElement('div');
-                childStatusContainer.className = 'chips route-status';
-                addStatusChips(childStatusContainer, child, targets, routes);
-                childApp.appendChild(childStatusContainer);
-                
-                // Add action buttons for child
-                const childActions = document.createElement('div');
-                childActions.className = 'chips route-actions';
-                const childOpenBtn = document.createElement('a');
-                childOpenBtn.className = 'btn btn-small';
-                childOpenBtn.textContent = 'Open';
-                childOpenBtn.href = '#';
-                childOpenBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  const url = chooseOpenUrl(routes, targets, child);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const childDiagBtn = document.createElement('a');
-                childDiagBtn.className = 'btn btn-small';
-                childDiagBtn.textContent = 'Diagnose';
-                childDiagBtn.href = '#';
-                childDiagBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  openDiagnoseModal(child, targets, routes);
-                });
-                childActions.appendChild(childOpenBtn);
-                childActions.appendChild(childDiagBtn);
-                childApp.appendChild(childActions);
-                childrenContainer.appendChild(childApp);
-              });
-
-              // Toggle functionality
-              header.addEventListener('click', () => {
-                const isExpanded = !childrenContainer.classList.contains('hidden');
-                childrenContainer.classList.toggle('hidden', isExpanded);
-                header.querySelector('.expand-icon').textContent = isExpanded ? '▶' : '▼';
-              });
-              
-              // Auto-expand when filter matches any child
-              if (filterVal){
-                const q=(filterVal||'').trim().toLowerCase();
-                const anyMatch = (group.children||[]).some(c=>{
-                  const name=(c||'').toLowerCase();
-                  if (name.includes(q)) return true;
-                  if (q==='ok'||q==='warn'||q==='err') return severityOf(c, targets, routes)===q;
-                  return false;
-                });
-                if (anyMatch){
-                  childrenContainer.classList.remove('hidden');
-                  header.querySelector('.expand-icon').textContent = '▼';
-                }
-              }
-
-              app.appendChild(header);
-              app.appendChild(childrenContainer);
-              
-              // Apply severity styling to the app element
-              applySeverityToApp(app, group.route, targets, routes);
-            } else {
-              // Standalone route (no auto-parent in this base group)
-              
-              // Check if this standalone route is promoted (even without children)
-              const isPromoted = promotedRoots && promotedRoots[group.baseKey] === group.route;
-              
-              if (isPromoted) {
-                // Render promoted standalone routes like expandable routes for consistency
-                app.classList.add('expandable-route');
-                
-                const header = document.createElement('div');
-                header.className = 'route-header';
-                
-                // 1. Title section (no expand icon, but similar layout)
-                const titleSection = document.createElement('div');
-                titleSection.className = 'route-title';
-                titleSection.innerHTML = `
-                  <span class="route-name">${group.route}</span>
-                  <span class="child-count">(root)</span>
-                `;
-                header.appendChild(titleSection);
-                
-                // 2. Upstream base chip
-                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
-                const baseChipContainer = document.createElement('div');
-                baseChipContainer.className = 'chips';
-                baseChipContainer.appendChild(baseChip);
-                header.appendChild(baseChipContainer);
-                
-                // 3. Status chips  
-                const statusContainer = document.createElement('div');
-                statusContainer.className = 'chips parent-status';
-                addStatusChips(statusContainer, group.route, targets, routes);
-                header.appendChild(statusContainer);
-                
-                // 4. No child summary chips (empty container for layout consistency)
-                const summaryChips = document.createElement('div');
-                summaryChips.className = 'chips child-summary';
-                header.appendChild(summaryChips);
-                
-                // 5. Control buttons (Clear Root only)
-                const controls = document.createElement('div');
-                controls.className = 'chips route-controls';
-                const clearBtn = document.createElement('button');
-                clearBtn.className = 'btn btn-small';
-                clearBtn.textContent = 'Clear Root';
-                clearBtn.addEventListener('click', (e)=>{
-                  e.stopPropagation();
-                  const base = group.baseKey;
-                  console.log('🗑️ Clearing root for standalone route:', group.route, 'base:', base);
-                  if (!promotedRoots) promotedRoots = loadPromotions();
-                  delete promotedRoots[base];
-                  savePromotions(promotedRoots);
-                  console.log('Updated promotions:', promotedRoots);
-                  location.reload();
-                });
-                controls.appendChild(clearBtn);
-                header.appendChild(controls);
-                
-                // 6. Action buttons (Open + Diagnose)
-                const actions = document.createElement('div');
-                actions.className = 'chips route-actions';
-                const openBtn = document.createElement('a');
-                openBtn.className = 'btn';
-                openBtn.textContent = 'Open';
-                openBtn.href = '#';
-                openBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const url = chooseOpenUrl(routes, targets, group.route);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const diagBtn = document.createElement('a');
-                diagBtn.className = 'btn';
-                diagBtn.textContent = 'Diagnose';
-                diagBtn.href = '#';
-                diagBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openDiagnoseModal(group.route, targets, routes);
-                });
-                actions.appendChild(openBtn);
-                actions.appendChild(diagBtn);
-                header.appendChild(actions);
-                
-                app.appendChild(header);
-                
-              } else {
-                // Non-promoted standalone route - use simple layout
-                
-                // 1. Route title
-                const title = document.createElement('div');
-                title.className = 'route';
-                title.textContent = group.route;
-                app.appendChild(title);
-                
-                // 2. Upstream base chip
-                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
-                const baseContainer = document.createElement('div');
-                baseContainer.className = 'chips';
-                baseContainer.appendChild(baseChip);
-                app.appendChild(baseContainer);
-                
-                // 3. Status chips
-                const statusContainer = document.createElement('div');
-                statusContainer.className = 'chips route-status';
-                addStatusChips(statusContainer, group.route, targets, routes);
-                app.appendChild(statusContainer);
-                
-                // 4. Promote as Root button
-                const controls = document.createElement('div');
-                controls.className = 'chips route-controls';
-                const promoteBtn = document.createElement('button'); 
-                promoteBtn.className = 'btn btn-small'; 
-                promoteBtn.textContent = 'Promote as Root';
-                promoteBtn.addEventListener('click',(e)=>{
-                  e.preventDefault();
-                  const base = group.baseKey;
-                  console.log('⬆️ Promoting standalone route:', group.route, 'for base:', base);
-                  if (!promotedRoots) promotedRoots = loadPromotions();
-                  promotedRoots[base] = group.route;
-                  savePromotions(promotedRoots);
-                  console.log('Updated promotions:', promotedRoots);
-                  location.reload();
-                });
-                controls.appendChild(promoteBtn);
-                app.appendChild(controls);
-                
-                // 5. Action buttons (Open + Diagnose)
-                const actions = document.createElement('div');
-                actions.className = 'chips route-actions';
-                const openBtn = document.createElement('a');
-                openBtn.className = 'btn';
-                openBtn.textContent = 'Open';
-                openBtn.href = '#';
-                openBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  const url = chooseOpenUrl(routes, targets, group.route);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const diagBtn = document.createElement('a');
-                diagBtn.className = 'btn';
-                diagBtn.textContent = 'Diagnose';
-                diagBtn.href = '#';
-                diagBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  openDiagnoseModal(group.route, targets, routes);
-                });
-                actions.appendChild(openBtn);
-                actions.appendChild(diagBtn);
-                app.appendChild(actions);
-              }
-              
-              // Apply severity styling to the app element
-              applySeverityToApp(app, group.route, targets, routes);
-            }
-            list.appendChild(app);
-          });
-          groupCard.appendChild(list);
-          appsEl.appendChild(groupCard);
-        });
+        rebuildApps();
 
         // No manual ordering; default sort is by status
       })().catch(err => {
@@ -883,9 +926,13 @@
         if (sortEl){
           const pref = (preferences.sortMode==='manual') ? 'status' : (preferences.sortMode||'status');
           sortEl.value = pref;
-          sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); location.reload(); });
+          sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); rebuildApps(); });
         }
-        if (filterEl){ if (preferences.filter) filterEl.value=preferences.filter; filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; savePrefs(preferences); location.reload(); }); }
+        if (filterEl){
+          if (preferences.filter) filterEl.value=preferences.filter;
+          const debounced = debounce(()=>{ savePrefs(preferences); rebuildApps(); }, 250);
+          filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; debounced(); });
+        }
       })();
 
       // Reload configurations functionality

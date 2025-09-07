@@ -48,7 +48,7 @@ By default, the proxy uses a **"first config wins"** strategy when scanning app 
 The `/status` page now features a completely redesigned interface for conflict management:
 
 #### Smart Route Organization
-- **Route Grouping**: All routes automatically grouped by base upstream URL
+- **Route Grouping**: All routes automatically grouped by base upstream URL (nginx variables group by variable name, e.g., `$myapp_upstream`) (🆕)
 - **Visual Hierarchy**: Parent-child relationships clearly displayed
 - **Promotion System**: Designate parent routes within each upstream group
 - **Collapsible Groups**: Expand/collapse route groups for better organization
@@ -64,6 +64,7 @@ The `/status` page now features a completely redesigned interface for conflict m
 - **JSON Export**: Export filtered route data for each config file  
 - **Live Reload**: Refresh configurations without leaving the interface
 - **Enhanced Editor**: View and edit nginx configs with better UX
+- **Sticky summary & header + per-card collapse (🆕)**: Faster navigation with persistent controls
 
 #### Quick Actions
 - **Open in Tunnel**: Direct links to access routes via ngrok URL
@@ -148,6 +149,7 @@ http://myapp-api:8000 group:
 2. **Reduced Clutter**: Child routes collapsed by default, expand when needed
 3. **Quick Navigation**: Parent route actions (Open, Diagnose) work for the entire group
 4. **Persistent State**: Promotion choices saved in localStorage and persist across sessions
+5. **Compact Views (🆕)**: Collapse individual cards to show only the parent label and status
 
 ### Managing Promotions
 

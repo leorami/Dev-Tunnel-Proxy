@@ -47,12 +47,15 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
 7) **📊 Enhanced Status Dashboard** (`/status`):
-   - **Route Grouping**: Routes automatically grouped by base upstream URL  
-   - **Promotion System**: Designate parent routes within each upstream group
-   - **Visual Organization**: Collapsible route groups with status indicators
-   - **One-Click Actions**: Open routes in ngrok tunnel, diagnose issues
-   - **Live Reload**: Refresh configurations without leaving the browser
-   - **Per-Config JSON**: View filtered route data for each config file
+  - **Route Grouping**: Routes automatically grouped by base upstream URL  
+  - **Promotion System**: Designate parent routes within each upstream group
+  - **Visual Organization**: Collapsible route groups with status indicators
+  - **One-Click Actions**: Open routes in ngrok tunnel, diagnose issues
+  - **Live Reload**: Refresh configurations without leaving the browser
+  - **Per-Config JSON**: View filtered route data for each config file
+  - **Per-Card Collapse (🆕)**: Collapse any card to a compact header; state persists
+  - **Sticky Summary & Controls (🆕)**: Overview and Configured Apps header stay pinned
+  - **Improved Filter (🆕)**: Match by route, severity (`ok|warn|err`), codes (`200`), or target-qualified (`ngrok:200`, `localhost:404`); also matches upstream host fragments
 
 8) Built-in endpoints (human + JSON):
    - **Human**: `/` → `/status`, `/health` (enhanced dashboards)
@@ -92,6 +95,8 @@ Visit `/status` for the completely redesigned conflict management experience:
 - **Route Renaming**: Rename conflicted routes directly in the interface
 - **Config Management**: View, edit, and download nginx config files  
 - **Live Reload**: Refresh configurations and see changes immediately
+- **Collapsible Cards (🆕)** and **Sticky Header (🆕)** for faster navigation
+- **Filter Enhancements (🆕)**: search by status codes and targets
 
 ### Persistence
 

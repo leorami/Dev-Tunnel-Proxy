@@ -257,6 +257,9 @@ grep -r "proxy_pass" apps/*.conf
 
 # ✅ Correct: Consistent upstream format  
 # Both configs should use identical upstream strings
+
+# Tip (🆕): If you use nginx variables for upstreams, grouping uses the variable name
+# as the base key (e.g., `$myapp_upstream`). Ensure related routes reference the same variable.
 ```
 
 **Routes missing from status entirely**:
