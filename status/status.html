@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
     <style>
-      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10}
+      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px}
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14}
       *{box-sizing:border-box}
       body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
@@ -27,7 +27,7 @@
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .container{max-width:1100px;margin:24px auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
-      .summaryRow{position:sticky;top:var(--headerH, 64px);z-index:600;backdrop-filter:saturate(180%) blur(8px)}
+      .summaryRow{position:sticky;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));z-index:2004;background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px)}
       .appsHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;position:sticky;top:calc(var(--headerH, 64px) + var(--summaryH, 0px));z-index:590;background:var(--headerBg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
       .appsHeader .toolbar{padding-top:0}
       .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease}
@@ -38,7 +38,7 @@
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative}
+      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative;padding-right:80px}
       .app:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
       .app.ok{border-color:rgba(22,199,132,.7);box-shadow:0 0 0 2px rgba(22,199,132,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
       .app.warn{border-color:rgba(245,158,11,.7);box-shadow:0 0 0 2px rgba(245,158,11,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
@@ -106,6 +106,35 @@
       .conflict-badge button{background:var(--warn);color:#000;border:none;padding:6px 12px;border-radius:4px;font-weight:600;cursor:pointer;font-size:12px}
       .conflict-badge button:hover{opacity:0.9;transform:translateY(-1px)}
       @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+      
+      /* Healing Badge */
+      .healing-badge{position:absolute;top:-12px;right:-12px;width:24px;height:24px;background:linear-gradient(180deg,#ff8fd3,#ff5bbd);border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;cursor:pointer;transition:transform .2s ease;opacity:.85}
+      .healing-badge:hover{opacity:1;transform:scale(1.15)}
+      .healing-badge.active{animation:pulse 1.5s infinite}
+      @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+      
+      /* Healing History Panel */
+      .healing-history{position:absolute;top:60px;right:48px;width:320px;background:var(--panelGlass);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:saturate(160%) blur(6px);z-index:2010;padding:12px;display:none}
+      .healing-history.visible{display:block}
+      .healing-history h3{margin:0 0 10px 0;font-size:14px;display:flex;align-items:center;justify-content:space-between}
+      .healing-history h3 button{background:none;border:none;cursor:pointer;font-size:16px;color:var(--muted);line-height:1}
+      .healing-history-list{max-height:300px;overflow-y:auto}
+      .healing-entry{margin-bottom:8px;padding:8px;border-radius:8px;background:rgba(125,162,255,.07);border:1px solid rgba(125,162,255,.15)}
+      .healing-entry.success{border-color:rgba(22,199,132,.25);background:rgba(22,199,132,.07)}
+      .healing-entry.failure{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.07)}
+      .healing-entry-header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+      .healing-entry-issue{font-weight:bold}
+      .healing-entry-timestamp{color:var(--muted);font-size:11px}
+      .healing-entry-details{font-size:12px;margin-top:4px;word-break:break-word}
+      .healing-entry-actions{display:flex;gap:8px;margin-top:6px}
+      .healing-entry-actions button{font-size:11px;padding:3px 6px;border-radius:4px;cursor:pointer;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText)}
+      .healing-entry-actions button:hover{background:var(--btnBgHover)}
+      
+      /* Healing Status Indicator in AI header */
+      .ai-healing-status{font-size:12px;background:rgba(125,162,255,.1);padding:2px 6px;border-radius:999px;display:inline-flex;align-items:center;gap:4px}
+      .ai-healing-status .pulse{width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg,#ff8fd3,#ff5bbd);display:inline-block}
+      .ai-healing-status.active .pulse{animation:dotPulse 1s infinite ease-in-out}
+      .ai-healing-count{color:var(--muted);font-size:11px}
 
       /* Hierarchical Route Styles */
       .expandable-route{position:relative}
@@ -118,26 +147,91 @@
       .route-children{margin-top:8px;margin-left:20px;border-left:2px solid var(--border);padding-left:16px}
       .route-children.hidden{display:none}
       .child-route{margin-bottom:8px;padding:8px;background:var(--appBgGlass);border-radius:6px;border-left:3px solid var(--border)}
-      .child-route-name{font-size:14px;color:var(--muted);margin-bottom:4px}
+      .child-route-name{font-size:14px;color:var(--muted);margin-bottom:4px;flex:1}
+      .child-route-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+      .header-action-btn{background:none;border:none;color:var(--textSecondary);cursor:pointer;padding:4px 8px;border-radius:4px;transition:all 0.2s ease;font-size:14px}
+      .header-action-btn:hover{background:rgba(255,255,255,.1);color:var(--text)}
+      .route-header{display:flex;flex-direction:column;gap:6px;padding:8px;position:relative}
+      .route-header:first-child{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .route-title{flex:1;display:flex;align-items:center;gap:8px}
+      .icon-actions{margin-top:12px;position:absolute;top:8px;right:8px;display:flex;gap:4px}
       .chip.small{font-size:11px;padding:2px 6px;border-radius:10px}
       .chip.upstream-base{background:var(--chip);color:var(--muted);font-size:11px;font-weight:400}
       .chip.promoted-indicator{background:rgba(22,199,132,.2);border-color:rgba(22,199,132,.5);color:#16c784;font-size:10px;font-weight:700;margin-left:8px;padding:2px 6px}
       .btn-small{padding:4px 8px;font-size:11px;min-height:24px}
-      .route-header{display:flex;flex-direction:column;gap:6px;padding:8px}
       .route-header .chips{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
       .parent-status .chip{margin-right:4px}
       .child-summary{margin-top:2px}
       .child-summary .chip{background:var(--btnBg);border-color:var(--btnBorder);font-size:10px;padding:1px 4px}
       .route-controls{margin-top:4px}
       .route-controls .btn{margin-right:6px}
-      .route-actions{margin-top:4px}
+      .route-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;z-index:10}
       .route-actions .btn{margin-right:6px;min-width:60px}
       /* Collapse controls */
-      .collapse-toggle{position:absolute;top:8px;right:8px;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:11px;line-height:1;padding:6px;cursor:pointer}
+      .collapse-toggle{position:absolute;top:8px;right:8px;border:1.5px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:14px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
       .collapse-toggle:hover{background:var(--btnBgHover)}
+      .icon-actions{position:absolute;top:8px;right:42px;display:flex;gap:8px;align-items:center}
+      .icon-actions .icon-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+      .icon-actions .icon-btn:hover{background:var(--btnBgHover)}
+      .icon-actions .icon-btn svg{width:18px;height:18px;display:block}
+      .root-actions{position:absolute;top:8px;right:8px;display:flex;gap:8px;align-items:center}
       .collapsed-bar{display:none;align-items:center;gap:8px;font-weight:700}
       .app.collapsed .collapsed-bar{display:flex}
       .app.collapsed > *:not(.collapse-toggle):not(.collapsed-bar){display:none}
+
+      /* Hover scroll helpers */
+      .hover-scroll{overflow:auto}
+
+      /* AI Drawer */
+      :root{--aiWidth:clamp(420px, 36vw, 840px)}
+      .ai-drawer{position:fixed;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));right:0;height:calc(100vh - (var(--headerH, 64px) + var(--summaryGap, 12px)));width:var(--aiWidth);z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
+      .ai-drawer.collapsed{transform:translateX(calc(100% - 28px));border-left:none;box-shadow:none}
+      .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
+      .ai-tab{position:absolute;left:-36px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:var(--btnBg);border:2px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+      .ai-tab .icon-steth{display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px}
+      .ai-tab .icon-steth svg{width:20px;height:20px;display:block}
+      .ai-tab .label{letter-spacing:.3px}
+      .ai-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
+      .ai-header h2{margin:0;font-size:14px;color:var(--heading)}
+      .ai-meta{display:flex;gap:12px;font-size:12px;color:var(--muted)}
+      .ai-content{display:flex;flex-direction:column;padding:10px 12px;gap:10px;height:100%;}
+      .ai-row{display:flex;gap:8px;align-items:center}
+      .ai-chat{flex:1;min-height:120px;border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);padding:10px;overflow:auto}
+      .bubble{max-width:85%;padding:8px 12px;border-radius:14px;margin:12px 0;line-height:1.45}
+      .bubble.user{margin-left:auto;background:rgba(125,162,255,.22);border:1px solid rgba(125,162,255,.35)}
+      .bubble.assistant{margin-right:auto;background:linear-gradient(180deg, rgba(255,143,211,.12), rgba(255,91,189,.10));border:1px solid rgba(255,143,211,.45)}
+      .bubble-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+      .bubble-content{margin-top:0}
+      .ai-healing-history{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);background:rgba(125,162,255,.1);border:1px solid rgba(125,162,255,.3);padding:2px 8px;border-radius:12px;cursor:pointer;transition:all 0.2s ease}
+      .ai-healing-history:hover{background:rgba(125,162,255,.2);border-color:rgba(125,162,255,.5)}
+      .bubble p{margin:.4em 0}
+      .bubble ul,.bubble ol{margin:.35em 0 .35em .9em}
+      .bubble ul ul,.bubble ol ol{margin-left:.9em}
+      .bubble li{margin:.25em 0}
+      .bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
+      .bubble code{background:rgba(125,162,255,.15);border:1px solid rgba(125,162,255,.25);padding:0 4px;border-radius:4px}
+      .ai-input{display:flex;flex-direction:column;gap:8px}
+      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px}
+      .ai-actions{display:flex;gap:8px;justify-content:flex-end}
+      /* Thinking indicator */
+      .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
+      .dots{display:inline-flex;gap:4px;vertical-align:middle}
+      .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg,#ff8fd3,#ff5bbd);opacity:.6;animation:dotPulse 1s infinite ease-in-out}
+      .dot:nth-child(2){animation-delay:.15s}
+      .dot:nth-child(3){animation-delay:.3s}
+      @keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+
+      /* Mobile: bottom drawer behavior */
+      @media (max-width: 768px){
+        .ai-drawer{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:min(50vh, calc(100vh - (var(--headerH, 64px) + 24px)));border-radius:12px}
+        .ai-drawer.collapsed{transform:translateY(calc(100% - 28px));border-left:1px solid var(--border)}
+        .ai-tab{left:50%;top:auto;bottom:-28px;transform:translate(-50%, 0);border-right:1px solid var(--btnBorder);border-left:1px solid var(--btnBorder)}
+      }
+
+      /* Desktop/tablet: shift content left when assistant open */
+      @media (min-width: 769px){
+        body.ai-open .container{max-width:none;width:calc(100% - var(--aiWidth) - 28px);margin-left:16px;margin-right:calc(var(--aiWidth) + 12px)}
+      }
 
       @media (max-width:1024px){
         .container{padding:0 12px}
@@ -196,6 +290,102 @@
         <div id="conflicts">Loading conflicts...</div>
       </div>
 
+      <div class="ai-drawer collapsed" id="aiDrawer">
+        <button class="ai-tab" id="aiTab" title="Calliope">
+          <span class="icon-steth" aria-hidden="true">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="pinkSteth" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ff8fd3"/>
+                  <stop offset="100%" stop-color="#ff5bbd"/>
+                </linearGradient>
+                <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f0f3f6"/>
+                  <stop offset="45%" stop-color="#cfd5dc"/>
+                  <stop offset="100%" stop-color="#8a9099"/>
+                </linearGradient>
+              </defs>
+              <g fill="none" stroke="url(#pinkSteth)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <!-- Heart-shaped tube (open aesthetic) -->
+                <path d="M12 21c-3.9-2.7-6.6-4.9-8.4-6.6c-2.3-2.1-2.7-5.5-.4-7.1c1.7-1.2 4.1-.7 5.5.9c.5.6 1 1.3 1.3 2c.3-.7.8-1.4 1.3-2c1.4-1.6 3.8-2.1 5.5-.9c2.3 1.5 1.9 5-.4 7.1C18.6 16.1 15.9 18.3 12 21"/>
+                <!-- Earpieces -->
+                <circle cx="6.0" cy="6.0" r="1.2" fill="url(#pinkSteth)" stroke="none"/>
+                <circle cx="18.0" cy="6.0" r="1.2" fill="url(#pinkSteth)" stroke="none"/>
+                <!-- Metallic chestpiece (distinct from tube) -->
+                <circle cx="7.4" cy="16.6" r="1.9" fill="url(#metalGrad)" stroke="none"/>
+                <circle cx="7.4" cy="16.6" r="2.5"/>
+              </g>
+            </svg>
+          </span>
+          <span class="label">Calliope</span>
+        </button>
+        
+        <!-- Healing History Badge -->
+        <div class="healing-badge" id="healingBadge" title="Self-healing history">
+          <span class="healing-count">0</span>
+        </div>
+        
+        <!-- Healing History Panel -->
+        <div class="healing-history" id="healingHistory">
+          <h3>
+            Self-Healing History
+            <button class="close-history">&times;</button>
+          </h3>
+          <div class="healing-history-list" id="healingHistoryList">
+            <!-- Healing entries will be populated here -->
+            <div class="empty-history">No healing actions recorded yet.</div>
+          </div>
+        </div>
+        <div class="ai-header">
+          <h2>
+            <span class="icon-steth-header" aria-hidden="true">
+              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;vertical-align:middle;margin-right:8px">
+                <defs>
+                  <linearGradient id="pinkStethHeader" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#ff8fd3"/>
+                    <stop offset="100%" stop-color="#ff5bbd"/>
+                  </linearGradient>
+                  <linearGradient id="metalGradHeader" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#f0f3f6"/>
+                    <stop offset="45%" stop-color="#cfd5dc"/>
+                    <stop offset="100%" stop-color="#8a9099"/>
+                  </linearGradient>
+                </defs>
+                <g fill="none" stroke="url(#pinkStethHeader)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 21c-3.9-2.7-6.6-4.9-8.4-6.6c-2.3-2.1-2.7-5.5-.4-7.1c1.7-1.2 4.1-.7 5.5.9c.5.6 1 1.3 1.3 2c.3-.7.8-1.4 1.3-2c1.4-1.6 3.8-2.1 5.5-.9c2.3 1.5 1.9 5-.4 7.1C18.6 16.1 15.9 18.3 12 21"/>
+                  <circle cx="6.0" cy="6.0" r="1.2" fill="url(#pinkStethHeader)" stroke="none"/>
+                  <circle cx="18.0" cy="6.0" r="1.2" fill="url(#pinkStethHeader)" stroke="none"/>
+                  <circle cx="7.4" cy="16.6" r="1.9" fill="url(#metalGradHeader)" stroke="none"/>
+                  <circle cx="7.4" cy="16.6" r="2.5" stroke="url(#pinkStethHeader)"/>
+                </g>
+              </svg>
+            </span>
+            Calliope
+          </h2>
+          <div class="ai-meta">
+            <span class="ai-healing-history" id="aiHealingHistory">
+              <span class="ai-healing-label">Healing History</span>
+            </span>
+            <span class="ai-healing-status" id="aiHealingStatus">
+              <span class="pulse"></span>
+              <span class="ai-healing-label">Healing</span>
+              <span class="ai-healing-count" id="aiHealingCount"></span>
+            </span>
+          </div>
+        </div>
+        <div class="ai-content">
+          <div id="aiChat" class="ai-chat hover-scroll"></div>
+          <div class="ai-input">
+            <textarea id="aiQuery" class="hover-scroll" rows="3" placeholder="Ask about proxy/network issues" style="padding: 12px;"></textarea>
+            <div class="ai-actions">
+              <button class="btn btn-small" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
+              <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>
+              <button class="btn" id="aiAskBtn">Ask</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="card" id="appsCard">
         <div class="appsHeader">
           <h2 style="margin:0">Configured Apps</h2>
@@ -219,6 +409,8 @@
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script>
       function initTheme(){
         const stored = localStorage.getItem('dtpTheme');
@@ -547,6 +739,20 @@
                 <span class="child-count">(${group.children.length} sub-routes)</span>
               `;
               header.appendChild(titleSection);
+              
+              // Add Open button to header
+              const openBtn = document.createElement('button');
+              openBtn.className = 'header-action-btn';
+              openBtn.title = 'Open Route';
+              openBtn.setAttribute('aria-label','Open Route');
+              openBtn.innerHTML = '🚀';
+              openBtn.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                e.stopPropagation();
+                const url = chooseOpenUrl(routes, targets, group.route);
+                if (url) window.open(url, '_blank', 'noopener');
+              });
+              header.appendChild(openBtn);
               const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
               const baseChipContainer = document.createElement('div');
               baseChipContainer.className = 'chips';
@@ -568,11 +774,15 @@
                 summaryChips.appendChild(sc);
               });
               header.appendChild(summaryChips);
-              const controls = document.createElement('div');
-              controls.className = 'chips route-controls';
+              // Remove promote chips from parent header - they'll be on child cards instead
+              // Only keep the Clear Root button in the root-actions area
+              const rootActions = document.createElement('div');
+              rootActions.className = 'root-actions';
               const clearBtn = document.createElement('button');
               clearBtn.className = 'btn btn-small';
-              clearBtn.textContent = 'Clear Root';
+              clearBtn.innerHTML = '🗑️';
+              clearBtn.title = 'Clear Root Status';
+              clearBtn.setAttribute('aria-label','Clear Root Status');
               clearBtn.addEventListener('click', (e)=>{
                 e.stopPropagation();
                 const base = group.baseKey;
@@ -581,44 +791,22 @@
                 savePromotions(promotedRoots);
                 rebuildApps();
               });
-              controls.appendChild(clearBtn);
-              group.children.forEach(childRoute => {
-                const promoteChildBtn = document.createElement('button');
-                promoteChildBtn.className = 'btn btn-small';
-                promoteChildBtn.textContent = `Promote ${childRoute}`;
-                promoteChildBtn.addEventListener('click', (e)=>{
-                  e.stopPropagation();
-                  const base = group.baseKey;
-                  if (!promotedRoots) promotedRoots = loadPromotions();
-                  promotedRoots[base] = childRoute;
-                  savePromotions(promotedRoots);
-                  rebuildApps();
-                });
-                controls.appendChild(promoteChildBtn);
-              });
-              header.appendChild(controls);
-              const actions = document.createElement('div');
-              actions.className = 'chips route-actions';
-              const openBtn = document.createElement('a');
-              openBtn.className = 'btn';
-              openBtn.textContent = 'Open';
-              openBtn.href = '#';
-              openBtn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                const url = chooseOpenUrl(routes, targets, group.route);
-                if (url) window.open(url, '_blank', 'noopener');
-              });
-              const diagBtn = document.createElement('a');
-              diagBtn.className = 'btn';
-              diagBtn.textContent = 'Diagnose';
-              diagBtn.href = '#';
+              rootActions.appendChild(clearBtn);
+              app.appendChild(rootActions);
+              const icons = document.createElement('div');
+              icons.className = 'icon-actions';
+              const diagBtn = document.createElement('button');
+              diagBtn.className = 'icon-btn';
+              diagBtn.title = 'Diagnose with Calliope';
+              diagBtn.setAttribute('aria-label','Diagnose with Calliope');
+              diagBtn.textContent = '🩺';
+              diagBtn.dataset.route = group.route;
               diagBtn.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
                 openDiagnoseModal(group.route, targets, routes);
               });
-              actions.appendChild(openBtn);
-              actions.appendChild(diagBtn);
-              header.appendChild(actions);
+              icons.appendChild(diagBtn);
+              app.appendChild(icons);
               const childrenContainer = document.createElement('div');
               childrenContainer.className = 'route-children hidden';
               group.children.forEach(child => {
@@ -627,7 +815,25 @@
                 const childTitle = document.createElement('div');
                 childTitle.className = 'route child-route-name';
                 childTitle.textContent = child;
-                childApp.appendChild(childTitle);
+                
+                // Add Open button to child route header
+                const childOpenBtn = document.createElement('button');
+                childOpenBtn.className = 'header-action-btn';
+                childOpenBtn.title = 'Open Route';
+                childOpenBtn.setAttribute('aria-label','Open Route');
+                childOpenBtn.innerHTML = '🚀';
+                childOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, child);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                
+                const childHeader = document.createElement('div');
+                childHeader.className = 'child-route-header';
+                childHeader.appendChild(childTitle);
+                childHeader.appendChild(childOpenBtn);
+                childApp.appendChild(childHeader);
                 const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
                 const childBaseContainer = document.createElement('div');
                 childBaseContainer.className = 'chips';
@@ -637,27 +843,41 @@
                 childStatusContainer.className = 'chips route-status';
                 addStatusChips(childStatusContainer, child, targets, routes);
                 childApp.appendChild(childStatusContainer);
-                const childActions = document.createElement('div');
-                childActions.className = 'chips route-actions';
-                const childOpenBtn = document.createElement('a');
-                childOpenBtn.className = 'btn btn-small';
-                childOpenBtn.textContent = 'Open';
-                childOpenBtn.href = '#';
-                childOpenBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  const url = chooseOpenUrl(routes, targets, child);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const childDiagBtn = document.createElement('a');
+                
+                // Create a route-actions area for normal actions
+                const childIcons = document.createElement('div');
+                childIcons.className = 'chips route-actions';
+                const childDiagBtn = document.createElement('button');
                 childDiagBtn.className = 'btn btn-small';
-                childDiagBtn.textContent = 'Diagnose';
-                childDiagBtn.href = '#';
+                childDiagBtn.title = 'Diagnose with Calliope';
+                childDiagBtn.setAttribute('aria-label','Diagnose with Calliope');
+                childDiagBtn.textContent = '🩺';
+                childDiagBtn.dataset.route = child;
                 childDiagBtn.addEventListener('click', (e) => {
                   e.preventDefault();
                   openDiagnoseModal(child, targets, routes);
                 });
-                childActions.appendChild(childOpenBtn);
-                childActions.appendChild(childDiagBtn);
+                childIcons.appendChild(childDiagBtn);
+                childApp.appendChild(childIcons);
+                
+                // Add dedicated bottom-right promote button per child
+                const childActions = document.createElement('div');
+                childActions.className = 'root-actions'; // Reuse the same positioning class
+                const promoteBtn = document.createElement('button');
+                promoteBtn.className = 'btn btn-small';
+                promoteBtn.title = 'Make Root Route';
+                promoteBtn.setAttribute('aria-label','Make Root Route');
+                promoteBtn.innerHTML = '🎓';
+                promoteBtn.addEventListener('click',(e)=>{
+                  e.preventDefault();
+                  e.stopPropagation(); // Prevent card expansion
+                  const base = group.baseKey;
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = child;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                childActions.appendChild(promoteBtn);
                 childApp.appendChild(childActions);
                 childrenContainer.appendChild(childApp);
               });
@@ -711,11 +931,14 @@
                 const summaryChips = document.createElement('div');
                 summaryChips.className = 'chips child-summary';
                 header.appendChild(summaryChips);
-                const controls = document.createElement('div');
-                controls.className = 'chips route-controls';
+                // Move Clear Root to bottom-right corner
+                const rootActions = document.createElement('div');
+                rootActions.className = 'root-actions';
                 const clearBtn = document.createElement('button');
                 clearBtn.className = 'btn btn-small';
-                clearBtn.textContent = 'Clear Root';
+                clearBtn.innerHTML = '🗑️';
+                clearBtn.title = 'Clear Root Status';
+                clearBtn.setAttribute('aria-label','Clear Root Status');
                 clearBtn.addEventListener('click', (e)=>{
                   e.stopPropagation();
                   const base = group.baseKey;
@@ -724,30 +947,22 @@
                   savePromotions(promotedRoots);
                   rebuildApps();
                 });
-                controls.appendChild(clearBtn);
-                header.appendChild(controls);
-                const actions = document.createElement('div');
-                actions.className = 'chips route-actions';
-                const openBtn = document.createElement('a');
-                openBtn.className = 'btn';
-                openBtn.textContent = 'Open';
-                openBtn.href = '#';
-                openBtn.addEventListener('click', (e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  const url = chooseOpenUrl(routes, targets, group.route);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const diagBtn = document.createElement('a');
-                diagBtn.className = 'btn';
-                diagBtn.textContent = 'Diagnose';
-                diagBtn.href = '#';
+                rootActions.appendChild(clearBtn);
+                app.appendChild(rootActions);
+                const icons = document.createElement('div');
+                icons.className = 'icon-actions';
+                const diagBtn = document.createElement('button');
+                diagBtn.className = 'icon-btn';
+                diagBtn.title = 'Diagnose with Calliope';
+                diagBtn.setAttribute('aria-label','Diagnose with Calliope');
+                diagBtn.textContent = '🩺';
+                diagBtn.dataset.route = group.route;
                 diagBtn.addEventListener('click', (e) => {
                   e.preventDefault(); e.stopPropagation();
                   openDiagnoseModal(group.route, targets, routes);
                 });
-                actions.appendChild(openBtn);
-                actions.appendChild(diagBtn);
-                header.appendChild(actions);
+                icons.appendChild(diagBtn);
+                app.appendChild(icons);
                 app.appendChild(header);
               } else {
                 const title = document.createElement('div');
@@ -763,41 +978,36 @@
                 statusContainer.className = 'chips route-status';
                 addStatusChips(statusContainer, group.route, targets, routes);
                 app.appendChild(statusContainer);
-                const controls = document.createElement('div');
-                controls.className = 'chips route-controls';
-                const promoteBtn = document.createElement('button');
-                promoteBtn.className = 'btn btn-small';
-                promoteBtn.textContent = 'Promote as Root';
-                promoteBtn.addEventListener('click',(e)=>{
+                // Remove promote chips at parent card; actions live on each child
+                const actions = document.createElement('div');
+                actions.className = 'chips route-actions';
+                
+                // Add Make Root button for routes without parent root
+                const makeRootBtn = document.createElement('button');
+                makeRootBtn.className = 'btn btn-small';
+                makeRootBtn.title = 'Make Root Route';
+                makeRootBtn.setAttribute('aria-label','Make Root Route');
+                makeRootBtn.innerHTML = '🎓';
+                makeRootBtn.addEventListener('click', (e) => {
                   e.preventDefault();
-                  const base = group.baseKey;
+                  e.stopPropagation();
+                  const base = normalizeBase(meta[group.route]?.upstream || '');
                   if (!promotedRoots) promotedRoots = loadPromotions();
                   promotedRoots[base] = group.route;
                   savePromotions(promotedRoots);
                   rebuildApps();
                 });
-                controls.appendChild(promoteBtn);
-                app.appendChild(controls);
-                const actions = document.createElement('div');
-                actions.className = 'chips route-actions';
-                const openBtn = document.createElement('a');
-                openBtn.className = 'btn';
-                openBtn.textContent = 'Open';
-                openBtn.href = '#';
-                openBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  const url = chooseOpenUrl(routes, targets, group.route);
-                  if (url) window.open(url, '_blank', 'noopener');
-                });
-                const diagBtn = document.createElement('a');
-                diagBtn.className = 'btn';
-                diagBtn.textContent = 'Diagnose';
-                diagBtn.href = '#';
+                actions.appendChild(makeRootBtn);
+                
+                const diagBtn = document.createElement('button');
+                diagBtn.className = 'btn btn-small';
+                diagBtn.title = 'Diagnose with Calliope';
+                diagBtn.setAttribute('aria-label','Diagnose with Calliope');
+                diagBtn.textContent = '🩺';
                 diagBtn.addEventListener('click', (e) => {
                   e.preventDefault();
                   openDiagnoseModal(group.route, targets, routes);
                 });
-                actions.appendChild(openBtn);
                 actions.appendChild(diagBtn);
                 app.appendChild(actions);
               }
@@ -825,15 +1035,52 @@
         const routes = await loadJSON('/routes.json');
         routesData = routes;
         
-        // Load ngrok URL from status.json like Health page does (more reliable source)
+        // Load ngrok URL with multiple fallback strategies
         let ngrokTxt = 'not discovered';
+        
+        // Strategy 1: Try status.json first (source of truth for health dashboard)
         try {
           const status = await loadJSON('/status.json');
-          ngrokTxt = status.ngrok || 'not discovered';
-        } catch (e) {
-          // Fallback to routes.json if status.json fails
-          const ngrokUrl = routes.ngrok;
-          ngrokTxt = (ngrokUrl && ngrokUrl !== 'not discovered' && ngrokUrl !== 'null') ? ngrokUrl : 'not discovered';
+          if (status && status.ngrok && status.ngrok !== 'not discovered' && status.ngrok !== 'null') {
+            ngrokTxt = status.ngrok;
+          }
+        } catch (e) { /* Continue to next strategy */ }
+        
+        // Strategy 2: If status.json fails or has no ngrok, try health-latest.json
+        if (ngrokTxt === 'not discovered') {
+          try {
+            const healthResp = await fetch('/.artifacts/reports/health-latest.json', { 
+              headers: { 'ngrok-skip-browser-warning': 'true' },
+              cache: 'no-cache'
+            });
+            if (healthResp.ok) {
+              const healthData = await healthResp.json();
+              if (healthData && healthData.ngrok && healthData.ngrok !== 'not discovered' && healthData.ngrok !== 'null') {
+                ngrokTxt = healthData.ngrok;
+              }
+            }
+          } catch (e) { /* Continue to next strategy */ }
+        }
+        
+        // Strategy 3: Fall back to routes.json (what we already have)
+        if (ngrokTxt === 'not discovered' && routes && routes.ngrok && routes.ngrok !== 'not discovered' && routes.ngrok !== 'null') {
+          ngrokTxt = routes.ngrok;
+        }
+        
+        // Strategy 4: Last resort - look for static domain hint in a minimal API call
+        if (ngrokTxt === 'not discovered') {
+          try {
+            const staticDomainResp = await fetch('/api/ai/health', { 
+              method: 'GET',
+              headers: { 'ngrok-skip-browser-warning': 'true' }
+            });
+            if (staticDomainResp.ok) {
+              const data = await staticDomainResp.json();
+              if (data && data.staticNgrokDomain) {
+                ngrokTxt = `https://${data.staticNgrokDomain}`;
+              }
+            }
+          } catch (e) { /* Tried our best */ }
         }
         
         // Store globally for Open button functionality
@@ -914,6 +1161,7 @@
         rebuildApps();
 
         // No manual ordering; default sort is by status
+        try { await initAiAssistant(); } catch (e) { /* non-fatal */ }
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
@@ -1410,6 +1658,11 @@ Or check if config files have syntax errors.
 
       // Modal logic
       function openDiagnoseModal(routeKey, targets, routes){
+        // If Calliope is enabled, she overrides manual diagnose with her health flow
+        if (document.body.classList.contains('calliope-enabled')){
+          try { runCalliopeHealth(routeKey); } catch(e){}
+          return;
+        }
         const bd = document.createElement('div');
         bd.className='backdrop';
         const modal = document.createElement('div');
@@ -1590,6 +1843,547 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
       }
       document.getElementById('themeToggle').addEventListener('click', toggleTheme);
       initTheme();
+
+      // ===== AI Assistant Wiring =====
+      // Healing History Management
+      let healingHistory = [];
+      let isHealing = false;
+      
+      async function loadHealingHistory() {
+        try {
+          const response = await fetch('/.artifacts/calliope/healing-log.json');
+          if (response.ok) {
+            const data = await response.json();
+            healingHistory = data.entries || [];
+            updateHealingUI();
+          } else {
+            console.log('No healing history found');
+          }
+        } catch (e) {
+          console.log('Error loading healing history', e);
+        }
+      }
+      
+      function updateHealingUI() {
+        const badge = document.getElementById('healingBadge');
+        const countEl = badge.querySelector('.healing-count');
+        const count = healingHistory.length;
+        
+        // Update badge
+        countEl.textContent = count > 99 ? '99+' : count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+        
+        // Update healing status in header
+        const statusEl = document.getElementById('aiHealingStatus');
+        const countHeaderEl = document.getElementById('aiHealingCount');
+        
+        if (isHealing) {
+          statusEl.classList.add('active');
+          statusEl.querySelector('.ai-healing-label').textContent = 'Healing...';
+        } else {
+          statusEl.classList.remove('active');
+          statusEl.querySelector('.ai-healing-label').textContent = 'Self-Healing';
+        }
+        
+        countHeaderEl.textContent = count > 0 ? `(${count})` : '';
+        
+        // Update history panel
+        const historyList = document.getElementById('healingHistoryList');
+        
+        if (count === 0) {
+          historyList.innerHTML = '<div class="empty-history">No healing actions recorded yet.</div>';
+          return;
+        }
+        
+        historyList.innerHTML = '';
+        
+        // Show most recent entries first
+        const recentEntries = [...healingHistory].reverse().slice(0, 20);
+        
+        recentEntries.forEach(entry => {
+          const entryEl = document.createElement('div');
+          entryEl.className = `healing-entry ${entry.success ? 'success' : 'failure'}`;
+          
+          const header = document.createElement('div');
+          header.className = 'healing-entry-header';
+          
+          const issue = document.createElement('div');
+          issue.className = 'healing-entry-issue';
+          issue.textContent = entry.issue || 'Unknown issue';
+          
+          const timestamp = document.createElement('div');
+          timestamp.className = 'healing-entry-timestamp';
+          timestamp.textContent = new Date(entry.timestamp).toLocaleString();
+          
+          header.appendChild(issue);
+          header.appendChild(timestamp);
+          
+          const details = document.createElement('div');
+          details.className = 'healing-entry-details';
+          
+          if (entry.success) {
+            details.textContent = `Successfully applied ${entry.solution}`;
+          } else {
+            details.textContent = entry.details?.error || 'Failed to heal';
+          }
+          
+          const actions = document.createElement('div');
+          actions.className = 'healing-entry-actions';
+          
+          const viewBtn = document.createElement('button');
+          viewBtn.textContent = 'View Details';
+          viewBtn.addEventListener('click', () => {
+            // Open a modal with details
+            const detailsStr = JSON.stringify(entry.details || {}, null, 2);
+            alert(`Healing Details:\n${detailsStr}`);
+          });
+          
+          actions.appendChild(viewBtn);
+          
+          entryEl.appendChild(header);
+          entryEl.appendChild(details);
+          entryEl.appendChild(actions);
+          
+          historyList.appendChild(entryEl);
+        });
+      }
+      
+      async function runSelfHeal() {
+        if (isHealing) return;
+        
+        isHealing = true;
+        updateHealingUI();
+        
+        try {
+          // Append a message showing we're starting healing
+          appendBubble('assistant', `🩺 Starting self-healing process... This might take a moment.`);
+          
+          const thinking = appendThinking();
+          
+          // Call the advanced healing API
+          const response = await fetch('/api/ai/advanced-heal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          
+          thinking.remove();
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            // Format the result as a message
+            let message = '✨ Self-healing complete!\n\n';
+            
+            if (result.result.success) {
+              message += `${result.result.message || 'The healing was successful.'}\n\n`;
+              
+              if (result.result.steps) {
+                message += 'Steps performed:\n';
+                result.result.steps.forEach(step => {
+                  message += `- ${step.name}: ${step.status}\n`;
+                });
+              }
+              
+              if (result.result.appliedStrategies && result.result.appliedStrategies.length > 0) {
+                message += '\nApplied strategies:\n';
+                result.result.appliedStrategies.forEach(strategy => {
+                  message += `- ${strategy.issue}: ${strategy.result.message || strategy.result.success ? 'Success' : 'Failed'}\n`;
+                });
+              }
+              
+              message += '\nYour proxy should be working correctly now!';
+            } else {
+              message += 'The healing process encountered some issues.\n\n';
+              
+              if (result.result.error) {
+                message += `Error: ${result.result.error}\n\n`;
+              }
+              
+              if (result.result.steps) {
+                message += 'Steps attempted:\n';
+                result.result.steps.forEach(step => {
+                  message += `- ${step.name}: ${step.status}${step.error ? ` (${step.error})` : ''}\n`;
+                });
+              }
+              
+              message += '\nYou might need to manually fix some issues.';
+            }
+            
+            appendBubble('assistant', message);
+            
+            // Refresh healing history after a delay
+            setTimeout(() => {
+              loadHealingHistory();
+            }, 2000);
+            
+          } else {
+            const errorText = await response.text();
+            appendBubble('assistant', `❌ Self-healing failed: ${errorText || response.statusText}`);
+          }
+        } catch (e) {
+          appendBubble('assistant', `❌ Error during self-healing: ${e.message}`);
+        } finally {
+          isHealing = false;
+          updateHealingUI();
+        }
+      }
+      
+      async function initAiAssistant(){
+        const drawer = document.getElementById('aiDrawer');
+        const tab = document.getElementById('aiTab');
+        const statusEl = document.getElementById('aiStatus');
+        const indexEl = document.getElementById('aiIndex');
+        const chatEl = document.getElementById('aiChat');
+        const askBtn = document.getElementById('aiAskBtn');
+        const clearBtn = document.getElementById('aiClearBtn');
+        const reindexBtn = document.getElementById('aiReindexBtn');
+        const copyBtn = document.getElementById('aiCopyBtn');
+        const healBtn = document.getElementById('aiHealBtn');
+        const queryEl = document.getElementById('aiQuery');
+        
+        // Healing history elements
+        const healingBadge = document.getElementById('healingBadge');
+        const healingHistory = document.getElementById('healingHistory');
+        const closeHistoryBtn = document.querySelector('.close-history');
+
+        async function refreshHealth(){
+          try {
+            const h = await fetch('/api/ai/health');
+            if (!h.ok) throw new Error('disabled');
+            const hj = await h.json();
+            if (statusEl) statusEl.textContent = hj.enabled ? `Enabled${hj.model?` (${hj.model})`:''}` : 'Disabled (no key)';
+            // Toggle UI affordances when Calliope is enabled
+            const calliopeEnabled = true; // features other than /ask do not require a key
+            document.body.classList.toggle('calliope-enabled', calliopeEnabled);
+            toggleCalliopeAffordances(calliopeEnabled);
+          } catch {
+            if (statusEl) statusEl.textContent = 'Unavailable';
+          }
+          try {
+            const s = await fetch('/api/ai/stats');
+            if (s.ok){ const sj = await s.json(); if(indexEl) indexEl.textContent = sj.exists ? `${sj.chunks} chunks • ${sj.model||''}`.trim() : 'No index'; }
+            else if(indexEl) indexEl.textContent = '—';
+          } catch { if(indexEl) indexEl.textContent = '—'; }
+        }
+
+        function toggleCalliopeAffordances(enabled){
+          // Hide Recommend and disable Diagnose buttons when enabled; swap Diagnose icon to Calliope
+          const recButtons = Array.from(document.querySelectorAll('a.btn.btn-small, button.btn.btn-small')).filter(el=>/Recommend/i.test(el.textContent||''));
+          recButtons.forEach(el=> el.style.display = enabled ? 'none' : '');
+          const diagIconBtns = Array.from(document.querySelectorAll('.icon-actions .icon-btn'));
+          diagIconBtns.forEach(btn=>{
+            if (btn.getAttribute('aria-label')==='Diagnose'){
+              if (enabled){
+                btn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="pinkStethBtn" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ff8fd3"/><stop offset="100%" stop-color="#ff5bbd"/></linearGradient><linearGradient id="pinkMetalGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f3f6"/><stop offset="45%" stop-color="#cfd5dc"/><stop offset="100%" stop-color="#8a9099"/></linearGradient></defs><g fill="none" stroke="url(#pinkStethBtn)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-3.2-2.3-5.4-4.1-6.9-5.6c-1.9-1.8-2.2-4.6-.3-6c1.4-1 3.4-.6 4.5.7c.4.5.8 1.1 1.1 1.7c.2-.6.6-1.2 1.1-1.7c1.1-1.3 3.1-1.7 4.5-.7c1.9 1.3 1.6 4.2-.3 6C17.4 16.9 15.2 18.7 12 21"/><circle cx="6.0" cy="6.0" r="1.1" fill="url(#pinkStethBtn)" stroke="none"/><circle cx="18.0" cy="6.0" r="1.1" fill="url(#pinkStethBtn)" stroke="none"/><circle cx="7.4" cy="16.6" r="1.9" fill="url(#pinkMetalGrad)" stroke="none"/><circle cx="7.4" cy="16.6" r="2.2" stroke="url(#pinkStethBtn)"/></g></svg>';
+                btn.title='Calliope'; btn.setAttribute('aria-label','Calliope');
+                const route = btn.dataset.route || null;
+                btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); if (route) runCalliopeHealth(route); };
+              } else {
+                btn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M22.7 19.3l-6-6 2-2 6 6-2 2zM14.9 7.1l2 2L6 20H4v-2l10.9-10.9zM3 17l1 4 4 1-1-4-4-1z"/></svg>';
+                btn.title='Diagnose'; btn.setAttribute('aria-label','Diagnose');
+                btn.onclick = null;
+              }
+            }
+          });
+          // Disable any text Diagnose buttons
+          const textDiagBtns = Array.from(document.querySelectorAll('button.btn.btn-small, a.btn')).filter(el=>/Diagnose/i.test(el.textContent||''));
+          textDiagBtns.forEach(el=>{ el.disabled = !!enabled; if (enabled) el.classList.add('hidden'); else el.classList.remove('hidden'); });
+        }
+
+        async function onAsk(){
+          const q = (queryEl.value||'').trim();
+          if (!q){ return; }
+          askBtn.disabled = true; askBtn.textContent = 'Thinking…';
+          // Clear the input immediately so the user can type next question
+          queryEl.value = '';
+          
+          // Show thinking animation during requests too
+          const thinking = appendThinking();
+          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 800));
+          
+          try{
+            // Append user bubble
+            appendBubble('user', q);
+            const [resp] = await Promise.all([
+              fetch('/api/ai/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
+              minThinkingTime
+            ]);
+            
+            // Remove thinking indicator
+            thinking.remove();
+            
+            const data = await resp.json().catch(()=>null);
+            if (!resp.ok){ appendBubble('assistant', (data&&data.error) ? `Error: ${data.error}` : `HTTP ${resp.status}`); }
+            else {
+              const txt = (data.answer||'').trim();
+              appendBubble('assistant', txt);
+            }
+          } catch(e){ 
+            thinking.remove(); 
+            appendBubble('assistant', `Request failed: ${e.message}`); 
+          }
+          finally{ askBtn.disabled = false; askBtn.textContent = 'Ask'; }
+        }
+
+        async function onReindex(){
+          reindexBtn.disabled = true; reindexBtn.textContent = 'Indexing…';
+          try{
+            const resp = await fetch('/api/ai/reindex', { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
+            const data = await resp.json().catch(()=>null);
+            if (!resp.ok){ alert(`Reindex failed: ${(data&&data.error)||('HTTP '+resp.status)}`); }
+          } catch(e){ alert('Reindex error: '+e.message); }
+          await refreshHealth();
+          reindexBtn.disabled = false; reindexBtn.textContent = 'Reindex';
+        }
+
+        function appendBubble(who, text){
+          const b = document.createElement('div');
+          b.className = `bubble ${who}`;
+          
+          // Add chat bubble titles
+          const titleEl = document.createElement('div');
+          titleEl.className = 'bubble-title';
+          if (who === 'user') {
+            titleEl.innerHTML = '🧑 You';
+          } else {
+            titleEl.innerHTML = '🩺 Calliope';
+          }
+          b.appendChild(titleEl);
+          
+          // Create content area
+          const contentEl = document.createElement('div');
+          contentEl.className = 'bubble-content';
+          
+          if (who === 'assistant'){
+            try{
+              const html = DOMPurify.sanitize(marked.parse(text || ''));
+              contentEl.innerHTML = html;
+            }catch{ contentEl.textContent = text; }
+          } else {
+            contentEl.textContent = text;
+          }
+          b.appendChild(contentEl);
+          
+          chatEl.appendChild(b);
+          // Scroll behavior:
+          // - For user messages, scroll to bottom so the sent message is visible
+          // - For assistant replies, align the top of the new bubble to the top of the chat (if possible)
+          if (who === 'user'){
+            chatEl.scrollTop = chatEl.scrollHeight;
+          } else {
+            const y = Math.max(0, b.offsetTop - 6);
+            chatEl.scrollTo({ top: y, behavior: 'smooth' });
+          }
+          return b;
+        }
+        
+        // Appends raw HTML content in a bubble (for complex elements like tables)
+        function appendHTMLContent(who, html){
+          const b = document.createElement('div');
+          b.className = `bubble ${who}`;
+          // Directly inject the HTML without markdown parsing
+          b.innerHTML = DOMPurify.sanitize(html);
+          chatEl.appendChild(b);
+          // Scroll to show the new content
+          if (who === 'user'){
+            chatEl.scrollTop = chatEl.scrollHeight;
+          } else {
+            const y = Math.max(0, b.offsetTop - 6);
+            chatEl.scrollTo({ top: y, behavior: 'smooth' });
+          }
+          return b;
+        }
+
+        function appendThinking(){
+          const b = document.createElement('div');
+          b.className = 'bubble assistant thinking';
+          const span = document.createElement('span');
+          span.className = 'dots';
+          span.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+          b.appendChild(span);
+          chatEl.appendChild(b);
+          chatEl.scrollTop = chatEl.scrollHeight;
+          return b;
+        }
+
+        function ensureAiOpen(){
+          const drawer = document.getElementById('aiDrawer');
+          if (drawer.classList.contains('collapsed')){
+            drawer.classList.remove('collapsed');
+            document.body.classList.add('ai-open');
+          }
+        }
+
+        async function runCalliopeHealth(routeKey){
+          ensureAiOpen();
+          // First message - acknowledgment
+          appendBubble('assistant', `🩺 Heya! One sec while I listen to ${routeKey}...`);
+          
+          // Show thinking indicator with minimum duration for visibility
+          const thinking = appendThinking();
+          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 1200));
+          
+          try{
+            const [resp] = await Promise.all([
+              fetch('/api/ai/self-check', { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({ 
+                  heal: false, 
+                  route: routeKey, 
+                  hint: `Focus on route ${routeKey} and its children.` 
+                }) 
+              }),
+              minThinkingTime // Ensure thinking animation shows for at least 1.2s
+            ]);
+            
+            // Remove thinking indicator after minimum time has passed
+            thinking.remove();
+            
+            if (!resp.ok){ 
+              appendBubble('assistant', `Hmm, I had trouble with that check (HTTP ${resp.status}). Want me to try again?`); 
+              return; 
+            }
+            
+            // Process the response
+            const data = await resp.json().catch(()=>null);
+            const summary = (data && data.summary) ? data.summary : 'Health check completed.';
+            
+            // Second message - detailed result
+            appendBubble('assistant', summary);
+            
+            // If route report is available and has child data, show a collapsible details section
+            if (data && data.self && data.self.routeReport && data.self.routeReport.probed) {
+              const probed = data.self.routeReport.probed;
+              
+              // Only show details if we have multiple routes
+              if (probed.length > 1) {
+                // Create collapsible details section
+                const detailsHtml = `
+                <details>
+                  <summary>View route details (${probed.length} paths)</summary>
+                  <div style="margin-top: 8px; padding: 8px; background: rgba(125,162,255,.08); border: 1px solid rgba(125,162,255,.18); border-radius: 6px; font-size: 0.9em;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                      <thead>
+                        <tr>
+                          <th style="text-align: left; padding: 4px;">Path</th>
+                          <th style="text-align: right; padding: 4px;">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${probed.map(item => {
+                          const statusClass = item.status >= 200 && item.status < 300 ? 'ok' : 
+                                          item.status >= 300 && item.status < 400 ? 'warn' : 'err';
+                          return `
+                            <tr>
+                              <td style="text-align: left; padding: 4px;">${item.path}</td>
+                              <td style="text-align: right; padding: 4px;" class="${statusClass}">${item.status || 'no response'}</td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>`;
+                
+                // Add details as a new bubble
+                appendHTMLContent('assistant', detailsHtml);
+              }
+            }
+          } catch(e){ 
+            thinking.remove(); 
+            appendBubble('assistant', `⚠️ I couldn't finish my check: ${e.message}`); 
+          }
+        }
+
+        askBtn.addEventListener('click', onAsk);
+        clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
+        copyBtn.addEventListener('click', onCopy);
+        queryEl.addEventListener('keydown', (e)=>{
+          if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); }
+        });
+        
+        // Copy conversation to clipboard
+        async function onCopy(){
+          const bubbles = chatEl.querySelectorAll('.bubble');
+          let conversation = '';
+          bubbles.forEach(bubble => {
+            const title = bubble.querySelector('.bubble-title')?.textContent || '';
+            const content = bubble.querySelector('.bubble-content')?.textContent || bubble.textContent;
+            conversation += `${title}\n${content}\n\n`;
+          });
+          
+          try {
+            await navigator.clipboard.writeText(conversation);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            copyBtn.textContent = 'Failed';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+          }
+        }
+        tab.addEventListener('click', ()=>{
+          const collapsed = drawer.classList.toggle('collapsed');
+          document.body.classList.toggle('ai-open', !collapsed);
+        });
+        reindexBtn.addEventListener('click', onReindex);
+        askBtn.addEventListener('click', onAsk);
+        clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
+        copyBtn.addEventListener('click', onCopy);
+        queryEl.addEventListener('keydown', (e)=>{
+          if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); }
+        });
+        
+        // Copy conversation to clipboard
+        async function onCopy(){
+          const bubbles = chatEl.querySelectorAll('.bubble');
+          let conversation = '';
+          bubbles.forEach(bubble => {
+            const title = bubble.querySelector('.bubble-title')?.textContent || '';
+            const content = bubble.querySelector('.bubble-content')?.textContent || bubble.textContent;
+            conversation += `${title}\n${content}\n\n`;
+          });
+          
+          try {
+            await navigator.clipboard.writeText(conversation);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+          } catch (err) {
+            console.error('Failed to copy:', err);
+            copyBtn.textContent = 'Failed';
+            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+          }
+        }
+        
+        // Healing UI handlers
+        healBtn.addEventListener('click', runSelfHeal);
+        
+        healingBadge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          healingHistory.classList.toggle('visible');
+        });
+        
+        closeHistoryBtn.addEventListener('click', () => {
+          healingHistory.classList.remove('visible');
+        });
+        
+        // Initialize healing history
+        try {
+          await loadHealingHistory();
+        } catch (e) {
+          console.log('Error loading healing history', e);
+        }
+        
+        // Hide healing status initially if empty
+        const aiHealingStatus = document.getElementById('aiHealingStatus');
+        if (healingHistory.length === 0) {
+          aiHealingStatus.style.display = 'none';
+        }
+        
+        await refreshHealth();
+      }
     </script>
   </body>
   </html>

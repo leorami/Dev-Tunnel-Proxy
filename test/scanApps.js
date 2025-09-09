@@ -4,7 +4,7 @@ const path = require('path');
 const { parseAppsDirectory } = require('../utils/nginxParser');
 const { probe } = require('../utils/assetProbe');
 const { fetchRaw, extractApiCandidatesFromHtml, extractApiCandidatesFromJs, testApiSet, tryWsUpgrade } = require('../utils/apiProbe');
-const { discoverNgrokUrl } = require('../utils/ngrokDiscovery');
+const { discoverNgrokUrl, discoverNgrokUrlSync } = require('../utils/ngrokDiscovery');
 
 function ensureDirs() {
   const artifactsDir = path.join(__dirname, '..', '.artifacts');
@@ -80,7 +80,7 @@ async function runForTarget(base, route, _unused_apiOwner) {
 async function main() {
   const { reportsDir } = ensureDirs();
   const routes = parseAppsDirectory(path.join(__dirname, '..', 'apps'));
-  const ngrok = discoverNgrokUrl();
+  const ngrok = discoverNgrokUrlSync(); // Use sync version for backward compatibility
   
   // Check for nginx config conflicts (multiple .conf files declaring same route)
   const nginxConflicts = routes.conflictWarnings || [];

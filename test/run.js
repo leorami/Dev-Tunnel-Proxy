@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { probe } = require('../utils/assetProbe');
 const { fetchRaw, extractApiCandidatesFromHtml, extractApiCandidatesFromJs, testApiSet, tryWsUpgrade } = require('../utils/apiProbe');
-const { discoverNgrokUrl } = require('../utils/ngrokDiscovery');
+const { discoverNgrokUrl, discoverNgrokUrlSync } = require('../utils/ngrokDiscovery');
 const { parseAppsDirectory } = require('../utils/nginxParser');
 
 function ensureDirs() {
@@ -108,7 +108,7 @@ function renderSummary(name, result) {
 
 async function main() {
   const { reportsDir } = ensureDirs();
-  const ngrok = discoverNgrokUrl();
+  const ngrok = discoverNgrokUrlSync(); // Use sync version for backward compatibility
   // Discover routes from nginx config and check for conflicts
   const appsDir = path.join(__dirname, '..', 'apps');
   let routes = [];
@@ -127,8 +127,9 @@ async function main() {
     || routes.find(r => r.route && r.route !== '/')
     || { route: '/health.json' }; // fallback
   
+  const base = process.env.LOCAL_PROXY_BASE || 'http://localhost:8080';
   const targets = [
-    { name: 'local-proxy', url: `http://localhost:8080${testRoute.route}` },
+    { name: 'local-proxy', url: `${base.replace(/\/$/, '')}${testRoute.route}` },
     ...(ngrok ? [{ name: 'ngrok', url: `${ngrok.replace(/\/$/, '')}${testRoute.route}` }] : []),
   ];
 

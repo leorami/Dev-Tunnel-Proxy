@@ -46,21 +46,42 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
    Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
-7) **📊 Enhanced Status Dashboard** (`/status`):
-  - **Route Grouping**: Routes automatically grouped by base upstream URL  
+7) **📊 Enhanced Status Dashboard with Calliope AI** (`/status`):
+  - **Route Grouping**: Routes automatically grouped by base upstream URL
+  - **Calliope Assistant**: Youthful, caring AI assistant for proactive diagnostics and healing  
   - **Promotion System**: Designate parent routes within each upstream group
   - **Visual Organization**: Collapsible route groups with status indicators
-  - **One-Click Actions**: Open routes in ngrok tunnel, diagnose issues
-  - **Live Reload**: Refresh configurations without leaving the browser
+  - **Smart Actions**: Stethoscope-guided diagnostics, one-click route opening from headers
+  - **Auto-Healing**: Calliope detects and fixes common issues automatically (React bundles, nginx configs, etc.)
+  - **Real-Time Updates**: Watch Calliope's thinking process and step-by-step healing
+  - **Live Reload**: Refresh configurations without leaving the browser  
   - **Per-Config JSON**: View filtered route data for each config file
-  - **Per-Card Collapse (🆕)**: Collapse any card to a compact header; state persists
-  - **Sticky Summary & Controls (🆕)**: Overview and Configured Apps header stay pinned
-  - **Improved Filter (🆕)**: Match by route, severity (`ok|warn|err`), codes (`200`), or target-qualified (`ngrok:200`, `localhost:404`); also matches upstream host fragments
+  - **Per-Card Collapse**: Collapse any card to a compact header; state persists
+  - **Sticky Summary & Controls**: Overview and Configured Apps header stay pinned
+  - **Advanced Filter**: Match by route, severity (`ok|warn|err`), codes (`200`), or target-qualified (`ngrok:200`, `localhost:404`)
 
 8) Built-in endpoints (human + JSON):
    - **Human**: `/` → `/status`, `/health` (enhanced dashboards)
    - **JSON**: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
    - **Reports**: `/reports/` directory browser
+
+9) **🛠️ Advanced Conflict Management**:
+10) **🤖 Calliope AI Assistant** (Enhanced)
+   - **Personality**: Caring, youthful engineer who actually fixes problems instead of just giving advice
+   - **Step-by-Step Healing**: Watch her investigate → diagnose → fix → test → verify
+   - **Pattern Learning**: Remembers successful fixes and applies them automatically to similar issues  
+   - **Self-Healing Strategies**: React bundle issues, nginx config problems, proxy resilience, and more
+   - **Visible Thinking**: Animated thinking dots show when she's working
+   - (Optional) Provide OpenAI key in `.env` for enhanced Q&A capabilities:
+   ```bash
+   OPENAI_API_KEY=sk-...
+   OPENAI_MODEL=gpt-4o-mini
+   OPENAI_EMBED_MODEL=text-embedding-3-small
+   ```
+   - Click 🩺 stethoscope icons to ask Calliope to diagnose and heal issues
+   - Chat interface for natural language questions and requests
+   - Endpoints: `/api/ai/health`, `/api/ai/ask`, `/api/ai/self-check`, `/api/ai/advanced-heal`
+   - See `docs/CALLIOPE-AI-ASSISTANT.md` for full capabilities
 
 9) **🛠️ Advanced Conflict Management**:
    - Detects when multiple apps declare the same nginx route
@@ -151,6 +172,38 @@ Notes:
 - API discovery from HTML/JS and checks for both bare `/api/*` and prefixed `/myapp/api/*`
 - Websocket upgrade for HMR paths
 - Ownership conflicts (e.g., `/api` owned by another app)
+
+## Testing
+
+### Backend diagnostics
+
+Run health and route scans (Dockerized, uses `LOCAL_PROXY_BASE` if set):
+
+```bash
+docker run --rm --network devproxy \
+  -e LOCAL_PROXY_BASE=http://dev-proxy \
+  -v "$PWD":/app -w /app node:18-alpine \
+  sh -lc 'node test/run.js && node test/scanApps.js'
+```
+
+Artifacts:
+- `.artifacts/reports/health-*.{json,md}`, latest aliases `health-latest.*`
+- `.artifacts/reports/scan-apps-*.json`, latest alias `scan-apps-latest.json`
+
+### UI tests (Playwright)
+
+Run a headless browser pass that captures screenshots, console logs (warn/error), computed styles, traces and videos on failure:
+
+```bash
+mkdir -p .artifacts/ui
+docker run --rm --network devproxy \
+  -e UI_BASE_URL=http://dev-proxy \
+  -v "$PWD":/work -w /work/test/ui \
+  mcr.microsoft.com/playwright:v1.46.0-jammy \
+  bash -lc 'npm install --no-audit --no-fund && npx playwright install --with-deps && npm test'
+``;
+
+Artifacts: `.artifacts/ui/` (screenshots, attached JSON for styles and console; traces/videos on failure)
 
 ## Examples
 
@@ -246,6 +299,14 @@ dev-tunnel-proxy/
 - **[Project Integration Guide](PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Config Composition & Precedence](docs/CONFIG-COMPOSITION.md)** - How the generator works, migration notes, overrides
+
+## Inspiration: Calliope
+
+Calliope is named in honor of the author's daughter, who lives with tuberous sclerosis complex (TSC). Her resilience, kindness, and youthful spirit inspire this project's mission: a caring AI assistant who proactively keeps your dev environment healthy so you can focus on building and sharing amazing things.
+
+Like her namesake, Calliope approaches problems with empathy, persistence, and a genuine desire to help. She doesn't just diagnose issues - she fixes them herself, learns from each success, and celebrates when everything works perfectly.
+
+If you feel inspired by Calliope's caring approach to development support, please consider supporting families affected by TSC by donating to the TSC Alliance: https://www.tscalliance.org/
 
 ## How to contribute
 

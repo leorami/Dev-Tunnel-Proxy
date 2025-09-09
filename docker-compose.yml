@@ -14,7 +14,7 @@ services:
       - devproxy
     command: ["sh", "/entrypoint.sh"]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health.json"]
       interval: 30s
       timeout: 5s
       retries: 5
@@ -57,6 +57,9 @@ services:
       - .:/app
     environment:
       - NODE_ENV=development
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_EMBED_MODEL=${OPENAI_EMBED_MODEL}
     networks:
       - devproxy
     ports:
