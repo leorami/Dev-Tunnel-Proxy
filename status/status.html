@@ -34,6 +34,8 @@
       .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.30)}
       .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
       .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+      .apps-controls{justify-content:flex-start}
+      .control-buttons{display:flex;gap:8px;align-items:center}
       .label{color:var(--muted)}
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
@@ -390,17 +392,15 @@
         <div class="appsHeader">
           <h2 style="margin:0">Configured Apps</h2>
           <div class="toolbar">
-            <div class="field">
-              <label class="label">Sort</label>
-              <select id="sortMode">
+            <div class="control-buttons">
+              <button class="btn btn-small" id="sortBtn" title="Sort routes">Sort</button>
+              <select id="sortMode" style="display:none">
                 <option value="alpha">A–Z</option>
                 <option value="status">By status</option>
                 <option value="depth">By depth</option>
               </select>
-            </div>
-            <div class="field">
-              <label class="label">Filter</label>
-              <input id="routeFilter" type="text" placeholder="/api, ok, warn, err, 200, ngrok:200" />
+              <button class="btn btn-small" id="filterBtn" title="Filter routes">Filter</button>
+              <input id="routeFilter" type="text" placeholder="/api, ok, warn, err, 200, ngrok:200" style="display:none" />
             </div>
           </div>
         </div>
@@ -664,7 +664,49 @@
               unique.forEach(r=> groups.push({ route:r, children:[], baseKey }));
             }
           });
-          return groups;
+          
+          // Second pass: Handle path-based grouping for cross-upstream route relationships
+          const finalGroups = [];
+          const processedRoutes = new Set();
+          
+          // Sort groups by route length to process parents before children
+          groups.sort((a, b) => a.route.length - b.route.length);
+          
+          groups.forEach(group => {
+            if (processedRoutes.has(group.route)) return;
+            
+            // Check if this route should be a child of an existing group
+            let foundParent = false;
+            for (let existingGroup of finalGroups) {
+              if (group.route !== existingGroup.route && 
+                  group.route.startsWith(existingGroup.route) && 
+                  group.route.length > existingGroup.route.length &&
+                  (group.route[existingGroup.route.length] === '/' || existingGroup.route.endsWith('/'))) {
+                // This route is a child of an existing group by path prefix
+                if (!existingGroup.children.includes(group.route)) {
+                  existingGroup.children.push(group.route);
+                }
+                // Add any children this group had to the parent as well
+                group.children.forEach(child => {
+                  if (!existingGroup.children.includes(child)) {
+                    existingGroup.children.push(child);
+                  }
+                });
+                processedRoutes.add(group.route);
+                group.children.forEach(child => processedRoutes.add(child));
+                foundParent = true;
+                break;
+              }
+            }
+            
+            if (!foundParent) {
+              finalGroups.push({ ...group });
+              processedRoutes.add(group.route);
+              group.children.forEach(child => processedRoutes.add(child));
+            }
+          });
+          
+          return finalGroups;
         }
 
         Object.keys(bySource).sort().forEach(source => {
@@ -776,23 +818,7 @@
               header.appendChild(summaryChips);
               // Remove promote chips from parent header - they'll be on child cards instead
               // Only keep the Clear Root button in the root-actions area
-              const rootActions = document.createElement('div');
-              rootActions.className = 'root-actions';
-              const clearBtn = document.createElement('button');
-              clearBtn.className = 'btn btn-small';
-              clearBtn.innerHTML = '🗑️';
-              clearBtn.title = 'Clear Root Status';
-              clearBtn.setAttribute('aria-label','Clear Root Status');
-              clearBtn.addEventListener('click', (e)=>{
-                e.stopPropagation();
-                const base = group.baseKey;
-                if (!promotedRoots) promotedRoots = loadPromotions();
-                delete promotedRoots[base];
-                savePromotions(promotedRoots);
-                rebuildApps();
-              });
-              rootActions.appendChild(clearBtn);
-              app.appendChild(rootActions);
+              // Root actions removed - auto-grouping only from now on
               const icons = document.createElement('div');
               icons.className = 'icon-actions';
               const diagBtn = document.createElement('button');
@@ -932,23 +958,7 @@
                 summaryChips.className = 'chips child-summary';
                 header.appendChild(summaryChips);
                 // Move Clear Root to bottom-right corner
-                const rootActions = document.createElement('div');
-                rootActions.className = 'root-actions';
-                const clearBtn = document.createElement('button');
-                clearBtn.className = 'btn btn-small';
-                clearBtn.innerHTML = '🗑️';
-                clearBtn.title = 'Clear Root Status';
-                clearBtn.setAttribute('aria-label','Clear Root Status');
-                clearBtn.addEventListener('click', (e)=>{
-                  e.stopPropagation();
-                  const base = group.baseKey;
-                  if (!promotedRoots) promotedRoots = loadPromotions();
-                  delete promotedRoots[base];
-                  savePromotions(promotedRoots);
-                  rebuildApps();
-                });
-                rootActions.appendChild(clearBtn);
-                app.appendChild(rootActions);
+                // Root actions removed - auto-grouping only from now on
                 const icons = document.createElement('div');
                 icons.className = 'icon-actions';
                 const diagBtn = document.createElement('button');
@@ -1086,7 +1096,9 @@
         // Store globally for Open button functionality
         globalNgrokUrl = ngrokTxt;
         
-        document.getElementById('generated').textContent = routes.generatedAt || '—';
+        // Convert timestamp to local time
+        const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
+        document.getElementById('generated').textContent = generatedTime;
         document.getElementById('ngrok').textContent = ngrokTxt;
 
         const targets = Object.keys(routes.summary||{});
