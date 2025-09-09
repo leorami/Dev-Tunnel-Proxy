@@ -35,7 +35,7 @@
       .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
       .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
       .apps-controls{justify-content:flex-start}
-      .control-buttons{display:flex;gap:8px;align-items:center}
+      .field{display:inline-block;margin-right:10px}
       .label{color:var(--muted)}
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
@@ -156,7 +156,7 @@
       .route-header{display:flex;flex-direction:column;gap:6px;padding:8px;position:relative}
       .route-header:first-child{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
       .route-title{flex:1;display:flex;align-items:center;gap:8px}
-      .icon-actions{margin-top:12px;position:absolute;top:8px;right:8px;display:flex;gap:4px}
+      .icon-actions{margin-top:12px;position:absolute;top:8px;right:8px;display:flex;gap:4px;align-items:center;justify-content:center}
       .chip.small{font-size:11px;padding:2px 6px;border-radius:10px}
       .chip.upstream-base{background:var(--chip);color:var(--muted);font-size:11px;font-weight:400}
       .chip.promoted-indicator{background:rgba(22,199,132,.2);border-color:rgba(22,199,132,.5);color:#16c784;font-size:10px;font-weight:700;margin-left:8px;padding:2px 6px}
@@ -213,7 +213,8 @@
       .bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
       .bubble code{background:rgba(125,162,255,.15);border:1px solid rgba(125,162,255,.25);padding:0 4px;border-radius:4px}
       .ai-input{display:flex;flex-direction:column;gap:8px}
-      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px}
+      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body)}
+      .ai-input textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
       .ai-actions{display:flex;gap:8px;justify-content:flex-end}
       /* Thinking indicator */
       .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
@@ -380,7 +381,7 @@
           <div class="ai-input">
             <textarea id="aiQuery" class="hover-scroll" rows="3" placeholder="Ask about proxy/network issues" style="padding: 12px;"></textarea>
             <div class="ai-actions">
-              <button class="btn btn-small" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
+              <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
               <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>
               <button class="btn" id="aiAskBtn">Ask</button>
             </div>
@@ -392,15 +393,17 @@
         <div class="appsHeader">
           <h2 style="margin:0">Configured Apps</h2>
           <div class="toolbar">
-            <div class="control-buttons">
-              <button class="btn btn-small" id="sortBtn" title="Sort routes">Sort</button>
-              <select id="sortMode" style="display:none">
+            <div class="field">
+              <label class="label">Sort</label>
+              <select id="sortMode">
                 <option value="alpha">A–Z</option>
                 <option value="status">By status</option>
                 <option value="depth">By depth</option>
               </select>
-              <button class="btn btn-small" id="filterBtn" title="Filter routes">Filter</button>
-              <input id="routeFilter" type="text" placeholder="/api, ok, warn, err, 200, ngrok:200" style="display:none" />
+            </div>
+            <div class="field">
+              <label class="label">Filter</label>
+              <input id="routeFilter" type="text" placeholder="/api, ok, warn, err, 200, ngrok:200" />
             </div>
           </div>
         </div>
@@ -2049,7 +2052,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const chatEl = document.getElementById('aiChat');
         const askBtn = document.getElementById('aiAskBtn');
         const clearBtn = document.getElementById('aiClearBtn');
-        const reindexBtn = document.getElementById('aiReindexBtn');
         const copyBtn = document.getElementById('aiCopyBtn');
         const healBtn = document.getElementById('aiHealBtn');
         const queryEl = document.getElementById('aiQuery');
@@ -2090,11 +2092,28 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 btn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="pinkStethBtn" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ff8fd3"/><stop offset="100%" stop-color="#ff5bbd"/></linearGradient><linearGradient id="pinkMetalGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#f0f3f6"/><stop offset="45%" stop-color="#cfd5dc"/><stop offset="100%" stop-color="#8a9099"/></linearGradient></defs><g fill="none" stroke="url(#pinkStethBtn)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21c-3.2-2.3-5.4-4.1-6.9-5.6c-1.9-1.8-2.2-4.6-.3-6c1.4-1 3.4-.6 4.5.7c.4.5.8 1.1 1.1 1.7c.2-.6.6-1.2 1.1-1.7c1.1-1.3 3.1-1.7 4.5-.7c1.9 1.3 1.6 4.2-.3 6C17.4 16.9 15.2 18.7 12 21"/><circle cx="6.0" cy="6.0" r="1.1" fill="url(#pinkStethBtn)" stroke="none"/><circle cx="18.0" cy="6.0" r="1.1" fill="url(#pinkStethBtn)" stroke="none"/><circle cx="7.4" cy="16.6" r="1.9" fill="url(#pinkMetalGrad)" stroke="none"/><circle cx="7.4" cy="16.6" r="2.2" stroke="url(#pinkStethBtn)"/></g></svg>';
                 btn.title='Calliope'; btn.setAttribute('aria-label','Calliope');
                 const route = btn.dataset.route || null;
-                btn.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); if (route) runCalliopeHealth(route); };
+                btn.onclick = (e)=>{ 
+                  e.preventDefault(); 
+                  e.stopPropagation(); 
+                  // Open Calliope chat
+                  const drawer = document.getElementById('aiDrawer');
+                  drawer.classList.remove('collapsed');
+                  document.body.classList.add('ai-open');
+                  // Focus the query input
+                  setTimeout(() => {
+                    const queryEl = document.getElementById('aiQuery');
+                    queryEl.focus();
+                  }, 100);
+                };
               } else {
                 btn.innerHTML = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M22.7 19.3l-6-6 2-2 6 6-2 2zM14.9 7.1l2 2L6 20H4v-2l10.9-10.9zM3 17l1 4 4 1-1-4-4-1z"/></svg>';
                 btn.title='Diagnose'; btn.setAttribute('aria-label','Diagnose');
-                btn.onclick = null;
+                btn.onclick = (e)=> { 
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const route = btn.dataset.route || null;
+                  if (route) openDiagnoseModal(route, targets, routes);
+                };
               }
             }
           });
@@ -2178,6 +2197,12 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           b.appendChild(contentEl);
           
           chatEl.appendChild(b);
+          
+          // Hide placeholder if this is the first user message
+          if (who === 'user' && queryEl.placeholder) {
+            queryEl.placeholder = '';
+          }
+          
           // Scroll behavior:
           // - For user messages, scroll to bottom so the sent message is visible
           // - For assistant replies, align the top of the new bubble to the top of the chat (if possible)
@@ -2340,7 +2365,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           const collapsed = drawer.classList.toggle('collapsed');
           document.body.classList.toggle('ai-open', !collapsed);
         });
-        reindexBtn.addEventListener('click', onReindex);
         askBtn.addEventListener('click', onAsk);
         clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
         copyBtn.addEventListener('click', onCopy);
