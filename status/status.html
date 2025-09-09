@@ -832,7 +832,18 @@
               diagBtn.dataset.route = group.route;
               diagBtn.addEventListener('click', (e) => {
                 e.preventDefault(); e.stopPropagation();
-                openDiagnoseModal(group.route, targets, routes);
+                // Check if Calliope is enabled - if so, open chat, otherwise diagnose modal
+                if (document.body.classList.contains('calliope-enabled')) {
+                  const drawer = document.getElementById('aiDrawer');
+                  drawer.classList.remove('collapsed');
+                  document.body.classList.add('ai-open');
+                  setTimeout(() => {
+                    const queryEl = document.getElementById('aiQuery');
+                    queryEl.focus();
+                  }, 100);
+                } else {
+                  openDiagnoseModal(group.route, targets, routes);
+                }
               });
               icons.appendChild(diagBtn);
               app.appendChild(icons);
@@ -972,7 +983,18 @@
                 diagBtn.dataset.route = group.route;
                 diagBtn.addEventListener('click', (e) => {
                   e.preventDefault(); e.stopPropagation();
-                  openDiagnoseModal(group.route, targets, routes);
+                  // Check if Calliope is enabled - if so, open chat, otherwise diagnose modal
+                  if (document.body.classList.contains('calliope-enabled')) {
+                    const drawer = document.getElementById('aiDrawer');
+                    drawer.classList.remove('collapsed');
+                    document.body.classList.add('ai-open');
+                    setTimeout(() => {
+                      const queryEl = document.getElementById('aiQuery');
+                      queryEl.focus();
+                    }, 100);
+                  } else {
+                    openDiagnoseModal(group.route, targets, routes);
+                  }
                 });
                 icons.appendChild(diagBtn);
                 app.appendChild(icons);
@@ -1019,7 +1041,18 @@
                 diagBtn.textContent = '🩺';
                 diagBtn.addEventListener('click', (e) => {
                   e.preventDefault();
-                  openDiagnoseModal(group.route, targets, routes);
+                  // Check if Calliope is enabled - if so, open chat, otherwise diagnose modal
+                  if (document.body.classList.contains('calliope-enabled')) {
+                    const drawer = document.getElementById('aiDrawer');
+                    drawer.classList.remove('collapsed');
+                    document.body.classList.add('ai-open');
+                    setTimeout(() => {
+                      const queryEl = document.getElementById('aiQuery');
+                      queryEl.focus();
+                    }, 100);
+                  } else {
+                    openDiagnoseModal(group.route, targets, routes);
+                  }
                 });
                 actions.appendChild(diagBtn);
                 app.appendChild(actions);
@@ -2071,6 +2104,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const calliopeEnabled = true; // features other than /ask do not require a key
             document.body.classList.toggle('calliope-enabled', calliopeEnabled);
             toggleCalliopeAffordances(calliopeEnabled);
+          // Also call after apps are rebuilt to ensure new buttons get updated
+          const originalRebuildApps = window.rebuildApps;
+          window.rebuildApps = function() {
+            const result = originalRebuildApps.apply(this, arguments);
+            setTimeout(() => toggleCalliopeAffordances(calliopeEnabled), 100);
+            return result;
+          };
           } catch {
             if (statusEl) statusEl.textContent = 'Unavailable';
           }
