@@ -2073,6 +2073,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             toggleCalliopeAffordances(calliopeEnabled);
           } catch {
             if (statusEl) statusEl.textContent = 'Unavailable';
+            // Fallback: keep Calliope UI affordances enabled even if /api/ai/health is unreachable
+            document.body.classList.add('calliope-enabled');
+            try { toggleCalliopeAffordances(true); } catch(e) {}
           }
           try {
             const s = await fetch('/api/ai/stats');
@@ -2089,52 +2092,33 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           recButtons.forEach(el=> el.style.display = enabled ? 'none' : '');
           console.log('🔧 Found', recButtons.length, 'recommend buttons to hide');
           
-          // NUCLEAR APPROACH: Find ANY button with stethoscope and override completely
-          const allElements = document.querySelectorAll('*');
-          let found = 0;
-          
-          allElements.forEach(el => {
-            if (el.textContent && el.textContent.includes('🩺')) {
-              found++;
-              console.log('🩺 Found stethoscope element:', el, 'enabled:', enabled);
-              
-              // Remove ALL event listeners by cloning
-              const parent = el.parentNode;
-              if (parent) {
-                const clone = el.cloneNode(true);
-                parent.replaceChild(clone, el);
-                
-                // Set THE ONLY event handler
-                clone.onclick = function(e) {
-                  console.log('🩺 BUTTON CLICKED! Enabled:', enabled);
-                  e.preventDefault();
-                  e.stopPropagation();
-                  
-                  if (enabled) {
-                    console.log('🩺 OPENING CALLIOPE CHAT');
-                    const drawer = document.getElementById('aiDrawer');
-                    drawer.classList.remove('collapsed');
-                    document.body.classList.add('ai-open');
-                    setTimeout(() => {
-                      const queryEl = document.getElementById('aiQuery');
-                      if (queryEl) queryEl.focus();
-                    }, 100);
-                  } else {
-                    console.log('🩺 OPENING DIAGNOSE MODAL');
-                    const route = clone.dataset.route || clone.closest('[data-route]')?.dataset?.route;
-                    if (route) {
-                      console.log('🩺 Opening modal for route:', route);
-                      openDiagnoseModal(route, targets, routes);
-                    } else {
-                      console.log('🩺 No route found for diagnose modal');
-                    }
-                  }
-                };
+          // NUCLEAR APPROACH: Find ANY button with stethoscope or aria-label Diagnose and override completely
+          const candidates = Array.from(document.querySelectorAll('button, .icon-btn')).filter(el => {
+            const label = el.getAttribute('aria-label') || '';
+            const text = el.textContent || '';
+            return /Diagnose/i.test(label) || text.includes('🩺');
+          });
+          candidates.forEach(el => {
+            const parent = el.parentNode; if (!parent) return;
+            const clone = el.cloneNode(true);
+            parent.replaceChild(clone, el);
+            clone.onclick = function(e){
+              e.preventDefault(); e.stopPropagation();
+              if (enabled){
+                const drawer = document.getElementById('aiDrawer');
+                drawer.classList.remove('collapsed');
+                document.body.classList.add('ai-open');
+                setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); },100);
+              } else {
+                const route = clone.dataset.route || clone.closest('[data-route]')?.dataset?.route;
+                if (route) openDiagnoseModal(route, targets, routes);
               }
+            };
+            if (clone.classList.contains('icon-btn')){
+              if (enabled){ clone.title='Calliope'; clone.setAttribute('aria-label','Calliope'); }
+              else { clone.title='Diagnose'; clone.setAttribute('aria-label','Diagnose'); }
             }
           });
-          
-          console.log('🔧 Total stethoscope elements found:', found);
         }
 
         async function onAsk(){
