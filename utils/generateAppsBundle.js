@@ -25,6 +25,8 @@ const APPS_DIR = path.join(ROOT_DIR, 'apps');
 const OVERRIDES_DIR = path.join(ROOT_DIR, 'overrides');
 const OUTPUT_DIR = path.join(ROOT_DIR, 'build', 'sites-enabled');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'apps.generated.conf');
+const ARTIFACTS_DIR = path.join(ROOT_DIR, '.artifacts');
+const CONFLICTS_FILE = path.join(ARTIFACTS_DIR, 'override-conflicts.json');
 
 function readTextFileSafe(filePath) {
   try {
@@ -195,8 +197,19 @@ function hardenLocationFullText(fullText) {
     hasResolver = true;
   }
 
+  // Dedupe noisy directives that can trigger nginx warnings when repeated across locations
+  // Remove redundant 'sub_filter_types text/html;' since text/html is default for sub_filter
+  const filtered = [];
+  for (const ln of lines) {
+    if (/^\s*sub_filter_types\s+text\/html\s*;\s*$/.test(ln)) {
+      changed = true; // drop it
+      continue;
+    }
+    filtered.push(ln);
+  }
+
   if (!changed) return fullText;
-  const newBody = lines.join('\n');
+  const newBody = filtered.join('\n');
   return before + newBody + after;
 }
 
@@ -205,8 +218,23 @@ function ensureDirSync(dir) {
 }
 
 function main() {
-  const appFiles = listConfFiles(APPS_DIR);
+  let appFiles = listConfFiles(APPS_DIR);
   const overrideFiles = listConfFiles(OVERRIDES_DIR);
+
+  // Detect basename conflicts (same filename present in both dirs)
+  const conflicts = [];
+  if (overrideFiles.length && appFiles.length) {
+    const overrideNames = new Set(overrideFiles.map((p) => path.basename(p)));
+    for (const a of appFiles) {
+      const base = path.basename(a);
+      if (overrideNames.has(base)) {
+        conflicts.push({ filename: base, appPath: a, overridePath: path.join(OVERRIDES_DIR, base) });
+      }
+    }
+  }
+
+  // Do NOT drop app files when an override with the same basename exists.
+  // Keep both and let block-level precedence be handled by keys (overrides first).
 
   const overrideBlocks = collectBlocksFromFiles(overrideFiles);
   const appBlocks = collectBlocksFromFiles(appFiles);
@@ -230,8 +258,12 @@ function main() {
   }
   lines.push('');
 
-  // Emit overrides first, in file order
+  // Emit overrides first, in file order, but dedupe identical raw path specs to avoid nginx duplicate location errors
+  const emittedOverrideRaw = new Set();
   for (const b of overrideBlocks) {
+    const rawKey = `raw:${b.pathSpec.trim()}`;
+    if (emittedOverrideRaw.has(rawKey)) continue; // skip duplicate exact location re-declarations
+    emittedOverrideRaw.add(rawKey);
     lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
   }
@@ -258,6 +290,30 @@ function main() {
   fs.writeFileSync(OUTPUT_FILE, lines.join('\n'), 'utf8');
   // eslint-disable-next-line no-console
   console.log(`Wrote ${path.relative(ROOT_DIR, OUTPUT_FILE)}`);
+
+  // Lint: warn if any app routes are declared at proxy root (non-prefixed dev helpers)
+  const badRoots = appBlocks
+    .map(b => normalizeLocationPath(b.pathSpec))
+    .filter(Boolean)
+    .filter(r => [/^\/@vite\//, /^\/@id\//, /^\/@fs\//, /^\/node_modules\//, /^\/sb-(?:manager|addons|common-assets)\//, /^\/src\//]
+      .some(re => re.test(r)));
+  if (badRoots.length) {
+    console.warn('Lint: Detected root-level dev-helper routes in app configs (should live under an app prefix):');
+    Array.from(new Set(badRoots)).sort().forEach(r => console.warn(' -', r));
+  }
+
+  // Persist conflicts artifact for UI/API consumption
+  try {
+    ensureDirSync(ARTIFACTS_DIR);
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      conflicts
+    };
+    fs.writeFileSync(CONFLICTS_FILE, JSON.stringify(payload, null, 2), 'utf8');
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('Could not write override-conflicts.json:', e.message);
+  }
 }
 
 if (require.main === module) {
