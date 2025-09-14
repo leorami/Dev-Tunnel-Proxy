@@ -196,7 +196,7 @@ export async function runAudit(opts: AuditOptions): Promise<AuditResult> {
         try {
           const u = new URL(url);
           const path = u.pathname || "";
-          const isAsset = /^\/(icons|art)\//.test(path) || /\.(png|jpg|jpeg|svg|webp|gif)(?:\?|$)/i.test(path);
+          const isAsset = /\.(png|jpg|jpeg|svg|webp|gif)(?:\?|$)/i.test(path);
           const looksRedirectToPrefixed = status >= 300 && status < 400 && typeof location === 'string' && /\/mxtk\//.test(location) && !path.startsWith('/mxtk/');
           const looksMissingPrefix = isAsset && (status >= 400 || looksRedirectToPrefixed) && !path.startsWith("/mxtk/");
           const expectedCt = expectedContentTypeForUrl(url);

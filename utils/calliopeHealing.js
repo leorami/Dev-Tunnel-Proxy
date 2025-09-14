@@ -96,13 +96,11 @@ function ensureGenericPatterns() {
       detection: {
         // Signals observed when absolute asset paths are used under a subpath proxy
         signals: [
-          String.raw`/icons/experience/`,
-          String.raw`/art/photos/`,
           String.raw`X-Forwarded-Prefix`,
           String.raw`A tree hydrated but some attributes .* hydration-mismatch`,
         ],
         effects: [
-          '404 on /icons/* or /art/*',
+          '404',
           'redirect loops or mixed content types for static assets'
         ]
       },
@@ -1783,7 +1781,8 @@ async function applyGenericDirectoryGuards({ routePrefix = '/', reportPath = '' 
     const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
     ensure(/location\s*=\s*\/_next\s*\{\s*return\s+204;\s*\}/m, 'location = /_next { return 204; }');
     ensure(/location\s*=\s*\/_next\/\s*\{\s*return\s+204;\s*\}/m, 'location = /_next/ { return 204; }');
-    const dirs = new Set(['/icons', '/icons/', '/art', '/art/']);
+    // Keep directory guards generic; do not special-case app assets like /art or /icons
+    const dirs = new Set();
     if (reportPath && fs.existsSync(reportPath)){
       try {
         const rep = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
