@@ -95,3 +95,24 @@ curl -X POST http://localhost:8080/api/ai/advanced-heal \
 ## Logs and Feedback
 
 Healing attempts and their outcomes are logged in `.artifacts/calliope/healing-log.json`. This log can be analyzed to improve healing strategies over time.
+
+## Proactive, Generic Healing (Guardrails)
+
+Calliope operates with the following guardrails to keep fixes safe and generic (non app-specific):
+
+- Always attempt automated, reversible fixes first (proxy-side rewrites, guards, reloads).
+- Prefer generic patterns (e.g., subpath/static asset issues) over app-specific edits.
+- Only provide suggestions when an issue cannot be resolved via automated healing.
+
+### Generic Patterns Included
+
+- Missing basePath for static assets under a subpath proxy (e.g., assets requested at `/icons/...` or `/art/...` while the site is mounted under `/subpath`).
+  - Signals: 404s for `/icons/*` or `/art/*`, hydration mismatch warnings, `X-Forwarded-Prefix` present.
+  - Healing: add generic directory guards and resilient subpath routing; set appropriate proxy headers.
+
+### Proactive Flow
+
+1. Run a quick audit against the requested URL.
+2. If subpath/static issues are detected, apply generic directory guards and subpath-routing fixes.
+3. Re-run the audit. Repeat up to a small pass limit.
+4. If still not green, present concise suggestions that require app-side changes.

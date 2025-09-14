@@ -11,10 +11,10 @@ This project composes local app snippets with proxy-owned overrides into a singl
 
 ## Precedence model
 
-- **Overrides win**: Any `location` block defined in `overrides/*.conf` takes precedence over a matching block from `apps/*.conf`.
-- Matching is done using both the raw `location` path spec and a normalized path prefix to catch equivalent patterns.
-- Non-conflicting locations from apps are included as-is.
-- Exact routes are allowed to co-exist with their prefix routes (e.g., `location = /impact/` plus `location ^~ /impact/`). The exact route is emitted even when a normalized prefix exists, so base documents can strip the prefix while app routes preserve it.
+- **Overrides win (canonical)**: Any `location` defined in `overrides/*.conf` takes precedence over a matching block from `apps/*.conf`.
+- **Match strategy**: Matching considers both the raw `location` expression and a normalized prefix so logically-equivalent patterns are deduplicated.
+- **Co-existence**: Exact routes may co-exist with prefix routes (e.g., `location = /impact/` plus `location ^~ /impact/`). The composer keeps the exact route even when a normalized prefix exists.
+- **App content preserved**: Non-conflicting app locations are included unmodified.
 
 ## File locations
 
@@ -40,12 +40,14 @@ This project composes local app snippets with proxy-owned overrides into a singl
 
 - If you previously relied on including `apps/*.conf` directly, no action needed; your `apps/` files remain the source of truth, but are now composed into a generated file.
 - If conflicts existed, move the proxy-owned decisions into `overrides/` so they consistently win.
+- If an app’s build writes to `apps/*.conf`, it will not overwrite overrides because nginx only loads the generated bundle.
 - Conflict scanning and reports still read from `apps/`; serving uses the generated bundle.
 
 ## Writing overrides
 
 - Place minimal, targeted `location` blocks in `overrides/*.conf`.
 - Keep overrides generic and not tied to specific app names.
+- Prefer policy-level fixes (headers, resolver, proxy semantics) over app-specific paths when possible.
 - Example:
   ```nginx
   # overrides/force-websocket-headers.conf
@@ -66,15 +68,26 @@ The generated file includes a header with:
 - Generation timestamp
 - List of override files
 - List of app files included
+- Normalization notes when a location was de-duplicated due to an override
 
 ## Operational notes
 
 - `build/` is gitignored.
 - Container mounts `build/sites-enabled` at `/etc/nginx/conf.d/sites-enabled` (read-only).
 - Health/status endpoints unchanged.
+- If something regresses, inspect `build/sites-enabled/apps.generated.conf` first. It is the single source nginx reads.
 
 ## Impact
 
 - App configs in `apps/` continue to be edited locally per project.
 - No app names are referenced in repository code.
 - If a route breaks after changes, inspect `build/sites-enabled/apps.generated.conf` and the files listed in its header.
+
+## Policy: Root is reserved for the proxy
+
+- Application routes must live under an app prefix (e.g., `/mxtk/`, `/sdk/`, `/impact/`).
+- Do not declare app dev-helper routes at the proxy root (`/`). Examples that must be prefixed:
+  - `@vite`, `@id`, `@fs`, `node_modules`, `sb-manager`, `sb-addons`, `sb-common-assets`, `src`
+  - Correct: `/sdk/@vite/...`, `/impact/static/...`
+  - Incorrect: `/@vite/...`, `/node_modules/...`, `/sb-manager/...` at `/`
+- The composer lints for root-level dev-helper routes and emits warnings.

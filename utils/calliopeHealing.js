@@ -17,36 +17,41 @@ const ROOT = path.resolve(__dirname, '..');
 const ARTIFACTS_DIR = path.join(ROOT, '.artifacts');
 const CALLIOPE_DIR = path.join(ARTIFACTS_DIR, 'calliope');
 const KB_FILE = path.join(CALLIOPE_DIR, 'healing-kb.json');
+const AUDITS_DIR = path.join(ARTIFACTS_DIR, 'audits');
+const RESOURCES_DIR = path.join(CALLIOPE_DIR, 'resources');
 
 // Regenerate nginx bundle and reload - ensures Calliope's fixes take effect
 async function regenerateNginxBundle() {
   try {
-    // Step 1: Regenerate the nginx configuration from apps/*.conf files
     console.log('🔧 Regenerating nginx bundle...');
-    execSync('docker run --rm --network devproxy -v "$(pwd):/app" -w /app node:18-alpine node utils/generateAppsBundle.js', { 
-      cwd: ROOT, 
-      encoding: 'utf8' 
-    });
-    
-    // Step 2: Test the new configuration
+    // Prefer running directly inside this container (volume already mounted at /app)
+    try {
+      execSync('node utils/generateAppsBundle.js', { cwd: ROOT, encoding: 'utf8' });
+    } catch (e) {
+      // Fallback to docker-run only if direct node execution is unavailable
+      execSync('docker run --rm --network devproxy -v "' + ROOT + ':/app" -w /app node:18-alpine node utils/generateAppsBundle.js', { 
+        encoding: 'utf8' 
+      });
+    }
+
+    // Test the new configuration
     console.log('🧪 Testing nginx configuration...');
     execSync('docker exec dev-proxy nginx -t', { encoding: 'utf8' });
-    
-    // Step 3: Reload nginx to apply changes
+
+    // Reload nginx to apply changes
     console.log('🔄 Reloading nginx...');
     execSync('docker exec dev-proxy nginx -s reload', { encoding: 'utf8' });
-    
+
     console.log('✅ Nginx bundle regenerated and reloaded successfully');
     return true;
   } catch (error) {
     console.error('❌ Failed to regenerate nginx bundle:', error.message);
-    
-    // Try a soft reload as fallback to keep healthy endpoints online
+    // Soft reload fallback to keep healthy endpoints online
     try {
       console.log('🩹 Attempting soft reload to preserve healthy routes...');
       execSync('docker exec dev-proxy nginx -s reload', { encoding: 'utf8' });
       console.log('💫 Soft reload completed');
-      return false; // Indicate partial success
+      return false;
     } catch (reloadError) {
       console.error('💥 Even soft reload failed:', reloadError.message);
       throw error;
@@ -60,6 +65,12 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 if (!fs.existsSync(CALLIOPE_DIR)) {
   fs.mkdirSync(CALLIOPE_DIR, { recursive: true });
 }
+if (!fs.existsSync(AUDITS_DIR)) {
+  fs.mkdirSync(AUDITS_DIR, { recursive: true });
+}
+if (!fs.existsSync(RESOURCES_DIR)) {
+  fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+}
 
 // Initialize healing log if it doesn't exist
 if (!fs.existsSync(HEALING_LOG_FILE)) {
@@ -67,6 +78,309 @@ if (!fs.existsSync(HEALING_LOG_FILE)) {
     version: "1.0",
     entries: []
   }, null, 2));
+}
+
+/**
+ * Ensure generic patterns are present in the knowledge base
+ * Guardrails: patterns are generic (no app-specific file paths) and map to
+ * automated, reversible proxy-side healing first.
+ */
+function ensureGenericPatterns() {
+  const kb = loadKnowledgeBase();
+  const have = new Set((kb.patterns || []).map(p => p.id));
+  const seed = [];
+
+  if (!have.has('missing_basepath_assets')) {
+    seed.push({
+      id: 'missing_basepath_assets',
+      detection: {
+        // Signals observed when absolute asset paths are used under a subpath proxy
+        signals: [
+          String.raw`/icons/experience/`,
+          String.raw`/art/photos/`,
+          String.raw`X-Forwarded-Prefix`,
+          String.raw`A tree hydrated but some attributes .* hydration-mismatch`,
+        ],
+        effects: [
+          '404 on /icons/* or /art/*',
+          'redirect loops or mixed content types for static assets'
+        ]
+      },
+      solutions: [{
+        id: 'apply_asset_prefix_guards',
+        description: 'Add generic directory guards and subpath routing resilience for static assets',
+        implementation: { type: 'automated', function: 'applyGenericDirectoryGuards', params: [] }
+      }, {
+        id: 'fix_subpath_absolute_routing',
+        description: 'Ensure proxy forwards API and dev paths and sets X-Forwarded-Prefix',
+        implementation: { type: 'automated', function: 'fixSubpathAbsoluteRouting', params: [] }
+      }]
+    });
+  }
+
+  // Storybook + Vite under a subpath (e.g., /sdk) pattern
+  if (!have.has('storybook_vite_subpath')) {
+    seed.push({
+      id: 'storybook_vite_subpath',
+      detection: {
+        signals: [
+          String.raw`/sdk/@vite/`,
+          String.raw`/sdk/@id/`,
+          String.raw`/sdk/@fs/`,
+          String.raw`/sdk/node_modules/`,
+          String.raw`/(?:^|\s)/@vite/`,
+          String.raw`/(?:^|\s)/@id/`,
+          String.raw`/(?:^|\s)/@fs/`,
+          String.raw`/sdk/iframe\.html\?viewMode=story`,
+          String.raw`vite-inject-mocker-entry\.js`
+        ],
+        effects: [
+          'Storybook iframe fails to load under subpath',
+          'HMR and Vite client fail through proxy',
+          '404s for @vite/@id/@fs routes'
+        ]
+      },
+      solutions: []
+    });
+  }
+
+  // Hydration mismatch due to basePath inconsistency
+  if (!have.has('hydration_mismatch_basepath')) {
+    seed.push({
+      id: 'hydration_mismatch_basepath',
+      detection: {
+        signals: [
+          String.raw`hydration-mismatch`,
+          String.raw`A tree hydrated but some attributes`,
+          String.raw`data-nimg="fill"`,
+          String.raw`X-Forwarded-Prefix`
+        ],
+        effects: [
+          'SSR/CSR render mismatch for asset URLs',
+          'Images or links without basePath in SSR'
+        ]
+      },
+      solutions: [{
+        id: 'unify_basepath_handling',
+        description: 'Ensure SSR-safe basePath and basePath-aware image/link helpers (app-side change)',
+        implementation: { type: 'manual' }
+      }, {
+        id: 'proxy_forward_xfp_and_next_block',
+        description: 'Proxy-side: add X-Forwarded-Prefix and /<prefix>/_next support for subpath apps',
+        implementation: { type: 'automated', function: 'ensureRouteForwardedPrefixAndNext', params: [] }
+      }]
+    });
+  }
+
+  if (seed.length) {
+    for (const p of seed) {
+      addPatternFromHealing(p.id, p.solutions[0], true, {
+        signals: p.detection.signals,
+        effects: p.detection.effects
+      });
+
+      // Optionally add any additional solutions beyond the first
+      if (p.solutions.length > 1) {
+        for (let i = 1; i < p.solutions.length; i++) {
+          addPatternFromHealing(p.id, p.solutions[i], false, {});
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Create a filtered code snapshot of a host project into Calliope resources dir using Docker.
+ * - Reads from host path (read-only)
+ * - Copies only source and important files into .artifacts/calliope/resources/<stamp>/src
+ * - Excludes heavy directories (node_modules, .git, dist, build, .next, out, coverage, public, tmp, .cache)
+ */
+async function snapshotProjectToResources(hostProjectPath, outName) {
+  try {
+    if (!hostProjectPath || !fs.existsSync(hostProjectPath)) {
+      return { success: false, message: 'hostProjectPath does not exist' };
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    const base = outName || (path.basename(hostProjectPath.replace(/\/?$/, '')) + '_' + stamp);
+    const dest = path.join(RESOURCES_DIR, base);
+    fs.mkdirSync(dest, { recursive: true });
+
+    const tmpDir = path.join(CALLIOPE_DIR, 'tmp');
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const scriptPath = path.join(tmpDir, 'copy-src.js');
+    const js = `
+const fs = require('fs');
+const path = require('path');
+const EXCLUDE_DIRS = new Set(['node_modules','.git','dist','build','.next','out','coverage','public','tmp','.cache','.output']);
+const INCLUDE_EXTS = new Set(['.js','.jsx','.ts','.tsx','.mjs','.cjs','.json','.md','.yml','.yaml','.html','.css','.scss','.xml','.sh','.sql']);
+function shouldInclude(filePath, stat){
+  if (!stat.isFile()) return false;
+  const base = path.basename(filePath);
+  if (base.startsWith('.')) {
+    if (/^\.env(\..*)?$/.test(base)) return true;
+  }
+  const ext = path.extname(filePath).toLowerCase();
+  return INCLUDE_EXTS.has(ext);
+}
+async function walk(srcDir, outDir){
+  const entries = await fs.promises.readdir(srcDir, { withFileTypes: true });
+  for (const e of entries){
+    const srcPath = path.join(srcDir, e.name);
+    const outPath = path.join(outDir, e.name);
+    if (e.isDirectory()){
+      if (EXCLUDE_DIRS.has(e.name)) continue;
+      await walk(srcPath, outPath);
+    } else if (e.isFile()){
+      const st = await fs.promises.stat(srcPath);
+      if (shouldInclude(srcPath, st)){
+        await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
+        await fs.promises.copyFile(srcPath, outPath);
+      }
+    }
+  }
+}
+(async()=>{
+  await fs.promises.mkdir('/out/src', { recursive: true });
+  await walk('/src', '/out/src');
+})().catch(e=>{ console.error(e && (e.stack||e)); process.exit(1); });
+`;
+    fs.writeFileSync(scriptPath, js, 'utf8');
+
+    const cmd = `docker run --rm -v "${hostProjectPath}:/src:ro" -v "${dest}:/out" -v "${scriptPath}:/script.js:ro" node:20-alpine node /script.js`;
+    execSync(cmd, { encoding: 'utf8' });
+
+    return { success: true, message: 'Snapshot created', dest };
+  } catch (e) {
+    return { success: false, message: `snapshotProjectToResources failed: ${e.message}` };
+  }
+}
+
+/**
+ * Analyze a code snapshot directory for proxy-compat issues and return suggestions.
+ * Heuristics only; non-destructive. Input should be a path created by snapshotProjectToResources.
+ */
+async function analyzeSnapshotForProxyCompatibility(snapshotDir) {
+  try {
+    const srcRoot = path.join(snapshotDir, 'src');
+    const suggestions = [];
+    if (!fs.existsSync(srcRoot)) return { success:false, message:'snapshot src not found', suggestions: [] };
+
+    const files = [];
+    (function walk(dir){
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const e of entries){
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (/\.(ts|tsx|js|jsx|mjs|cjs|json|yml|yaml|md|html|css|scss)$/i.test(e.name)) files.push(p);
+      }
+    })(srcRoot);
+
+    // Detect Storybook presence
+    const hasStorybook = fs.existsSync(path.join(srcRoot, '.storybook'));
+
+    for (const f of files){
+      let txt = '';
+      try { txt = fs.readFileSync(f, 'utf8'); } catch { continue; }
+      const projectRel = path.relative(srcRoot, f).replace(/^\.\//, '');
+      if (/next\.config\.(js|mjs)/.test(path.basename(f))) {
+        if (!/basePath\s*:/.test(txt)) {
+          suggestions.push({ file: projectRel, issue: 'Missing basePath in Next config', fix: 'Add basePath and assetPrefix using NEXT_PUBLIC_BASE_PATH env' });
+        }
+        if (/basePath\s*:\s*['"]/i.test(txt) && !/process\.env\.NEXT_PUBLIC_BASE_PATH/.test(txt)) {
+          suggestions.push({ file: projectRel, issue: 'Hardcoded basePath', fix: 'Use process.env.NEXT_PUBLIC_BASE_PATH' });
+        }
+      }
+      if (/(<img\b[^>]*\ssrc=\s*["']\/(?!mxtk\/)\S+)/i.test(txt)) {
+        suggestions.push({ file: projectRel, issue: 'Raw <img> with absolute src', fix: 'Wrap with basePath-aware image/component or prefix properly' });
+      }
+      if (/(<Image\b[^>]*\ssrc=\s*["']\/(?!mxtk\/)\S+)/i.test(txt)) {
+        suggestions.push({ file: projectRel, issue: 'next/image with absolute src', fix: 'Route through basePath-aware helper' });
+      }
+      if (/\bfetch\(\s*["']\/(api|graphql)\//i.test(txt)) {
+        suggestions.push({ file: projectRel, issue: 'Absolute API path', fix: 'Use basePath-aware API URL builder' });
+      }
+
+      // Storybook-specific heuristics
+      if (hasStorybook && /\.storybook\//.test(projectRel)) {
+        if (/manager-head\.html|preview-head\.html|head\.html/.test(projectRel)) {
+          if (!/<base\s+href=["']\/sdk\/["']/.test(txt)) {
+            suggestions.push({ file: projectRel, issue: 'Storybook missing <base href="/sdk/">', fix: 'Add <base href="/sdk/"> in head to support subpath dev server' });
+          }
+        }
+        if (/main\.(js|ts)$/.test(projectRel)) {
+          const mentionsVite = /builder:\s*'@storybook\/builder-vite'|viteFinal\s*\(/.test(txt);
+          if (mentionsVite && !/base:\s*['"]\/sdk\/["']/.test(txt)) {
+            suggestions.push({ file: projectRel, issue: 'Vite base not set for subpath', fix: 'Set Vite config base: "/sdk/" in Storybook viteFinal or Vite config' });
+          }
+          if (mentionsVite) {
+            if (!/server\s*:\s*\{[\s\S]*host\s*:\s*true/.test(txt)) {
+              suggestions.push({ file: projectRel, issue: 'Vite server.host not enabled', fix: 'In viteFinal, set server.host = true (or start with --host) for non-localhost access' });
+            }
+            if (!/allowedHosts/.test(txt)) {
+              suggestions.push({ file: projectRel, issue: 'Vite allowedHosts missing', fix: 'In viteFinal, set server.allowedHosts to include dev-proxy and your ngrok domain' });
+            }
+            if (!/hmr\s*:\s*\{[\s\S]*path\s*:\s*['"]\/sdk\/@vite\/["'][\s\S]*\}/.test(txt)) {
+              suggestions.push({ file: projectRel, issue: 'Vite HMR path not set for subpath', fix: 'In viteFinal, set server.hmr.path = "/sdk/@vite/" and protocol/port for your environment' });
+            }
+          } else {
+            // No viteFinal present; suggest adding a block tailored for subpath + ngrok
+            suggestions.push({
+              file: projectRel,
+              issue: 'Storybook Vite config missing viteFinal',
+              fix: 'Add viteFinal with base:"/sdk/", server.host=true, server.allowedHosts for dev-proxy and ngrok, and server.hmr.path="/sdk/@vite/"'
+            });
+          }
+        }
+      }
+    }
+
+    return { success: true, suggestions };
+  } catch (e) {
+    return { success:false, message: e.message, suggestions: [] };
+  }
+}
+
+/**
+ * Snapshot a running container's project path into Calliope resources (filtered) using tar piping.
+ */
+async function snapshotContainerProject(containerName, srcPathInContainer, outName) {
+  try {
+    if (!containerName || !srcPathInContainer) return { success:false, message:'containerName and srcPathInContainer required' };
+    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
+    const base = outName || (`${containerName.replace(/[^a-zA-Z0-9_-]/g,'_')}_${stamp}`);
+    const dest = path.join(RESOURCES_DIR, base);
+    fs.mkdirSync(path.join(dest, 'src'), { recursive: true });
+
+    const excludes = [
+      '--exclude=node_modules', '--exclude=.git', '--exclude=dist', '--exclude=build', '--exclude=.next', '--exclude=out', '--exclude=coverage', '--exclude=public', '--exclude=tmp', '--exclude=.cache', '--exclude=.output'
+    ].join(' ');
+
+    const cmd = `docker exec ${containerName} sh -lc "cd ${srcPathInContainer} 2>/dev/null && tar -cf - . ${excludes}" | tar -C ${dest}/src -xf -`;
+    execSync(cmd, { encoding: 'utf8' });
+    return { success:true, dest };
+  } catch (e) {
+    return { success:false, message: `snapshotContainerProject failed: ${e.message}` };
+  }
+}
+
+/**
+ * High-level: snapshot+analyze from a container.
+ */
+async function backupAndAnalyzeContainerProject({ containerName, srcPathInContainer, outName } = {}) {
+  const snap = await snapshotContainerProject(containerName, srcPathInContainer, outName);
+  if (!snap.success) return { success:false, message: snap.message };
+  const analysis = await analyzeSnapshotForProxyCompatibility(snap.dest);
+  return { success:true, snapshot: snap.dest, analysis };
+}
+
+/**
+ * High-level: backup (snapshot) a host project into Calliope resources and analyze it.
+ */
+async function backupAndAnalyzeProject(hostProjectPath, outName) {
+  const snap = await snapshotProjectToResources(hostProjectPath, outName);
+  if (!snap.success) return { success:false, message: snap.message };
+  const analysis = await analyzeSnapshotForProxyCompatibility(snap.dest);
+  return { success:true, snapshot: snap.dest, analysis };
 }
 
 /**
@@ -163,7 +477,7 @@ async function runDiagnostics() {
 
   // Check container statuses
   try {
-    const containerStatus = execSync('docker ps --format "{{.Names}} {{.Status}}" | grep -E "dev-|encast"', { encoding: 'utf8' });
+    const containerStatus = execSync('docker ps --format "{{.Names}} {{.Status}}" | grep -E "dev-"', { encoding: 'utf8' });
     const lines = containerStatus.split('\\n').filter(Boolean);
     lines.forEach(line => {
       const [name, ...statusParts] = line.split(' ');
@@ -561,6 +875,288 @@ async function restartProxyAfterUpstreams() {
 }
 
 /**
+ * Run site-auditor-debug against a URL and return a compact summary.
+ * Tries local Node first; if dist missing it will build; falls back to dockerized Node.
+ */
+async function runSiteAuditor(urlToAudit, options = {}) {
+  const out = { ok: false, reportPath: null, summary: null, raw: null };
+  if (!urlToAudit) return { ok:false, error: 'url required' };
+  const toolDir = path.join(ROOT, 'site-auditor-debug');
+  const distCli = path.join(toolDir, 'dist', 'cli.js');
+  const tsConfig = path.join(toolDir, 'tsconfig.json');
+  try {
+    // Ensure build exists
+    if (!fs.existsSync(distCli)) {
+      try {
+        execSync('npm ci --no-audit --no-fund --silent', { cwd: toolDir, stdio: 'ignore' });
+      } catch {}
+      try {
+        execSync('npx -y tsc -p tsconfig.json', { cwd: toolDir, stdio: 'ignore' });
+      } catch (e) {
+        // try dockerized build as last resort
+        execSync(`docker run --rm -v "${toolDir}:/app" -w /app node:20-alpine sh -lc 'npm ci --no-audit --no-fund && npx -y tsc -p tsconfig.json'`, { stdio: 'ignore' });
+      }
+    }
+    // Run the auditor
+    const headless = options.headless === false ? 'false' : 'true';
+    const wait = Number(options.wait || 1500);
+    const timeout = Number(options.timeout || 30000);
+    const outDir = AUDITS_DIR;
+    let stdout = '';
+    try {
+      stdout = execSync(`node dist/cli.js ${JSON.stringify(urlToAudit)} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output ${JSON.stringify(outDir)}`, { cwd: toolDir, encoding: 'utf8' });
+    } catch (e) {
+      // try dockerized run with a Puppeteer image (bundled Chrome)
+      const img = process.env.CALLIOPE_PUPPETEER_IMAGE || 'ghcr.io/puppeteer/puppeteer:latest';
+      const cmd = `node dist/cli.js ${urlToAudit} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
+      // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
+      let apiContainer = 'dev-calliope-api';
+      try {
+        const names = execSync('docker ps --format "{{.Names}}"', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
+        if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
+        else if (names.includes('dev-conflict-api')) apiContainer = 'dev-conflict-api';
+      } catch {}
+      stdout = execSync(`docker run --rm --network devproxy --volumes-from ${apiContainer} -w /app/site-auditor-debug ${img} sh -lc ${JSON.stringify(cmd)}`, { encoding: 'utf8' });
+    }
+    out.raw = stdout;
+    const m = stdout.match(/Report:\s*(.*report\.json)/);
+    const reportPath = m && m[1] ? m[1].trim() : null;
+    out.reportPath = reportPath;
+    if (reportPath && fs.existsSync(reportPath)) {
+      const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+      const ce = (report.console?.errors?.length || 0) + (report.console?.pageErrors?.length || 0);
+      const nf = (report.network?.failures?.length || 0);
+      const hi = (report.network?.httpIssues?.length || 0);
+      const failures = Array.from(new Set((report.network?.failures || []).map(x => x.url))).slice(0, 12);
+      out.summary = { consoleErrors: ce, networkFailures: nf, httpIssues: hi, failures };
+      out.ok = true;
+    } else {
+      out.summary = { note: 'report path not found in output' };
+    }
+  } catch (e) {
+    out.error = e.message;
+  }
+  return out;
+}
+
+/**
+ * Ensure best-practice Nginx overrides for MXTK when mounted under /mxtk
+ * Idempotent: only appends missing blocks. Targets overrides/mxtk.conf.
+ */
+async function applyMxtkBestPractices() {
+  try {
+    const overridesPath = path.join(ROOT, 'overrides', 'mxtk.conf');
+    if (!fs.existsSync(overridesPath)) {
+      return { success: false, message: 'overrides/mxtk.conf not found' };
+    }
+
+    let content = fs.readFileSync(overridesPath, 'utf8');
+    const original = content;
+
+    const ensureBlock = (testRegex, block) => {
+      if (!testRegex.test(content)) {
+        content += (content.endsWith('\n') ? '' : '\n') + block + '\n';
+      }
+    };
+
+    // Ensure CSP for /mxtk and /_next
+    content = content.replace(/(location \^~ \/mxtk\/ \{[\s\S]*?)(\n\})/m, (m, a, b)=>{
+      return /upgrade-insecure-requests/.test(a) ? m : a + "\n  add_header Content-Security-Policy \"upgrade-insecure-requests\" always;" + b;
+    });
+    content = content.replace(/(location \^~ \/_next\/ \{[\s\S]*?)(\n\})/m, (m, a, b)=>{
+      return /upgrade-insecure-requests/.test(a) ? m : a + "\n  add_header Content-Security-Policy \"upgrade-insecure-requests\" always;" + b;
+    });
+
+    // Root helpers
+    ensureBlock(/location\s*=\s*\/_next\s*\{\s*return\s+204;\s*\}/m, 'location = /_next { return 204; }');
+    ensureBlock(/location\s*=\s*\/_next\/\s*\{\s*return\s+204;\s*\}/m, 'location = /_next/ { return 204; }');
+
+    // Root public mappings for common assets
+    ensureBlock(/location\s*=\s*\/logo-horizontal\.png/m, [
+      'location = /logo-horizontal.png {',
+      '  proxy_set_header Host $host;',
+      '  proxy_set_header X-Forwarded-Proto https;',
+      '  resolver 127.0.0.11 ipv6=off;',
+      '  resolver_timeout 5s;',
+      '  set $mxtk_site_dev mxtk-site-dev:2000;',
+      '  proxy_pass http://$mxtk_site_dev/logo-horizontal.png;',
+      '}'
+    ].join('\n'));
+    ensureBlock(/location\s*=\s*\/manifest\.json/m, [
+      'location = /manifest.json {',
+      '  proxy_set_header Host $host;',
+      '  proxy_set_header X-Forwarded-Proto https;',
+      '  resolver 127.0.0.11 ipv6=off;',
+      '  resolver_timeout 5s;',
+      '  set $mxtk_site_dev mxtk-site-dev:2000;',
+      '  proxy_pass http://$mxtk_site_dev/manifest.json;',
+      '}'
+    ].join('\n'));
+
+    // Root directories (avoid loops) and upstream conveniences
+    ensureBlock(/location\s*\^~\s*\/art\//m, [
+      'location ^~ /art/ {',
+      '  proxy_set_header Host $host;',
+      '  proxy_set_header X-Forwarded-Proto https;',
+      '  resolver 127.0.0.11 ipv6=off;',
+      '  resolver_timeout 5s;',
+      '  set $mxtk_site_dev mxtk-site-dev:2000;',
+      '  proxy_pass http://$mxtk_site_dev/art/;',
+      '}'
+    ].join('\n'));
+    ensureBlock(/location\s*=\s*\/art\s*\{\s*return\s+204;\s*\}/m, 'location = /art { return 204; }');
+    ensureBlock(/location\s*=\s*\/art\/\s*\{\s*return\s+204;\s*\}/m, 'location = /art/ { return 204; }');
+
+    ensureBlock(/location\s*\^~\s*\/icons\//m, [
+      'location ^~ /icons/ {',
+      '  proxy_set_header Host $host;',
+      '  proxy_set_header X-Forwarded-Proto https;',
+      '  resolver 127.0.0.11 ipv6=off;',
+      '  resolver_timeout 5s;',
+      '  set $mxtk_site_dev mxtk-site-dev:2000;',
+      '  proxy_pass http://$mxtk_site_dev/icons/;',
+      '}'
+    ].join('\n'));
+    // Use empty_gif to satisfy directory probes without redirect loops
+    ensureBlock(/location\s*=\s*\/icons\s*\{[\s\S]*?\}/m, 'location = /icons { empty_gif; }');
+    ensureBlock(/location\s*=\s*\/icons\/\s*\{[\s\S]*?\}/m, 'location = /icons/ { empty_gif; }');
+
+    if (content !== original) {
+      fs.writeFileSync(overridesPath, content, 'utf8');
+      await regenerateNginxBundle();
+      return { success: true, message: 'Applied MXTK best practices to overrides/mxtk.conf' };
+    }
+    return { success: true, message: 'MXTK best practices already present' };
+  } catch (e) {
+    return { success: false, message: `applyMxtkBestPractices failed: ${e.message}` };
+  }
+}
+
+/**
+ * Ensure /sdk Storybook + Vite overrides in overrides/encast.conf (idempotent), then regenerate Nginx.
+ */
+async function applySdkStorybookViteOverrides() {
+  try {
+    const overridesPath = path.join(ROOT, 'overrides', 'encast.conf');
+    let content = '';
+    if (fs.existsSync(overridesPath)) content = fs.readFileSync(overridesPath, 'utf8');
+
+    const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
+
+    // Remove any prior root-level helper blocks to keep hierarchy generic
+    // (Do NOT add route-specific root helpers; only subpath variants belong here)
+    try {
+      const rootHelperRe = /\n?location\s*\^~\s*\/(?:@vite|@id|@fs|node_modules|sb-manager|sb-addons|sb-common-assets)\/\s*\{[\s\S]*?\}\s*/g;
+      content = content.replace(rootHelperRe, '');
+    } catch {}
+
+    ensure(/location\s*\^~\s*\/sdk\//m, [
+      'location ^~ /sdk/ {',
+      '  proxy_http_version 1.1;',
+      '  proxy_set_header Host $host;',
+      '  proxy_set_header X-Forwarded-Proto $scheme;',
+      '  proxy_set_header X-Forwarded-Host $host;',
+      '  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
+      '  proxy_set_header X-Forwarded-Prefix /sdk;',
+      '  resolver 127.0.0.11 ipv6=off;',
+      '  resolver_timeout 5s;',
+      '  set $sdk_upstream encast-sdk:6006;',
+      '  proxy_pass http://$sdk_upstream/;',
+      '}'
+    ].join('\n'));
+
+    const sdkBlocks = [
+      ['/sdk/@vite/', '@vite/'],
+      ['/sdk/@id/', '@id/'],
+      ['/sdk/@fs/', '@fs/'],
+      ['/sdk/node_modules/', 'node_modules/'],
+      ['/sdk/sb-manager/', 'sb-manager/'],
+      ['/sdk/sb-addons/', 'sb-addons/'],
+      ['/sdk/sb-common-assets/', 'sb-common-assets/'],
+    ];
+    for (const [loc, pass] of sdkBlocks) {
+      const re = new RegExp(`location\\s*\\^~\\s*${loc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`, 'm');
+      ensure(re, [
+        `location ^~ ${loc} {`,
+        '  proxy_http_version 1.1;',
+        '  proxy_set_header Host $host;',
+        '  proxy_set_header X-Forwarded-Proto $scheme;',
+        '  resolver 127.0.0.11 ipv6=off;',
+        '  resolver_timeout 5s;',
+        '  set $sdk_upstream encast-sdk:6006;',
+        `  proxy_pass http://$sdk_upstream/${pass};`,
+        '}'
+      ].join('\n'));
+    }
+
+    // Do NOT add root-level helper blocks here; hierarchy should derive from route prefixes only
+
+    fs.writeFileSync(overridesPath, content, 'utf8');
+    await regenerateNginxBundle();
+    return { success:true, message:'Applied /sdk Storybook+Vite overrides' };
+  } catch (e) {
+    return { success:false, message:`applySdkStorybookViteOverrides failed: ${e.message}` };
+  }
+}
+
+/**
+ * Run auditor and apply targeted healing for a route until green or attempts exhausted
+ */
+async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait = 2000, timeout = 60000 } = {}) {
+  const passes = [];
+  for (let i=0;i<maxPasses;i++){
+    const run = await runSiteAuditor(url, { wait, timeout });
+    const entry = { attempt: i+1, ok: run.ok, summary: run.summary, report: run.reportPath };
+    passes.push(entry);
+    const hasIssues = !run.ok || (run.summary && ((run.summary.consoleErrors||0) > 0 || (run.summary.networkFailures||0) > 0 || (run.summary.httpIssues||0) > 0));
+    if (!hasIssues) {
+      return { success: true, passes, message: 'Green' };
+    }
+
+    // Parse report for targeted fixes
+    try {
+      if (run.reportPath && fs.existsSync(run.reportPath)){
+        const rep = JSON.parse(fs.readFileSync(run.reportPath, 'utf8'));
+        const failures = rep.network?.failures || [];
+        const httpIssues = rep.network?.httpIssues || [];
+        const responses = rep.network?.responses || [];
+
+        const urls = new Set([
+          ...failures.map(f=>f.url).filter(Boolean),
+          ...httpIssues.map(h=>h.url).filter(Boolean)
+        ]);
+
+        const needsRootDirs = [...urls].some(u => /\/(icons|art)\/?$/.test(u));
+        const missingPrefix = responses.some((r)=>{
+          try {
+            const u = new URL(r.url);
+            const p = u.pathname || '';
+            return (/^\/(icons|art)\//.test(p)) && (r.status >= 400) && !p.startsWith(`${routePrefix}/`);
+          } catch { return false; }
+        });
+
+        if (needsRootDirs || missingPrefix){
+          // Apply guards and ensure subpath routing resilience
+          await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath || '' });
+          // Ensure forwarded prefix on app root and add /<prefix>/_next support
+          try { await ensureRouteForwardedPrefixAndNext({ routePrefix }); } catch {}
+          await fixSubpathAbsoluteRouting({ routePrefix });
+          continue; // next pass
+        }
+
+        // Detect Storybook/Vite SDK issues and apply overrides
+        // No route-specific edits
+      }
+    } catch {}
+
+    // If no targeted action detected, still try best practices once
+    if (i === 0) { await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath||'' }); continue; }
+    break; // avoid infinite loop
+  }
+  return { success: false, passes, message: 'Could not reach green within pass limit' };
+}
+
+/**
  * Find an appropriate healing strategy for the detected issue
  */
 async function findHealingStrategy(issue) {
@@ -572,10 +1168,7 @@ async function findHealingStrategy(issue) {
   if (solutions.length === 0) return null;
   
   // Find solutions that can be automated
-  const automatedSolutions = solutions.filter(s => 
-    s.implementation && 
-    (s.implementation.type === 'automated' || s.implementation.type === 'semi-automated')
-  );
+  const automatedSolutions = solutions.filter(s => (s.implementation && (s.implementation.type === 'automated' || s.implementation.type === 'semi-automated')));
   
   if (automatedSolutions.length === 0) return null;
   
@@ -597,7 +1190,8 @@ async function applyHealingStrategy(strategy, issue) {
     forceNgrokDiscovery,
     recreateSymlinks,
     improveProxyResilience,
-    restartProxyAfterUpstreams
+    restartProxyAfterUpstreams,
+    ensureRouteForwardedPrefixAndNext
   };
   
   // Check if the function exists
@@ -641,11 +1235,31 @@ async function advancedSelfHeal(options = {}) {
     originalOptions: options
   };
   
-  // If we have a specific issue hint, focus on that
-  const focusedIssue = options.issueHint || null;
-  
+  // Proactively ensure generic patterns are loaded
+  try { ensureGenericPatterns(); } catch {}
+
+  const routeFocus = (options && options.routeKey) || '';
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : ()=>{};
+
+  // Optional proactive site audit+heal if URL is provided
+  if (options.url) {
+    result.steps.push({ name: 'audit_and_heal_route', status: 'running', url: options.url, routePrefix: options.routePrefix || '' });
+    try {
+      const healed = await auditAndHealRoute({ url: options.url, routePrefix: options.routePrefix || '/', maxPasses: options.maxPasses || 3, wait: options.wait || 1500, timeout: options.timeout || 45000 });
+      result.steps.push({ name: 'audit_and_heal_route', status: 'completed', healed });
+      if (healed && healed.success) {
+        result.success = true;
+        result.finishedAt = new Date().toISOString();
+        return result;
+      }
+    } catch (e) {
+      result.steps.push({ name: 'audit_and_heal_route', status: 'failed', error: e.message });
+    }
+  }
+
   // Step 1: Run diagnostics to gather signals
   result.steps.push({ name: 'run_diagnostics', status: 'running' });
+  onUpdate({ name: 'run_diagnostics', status: 'running' });
   const diagnostics = await runDiagnostics();
   result.steps.push({ 
     name: 'run_diagnostics', 
@@ -655,16 +1269,21 @@ async function advancedSelfHeal(options = {}) {
       signalCount: diagnostics.signals.length,
     }
   });
+  onUpdate({ name: 'run_diagnostics', status: 'completed' });
   result.diagnostics = diagnostics;
+
+  // No app-specific prechecks
   
   // Step 2: Detect issues
   result.steps.push({ name: 'detect_issues', status: 'running' });
+  onUpdate({ name: 'detect_issues', status: 'running' });
   const detectedIssues = await detectIssuesFromSignals(diagnostics.signals);
   result.steps.push({ 
     name: 'detect_issues', 
     status: 'completed',
     issueCount: detectedIssues.length,
   });
+  onUpdate({ name: 'detect_issues', status: 'completed', issueCount: detectedIssues.length });
   result.detectedIssues = detectedIssues;
   
   // If no issues detected, first try with OpenAI if key available, then run regeneration
@@ -716,15 +1335,18 @@ async function advancedSelfHeal(options = {}) {
       }
     }
     
-    // Run regeneration as a fallback
+    // Run regeneration as a fallback (inside container when possible)
     result.steps.push({ name: 'regenerate_artifacts', status: 'running' });
     try {
-      // Run scan apps
-      await exec('docker run --rm --network devproxy -v $(pwd):/app -w /app node:18-alpine node test/scanApps.js');
-      
+      // Prefer running locally first (mounted volume in dev-calliope-api)
+      try { await exec('node test/scanApps.js', { cwd: ROOT }); } catch (_) {
+        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:18-alpine node test/scanApps.js');
+      }
       // Run health check
-      await exec('docker run --rm --network devproxy -v $(pwd):/app -w /app node:18-alpine node test/run.js');
-      
+      try { await exec('node test/run.js', { cwd: ROOT }); } catch (_) {
+        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:18-alpine node test/run.js');
+      }
+
       // Recreate symlinks
       await recreateSymlinks();
       
@@ -892,342 +1514,302 @@ Please analyze this issue and suggest a fix.`;
 }
 
 /**
- * Fix React bundle serving issues for subpath deployments
+ * Ensure Storybook (SB9) + Vite dev endpoints work behind proxy at / and /sdk/
+ * - Adds regex locations for /@vite, /@id, /node_modules, /@fs (and /sdk equivalents)
+ * - Normalizes Host header to localhost:6006 for Vite endpoints
+ * - Ensures proxy_pass preserves full request URI by pointing to host only (no path)
+ * - Fixes sb-common-assets to preserve URI and correct Host
  */
-async function fixReactBundleSubpathIssues(routePrefix = '/impact') {
+async function fixStorybookViteProxyConfig() {
+  const confPath = path.join(ROOT, 'apps', 'encast.conf');
   try {
-    const configFile = 'apps/encast.conf';
-    const configPath = path.join(ROOT, configFile);
-    
-    if (!fs.existsSync(configPath)) {
-      return { success: false, message: `Config file ${configFile} not found` };
+    if (!fs.existsSync(confPath)) {
+      return { success: false, message: 'apps/encast.conf not found' };
     }
-
-    let content = fs.readFileSync(configPath, 'utf8');
-    const originalContent = content;
-    
-    // Check if bundle.js location blocks need proper headers and content-type forcing
-    const bundleLocationRegex = /location\s*=\s*\/bundle\.js\s*\{([^}]*)\}/g;
-    let bundleMatches = [...content.matchAll(bundleLocationRegex)];
-    
-    let modified = false;
-    
-    // Fix root level bundle.js location
-    if (bundleMatches.length > 0) {
-      for (const match of bundleMatches) {
-        const locationBlock = match[1];
-        
-        // Check if it has proper headers and content-type override
-        const needsHeaders = !locationBlock.includes('X-Forwarded-Proto') || 
-                           !locationBlock.includes('X-Forwarded-Host') ||
-                           !locationBlock.includes('resolver 127.0.0.11');
-        const needsContentType = !locationBlock.includes('proxy_hide_header Content-Type') ||
-                                !locationBlock.includes('add_header Content-Type application/javascript');
-        
-        if (needsHeaders || needsContentType) {
-          // Create backup
-          const backupPath = `${configPath}.backup.${Date.now()}`;
-          fs.writeFileSync(backupPath, content);
-          
-          const improvedBlock = `location = /bundle.js {
-  proxy_set_header Host encast-impact:3000;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_set_header X-Forwarded-Host $host;
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $up_encast_impact_3000_bundle http://encast-impact:3000/bundle.js;
-  proxy_pass $up_encast_impact_3000_bundle;
-  proxy_hide_header Content-Type;
-  add_header Content-Type application/javascript;
-}`;
-          
-          content = content.replace(match[0], improvedBlock);
-          modified = true;
-          console.log('Fixed root bundle.js location block');
-        }
-      }
-    }
-    
-    // Add subpath bundle.js location if missing
-    const subpathBundleRegex = new RegExp(`location\\s*=\\s*${routePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/bundle\\.js`);
-    if (!subpathBundleRegex.test(content)) {
-      const subpathBundleBlock = `# Handle bundle.js requested through ${routePrefix} path (React may use relative paths)
-location = ${routePrefix}/bundle.js {
-  proxy_set_header Host encast-impact:3000;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_set_header X-Forwarded-Host $host;
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $up_encast_impact_3000_impact_bundle http://encast-impact:3000/bundle.js;
-  proxy_pass $up_encast_impact_3000_impact_bundle;
-  proxy_hide_header Content-Type;
-  add_header Content-Type application/javascript;
-}`;
-      
-      // Insert before the existing /impact/static/ block
-      const staticBlockRegex = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/static\\/`);
-      if (staticBlockRegex.test(content)) {
-        content = content.replace(staticBlockRegex, subpathBundleBlock + '\n' + '$&');
-        modified = true;
-        console.log(`Added ${routePrefix}/bundle.js location block`);
-      }
-    }
-    
-    // Enhance the main route location block with better headers
-    const mainRouteRegex = new RegExp(`location\\s*${routePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\/\\s*\\{([^}]*)}`, 'gs');
-    const mainRouteMatch = content.match(mainRouteRegex);
-    if (mainRouteMatch && mainRouteMatch[0]) {
-      const locationContent = mainRouteMatch[0];
-      const needsUriHeaders = !locationContent.includes('X-Original-URI') || !locationContent.includes('X-Forwarded-URI');
-      const needsHostHeader = !locationContent.includes('X-Forwarded-Host');
-      
-      if (needsUriHeaders || needsHostHeader) {
-        let enhancedLocation = locationContent;
-        if (needsHostHeader) {
-          enhancedLocation = enhancedLocation.replace(
-            /(proxy_set_header X-Forwarded-Proto \$scheme;)/,
-            '$1\n  proxy_set_header X-Forwarded-Host $host;'
-          );
-        }
-        if (needsUriHeaders) {
-          enhancedLocation = enhancedLocation.replace(
-            /(proxy_set_header X-Forwarded-Prefix [^;]+;)/,
-            '$1\n  # Add headers to help React dev server understand the context\n  proxy_set_header X-Original-URI $request_uri;\n  proxy_set_header X-Forwarded-URI $request_uri;'
-          );
-        }
-        content = content.replace(locationContent, enhancedLocation);
-        modified = true;
-        console.log(`Enhanced ${routePrefix}/ location block with URI headers`);
-      }
-    }
-    
-    if (!modified) {
-      return { success: false, message: 'Configuration already optimized for React bundle serving' };
-    }
-    
-    // Write the updated content
-    fs.writeFileSync(configPath, content);
-    
-    // Regenerate bundle and test
-    const { execSync } = require('child_process');
-    execSync('docker run --rm --network devproxy -v "$(pwd):/app" -w /app node:18-alpine node utils/generateAppsBundle.js', { cwd: ROOT });
-    
-    // Test nginx config
-    try {
-      execSync('docker exec dev-proxy nginx -t', { stdio: 'pipe' });
-      execSync('docker exec dev-proxy nginx -s reload');
-      return { 
-        success: true, 
-        message: 'Fixed React bundle serving configuration and reloaded nginx',
-        details: { routePrefix, configFile }
-      };
-    } catch (e) {
-      // Restore backup
-      fs.writeFileSync(configPath, originalContent);
-      return { 
-        success: false, 
-        message: 'Fixed configuration but nginx test failed, restored backup',
-        details: { error: e.message }
-      };
-    }
+    // Leave as-is; app-specific changes should be avoided in generic mode.
+    return { success: false, message: 'Skipped app-specific Storybook config (guardrail)' };
   } catch (e) {
-    return { success: false, message: `Error fixing React bundle issues: ${e.message}` };
+    return { success: false, message: `fixStorybookViteProxyConfig failed: ${e.message}` };
   }
 }
 
 /**
- * Add a new pattern to the knowledge base from successful healing
+ * Fix React bundle serving issues for subpath deployments
  */
-function addPatternFromHealing(issue, solution, success, details) {
-  if (!success) return false;
-  
+async function fixReactBundleSubpathIssues(routePrefix = '/impact') {
+  return { success: false, message: 'Skipped app-specific React bundle fix (guardrail)' };
+}
+
+/**
+ * Fix React static asset routing issues with proper path handling
+ */
+async function fixReactStaticAssetRouting(routePrefix = '/impact') {
+  return { success: false, message: 'Skipped app-specific React static asset fix (guardrail)' };
+}
+
+/**
+ * Fix mxtk API absolute-path routing and Next dev helper endpoints
+ */
+async function fixMxtkApiRouting() { return { success:false, message:'Skipped app-specific MXTK API fix (guardrail)' }; }
+
+/**
+ * Generic subpath absolute-routing fixer.
+ * Ensures that when an app is mounted at routePrefix,
+ * - API requests under `${routePrefix}/api/...` are forwarded upstream with the prefix stripped
+ * - Optional dev overlay and asset helpers under `${routePrefix}` are present
+ * Config file is detected via routes.json metadata unless explicitly provided.
+ */
+async function fixSubpathAbsoluteRouting({ routePrefix = '', apiPrefix = '/api/', devPaths = ['/__nextjs_original-stack-frames'] , configFile = '' } = {}) {
+  try {
+    if (!routePrefix || !routePrefix.startsWith('/')) {
+      return { success: false, message: 'routePrefix starting with / is required' };
+    }
+
+    // Locate config file if not provided
+    let targetConf = configFile;
+    try {
+      if (!targetConf) {
+        const routesPath = path.join(ROOT, 'routes.json');
+        if (fs.existsSync(routesPath)) {
+          const routes = JSON.parse(fs.readFileSync(routesPath, 'utf8'));
+          const meta = routes && routes.metadata && routes.metadata[`${routePrefix}/`];
+          const src = meta && meta.sourceFile;
+          if (src) targetConf = path.join(ROOT, 'apps', src);
+        }
+      }
+    } catch {}
+
+    if (!targetConf) return { success: false, message: 'Could not determine app config file for routePrefix' };
+    if (!fs.existsSync(targetConf)) return { success: false, message: `Config file not found: ${path.relative(ROOT, targetConf)}` };
+
+    let content = fs.readFileSync(targetConf, 'utf8');
+
+    // Discover an upstream variable name used in this conf (fallback to direct upstream later)
+    const varMatch = content.match(/set\s+\$([A-Za-z0-9_]+)\s+([^;]+);/);
+    const upstreamVar = varMatch ? varMatch[1] : null;
+    const setDirective = varMatch ? varMatch[0] : null;
+
+    // Ensure API subpath block exists and strips prefix
+    const apiBlockRegex = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${apiPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{[\\s\\S]*?}`, 'm');
+    if (!apiBlockRegex.test(content)) {
+      const passLine = upstreamVar ? `proxy_pass http://$${upstreamVar}${apiPrefix};` : `proxy_pass http://host.docker.internal${apiPrefix};`;
+      const block = `\nlocation ^~ ${routePrefix}${apiPrefix} {\n  proxy_http_version 1.1;\n  proxy_set_header Host $host;\n  proxy_set_header X-Forwarded-Proto $scheme;\n  proxy_set_header X-Forwarded-Host $host;\n  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n  proxy_set_header X-Forwarded-Prefix ${routePrefix};\n  proxy_buffering off;\n  proxy_request_buffering off;\n  resolver 127.0.0.11 ipv6=off;\n  resolver_timeout 5s;\n  ${upstreamVar ? '' : '# Fallback direct upstream used if no variable was detected'}\n  ${passLine}\n}\n`;
+
+      // Insert near the end of file for clarity
+      content += block;
+    }
+
+    // Ensure dev overlay paths under subpath exist (upstream should use ROOT path, not prefixed)
+    for (const p of devPaths) {
+      const full = `${routePrefix}${p}`;
+      const devRegex = new RegExp(`location\\s*=\\s*${full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{[\\s\\S]*?}`, 'm');
+      if (!devRegex.test(content)) {
+        // Upstream dev paths should not include the subpath prefix
+        const passLine = upstreamVar ? `proxy_pass http://$${upstreamVar}${p};` : `proxy_pass http://host.docker.internal${p};`;
+        const block = `\nlocation = ${full} {\n  proxy_http_version 1.1;\n  proxy_set_header Host $host;\n  proxy_set_header X-Forwarded-Proto $scheme;\n  proxy_set_header X-Forwarded-Host $host;\n  resolver 127.0.0.11 ipv6=off;\n  resolver_timeout 5s;\n  ${passLine}\n}\n`;
+        content += block;
+      }
+    }
+
+    // Write and reload
+    const backup = `${targetConf}.backup.${Date.now()}`;
+    fs.copyFileSync(targetConf, backup);
+    fs.writeFileSync(targetConf, content, 'utf8');
+
+    // Regenerate bundle and reload nginx using resilient helper
+    await regenerateNginxBundle();
+
+    return { success: true, message: 'Applied generic subpath routing fixes', details: { routePrefix, apiPrefix, configFile: path.relative(ROOT, targetConf) } };
+  } catch (e) {
+    return { success: false, message: `fixSubpathAbsoluteRouting failed: ${e.message}` };
+  }
+}
+
+/**
+ * Ensure a subpath app mounted at routePrefix forwards X-Forwarded-Prefix and has
+ * a dedicated `${routePrefix}/_next/` location forwarding to upstream `/_next/` with HMR.
+ * Idempotent and conservative (prefers overrides/ before apps/).
+ */
+async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile = '' } = {}) {
+  try {
+    if (!routePrefix || !routePrefix.startsWith('/')) {
+      return { success: false, message: 'routePrefix starting with / is required' };
+    }
+
+    // Pick target config containing the route block
+    const findConfByPrefix = (baseDir) => {
+      try {
+        const files = fs.readdirSync(baseDir).filter(f => f.endsWith('.conf'));
+        for (const f of files) {
+          const p = path.join(baseDir, f);
+          const txt = fs.readFileSync(p, 'utf8');
+          const rx = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/`);
+          if (rx.test(txt)) return p;
+        }
+      } catch {}
+      return null;
+    };
+
+    let targetConf = '';
+    if (configFile && fs.existsSync(configFile)) {
+      targetConf = configFile;
+    } else {
+      targetConf = findConfByPrefix(path.join(ROOT, 'overrides')) || findConfByPrefix(path.join(ROOT, 'apps')) || '';
+    }
+    if (!targetConf) return { success: false, message: 'No config found containing routePrefix block' };
+
+    let content = fs.readFileSync(targetConf, 'utf8');
+    const original = content;
+
+    // Ensure X-Forwarded-Prefix inside the routePrefix block
+    const locRe = new RegExp(`(location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/\\s*\\{)([\\s\\S]*?)(\\n\\})`, 'm');
+    const locMatch = content.match(locRe);
+    if (!locMatch) return { success: false, message: 'Route block not found in config' };
+
+    const blockStart = locMatch[1];
+    const blockBody = locMatch[2];
+    const blockEnd = locMatch[3];
+    let updatedBody = blockBody;
+    if (!/\bproxy_set_header\s+X-Forwarded-Prefix\b/.test(blockBody)) {
+      const lines = blockBody.split(/\n/);
+      let inserted = false;
+      for (let i = 0; i < lines.length; i++) {
+        if (/\bproxy_set_header\s+X-Forwarded-Host\b/.test(lines[i]) || /\bproxy_set_header\s+Host\b/.test(lines[i])) {
+          lines.splice(i + 1, 0, `  proxy_set_header X-Forwarded-Prefix ${routePrefix};`);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) lines.unshift(`  proxy_set_header X-Forwarded-Prefix ${routePrefix};`);
+      updatedBody = lines.join('\n');
+    }
+
+    // Try to detect upstream variable within the file
+    let upstreamVar = null;
+    const bodyVar = updatedBody.match(/proxy_pass\s+http:\/\/\$([A-Za-z0-9_]+)/);
+    if (bodyVar && bodyVar[1]) upstreamVar = bodyVar[1];
+    if (!upstreamVar) {
+      const setVar = content.match(/set\s+\$([A-Za-z0-9_]+)\s+[^;]+;/);
+      if (setVar && setVar[1]) upstreamVar = setVar[1];
+    }
+
+    content = content.replace(locRe, blockStart + updatedBody + blockEnd);
+
+    // Ensure `${routePrefix}/_next/` block exists (with rewrite to /_next/ and HMR headers)
+    const nextLocRe = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/_next\\/\\s*\\{[\\s\\S]*?\\}`, 'm');
+    if (!nextLocRe.test(content)) {
+      if (!upstreamVar) return { success: false, message: 'Could not determine upstream variable for _next block' };
+      const block = [
+        `location ^~ ${routePrefix}/_next/ {`,
+        '  proxy_http_version 1.1;',
+        '  proxy_set_header Host $host;',
+        '  proxy_set_header X-Forwarded-Proto https;',
+        '  proxy_set_header X-Forwarded-Host $host;',
+        '  proxy_set_header Upgrade $http_upgrade;',
+        '  proxy_set_header Connection "upgrade";',
+        '  proxy_read_timeout 300s;',
+        '  proxy_send_timeout 300s;',
+        '  resolver 127.0.0.11 ipv6=off;',
+        '  resolver_timeout 5s;',
+        `  rewrite ^${routePrefix.replace(/\//g,'\/')}\/_next\/(.*)$ \/_next/$1 break;`,
+        `  proxy_pass http://$${upstreamVar};`,
+        '  add_header Content-Security-Policy "upgrade-insecure-requests" always;',
+        '}'
+      ].join('\n');
+      content += (content.endsWith('\n') ? '' : '\n') + block + '\n';
+    }
+
+    if (content !== original) {
+      const backup = `${targetConf}.backup.${Date.now()}`;
+      fs.copyFileSync(targetConf, backup);
+      fs.writeFileSync(targetConf, content, 'utf8');
+      await regenerateNginxBundle();
+      return { success: true, message: 'Ensured X-Forwarded-Prefix and /_next block', details: { file: path.relative(ROOT, targetConf), routePrefix } };
+    }
+    return { success: true, message: 'No changes needed (already ensured)', details: { file: path.relative(ROOT, targetConf), routePrefix } };
+  } catch (e) {
+    return { success: false, message: `ensureRouteForwardedPrefixAndNext failed: ${e.message}` };
+  }
+}
+
+/**
+ * Add a new pattern to the knowledge base for future healing.
+ */
+function addPatternFromHealing(patternId, solution, isNew, details = {}) {
   const kb = loadKnowledgeBase();
-  
-  // Check if we already have a pattern with this ID
-  const existingPatternIdx = kb.patterns.findIndex(p => p.id === issue);
-  
-  // Create a new pattern if it doesn't exist
-  if (existingPatternIdx === -1) {
+  const patternIndex = kb.patterns.findIndex(p => p.id === patternId);
+
+  if (patternIndex === -1) {
     kb.patterns.push({
-      id: issue,
-      description: solution.description || `Fix for ${issue}`,
+      id: patternId,
       detection: {
         signals: details.signals || [],
         effects: details.effects || []
       },
-      diagnosis: details.diagnosis || [],
-      solutions: [{
-        id: solution,
-        description: `Solution for ${issue}`,
-        steps: details.steps || [],
-        implementation: details.implementation || { type: 'manual' }
-      }],
-      examples: [{
-        context: details.context || `Automatically learned from healing on ${new Date().toISOString()}`,
-        fix: details.fix || solution
-      }]
+      solutions: [solution],
+      lastUpdated: new Date().toISOString()
     });
-    
-    console.log(`Added new pattern to knowledge base: ${issue}`);
   } else {
-    // Update existing pattern with new information
-    const pattern = kb.patterns[existingPatternIdx];
-    
-    // Add new detection signals if any
-    if (details.signals) {
-      pattern.detection.signals = [...new Set([...pattern.detection.signals, ...details.signals])];
-    }
-    
-    // Add new effects if any
-    if (details.effects) {
-      pattern.detection.effects = [...new Set([...pattern.detection.effects, ...details.effects])];
-    }
-    
-    // Add the example
-    pattern.examples.push({
-      context: details.context || `Automatically learned from healing on ${new Date().toISOString()}`,
-      fix: details.fix || solution
-    });
-    
-    console.log(`Updated existing pattern in knowledge base: ${issue}`);
+    // Update existing pattern
+    kb.patterns[patternIndex].detection.signals = [...new Set([...kb.patterns[patternIndex].detection.signals, ...(details.signals || [])])];
+    kb.patterns[patternIndex].detection.effects = [...new Set([...kb.patterns[patternIndex].detection.effects, ...(details.effects || [])])];
+    kb.patterns[patternIndex].solutions.push(solution);
+    kb.patterns[patternIndex].lastUpdated = new Date().toISOString();
   }
-  
   saveKnowledgeBase(kb);
-  return true;
 }
 
-// Enhanced iterative healing with step-by-step updates and personality
-async function iterativeHealWithUpdates({ routeKey = '', issueHint = '', updateCallback = () => {} }) {
-  const steps = [];
-  
-  const addStep = (name, description, emoji = '🔧') => {
-    steps.push({ name, description, emoji, status: 'pending' });
-    updateCallback({ name, description, status: 'starting', emoji });
-    return steps.length - 1;
-  };
-  
-  const updateStep = (index, status, details = '') => {
-    steps[index].status = status;
-    steps[index].details = details;
-    updateCallback(steps[index]);
-  };
-  
+/**
+ * Apply generic directory guards to ensure assets are served correctly.
+ * This is a fallback for routes that might be missing specific guards.
+ */
+async function applyGenericDirectoryGuards({ routePrefix = '/', reportPath = '' } = {}) {
   try {
-    // Step 1: Investigation with personality
-    const investigateIndex = addStep(
-      'investigate', 
-      "Let me take a closer look at what's going on with your setup...", 
-      '🔍'
-    );
-    
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Give time for animation
-    
-    // Check the specific issue mentioned
-    if (issueHint.includes('static') || issueHint.includes('404') || routeKey.includes('impact')) {
-      updateStep(investigateIndex, 'completed', 'Found it! React static assets aren\'t routing properly through the proxy');
-      
-      // Step 2: Diagnosing the root cause
-      const diagnoseIndex = addStep(
-        'diagnose',
-        'Checking nginx configuration to understand what\'s happening...',
-        '🩺'
-      );
-      
-      await new Promise(resolve => setTimeout(resolve, 800));
-      updateStep(diagnoseIndex, 'completed', 'The /static/ route has a proxy_pass variable issue - it\'s not preserving request paths correctly');
-      
-      // Step 3: Apply the fix
-      const fixIndex = addStep(
-        'fix-config',
-        'Updating nginx rules to handle both prefixed and absolute static paths...',
-        '⚙️'
-      );
-      
-      try {
-        await fixReactStaticAssetRouting(routeKey);
-        updateStep(fixIndex, 'completed', 'Updated nginx configuration with proper static asset routing');
-        
-        // Step 4: Test the fix
-        const testIndex = addStep(
-          'test-fix',
-          'Testing the fix to make sure everything works properly now...',
-          '🧪'
-        );
-        
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        updateStep(testIndex, 'completed', 'Perfect! Static assets are now loading beautifully');
-        
-        return {
-          success: true,
-          issuesFixed: 1,
-          steps,
-          stepsCompleted: 4,
-          totalSteps: 4,
-          personalMessage: "All done! Your images and assets should be sparkling now! ✨ I made sure nginx knows exactly how to handle your React app's requests.",
-          appliedStrategies: ['static-asset-routing-fix']
-        };
-        
-      } catch (error) {
-        updateStep(fixIndex, 'failed', `Couldn't apply the fix: ${error.message}`);
-        return {
-          success: false,
-          steps,
-          stepsCompleted: 3,
-          totalSteps: 4,
-          currentIssue: 'Configuration update failed',
-          personalMessage: "Hmm, I hit a snag while trying to update the config. Let me try a different approach... 🤔"
-        };
+    const findConf = (baseDir) => {
+      if (!fs.existsSync(baseDir)) return null;
+      const files = fs.readdirSync(baseDir).filter(f => f.endsWith('.conf'));
+      for (const f of files){
+        const p = path.join(baseDir, f);
+        const txt = fs.readFileSync(p, 'utf8');
+        const rx = new RegExp(`location\\s+[^}]*${routePrefix.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}`);
+        if (rx.test(txt)) return p;
       }
+      return null;
+    };
+    let target = findConf(path.join(ROOT, 'overrides')) || findConf(path.join(ROOT, 'apps'));
+    if (!target) return { success: false, message: 'No config found for route' };
+    let content = fs.readFileSync(target, 'utf8');
+    const original = content;
+    const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
+    ensure(/location\s*=\s*\/_next\s*\{\s*return\s+204;\s*\}/m, 'location = /_next { return 204; }');
+    ensure(/location\s*=\s*\/_next\/\s*\{\s*return\s+204;\s*\}/m, 'location = /_next/ { return 204; }');
+    const dirs = new Set(['/icons', '/icons/', '/art', '/art/']);
+    if (reportPath && fs.existsSync(reportPath)){
+      try {
+        const rep = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+        const fails = (rep.network && rep.network.failures) || [];
+        for (const f of fails){
+          try{ const u = new URL(f.url); if (/\/$/.test(u.pathname)) dirs.add(u.pathname); }catch{}
+        }
+      } catch {}
     }
-    
-    // Handle other types of issues
-    updateStep(investigateIndex, 'completed', 'Still investigating the root cause of this one...');
-    
-    return {
-      success: false,
-      steps,
-      stepsCompleted: 1,
-      totalSteps: 3,
-      currentIssue: 'Issue type not yet recognized by my healing strategies',
-      personalMessage: "This is a tricky one! I'm still learning how to fix this type of issue automatically. For now, let me gather more info for you! 💭"
-    };
-    
-  } catch (error) {
-    return {
-      success: false,
-      steps,
-      error: error.message,
-      personalMessage: "Oops, something unexpected happened! But don't worry, I'll keep trying to help! 💪"
-    };
-  }
-}
-
-// Fix React static asset routing issues with proper path handling
-async function fixReactStaticAssetRouting(routePrefix = '/impact') {
-  const configPath = path.join(process.cwd(), 'apps/encast.conf');
-  
-  try {
-    let config = await fs.readFile(configPath, 'utf8');
-    
-    // The key fix: ensure /static/ route uses variable without trailing slash
-    // This preserves the full request path when proxying
-    const staticRoutePattern = /(location \^~ \/static\/ \{[^}]*set \$up_encast_impact_3000_static )(http:\/\/encast-impact:3000)([^;}]*)(proxy_pass \$up_encast_impact_3000_static[^;}]*)/g;
-    
-    config = config.replace(staticRoutePattern, (match, prefix, upstream, middle, proxyPass) => {
-      // Remove any trailing slash from the upstream variable
-      const cleanUpstream = upstream.replace(/\/$/, '');
-      return `${prefix}${cleanUpstream};${middle}proxy_pass $up_encast_impact_3000_static;`;
-    });
-    
-    await fs.writeFile(configPath, config);
-    
-    // Regenerate nginx bundle and reload
-    await regenerateNginxBundle();
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to fix React static asset routing:', error);
-    throw error;
+    for (const d of dirs){
+      const isIcons = /\/icons\/?$/.test(d);
+      const reEq = new RegExp(`location\\s*=\\s*${d.replace(/\//g, '\\/')}\\s*\\{[\\s\\S]*?\\}`, 'm');
+      const reEqSlash = new RegExp(`location\\s*=\\s*${(d.endsWith('/')?d:d+'/').replace(/\//g,'\\/')}\\s*\\{[\\s\\S]*?\\}`, 'm');
+      const handler = isIcons ? 'empty_gif;' : 'return 204;';
+      if (!reEq.test(content)) content += `\nlocation = ${d} { ${handler} }\n`;
+      const d2 = d.endsWith('/') ? d : (d + '/');
+      if (!reEqSlash.test(content)) content += `\nlocation = ${d2} { ${handler} }\n`;
+    }
+    if (content !== original){
+      fs.writeFileSync(target, content, 'utf8');
+      await regenerateNginxBundle();
+      return { success: true, message: 'Applied generic directory guards', file: path.relative(ROOT, target) };
+    }
+    return { success: true, message: 'No changes needed' };
+  } catch (e) {
+    return { success: false, message: `applyGenericDirectoryGuards failed: ${e.message}` };
   }
 }
 
@@ -1236,9 +1818,17 @@ module.exports = {
   saveKnowledgeBase,
   detectIssuesFromSignals,
   runDiagnostics,
+  runSiteAuditor,
   advancedSelfHeal,
   analyzeWithOpenAI,
   addPatternFromHealing,
+  auditAndHealRoute,
+  // Snapshot/Analysis
+  snapshotProjectToResources,
+  analyzeSnapshotForProxyCompatibility,
+  backupAndAnalyzeProject,
+  snapshotContainerProject,
+  backupAndAnalyzeContainerProject,
   
   // Healing strategies
   fixDuplicateLocationBlocks,
@@ -1246,9 +1836,7 @@ module.exports = {
   recreateSymlinks,
   improveProxyResilience,
   restartProxyAfterUpstreams,
-  fixReactBundleSubpathIssues,
-  iterativeHealWithUpdates,
-  fixReactStaticAssetRouting,
+  fixSubpathAbsoluteRouting,
   
   // Core infrastructure
   regenerateNginxBundle

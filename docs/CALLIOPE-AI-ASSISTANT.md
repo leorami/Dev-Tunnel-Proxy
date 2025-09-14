@@ -23,7 +23,7 @@ Calliope is your proxy's caring, youthful AI assistant who lives inside your dev
 - **Safe Configuration Management**: Tests configs before applying, with smart fallback reloads
 - **Personality-Driven Responses**: Consistent empathetic tone throughout all interactions
 
-## API Endpoints (served by `dev-conflict-api`)
+## API Endpoints (served by `dev-calliope-api`)
 - GET `/api/ai/health` - Check if Calliope is available and healthy
 - POST `/api/ai/ask` - Ask Calliope questions about your setup  
 - POST `/api/ai/self-check` - Request focused health check with optional healing
@@ -56,7 +56,7 @@ Calliope can automatically detect and fix these common issues:
 ## How to Interact with Calliope
 
 ### **Via Status Interface**
-- Click the 🩺 stethoscope icon next to any route
+- Click the <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icon next to any route
 - Watch her thinking animation as she investigates  
 - See her step-by-step healing process in real-time
 - Get caring, personal explanations of what she found and fixed

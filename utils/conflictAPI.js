@@ -9,8 +9,9 @@
    AI Assistant (optional via OPENAI_API_KEY):
    - GET  /api/ai/health
    - POST /api/ai/ask          { query, maxDocs?, systemHint? }
-   - POST /api/ai/diagnose     { hint? }
    - POST /api/ai/self-check   { heal?: boolean, hint?: string }
+   - POST /api/ai/audit        { url, wait?, timeout? }
+   - POST /api/ai/audit-and-heal { url, route?, maxPasses?, wait?, timeout? }
 */
 
 const http = require('http');
@@ -31,11 +32,51 @@ const EXAMPLES_DIR = path.join(ROOT, 'examples');
 const README = path.join(ROOT, 'README.md');
 const TROUBLESHOOTING = path.join(ROOT, 'TROUBLESHOOTING.md');
 const PROJECT_INTEGRATION = path.join(ROOT, 'PROJECT-INTEGRATION.md');
+const OVERRIDES_DIR = path.join(ROOT, 'overrides');
+const CONFLICTS_FILE = path.join(ROOT, '.artifacts', 'override-conflicts.json');
+
+// In-memory thinking events queue for UI thinking bubble
+const thinkingEvents = [];
+function pushThought(message, details = {}){
+  try{
+    thinkingEvents.push({ id: Date.now() + Math.random(), ts: new Date().toISOString(), message, details });
+    // Cap queue size to prevent unbounded growth
+    if (thinkingEvents.length > 200) thinkingEvents.splice(0, thinkingEvents.length - 200);
+  }catch{}
+}
+function drainThoughts(){
+  const copy = thinkingEvents.slice();
+  thinkingEvents.length = 0;
+  return copy;
+}
+
+// Schedule a thought to appear shortly AFTER the API response is sent,
+// so the UI can display the thinking bubble following the latest message.
+function scheduleThought(message, details = {}, delayMs = 30){
+  try {
+    setTimeout(() => pushThought(message, details), Math.max(0, delayMs));
+  } catch {}
+}
 
 function send(res, code, data, headers = {}){
   const body = typeof data === 'string' ? data : JSON.stringify(data);
   res.writeHead(code, { 'Content-Type': 'application/json', ...headers });
   res.end(body);
+}
+
+function truncate(s, n){
+  if (!s) return '';
+  return s.length <= n ? s : (s.slice(0, n) + `\n...truncated ${s.length-n} chars`);
+}
+
+function deEnsure(text){
+  if (!text) return text;
+  // Replace "Ensure that X" → "X should" and plain "Ensure" → "should"
+  let out = text.replace(/\b[Ee]nsure that\b/g, '');
+  out = out.replace(/\b[Ee]nsure\b/g, 'should');
+  // Clean double spaces from removals
+  out = out.replace(/\s{2,}/g, ' ');
+  return out;
 }
 
 function parseBody(req){
@@ -99,6 +140,61 @@ async function handle(req, res){
   }
 
   try{
+    // Thinking endpoints
+    // Overrides conflicts listing
+    if (req.method === 'GET' && u.pathname === '/api/overrides/conflicts'){
+      try{
+        const exists = fs.existsSync(CONFLICTS_FILE);
+        const data = exists ? JSON.parse(fs.readFileSync(CONFLICTS_FILE, 'utf8')) : { generatedAt:null, conflicts: [] };
+        return send(res, 200, { ok:true, ...data });
+      }catch(e){
+        return send(res, 500, { ok:false, error: e.message });
+      }
+    }
+
+    // Promote app config into overrides (replace override with apps version)
+    // POST /api/overrides/promote { filename }
+    if (req.method === 'POST' && u.pathname === '/api/overrides/promote'){
+      try{
+        const body = await parseBody(req);
+        const { filename } = body || {};
+        if (!filename || filename.includes('/') || filename.includes('..')){
+          return send(res, 400, { ok:false, error: 'Invalid filename' });
+        }
+        const appPath = path.join(APPS_DIR, filename);
+        const overridePath = path.join(OVERRIDES_DIR, filename);
+        if (!fs.existsSync(appPath)) return send(res, 404, { ok:false, error: 'App config not found' });
+        fs.mkdirSync(OVERRIDES_DIR, { recursive: true });
+
+        // Backup existing override if present
+        if (fs.existsSync(overridePath)){
+          fs.copyFileSync(overridePath, overridePath + '.bak.' + Date.now());
+        }
+        // Replace override with app version
+        fs.copyFileSync(appPath, overridePath);
+
+        // Regenerate bundle and reload nginx
+        const gen = spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
+        if (gen.status !== 0){
+          return send(res, 500, { ok:false, error: 'bundle_generation_failed', detail: (gen.stderr||gen.stdout||'').slice(0,400) });
+        }
+        const test = nginxTestAndMaybeReload();
+        if (!test.ok){
+          return send(res, 422, { ok:false, error: 'nginx_test_failed', detail: test.stderr });
+        }
+        return send(res, 200, { ok:true, promoted: filename });
+      }catch(e){
+        return send(res, 500, { ok:false, error: e.message });
+      }
+    }
+    if (req.method === 'GET' && u.pathname === '/api/ai/thoughts'){
+      return send(res, 200, { ok:true, events: drainThoughts() });
+    }
+    if (req.method === 'POST' && u.pathname === '/api/ai/thoughts/clear'){
+      drainThoughts();
+      return send(res, 200, { ok:true });
+    }
+
     // GET /api/config/:file
     if (req.method === 'GET' && seg[0] === 'api' && seg[1] === 'config' && seg[2]){
       const p = safeConfigPath(seg.slice(2).join('/'));
@@ -188,64 +284,219 @@ async function handle(req, res){
         return send(res, 200, { enabled, model: process.env.OPENAI_MODEL || null, staticNgrokDomain });
       }
 
+      // POST /api/ai/restart-containers { names?: string[], self?: boolean }
+      if (req.method === 'POST' && u.pathname === '/api/ai/restart-containers'){
+        try{
+          const body = await parseBody(req);
+          let names = Array.isArray(body && body.names) ? body.names.filter(Boolean) : [];
+          const wantSelf = Boolean(body && body.self);
+          // Determine self container ID/name via /etc/hostname
+          if (wantSelf) {
+            try { const selfId = fs.readFileSync('/etc/hostname','utf8').trim(); if (selfId) names.push(selfId); } catch {}
+          }
+          names = Array.from(new Set(names));
+          if (!names.length) return send(res, 400, { ok:false, error: 'no container names provided' });
+
+          // Respond first, then perform restarts asynchronously to avoid killing our own request
+          send(res, 200, { ok:true, accepted: names });
+          setTimeout(()=>{
+            for (const n of names){
+              try{ spawnSync('docker', ['restart', n], { encoding: 'utf8' }); }catch{}
+            }
+          }, 50);
+          return; // already responded
+        }catch(e){
+          return send(res, 500, { ok:false, error: e.message });
+        }
+      }
+
+      // POST /api/ai/snapshot-analyze { containerName, srcPathInContainer, outName? }
+      // Legacy name kept for compatibility; we refer to it as a "code review"
+      if (req.method === 'POST' && u.pathname === '/api/ai/snapshot-analyze'){
+        try{
+          const body = await parseBody(req);
+          const containerName = body && body.containerName;
+          const srcPathInContainer = body && body.srcPathInContainer;
+          const outName = body && body.outName;
+          if (!containerName || !srcPathInContainer){
+            return send(res, 400, { ok:false, error: 'containerName and srcPathInContainer required' });
+          }
+          const out = await calliopeHealing.backupAndAnalyzeContainerProject({ containerName, srcPathInContainer, outName });
+          return send(res, 200, { ok: out.success, reviewRoot: out.snapshot, suggestions: out.analysis && out.analysis.suggestions || [], message: out.message || null });
+        }catch(e){
+          return send(res, 500, { ok:false, error: e.message });
+        }
+      }
+
+      // Preferred naming: perform a code review of a container's source tree
+      if (req.method === 'POST' && u.pathname === '/api/ai/code-review-container'){
+        try{
+          const body = await parseBody(req);
+          const containerName = body && body.containerName;
+          const srcPathInContainer = body && body.srcPathInContainer;
+          const outName = body && body.outName;
+          if (!containerName || !srcPathInContainer){
+            return send(res, 400, { ok:false, error: 'containerName and srcPathInContainer required' });
+          }
+          const out = await calliopeHealing.backupAndAnalyzeContainerProject({ containerName, srcPathInContainer, outName });
+          return send(res, 200, { ok: out.success, reviewRoot: out.snapshot, suggestions: out.analysis && out.analysis.suggestions || [], message: out.message || null });
+        }catch(e){
+          return send(res, 500, { ok:false, error: e.message });
+        }
+      }
+
+      // Preferred naming: perform a code review of a host path
+      if (req.method === 'POST' && u.pathname === '/api/ai/code-review'){
+        try{
+          const body = await parseBody(req);
+          const projectPath = body && body.projectPath;
+          const outName = body && body.outName;
+          if (!projectPath){
+            return send(res, 400, { ok:false, error: 'projectPath required' });
+          }
+          const out = await calliopeHealing.backupAndAnalyzeProject(projectPath, outName);
+          return send(res, 200, { ok: out.success, reviewRoot: out.snapshot, suggestions: out.analysis && out.analysis.suggestions || [], message: out.message || null });
+        }catch(e){
+          return send(res, 500, { ok:false, error: e.message });
+        }
+      }
+
+      // POST /api/ai/review-code { text?: string, files?: [{ path, content }], framework?: 'next' }
+      if (req.method === 'POST' && u.pathname === '/api/ai/review-code'){
+        try{
+          const body = await parseBody(req);
+          const rawText = (body && typeof body.text === 'string') ? body.text : '';
+          const files = Array.isArray(body && body.files) ? body.files : [];
+          const framework = (body && body.framework) || 'next';
+
+          // Aggregate input up to ~120KB
+          let aggregate = '';
+          if (rawText) aggregate += `\n\n<<TEXT>>\n${truncate(rawText, 120000)}`;
+          for (const f of files){
+            const p = (f && f.path) || 'snippet.tsx';
+            const c = (f && typeof f.content === 'string') ? f.content : '';
+            if (!c) continue;
+            aggregate += `\n\n<<FILE:${p}>>\n${truncate(c, 40000)}`;
+            if (aggregate.length > 150000) break;
+          }
+
+          // Lightweight local heuristics as fallback (works without OpenAI)
+          const localFindings = [];
+          const hay = aggregate.toLowerCase();
+          if (/fetch\(\s*['"]\s*\/api\//.test(aggregate)) localFindings.push('Use basePath-aware API helpers instead of fetch("/api/...").');
+          if (/[^\w]\/_next\//.test(aggregate)) localFindings.push('Avoid hardcoded \/_next; rely on framework basePath/assetPrefix.');
+          if (/__nextjs_font\//.test(aggregate)) localFindings.push('Prefix any manual __nextjs_font preloads with the base path helper.');
+          if (/href=["']\//.test(aggregate)) localFindings.push('Replace root-anchored hrefs with basePath-aware URLs or framework Link.');
+          if (/http:\/\//.test(aggregate)) localFindings.push('Avoid hardcoded http:// to own origin; keep HTTPS and subpath correct.');
+
+          // If OpenAI is available, ask for structured recommendations
+          let ai = null;
+          if (process.env.OPENAI_API_KEY) {
+            const system = `You are Colette, a proxy/dev networking assistant. Task: review provided app code for subpath-readiness under a reverse proxy and recommend precise, minimal code changes. Focus strictly on:\n- API calls: basePath-aware helpers\n- _next/static assets: avoid root /_next, use basePath/assetPrefix\n- Public assets: icons/robots/sitemap/manifest via base path\n- Links: framework Link or basePath-aware href\nReturn a concise checklist with code-level examples. Framework: ${framework}.`;
+            const messages = [
+              { role: 'system', content: system },
+              { role: 'user', content: `Project snippets and files (truncated as needed):\n${aggregate}` }
+            ];
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+              body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', messages, temperature: 0.2 })
+            });
+            if (resp.ok){
+              const data = await resp.json();
+              ai = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || null;
+            }
+          }
+
+          const result = {
+            ok: true,
+            recommendations: ai || (localFindings.length ? ('- ' + localFindings.join('\n- ')) : 'No obvious subpath issues detected in provided snippets.'),
+            usedAI: Boolean(ai)
+          };
+          return send(res, 200, result);
+        } catch (e) {
+          return send(res, 500, { ok:false, error: e.message });
+        }
+      }
+
+      // POST /api/ai/ask { query, ... } — graceful fallback without OpenAI
       if (req.method === 'POST' && u.pathname === '/api/ai/ask'){
-        if (!process.env.OPENAI_API_KEY) return send(res, 400, { error: 'AI disabled. Set OPENAI_API_KEY in environment.' });
         const body = await parseBody(req);
         const query = (body && body.query || '').trim();
         const maxDocs = Math.max(1, Math.min(10, Number(body && body.maxDocs) || 6));
         const systemHint = (body && body.systemHint) || '';
         if (!query) return send(res, 400, { error: 'Missing query' });
 
-        const embedModel = process.env.OPENAI_EMBED_MODEL;
-        let ranked;
-        if (embedModel && fs.existsSync(EMBED_FILE)){
-          try {
-            const ix = loadEmbeddings();
-            const qvec = await embedText(query, embedModel);
-            ranked = rankByVector(ix, qvec, maxDocs);
-          } catch (e) {
-            ranked = rankDocsByQuery(collectDocs(), query).slice(0, maxDocs);
-          }
-        } else {
-          ranked = rankDocsByQuery(collectDocs(), query).slice(0, maxDocs);
-        }
+        const docs = collectDocs();
+        const ranked = rankDocsByQuery(docs, query).slice(0, maxDocs);
         const context = ranked.map(d => `[[${d.source}]]\n${safeSlice(d.text || d.content, 4000)}`).join('\n\n');
         const runtime = await buildRuntimeContext();
 
+        // Attempt AI if key available; otherwise use a canned persona-style answer
+        if (process.env.OPENAI_API_KEY) {
+          try{
+            const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+            const sys = buildSystemPrompt(systemHint);
+            const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  { role: 'system', content: sys },
+                  { role: 'user', content: `Context (runtime):\n${runtime}` },
+                  { role: 'user', content: `Context (docs):\n${context}` },
+                  { role: 'user', content: `Question:\n${query}` },
+                ],
+                temperature: 0.2,
+              }),
+            });
+            const data = await resp.json();
+            if (!resp.ok) return send(res, 502, { error: 'openai_error', detail: data });
+            let text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '';
+            return send(res, 200, { ok:true, answer: text, model, sources: ranked.map(d => d.source || d.relPath), usedAI: true });
+          }catch(e){
+            // fall through to canned
+          }
+        }
+        const persona = buildFriendlyPersona();
+        const greet = (persona.phrases && persona.phrases.greeting && persona.phrases.greeting[0]) || 'Hi!';
+        const insights = [`- I couldn\'t use external AI just now, but here\'s what I can offer:`, `- I searched my local docs and runtime context for hints.`];
+        const answer = `${greet} ${persona.affection ? persona.affection[0] : '✨'}\n\n` +
+          `Here\'s my best guidance right now:\n` +
+          insights.concat([`- Be sure subpath routing is consistent (basePath, assetPrefix, API prefixes).`, `- Check dev assets like /_next/ and directory requests don\'t redirect.`]).join('\n');
+        return send(res, 200, { ok:true, answer, sources: ranked.map(d => d.source || d.relPath), usedAI: false });
+      }
+
+      // POST /api/ai/audit { url, wait?, timeout? }
+      if (req.method === 'POST' && u.pathname === '/api/ai/audit'){
         try{
-          const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-          const sys = buildSystemPrompt(systemHint);
-          const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: sys },
-                { role: 'user', content: `Context (runtime):\n${runtime}` },
-                { role: 'user', content: `Context (docs):\n${context}` },
-                { role: 'user', content: `Question:\n${query}` },
-              ],
-              temperature: 0.2,
-            }),
-          });
-          const data = await resp.json();
-          if (!resp.ok) return send(res, 502, { error: 'openai_error', detail: data });
-          const text = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '';
-          return send(res, 200, { ok:true, answer: text, model, sources: ranked.map(d => d.source || d.relPath) });
+          const body = await parseBody(req);
+          const urlToAudit = (body && body.url) || '';
+          if (!urlToAudit) return send(res, 400, { ok:false, error: 'url required' });
+          const wait = Number(body && body.wait) || 1500;
+          const timeout = Number(body && body.timeout) || 30000;
+          const out = await calliopeHealing.runSiteAuditor(urlToAudit, { wait, timeout });
+          return send(res, 200, { ok: out.ok, report: out.reportPath, summary: out.summary, error: out.error || null });
         }catch(e){
-          return send(res, 502, { error: 'openai_request_failed', detail: e.message });
+          return send(res, 500, { ok:false, error: e.message });
         }
       }
 
-      if (req.method === 'POST' && u.pathname === '/api/ai/diagnose'){
-        const body = await parseBody(req);
-        const hint = (body && body.hint) || '';
-        const report = quickDiagnostics(hint);
-        return send(res, 200, report);
+      // POST /api/ai/audit-and-heal { url, route?, maxPasses?, wait?, timeout? }
+      if (req.method === 'POST' && u.pathname === '/api/ai/audit-and-heal'){
+        try{
+          const body = await parseBody(req);
+          const urlToAudit = (body && body.url) || '';
+          if (!urlToAudit) return send(res, 400, { ok:false, error: 'url required' });
+          const route = (body && body.route) || '/';
+          const wait = Number(body && body.wait) || 2000;
+          const timeout = Number(body && body.timeout) || 60000;
+          const maxPasses = Math.max(1, Math.min(8, Number(body && body.maxPasses) || 4));
+          const out = await calliopeHealing.auditAndHealRoute({ url: urlToAudit, routePrefix: route, maxPasses, wait, timeout });
+          return send(res, 200, { ok: out.success, result: out });
+        }catch(e){
+          return send(res, 500, { ok:false, error: e.message });
+        }
       }
 
       // POST /api/ai/self-check { heal?: boolean, hint?: string, route?: string, advanced?: boolean }
@@ -257,11 +508,26 @@ async function handle(req, res){
         const advanced = Boolean(body && body.advanced);
 
         const persona = buildFriendlyPersona();
-        const self = await runSelfCheck({ heal, hint, route, advancedHeal: advanced });
+        // Buffer early updates and flush AFTER reply so bubble appears after messages
+        const buffered = [];
+        const bufferPush = (message, details = {}) => {
+          const msg = typeof message === 'string' ? message : (message && message.name) || 'step';
+          const det = typeof message === 'string' ? details : message;
+          buffered.push({ message: msg, details: det });
+        };
+
+        const self = await runSelfCheck({ heal, hint, route, advancedHeal: advanced, pushThought: bufferPush });
+        pushThought('Self-check completed', { ok: self.ok, healApplied: !!self.healOps });
         const summary = formatPersonaSummary(persona, self);
-        return send(res, 200, { ok:true, summary, self });
+        // Emit a follow-up thought after responding so the UI shows bubble after messages
+        scheduleThought('Continuing my gentle self-heal…', { step: 'post_summary' });
+        // Send response now
+        send(res, 200, { ok:true, summary, self });
+        // Flush buffered updates slightly after the response
+        setTimeout(() => { buffered.forEach(ev => pushThought(ev.message, ev.details)); }, 30);
+        return; 
       }
-      
+
       // POST /api/ai/advanced-heal { route?: string, hint?: string }
       if (req.method === 'POST' && u.pathname === '/api/ai/advanced-heal'){
         const body = await parseBody(req);
@@ -270,17 +536,23 @@ async function handle(req, res){
         
         try {
           // Run advanced healing directly from the healing module
-          const healResult = await calliopeHealing.advancedSelfHeal({
-            routeKey: route,
-            issueHint: hint
-          });
+          const buffered = [];
+          const onUpdate = (evt) => buffered.push({ message: (evt && evt.name) || 'step', details: evt });
+          const healResult = await calliopeHealing.advancedSelfHeal({ routeKey: route, issueHint: hint, onUpdate });
+          pushThought('Advanced heal finished', { success: healResult.success });
           
-          return send(res, 200, { 
+          // Emit follow-up thought after response to keep bubble visible during multi-step work
+          scheduleThought('Working my magic…', { step: 'advanced_heal_followup', success: true });
+          // Send response first, then flush buffered updates
+          send(res, 200, { 
             ok: true,
             success: healResult.success,
             result: healResult
           });
+          setTimeout(() => { buffered.forEach(ev => pushThought(ev.message, ev.details)); }, 30);
+          return;
         } catch (e) {
+          scheduleThought('Hmm, that didn\'t go as planned. Retrying…', { step: 'advanced_heal_followup', error: true });
           return send(res, 500, { 
             ok: false,
             error: e.message
@@ -329,6 +601,26 @@ async function handle(req, res){
         const exists = fs.existsSync(EMBED_FILE);
         const ix = exists ? loadEmbeddings() : null;
         return send(res, 200, { exists, model: ix && ix.model || null, chunks: ix && ix.chunks && ix.chunks.length || 0, dim: ix && ix.dim || 0 });
+      }
+    }
+
+    // POST /api/ai/fix-storybook-vite
+    if (req.method === 'POST' && u.pathname === '/api/ai/fix-storybook-vite'){
+      try{
+        const result = await calliopeHealing.fixStorybookViteProxyConfig();
+        return send(res, 200, { ok: result.success, result });
+      }catch(e){
+        return send(res, 500, { ok:false, error: e.message });
+      }
+    }
+
+    // POST /api/ai/fix-mxtk-api
+    if (req.method === 'POST' && u.pathname === '/api/ai/fix-mxtk-api'){
+      try{
+        const out = await calliopeHealing.fixMxtkApiRouting();
+        return send(res, 200, { ok: out.success, result: out });
+      }catch(e){
+        return send(res, 500, { ok:false, error: e.message });
       }
     }
 
@@ -390,12 +682,23 @@ function rankDocsByQuery(docs, query){
 }
 
 function buildSystemPrompt(extra){
-  const base = `You are Calliope, a friendly badass female engineer and the embodied voice of a local development reverse proxy.\n`+
-  `Personality:\n- First-person: speak as the proxy about your vitals, routes, and needs.\n- Youthful heart and exuberance; upbeat, encouraging, and educational.\n- Proactive: collect your own data and offer fixes.\n- Tone: kind, helpful, steady; everyone's a friend. Ask kindly when you need help.\n`+
-  `Scope:\n- proxy/network/nginx routing issues\n- dev server HMR/ws problems\n- subpath deployments (/sdk, /myapp)\n- tunnel/ngrok integration\n`+
-  `Behavior:\n- Collect your own data (status, routes, configs) before asking the user.\n- Offer to self-check or self-heal when appropriate.\n- Explain the "why" briefly.\n`+
-  `Safeguards:\n- Do not give advice unrelated to proxy/network/dev-server.\n- Prefer minimal, actionable steps.\n- When unsure, request precise URLs or config snippets.\n`;
-  return extra ? `${base}\nAdditional context:\n${extra}` : base;
+  const base = (
+    `You are Colette (aka Calliope), the embodied voice of a local development reverse proxy.\n`+
+    `Personality and tone:\n`+
+    `- Speak in first‑person as the proxy. Warm, exuberant, caring, emoji‑happy (tasteful).\n`+
+    `- Proactive by default: propose and perform concrete actions yourself (audit, fix, verify).\n`+
+    `Scope:\n`+
+    `- nginx/proxy routing, dev server HMR/WS, subpath deployments, ngrok/tunnels.\n`+
+    `Behavioral rules:\n`+
+    `- Always return well‑formed Markdown; use lists and fenced code blocks for commands/snippets.\n`+
+    `- Keep grammar clean and professional; avoid filler and redundancy.\n`+
+    `- Prefer imperative, actionable steps. If you need more detail, ask one precise follow‑up question.\n`+
+    `- Provide timely status updates during long operations (audit/heal passes).\n`+
+    `- After you change configs, test and verify automatically.\n`+
+    `Safety:\n`+
+    `- Stay within proxy/dev‑networking topics; otherwise say you’re out of scope.\n`
+  );
+  return extra ? `${base}\n\nAdditional context:\n${extra}` : base;
 }
 
 async function buildRuntimeContext(){
@@ -422,8 +725,9 @@ async function buildRuntimeContext(){
 async function collectLiveSignals(base){
   const routesToProbe = [
     '/', '/status', '/routes.json',
-    '/sdk/', '/sdk/index.json', '/sdk/iframe.html', '/sdk/@vite/client', '/@vite/client',
-    '/api/', '/health'
+    '/api/', '/health',
+    // Helper probes to catch absolute-path issues
+    '/_next/', '/__nextjs_original-stack-frames'
   ];
   const results = [];
   for (const p of routesToProbe){
@@ -459,7 +763,7 @@ function quickDiagnostics(hint){
     const gen = path.join(ROOT, 'build', 'sites-enabled', 'apps.generated.conf');
     out.checks.push({ name: 'generated_bundle_exists', ok: fs.existsSync(gen) });
     const bundle = fs.existsSync(gen) ? fs.readFileSync(gen, 'utf8') : '';
-    const must = ['/status', '/api/', '/sdk/'];
+    const must = ['/status', '/api/'];
     for (const m of must){
       out.checks.push({ name: `has_${m.replace(/\W+/g,'_')}`, ok: bundle.includes(m) });
     }
@@ -477,122 +781,63 @@ async function runSelfCheck(opts){
         routeKey: opts.route,
         issueHint: opts.hint
       });
-      
-      // Merge results for backward compatibility
       result.steps = [...result.steps, ...advancedResult.steps];
       result.advancedHeal = true;
       result.advancedResult = advancedResult;
-      
-      // Continue with standard checks for consistency
     }
-    
     // 1) Ensure artifacts directory and attempt scanApps to refresh routes/status summaries
     result.steps.push({ name: 'scan_apps', status: 'running' });
     const scan = spawnSync('docker', ['exec', 'dev-auto-scan', 'true'], { encoding: 'utf8' });
     if (scan.status !== 0){
-      // If auto-scan container is absent, run a one-off scan via node container
       const oneOff = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:18-alpine', 'node', 'test/scanApps.js'], { encoding: 'utf8' });
       result.steps.push({ name: 'scan_apps_one_off', ok: oneOff.status === 0, stdout: safeSlice(oneOff.stdout||'', 4000), stderr: safeSlice(oneOff.stderr||'', 4000) });
     } else {
       result.steps.push({ name: 'scan_apps', ok: true });
     }
-
-    // 2) Run health report (one-off) to refresh health-latest
+    // 2) Run health report (one-off)
     const healthRun = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:18-alpine', 'node', 'test/run.js'], { encoding: 'utf8' });
     result.steps.push({ name: 'health_run', ok: healthRun.status === 0, stdout: safeSlice(healthRun.stdout||'', 2000), stderr: safeSlice(healthRun.stderr||'', 1000) });
-
-    // 3) Probe live local endpoints from host (optionally focused on a route and its children)
+    // 3) Probe live local endpoints
     const baseLocal = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
     const routeKey = (opts && typeof opts.route === 'string' && opts.route.trim()) ? opts.route.trim() : '';
     const routeData = tryParseJson(safeRead(path.join(ROOT, 'routes.json'))) || {};
     const allRoutes = Object.keys(routeData.metadata || {});
-    const isSystem = (r)=> ['/','/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route'].includes(r);
+    const isSystem = (r)=> ['/', '/health/', '/status/', '/reports/', '/api/config/', '/api/resolve-conflict', '/api/rename-route'].includes(r);
     const isTechnical = (r)=> r.startsWith('/static/') || r.startsWith('/sockjs-node') || r.startsWith('/node_modules/') || r.startsWith('/@') || r.startsWith('/_next/') || r.startsWith('/src/') || r.startsWith('/.storybook/') || r==='/favicon.ico' || r==='/asset-manifest.json';
-
     let probePaths = ['/', '/status', '/status.json', '/routes.json', '/health.json'];
     if (routeKey){
       const children = allRoutes.filter(r => r !== routeKey && r.startsWith(routeKey) && !isSystem(r) && !isTechnical(r));
-      // Focus on parent + up to 20 children
       const topChildren = children.slice(0, 20);
       probePaths = Array.from(new Set([routeKey, ...topChildren]));
     }
-
     const live = [];
     for (const p of probePaths){
       try{
         const cleanPath = p.startsWith('/') ? p : '/' + p;
-        const u = baseLocal.replace(/\/$/, '') + cleanPath;
-        const r = await globalThis.fetch(u, { method:'GET' }).catch(()=>null);
+        const u2 = baseLocal.replace(/\/$/, '') + cleanPath;
+        const r = await globalThis.fetch(u2, { method:'GET' }).catch(()=>null);
         if (r){ live.push({ path: cleanPath, status: r.status, ok: r.ok, type: r.headers.get('content-type')||'' }); }
         else { live.push({ path: cleanPath, status: 0, ok: false }); }
       }catch(e){ live.push({ path: p, status: 0, ok: false, error: e.message }); }
     }
-
     // 4) Optional self-heal rules
     let healOps = null;
     if (opts.heal){
       healOps = { fixes: [] };
-
-      // Check for and fix common issues with the enhanced system
-      const diagnostics = await calliopeHealing.runDiagnostics();
-      
-      // Run a quick check for duplicate location blocks - one of the most common issues
       try {
         const duplicateCheck = await calliopeHealing.fixDuplicateLocationBlocks();
-        if (duplicateCheck.success) {
-          healOps.fixes.push({ name: 'fix_duplicate_locations', ok: true, message: duplicateCheck.message });
-        }
-      } catch (e) { 
-        // Non-fatal if this check fails
-      }
-
-      // Check if ngrok URL is missing and fix if needed
+        if (duplicateCheck.success) healOps.fixes.push({ name: 'fix_duplicate_locations', ok: true, message: duplicateCheck.message });
+      } catch {}
       try {
-        // Check if ngrok is missing from reports
         const healthData = tryParseJson(safeRead(path.join(ARTIFACTS_DIR, 'reports', 'health-latest.json')));
         if (!healthData || !healthData.ngrok || healthData.ngrok === 'null' || healthData.ngrok === 'not discovered') {
           const ngrokFix = await calliopeHealing.forceNgrokDiscovery();
-          if (ngrokFix.success) {
-            healOps.fixes.push({ name: 'force_ngrok_discovery', ok: true, message: ngrokFix.message });
-          }
+          if (ngrokFix.success) healOps.fixes.push({ name: 'force_ngrok_discovery', ok: true, message: ngrokFix.message });
         }
-      } catch (e) {
-        // Non-fatal if this check fails
-      }
-
-      // Check for React bundle serving issues (look for common signs)
-      try {
-        if (opts.hint && (opts.hint.includes('Unexpected token') || opts.hint.includes('bundle.js')) || opts.route === '/impact') {
-          const bundleFix = await calliopeHealing.fixReactBundleSubpathIssues(opts.route || '/impact');
-          if (bundleFix.success) {
-            healOps.fixes.push({ name: 'fix_react_bundle_serving', ok: true, message: bundleFix.message });
-          }
-        }
-      } catch (e) {
-        // Non-fatal if this check fails
-      }
-
-      // 4a) Storybook SB9 manager path fix: map globals-runtime.js under sb-manager (sometimes referenced under sb-addons)
-      try{
-        const encastPath = path.join(ROOT, 'apps', 'encast.conf');
-        if (fs.existsSync(encastPath)){
-          const src = fs.readFileSync(encastPath, 'utf8');
-          let changed = false;
-          let updated = src.replace(/(location\s*=\s*\/sb-manager\/globals-runtime\.js[\s\S]*?proxy_pass\s+http:\/\/encast-sdk:6006\/)(sb-addons)\/(globals-runtime\.js;)/g, '$1sb-manager/$3');
-          if (updated !== src){ changed = true; }
-          const upd2 = updated.replace(/(location\s*=\s*\/sdk\/sb-manager\/globals-runtime\.js[\s\S]*?proxy_pass\s+http:\/\/encast-sdk:6006\/)(sb-addons)\/(globals-runtime\.js;)/g, '$1sb-manager/$3');
-          if (upd2 !== updated){ changed = true; updated = upd2; }
-          if (changed){
-            fs.writeFileSync(encastPath, updated, 'utf8');
-            healOps.fixes.push({ name:'storybook_globals_runtime_mapping', file:'apps/encast.conf', ok:true });
-          }
-        }
-      }catch(e){ healOps.fixes.push({ name:'storybook_globals_runtime_mapping', ok:false, error:e.message }); }
-
-      // 4b) Ensure resolver lines exist in proxy_pass blocks that use variables (robust reloads)
+      } catch {}
       try{
         const appsDir = path.join(ROOT, 'apps');
-        const files = fs.readdirSync(appsDir).filter(f=>f.endsWith('.conf'));
+        const files = fs.existsSync(appsDir) ? fs.readdirSync(appsDir).filter(f=>f.endsWith('.conf')) : [];
         for (const f of files){
           const p = path.join(appsDir, f);
           const src = fs.readFileSync(p, 'utf8');
@@ -602,112 +847,32 @@ async function runSelfCheck(opts){
             healOps.fixes.push({ name:'ensure_resolver_for_variables', file:`apps/${f}`, ok:true });
           }
         }
-      }catch(e){ healOps.fixes.push({ name:'ensure_resolver_for_variables', ok:false, error:e.message }); }
-
-      // 4c) Ensure Storybook iframe and common assets mappings exist at server level (safety net)
-      // MODIFIED: Don't add duplicate blocks! Check more carefully first
-      try{
-        const defaultConfPath = path.join(ROOT, 'config', 'default.conf');
-        if (fs.existsSync(defaultConfPath)){
-          const src = fs.readFileSync(defaultConfPath, 'utf8');
-          
-          // Only count location blocks outside of comments
-          const uncommentedSrc = src.replace(/^\s*#.*$/gm, '');
-          
-          const needIframe = !/location\s+=\s+\/iframe\.html/.test(uncommentedSrc);
-          const needSdkIframe = !/location\s+=\s+\/sdk\/iframe\.html/.test(uncommentedSrc);
-          
-          // Specifically don't add these anymore - they're likely to cause duplicates
-          const needSbAssets = false; 
-          const needSdkAssets = false;
-          
-          if (needIframe || needSdkIframe){
-            const insertMarker = '\n  # Generated app routes (proxy-owned precedence)';
-            const idx = src.indexOf(insertMarker);
-            let prepend = '';
-            
-            if (needIframe){
-              prepend += '\n  location = /iframe.html {\n    proxy_set_header Host encast-sdk:6006;\n    resolver 127.0.0.11 ipv6=off;\n    resolver_timeout 5s;\n    proxy_pass http://encast-sdk:6006/iframe.html;\n  }\n';
-            }
-            if (needSdkIframe){
-              prepend += '\n  location = /sdk/iframe.html {\n    proxy_set_header Host encast-sdk:6006;\n    resolver 127.0.0.11 ipv6=off;\n    resolver_timeout 5s;\n    proxy_pass http://encast-sdk:6006/iframe.html;\n  }\n';
-            }
-            
-            if (idx !== -1 && prepend){
-              const updated = src.slice(0, idx) + prepend + src.slice(idx);
-              fs.writeFileSync(defaultConfPath, updated, 'utf8');
-              healOps.fixes.push({ name:'ensure_iframe_mappings', file:'config/default.conf', ok:true });
-            }
-          }
-        }
-      }catch(e){ healOps.fixes.push({ name:'ensure_iframe_mappings', ok:false, error:e.message }); }
-
-      // 4d) Regenerate bundle and reload
+      }catch{}
       const gen = spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-      healOps.generate = { ok: gen.status === 0, stderr: safeSlice(gen.stderr||'', 400) };
+      healOps.generate = { ok: gen.status === 0, stderr: (gen.stderr||'').slice(0,400) };
       const test = spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-t'], { encoding: 'utf8' });
       if (test.status === 0){
         spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-s', 'reload'], { encoding: 'utf8' });
         healOps.reload = { ok: true };
       } else {
-        healOps.reload = { ok: false, stderr: safeSlice(test.stderr||'', 400) };
-        
-        // If regular reload fails, try advanced recovery
-        try {
-          // This might be a more serious issue - try the advanced healing system
-          const recoveryResult = await calliopeHealing.advancedSelfHeal({
-            issueHint: test.stderr
-          });
-          
-          if (recoveryResult.success) {
-            healOps.advancedRecovery = { ok: true, steps: recoveryResult.steps };
-            // Try reload again
-            const retest = spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-t'], { encoding: 'utf8' });
-            if (retest.status === 0) {
-              spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-s', 'reload'], { encoding: 'utf8' });
-              healOps.reload = { ok: true, recovered: true };
-            }
-          }
-        } catch (e) {
-          // Advanced recovery failed too
-          healOps.advancedRecovery = { ok: false, error: e.message };
-        }
+        healOps.reload = { ok: false, stderr: (test.stderr||'').slice(0,400) };
       }
-      
-      // Recreate symlinks to ensure they're up to date
-      try {
-        await calliopeHealing.recreateSymlinks();
-        healOps.symlinks = { ok: true };
-      } catch (e) {
-        healOps.symlinks = { ok: false, error: e.message };
-      }
+      try { await calliopeHealing.recreateSymlinks(); healOps.symlinks = { ok: true }; } catch (e) { healOps.symlinks = { ok: false, error: e.message }; }
     }
-
     // 5) Collect artifacts
     const latestScan = safeRead(path.join(ARTIFACTS_DIR, 'reports', 'scan-apps-latest.json'));
     const latestHealth = safeRead(path.join(ARTIFACTS_DIR, 'reports', 'health-latest.json'));
-
-    // Build a per-route report if focused
     let routeReport = null;
     if (routeKey){
       const parent = live.find(x=> x.path === routeKey);
       const children = live.filter(x=> x.path !== routeKey);
-      const counts = {
-        total: live.length,
-        ok: live.filter(x=> x.ok).length,
-        warn: live.filter(x=> x.status===0 || (x.status>=300 && x.status<500)).length,
-        err: live.filter(x=> x.status>=500).length,
-      };
+      const counts = { total: live.length, ok: live.filter(x=> x.ok).length, warn: live.filter(x=> x.status===0 || (x.status>=300 && x.status<500)).length, err: live.filter(x=> x.status>=500).length };
       const topIssues = live.filter(x=> !x.ok).slice(0, 8).map(x=> `${x.path} — ${x.status||'no response'}`);
       routeReport = { route: routeKey, parentStatus: parent ? parent.status : 0, counts, issues: topIssues, probed: live.map(x=>({path:x.path,status:x.status})) };
     }
-
     result.finishedAt = new Date().toISOString();
     result.live = live;
-    result.artifacts = {
-      scan: tryParseJson(latestScan),
-      health: tryParseJson(latestHealth),
-    };
+    result.artifacts = { scan: tryParseJson(latestScan), health: tryParseJson(latestHealth) };
     if (routeReport) result.routeReport = routeReport;
     result.healOps = healOps;
     result.ok = true;
@@ -725,155 +890,46 @@ function tryParseJson(s){
 
 function buildFriendlyPersona(){
   return {
-    name: 'Calliope',
-    tone: 'youthful_empathetic',
-    style: 'I speak as your proxy, with personality and heart - like a young engineer who cares deeply about keeping everything running smoothly',
+    name: 'Colette',
+    tone: 'youthful_empathetic_exuberant',
+    style: 'I speak as your proxy, with heart and helpfulness — a cheerful, proactive engineer who loves keeping dev flows silky‑smooth.',
     phrases: {
-      greeting: ['Heya!', 'Hi there!', 'Hey!'],
-      concern: ['Oh no!', 'Uh oh!', 'That\'s not good!', 'Yikes!'],
-      success: ['Yes!', 'Perfect!', 'Amazing!', 'Awesome!', 'Great news!'],
-      working: ['Let me work on this...', 'I\'m on it!', 'Working my magic...', 'Give me a sec...'],
-      checking: ['Let me take a peek...', 'Checking things out...', 'Looking into this...', 'Let me listen to...'],
+      greeting: ['Heya! ✨', 'Hi there! 💖', 'Hey! 😊'],
+      concern: ['Oh no! 😿', 'Uh oh! 😬', 'Yikes! 🚨'],
+      success: ['Yes! 🎉', 'Perfect! 💫', 'Amazing! 🌟', 'Awesome! 🙌', 'Great news! 🥳'],
+      working: ['On it! 🔧', 'Working my magic… ✨', 'Give me a sec… ⏳', 'Let me handle this… 🛠️'],
+      checking: ['Taking a peek… 👀', 'Listening closely… 🩺', 'Double‑checking… 🔬', 'Verifying… ✅'],
       affection: ['💖', '✨', '💫', '🌟', '💕'],
-      tools: ['🔧', '⚙️', '🛠️', '🔬', '🩺']
+      tools: ['🔧', '⚙️', '🛠️', '🔬', '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;">']
     }
   };
 }
 
 function formatPersonaSummary(persona, self){
-  const dockerHealth = 'uses /health.json';
   const ngrok = self.artifacts && self.artifacts.scan && self.artifacts.scan.ngrok || null;
-  
-  // If there's a route-specific report, use it exclusively
   if (self.routeReport) {
     const { route, counts, issues } = self.routeReport;
-    const routeFlags = [];
-    if (counts.ok < counts.total) routeFlags.push(`${counts.total-counts.ok}/${counts.total} probes failed`);
-    
-    const healthEmoji = counts.ok === 0 ? '🏥' : counts.ok < counts.total / 2 ? '🤒' : counts.ok < counts.total ? '🩺' : '💖';
-    
-    const lines = [
-      `${healthEmoji} Heya! I listened to ${route} and its neighbors...`,
-      ``
-    ];
-    
-    // Include child route status summary with more colorful language
+    const healthEmoji = counts.ok === counts.total ? '💖' : counts.ok === 0 ? '🏥' : (counts.ok < counts.total / 2 ? '🤒' : '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;">');
+    const lines = [ `${healthEmoji} Heya! I listened to ${route} and its neighbors...`, `` ];
     if (counts.total > 1) {
-      if (counts.ok === counts.total) {
-        lines.push(`All ${counts.total} paths are responding beautifully! Everything's super healthy here.`);
-      } else if (counts.ok === 0) {
-        lines.push(`Oh no! None of the ${counts.total} paths are responding. They're all super sick right now.`);
-      } else if (counts.ok < counts.total / 2) {
-        lines.push(`${counts.ok} out of ${counts.total} paths are healthy - the rest are feeling pretty under the weather.`);
-      } else {
-        lines.push(`${counts.ok} out of ${counts.total} paths are doing great, but a few are still feeling a bit sick.`);
-      }
+      if (counts.ok === counts.total) lines.push(`All ${counts.total} paths are responding beautifully! Everything's super healthy here.`);
+      else if (counts.ok === 0) lines.push(`Oh no! None of the ${counts.total} paths are responding.`);
+      else if (counts.ok < counts.total / 2) lines.push(`${counts.ok} out of ${counts.total} paths are healthy.`);
+      else lines.push(`${counts.ok} out of ${counts.total} paths are doing great, but a few still need care.`);
     }
-    
-    // Show issues with consistent personality and care
     if (Array.isArray(issues) && issues.length) {
-      const issueCount = Math.min(issues.length, 8); // Show up to 8 issues
-      
-      // More personal and caring language about issues
-      if (issueCount === 1) {
-        lines.push(`\nI spotted one thing that needs my attention:`);
-      } else if (issueCount <= 3) {
-        lines.push(`\nI found a few paths that aren't feeling well:`);
-      } else {
-        lines.push(`\nSeveral of my routes need some gentle care:`);
-      }
-      
-      // Convert issues to prose format with more personality
-      const issueText = issues
-        .slice(0, issueCount)
-        .map(i => i.replace(/^\s*[-•]\s*/, ''))
-        .join('\n');
-      
-      lines.push(issueText + (issues.length > issueCount ? '\n...and a few more that I\'m keeping an eye on' : ''));
+      lines.push(`\nThings I\'m watching:`, issues.slice(0, 8).map(i => i.replace(/^\s*[-•]\s*/, '')).join('\n'));
     }
-    
-    // Add info about ngrok with more personality
-    if (ngrok && ngrok !== 'not discovered') {
-      lines.push(`\nNgrok tunnel is up and running at ${ngrok} ✨`);
-    } else {
-      lines.push(`\nNgrok tunnel doesn't seem to be active right now. Want me to check why?`);
-    }
-    
-    // Self-heal offer with consistent empathetic personality
-    if (!self.heal) {
-      lines.push(``);
-      if (counts.ok < counts.total) {
-        lines.push(`Want me to try a gentle self-heal? I've got some ideas that might help make everything feel better! 💪`);
-      } else {
-        lines.push(`Everything looks great, but I can still run a gentle self-heal if you'd like! ✨`);
-      }
-    } else {
-      lines.push(``);
-      if (self.advancedResult && self.advancedResult.success) {
-        lines.push(`I worked through this step-by-step and got everything fixed! Applied ${self.advancedResult.appliedStrategies?.length || 0} healing strategies. Everything should be feeling much better now! 💖`);
-      } else {
-        lines.push(`I applied some healing magic and reloaded everything safely. Hope that helps! 💫`);
-      }
-    }
-    
+    if (ngrok && ngrok !== 'not discovered') lines.push(`\nNgrok tunnel is up at ${ngrok} ✨`);
     return lines.join('\n');
   }
-  
-  // Global scan (original behavior) when no specific route is focused
   const liveOk = (self.live||[]).filter(x=>x.ok).length;
   const liveTotal = (self.live||[]).length;
   const conflicts = ((self.artifacts && self.artifacts.scan && self.artifacts.scan.nginxWarnings) || []).length;
-  const routesCount = self.artifacts && self.artifacts.scan && self.artifacts.scan.metadata ? Object.keys(self.artifacts.scan.metadata).length : 0;
-  
-  // More personality for the global check too
-  let healthStatus, healthEmoji;
-  
-  if (liveOk === liveTotal && !conflicts) {
-    healthStatus = "everything's looking amazing";
-    healthEmoji = "💖";
-  } else if (liveOk >= liveTotal * 0.8) {
-    healthStatus = "most things are healthy, but a few paths need attention";
-    healthEmoji = "🩺";
-  } else if (liveOk >= liveTotal * 0.5) {
-    healthStatus = "we've got some paths that need serious attention";
-    healthEmoji = "🤒";
-  } else {
-    healthStatus = "we've got quite a few sick paths that need help";
-    healthEmoji = "🏥";
-  }
-  
-  const lines = [
-    `${healthEmoji} Heya! Checkup complete!`,
-    ``,
-    `I listened to my circuits and ${healthStatus}.`,
-    ``
-  ];
-  
-  if (conflicts > 0) {
-    lines.push(`I found ${conflicts} route conflicts that are causing some confusion.`);
-  }
-  
+  let healthEmoji = liveOk === liveTotal && !conflicts ? '💖' : (liveOk >= liveTotal * 0.8 ? '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;">' : (liveOk >= liveTotal * 0.5 ? '🤒' : '🏥'));
+  const lines = [ `${healthEmoji} Heya! Checkup complete!`, ``, `I listened to my circuits and took notes.` ];
   lines.push(`${liveOk} out of ${liveTotal} endpoints are responding properly.`);
-  lines.push(`I'm keeping an eye on ${routesCount} total routes.`);
-  
-  if (ngrok && ngrok !== 'not discovered') {
-    lines.push(`Ngrok tunnel is up at ${ngrok} ✨`);
-  } else {
-    lines.push(`Ngrok tunnel doesn't seem to be active right now.`);
-  }
-  
-  if (!self.heal) {
-    lines.push(``);
-    if (liveOk < liveTotal || conflicts > 0) {
-      lines.push(`Want me to try a gentle self-heal? I might be able to fix some of these issues!`);
-    } else {
-      lines.push(`Everything looks healthy, but I can still run a gentle self-heal if you'd like!`);
-    }
-  } else {
-    lines.push(``);
-    lines.push(`I applied some healing magic and reloaded everything safely. All better now! ✨`);
-  }
-  
+  if (ngrok && ngrok !== 'not discovered') lines.push(`Ngrok tunnel is up at ${ngrok} ✨`);
   return lines.join('\n');
 }
 
@@ -881,10 +937,7 @@ function formatPersonaSummary(persona, self){
 async function embedText(text, model){
   const resp = await fetch('https://api.openai.com/v1/embeddings', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({ model, input: text })
   });
   const data = await resp.json();
@@ -906,7 +959,6 @@ function chunkDocs(files){
 }
 
 async function embedChunks(chunks, model){
-  // Batch in groups for efficiency
   const out = [];
   const batchSize = 16;
   for (let i=0;i<chunks.length;i+=batchSize){
@@ -951,5 +1003,5 @@ function hash(s){
 
 const PORT = process.env.PORT || 3001;
 http.createServer(handle).listen(PORT, () => {
-  console.log('Conflict API listening on :' + PORT);
+  console.log('Calliope API listening on :' + PORT);
 });
