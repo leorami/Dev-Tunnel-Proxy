@@ -1,0 +1,100 @@
+location = /mxtk { return 302 /mxtk/; }
+location ^~ /mxtk/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  rewrite ^/mxtk/(.*)$ /$1 break;
+  proxy_pass http://$mxtk_site_dev;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+}
+
+# Absolute Next dev assets
+location = /_next/ { return 204; }
+location = /_next { return 204; }
+location ^~ /_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+}
+
+# Dev helper
+location = /__nextjs_original-stack-frames {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev/__nextjs_original-stack-frames;
+}
+
+# Root-level Next font helper
+location ^~ /__nextjs_font/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev;
+}
+
+# Root-level convenience mappings for public assets referenced without /mxtk prefix
+location ^~ /art/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev/art/;
+}
+
+location = /art { return 204; }
+location = /art/ { return 204; }
+
+location ^~ /icons/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev/icons/;
+}
+
+location = /icons { empty_gif; }
+location = /icons/ { empty_gif; }
+
+location = /logo-horizontal.png {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev/logo-horizontal.png;
+}
+
+location = /manifest.json {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev/manifest.json;
+}

@@ -57,7 +57,7 @@ location ^~ /api/static/ {
   resolver_timeout 5s;
   set $up_encast_api_8000_3 http://encast-api:8000;
   rewrite ^/api/static/(.*)$ /static/$1 break;
-  proxy_pass $up_encast_api_8000_3;
+  proxy_pass $up_encast_api_8000_3;      # 🤖 CALLIOPE AUTO-FIX: Added rewrite rule
   proxy_read_timeout 300;
   proxy_send_timeout 300;
 }
@@ -85,7 +85,7 @@ location ^~ /api/media/ {
   resolver_timeout 5s;
   set $up_encast_api_8000_4 http://encast-api:8000;
   rewrite ^/api/media/(.*)$ /media/$1 break;
-  proxy_pass $up_encast_api_8000_4;
+  proxy_pass $up_encast_api_8000_4;      # 🤖 CALLIOPE AUTO-FIX: Added rewrite rule
 }
 
 # Impact (CRA dev server, HMR/WS)
@@ -134,7 +134,7 @@ location = /bundle.js {
   proxy_hide_header Content-Type;
   add_header Content-Type application/javascript;
 }
-# Handle /static/js/bundle.js → map to upstream /static/js/bundle.js with correct content-type
+# Enhanced bundle.js route - 🤖 CALLIOPE AUTO-FIX: Added content-type forcing
 location = /static/js/bundle.js {
   proxy_set_header Host encast-impact:3000;
   proxy_set_header X-Forwarded-Proto $scheme;
@@ -144,7 +144,7 @@ location = /static/js/bundle.js {
   set $up_encast_impact_3000_static_bundle http://encast-impact:3000/static/js/bundle.js;
   proxy_pass $up_encast_impact_3000_static_bundle;
   proxy_hide_header Content-Type;
-  add_header Content-Type application/javascript;
+  add_header Content-Type application/javascript;  # 🤖 FORCES CORRECT CONTENT-TYPE
 }
 location ^~ /static/ {
   proxy_set_header Host encast-impact:3000;
@@ -152,7 +152,8 @@ location ^~ /static/ {
   proxy_set_header X-Forwarded-Host $host;
   resolver 127.0.0.11 ipv6=off;
   resolver_timeout 5s;
-  set $up_encast_impact_3000_static http://encast-impact:3000/static/;
+  # 🤖 CALLIOPE FIX: Remove trailing slash from variable to preserve full request path
+  set $up_encast_impact_3000_static http://encast-impact:3000;
   proxy_pass $up_encast_impact_3000_static;
 }
 # Handle bundle.js requested through /impact path (React may use relative paths)
@@ -191,12 +192,14 @@ location ^~ /sockjs-node {
 location ^~ /impact/asset-manifest.json {
   proxy_set_header Host encast-impact:3000;
   rewrite ^/impact/asset-manifest\.json$ /asset-manifest.json break;
-  proxy_pass http://encast-impact:3000;
+  set $up_encast_impact_3000_1 http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_1;
 }
 location ^~ /impact/favicon.ico {
   proxy_set_header Host encast-impact:3000;
   rewrite ^/impact/favicon\.ico$ /favicon.ico break;
-  proxy_pass http://encast-impact:3000;
+  set $up_encast_impact_3000_2 http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_2;
 }
 
 # Inspire (React dev server) - strip /inspire/ prefix
@@ -235,16 +238,40 @@ location ^~ /sdk/ {
 }
 
 # Absolute paths used by Storybook/Vite assets when mounted at subpath; forward to SDK
-location ^~ /@vite/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_9 http://encast-sdk:6006/@vite/;
-  proxy_pass $up_encast_sdk_6006_9;
+# pruned by Calliope fastStorybookViteFixes
+
+# Vite dev endpoints at root (Storybook may reference absolute paths)
+location ~ ^/@vite/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_vite http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_vite;
 }
-location ^~ /@id/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_10 http://encast-sdk:6006/@id/;
-  proxy_pass $up_encast_sdk_6006_10;
+location ~ ^/@id/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_id http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_id;
 }
+location ~ ^/node_modules/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_nm http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_nm;
+}
+location ~ ^/@fs/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_fs http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_fs;
+}
+
+# pruned by Calliope fastStorybookViteFixes
+
 location = /vite-inject-mocker-entry.js {
   proxy_set_header Host encast-sdk:6006;
   set $up_encast_sdk_6006_11 http://encast-sdk:6006/vite-inject-mocker-entry.js;
@@ -260,33 +287,47 @@ location ^~ /src/styles/ {
   set $up_encast_sdk_6006_13 http://encast-sdk:6006/src/styles/;
   proxy_pass $up_encast_sdk_6006_13;
 }
-location ^~ /node_modules/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_14 http://encast-sdk:6006/node_modules/;
-  proxy_pass $up_encast_sdk_6006_14;
-}
-location ^~ /.storybook/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_15 http://encast-sdk:6006/.storybook/;
-  proxy_pass $up_encast_sdk_6006_15;
-}
+# pruned by Calliope fastStorybookViteFixes
+
+# pruned by Calliope fastStorybookViteFixes
+
 
 # Same mappings when Storybook is mounted under /sdk/
-location ^~ /sdk/@vite/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_16 http://encast-sdk:6006/@vite/;
-  proxy_pass $up_encast_sdk_6006_16;
+# pruned by Calliope fastStorybookViteFixes
+
+location ~ ^/sdk/@vite/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_vite http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_vite;
 }
-location ^~ /sdk/@id/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_17 http://encast-sdk:6006/@id/;
-  proxy_pass $up_encast_sdk_6006_17;
+location ~ ^/sdk/@id/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_id http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_id;
 }
-location ^~ /sdk/node_modules/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_18 http://encast-sdk:6006/node_modules/;
-  proxy_pass $up_encast_sdk_6006_18;
+location ~ ^/sdk/node_modules/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_nm http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_nm;
 }
+location ~ ^/sdk/@fs/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_fs http://encast-sdk:6006;
+  proxy_pass $up_encast_sdk_6006_fs;
+}
+
+# pruned by Calliope fastStorybookViteFixes
+
+# pruned by Calliope fastStorybookViteFixes
+
 
 # Storybook manager and addon assets (root-level in SB9); forward to SDK
 location ^~ /sb-manager/ {
@@ -294,19 +335,16 @@ location ^~ /sb-manager/ {
   set $up_encast_sdk_6006_19 http://encast-sdk:6006/sb-manager/;
   proxy_pass $up_encast_sdk_6006_19;
 }
-location ^~ /sb-preview/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_20 http://encast-sdk:6006/sb-preview/;
-  proxy_pass $up_encast_sdk_6006_20;
-}
+# pruned by Calliope fastStorybookViteFixes
+
 location ^~ /sb-addons/ {
   proxy_set_header Host encast-sdk:6006;
   set $up_encast_sdk_6006_21 http://encast-sdk:6006/sb-addons/;
   proxy_pass $up_encast_sdk_6006_21;
 }
 location ^~ /sb-common-assets/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_22 http://encast-sdk:6006/sb-common-assets/;
+  proxy_set_header Host localhost:6006;
+  set $up_encast_sdk_6006_22 http://encast-sdk:6006;
   proxy_pass $up_encast_sdk_6006_22;
 }
 
@@ -394,11 +432,8 @@ location = /sdk/sb-manager/globals-runtime.js {
   proxy_hide_header Content-Type;
   add_header Content-Type application/javascript;
 }
-location ^~ /sdk/sb-preview/ {
-  proxy_set_header Host encast-sdk:6006;
-  set $up_encast_sdk_6006_34 http://encast-sdk:6006/sb-preview/;
-  proxy_pass $up_encast_sdk_6006_34;
-}
+# pruned by Calliope fastStorybookViteFixes
+
 
 # /sdk-prefixed story index endpoints
 location = /sdk/sb-index.json {
@@ -456,18 +491,8 @@ location ^~ /payment/ {
   proxy_pass http://$payment_upstream/; # trailing slash strips /payment/
 }
 
-location = /@vite/client {
-  proxy_set_header Host encast-sdk:6006;
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $up_encast_sdk_6006_39 http://encast-sdk:6006/@vite/client;
-  proxy_pass $up_encast_sdk_6006_39;
-}
+# pruned by Calliope fastStorybookViteFixes
 
-location = /sdk/@vite/client {
-  proxy_set_header Host encast-sdk:6006;
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $up_encast_sdk_6006_40 http://encast-sdk:6006/@vite/client;
-  proxy_pass $up_encast_sdk_6006_40;
-}
+
+# pruned by Calliope fastStorybookViteFixes
+

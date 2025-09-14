@@ -1,0 +1,300 @@
+location = /mxtk {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types text/html;
+  sub_filter_once off;
+  sub_filter "http://ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  sub_filter "http://ramileo.ngrok.app/_next" "https://ramileo.ngrok.app/_next";
+  sub_filter "//ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/;
+}
+
+location = /mxtk/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types text/html;
+  sub_filter_once off;
+  sub_filter "http://ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  sub_filter "http://ramileo.ngrok.app/_next" "https://ramileo.ngrok.app/_next";
+  sub_filter "//ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  proxy_pass http://$mxtk_site_dev_mxtk/;
+}
+
+# Map /mxtk public assets to upstream root public directory
+location = /mxtk/logo-horizontal.png {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/logo-horizontal.png;
+}
+
+location ^~ /mxtk/art/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  # Strip /mxtk prefix for public art assets
+  rewrite ^/mxtk/(.*)$ /$1 break;
+  proxy_pass http://$mxtk_site_dev_mxtk;
+}
+
+# Handle bare _next directory (prevent redirect loop)
+location = /mxtk/_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/_next;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+}
+
+# Also support absolute root-level Next dev assets when app emits absolute URLs
+location = /_next/ { return 204; }
+location = /_next { return 204; }
+
+location ^~ /_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  # Preserve full request URI to avoid duplicating /_next path
+  proxy_pass http://$mxtk_site_dev_mxtk;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+}
+
+# Next.js dev helper endpoints at root
+location = /__nextjs_original-stack-frames {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/__nextjs_original-stack-frames;
+}
+
+location ^~ /__nextjs_font/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk;
+}
+
+# Next.js assets and HMR - handle specific files
+location ~ ^/mxtk/_next/(.+)$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/_next/$1;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+}
+
+# Convenience for public assets under subpath
+location /mxtk/icons/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/icons/;
+}
+
+location ~ ^/mxtk/((robots\.txt|sitemap\.xml|manifest\.json|site\.webmanifest|apple-touch-icon\.png|favicon\.(ico|png|svg)))$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/$1;
+}
+
+
+location ~ ^/mxtk/.+ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header ngrok-skip-browser-warning true;
+  proxy_buffering off;
+  proxy_request_buffering off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types text/html;
+  sub_filter_once off;
+  sub_filter "http://ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  sub_filter "http://ramileo.ngrok.app/_next" "https://ramileo.ngrok.app/_next";
+  sub_filter "//ramileo.ngrok.app/_next/" "https://ramileo.ngrok.app/_next/";
+  proxy_pass http://$mxtk_site_dev_mxtk;
+}
+
+# Root-level static asset convenience mappings for mxtk
+location ^~ /art/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/art/;
+  add_header Cache-Control "public, max-age=60";
+}
+
+location = /art {
+  return 204;
+}
+location = /art/ { return 204; }
+ 
+
+location ^~ /icons/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/icons/;
+  add_header Cache-Control "public, max-age=60";
+}
+
+location = /icons {
+  return 204;
+}
+location = /icons/ { return 204; }
+ 
+
+# Root logo asset used by manifest and layout
+location = /logo-horizontal.png {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/logo-horizontal.png;
+}
+
+location = /manifest.json {
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto https;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk mxtk-site-dev:2000;
+  proxy_pass http://$mxtk_site_dev_mxtk/manifest.json;
+}
+
+## API under subpath: strip /mxtk when forwarding to upstream
+location ^~ /mxtk/api/ai/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /mxtk;
+  proxy_set_header ngrok-skip-browser-warning true;
+  proxy_buffering off;
+  proxy_request_buffering off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk $mxtk_site_dev_mxtk;
+  proxy_pass http://$mxtk_site_dev_mxtk/api/ai/;
+}
+
+# Subpath API when app calls relative to its mounted base
+location ^~ /mxtk/api/ai/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /mxtk;
+  proxy_set_header ngrok-skip-browser-warning true;
+  proxy_buffering off;
+  proxy_request_buffering off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk $mxtk_site_dev_mxtk;
+  # Strip the /mxtk prefix when forwarding to the app so API routes work as on localhost
+  proxy_pass http://$mxtk_site_dev_mxtk/api/ai/;
+}
+
+## Next assets are served under /mxtk when app sets basePath; no root rewrites needed
+
+location = /mxtk/__nextjs_original-stack-frames {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $mxtk_site_dev_mxtk $mxtk_site_dev_mxtk;
+  proxy_pass http://$mxtk_site_dev_mxtk/__nextjs_original-stack-frames;
+}
+
+
+location ^~ /mxtk/api/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /mxtk;
+  proxy_buffering off;
+  proxy_request_buffering off;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  
+  proxy_pass http://$mxtk_site_dev_mxtk/api/;
+}

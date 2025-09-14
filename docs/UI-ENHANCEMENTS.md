@@ -23,9 +23,8 @@ This document summarizes the UI improvements made to support Calliope's enhanced
 - ✅ Changed from generic link icon to rocket for better semantic meaning
 
 ### **Enhanced Action Buttons**
-- ✅ Updated Diagnose buttons to use 🩺 stethoscope icon (consistent with Calliope branding)
+- ✅ Updated Diagnose buttons to use the /status/assets/calliope_heart_stethoscope.svg icon (consistent with Calliope branding)
 - ✅ Added "Make Root" buttons with 🎓 graduation cap icon for non-root routes
-- ✅ Converted "Clear Root" to icon button (🗑️) to save space
 - ✅ Added comprehensive tooltips to all action buttons
 
 ### **Fixed Layout Issues**

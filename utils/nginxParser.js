@@ -10,17 +10,25 @@ const { applyResolutions } = require('./conflictResolver');
  * - Ignores internal dev-only paths like Next.js internals.
  */
 function parseAppsDirectory(appsDir) {
-  const files = fs.readdirSync(appsDir).filter(f => f.endsWith('.conf') && !f.startsWith('.'));
-  const results = [];
+  // Include overrides/*.conf first (override precedence), then apps/*.conf
+  const rootDir = path.dirname(appsDir);
+  const candidates = [];
 
-  for (const file of files) {
-    const fullPath = path.join(appsDir, file);
+  const tryList = (dir) => {
+    try { return fs.readdirSync(dir).filter(f => f.endsWith('.conf') && !f.startsWith('.')).map(f => path.join(dir, f)); }
+    catch { return []; }
+  };
+
+  const overridesDir = path.join(rootDir, 'overrides');
+  candidates.push(...tryList(overridesDir));
+  candidates.push(...tryList(appsDir));
+
+  const results = [];
+  for (const fullPath of candidates) {
     const text = fs.readFileSync(fullPath, 'utf8').trim();
-    
-    // Skip empty files (like .gitkeep)
     if (!text) continue;
-    
-    const parsed = parseSingleFile(text, { file });
+    const rel = path.relative(rootDir, fullPath) || path.basename(fullPath);
+    const parsed = parseSingleFile(text, { file: rel });
     results.push(...parsed);
   }
 
@@ -181,6 +189,18 @@ function shouldIgnoreRoute(route) {
   if (route.startsWith('/logo-')) return true;
   const assetBuckets = ['/art/', '/icons/', '/organizations/', '/minerals/', '/media/'];
   if (assetBuckets.some(p => route.startsWith(p))) return true;
+
+  // Generic rule: root-level dev-helper routes should be ignored.
+  // App routes must live under an app prefix; helpers like @vite, @id, @fs,
+  // node_modules, sb-* should not appear at the proxy root.
+  const devHelperRoots = [
+    '/@vite/', '/@id/', '/@fs/', '/node_modules/',
+    '/sb-manager/', '/sb-addons/', '/sb-common-assets/',
+    '/src/'
+  ];
+  const isDevHelperRoot = devHelperRoots.some(p => route.startsWith(p));
+  if (isDevHelperRoot) return true;
+  if (route === '/storybook-server-channel/' || route === '/storybook-server-channel') return true;
   return false;
 }
 
