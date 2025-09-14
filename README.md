@@ -46,6 +46,14 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
    Your routes (e.g., `/myapp`, `/api`) should work immediately.
 
+### Overrides and generated bundle (important)
+
+- The proxy composes `apps/*.conf` and `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`.
+- Nginx only loads the generated file, preventing app snippets from overwriting proxy-owned decisions.
+- Put minimal, targeted policy fixes in `overrides/*.conf` when a route must win regardless of app output.
+- Inspect the provenance header at the top of the generated file when debugging regressions.
+- See `docs/CONFIG-COMPOSITION.md` for details.
+
 7) **📊 Enhanced Status Dashboard with Calliope AI** (`/status`):
   - **Route Grouping**: Routes automatically grouped by base upstream URL
   - **Calliope Assistant**: Youthful, caring AI assistant for proactive diagnostics and healing  
@@ -78,7 +86,7 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    OPENAI_MODEL=gpt-4o-mini
    OPENAI_EMBED_MODEL=text-embedding-3-small
    ```
-   - Click 🩺 stethoscope icons to ask Calliope to diagnose and heal issues
+   - Click <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icons to ask Calliope to diagnose and heal issues
    - Chat interface for natural language questions and requests
    - Endpoints: `/api/ai/health`, `/api/ai/ask`, `/api/ai/self-check`, `/api/ai/advanced-heal`
    - See `docs/CALLIOPE-AI-ASSISTANT.md` for full capabilities
@@ -326,7 +334,7 @@ The Dev Tunnel Proxy uses a **multi-container architecture** instead of consolid
 ### Container Responsibilities
 
 - **`dev-proxy` (nginx)**: Pure reverse proxy + static file serving
-- **`conflict-api` (Node.js)**: REST API for config management and conflict resolution
+- **`calliope-api` (Node.js)**: REST API for config management and conflict resolution
 - **`auto-scan` (Node.js)**: Periodic route health monitoring and status generation
 - **`ngrok`**: Secure tunnel service to external networks
 

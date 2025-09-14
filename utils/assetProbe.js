@@ -3,7 +3,7 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-function fetchUrl(rawUrl, { timeoutMs = 10000, headers = {} } = {}) {
+function fetchUrl(rawUrl, { timeoutMs = 3000, headers = {}, method = 'HEAD' } = {}) {
   return new Promise((resolve) => {
     try {
       const urlObj = new URL(rawUrl);
@@ -14,7 +14,7 @@ function fetchUrl(rawUrl, { timeoutMs = 10000, headers = {} } = {}) {
           hostname: urlObj.hostname,
           port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
           path: urlObj.pathname + (urlObj.search || ''),
-          method: 'GET',
+          method,
           headers: Object.assign(
             {
               'user-agent': 'dev-proxy-asset-probe/1.0',
@@ -25,6 +25,17 @@ function fetchUrl(rawUrl, { timeoutMs = 10000, headers = {} } = {}) {
           timeout: timeoutMs,
         },
         (res) => {
+          // For HEAD, no body is expected
+          if (method === 'HEAD') {
+            resolve({
+              ok: res.statusCode >= 200 && res.statusCode < 300,
+              status: res.statusCode,
+              headers: res.headers,
+              size: 0,
+              body: '',
+            });
+            return;
+          }
           const chunks = [];
           res.on('data', (c) => chunks.push(c));
           res.on('end', () => {
@@ -66,6 +77,9 @@ function extractUrls(baseUrl, html) {
     if (!u) return;
     // ignore data: urls
     if (/^data:/i.test(u)) return;
+    // ignore javascript:, fragments, and obvious non-urls
+    if (/^(javascript:|#)/i.test(u)) return;
+    if (/^window\.location/i.test(u)) return;
     try {
       const absolute = new URL(u, baseUrl).toString();
       urls.add(absolute);
@@ -84,26 +98,59 @@ function extractUrls(baseUrl, html) {
   return Array.from(urls);
 }
 
-async function probe(baseUrl) {
+async function probe(baseUrl, { restrictToSameOrigin = true, restrictToRouteBase = '' } = {}) {
   const page = await fetchUrl(baseUrl);
   const assets = [];
+  let filtered = [];
   if (page.ok) {
     const urls = extractUrls(baseUrl, page.body || '');
-    const fetches = urls.map(async (u) => {
+    try {
+      const base = new URL(baseUrl);
+      filtered = urls.filter((u) => {
+        try {
+          const abs = new URL(u, baseUrl);
+          if (restrictToSameOrigin && abs.origin !== base.origin) return false;
+          if (restrictToRouteBase) {
+            const basePath = restrictToRouteBase.endsWith('/') ? restrictToRouteBase : restrictToRouteBase + '/';
+            if (!abs.pathname.startsWith(basePath)) return false;
+          }
+          return true;
+        } catch { return false; }
+      });
+    } catch { filtered = urls; }
+
+    const fetches = filtered.map(async (u) => {
       const res = await fetchUrl(u);
       let key = null;
       try {
         const uo = new URL(u);
         key = uo.pathname + (uo.search || '');
       } catch {}
+      // MIME validation: many module fetch failures are 200 text/html fallbacks
+      const contentType = (res.headers && (res.headers['content-type'] || '')) || '';
+      const pathLower = (key || u).toLowerCase();
+      const looksLikeJs = /\.(js|mjs|jsx|ts|tsx)(\?|$)/.test(pathLower) || /(^\/@id\/|^\/@vite\/|^\/@fs\/)/.test(pathLower);
+      const looksLikeCss = /\.(css)(\?|$)/.test(pathLower);
+      const looksLikeWasm = /\.(wasm)(\?|$)/.test(pathLower);
+      const isHtml = /text\/html/i.test(contentType);
+      const isJs = /javascript|ecmascript|module/i.test(contentType);
+      const isCss = /text\/css/i.test(contentType);
+      const isWasm = /application\/wasm/i.test(contentType);
+      let mimeOk = true;
+      if (looksLikeJs) mimeOk = isJs && !isHtml;
+      else if (looksLikeCss) mimeOk = isCss && !isHtml;
+      else if (looksLikeWasm) mimeOk = isWasm && !isHtml;
+      // Consider text/html for asset-looking paths as a failure even if 200
+      const ok = !!res.ok && mimeOk;
       return {
         url: u,
         key,
-        ok: !!res.ok,
+        ok,
         status: res.status || 0,
-        type: (res.headers && (res.headers['content-type'] || '')) || '',
+        type: contentType,
         size: res.size || 0,
         error: res.error || null,
+        mimeOk,
       };
     });
     const results = await Promise.all(fetches);
@@ -113,6 +160,8 @@ async function probe(baseUrl) {
     base: baseUrl,
     page: { ok: !!page.ok, status: page.status || 0, error: page.error || null },
     assets,
+    checkedCount: assets.length,
+    failed: assets.filter(x => !x.ok),
   };
 }
 

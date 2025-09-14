@@ -1,11 +1,26 @@
 .artifacts/
+!/.artifacts/calliope/
+/.artifacts/calliope/resources/
 test/node_modules/
 dashboard/node_modules/
+site-auditor-debug/node_modules/
+site-auditor-debug/site-auditor/
+site-auditor/node_modules/
+**/node_modules/
 mxtk-site/
 dev-proxy-report.*
 
 # Build artifacts
 build/
+dist/
+out/
+.next/
+coverage/
+*.tsbuildinfo
+*.cache/
+*.parcel-cache/
+*.vite/
+**/.turbo/
 
 # Environment
 .env
@@ -30,3 +45,7 @@ logs/
 *-DEBUG.md
 *-ANALYSIS.md
 *-NOTES.md
+
+# Site auditor outputs and test artifacts
+site-auditor-out/
+test-results/

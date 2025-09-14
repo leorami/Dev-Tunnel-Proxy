@@ -47,7 +47,8 @@ async function runForTarget(base, route, _unused_apiOwner) {
   let assets = [];
   let api = { asIs: [], prefixed: [] };
   if (htmlLike) {
-    const pr = await probe(url);
+    const routeBase = route.endsWith('/') ? route : route + '/';
+    const pr = await probe(url, { restrictToSameOrigin: true, restrictToRouteBase: routeBase });
     assets = pr.assets || [];
     const candidates = await scanApiCandidates(url, pageRes.body || '', assets);
     api.asIs = await testApiSet(base, candidates);
@@ -70,7 +71,11 @@ async function runForTarget(base, route, _unused_apiOwner) {
     url,
     status: pageRes.status || 0,
     htmlLike,
-    assetsSummary: { count: assets.length },
+    assetsSummary: {
+      count: assets.length,
+      failed: (assets || []).filter((a)=>!a.ok).length,
+      failedSamples: (assets || []).filter((a)=>!a.ok).slice(0,5).map(a=>({ path: a.key||a.url, status: a.status||0 }))
+    },
     apiSummary: { asIsFails: (api.asIs || []).filter((x) => !x.ok).length, prefixedFails: (api.prefixed || []).filter((x) => !x.ok).length },
     apiConflict,
     websocket: ws,

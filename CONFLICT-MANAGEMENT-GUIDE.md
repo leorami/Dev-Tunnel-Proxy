@@ -2,6 +2,52 @@
 
 The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes. Config serving now uses a generated bundle that composes inputs from `apps/` and `overrides/` so proxy-owned decisions always take precedence.
 
+## Overrides, Composition, and Precedence (important)
+
+To prevent regressions when an app re-generates its own nginx snippet, the proxy no longer includes `apps/*.conf` directly. Instead, it composes a single generated file `build/sites-enabled/apps.generated.conf` from two sources:
+
+- `apps/*.conf` — per-app, local, gitignored snippets managed by each app
+- `overrides/*.conf` — proxy-owned, canonical snippets that must win when a route needs to be enforced
+
+Precedence rules:
+- **Overrides win**: If both an app file and an override define the same `location` (exact or normalized prefix), the override’s block is emitted and the app is skipped for that route.
+- **No hardcoding of app names**: Overrides should be minimal and generic when possible; only target the necessary `location` blocks.
+- **Exact plus prefix can co-exist**: An exact match like `location = /myapp/` can live alongside a `location ^~ /myapp/` prefix. The composer keeps both.
+
+Lifecycle and safety rails:
+- The generator runs on start/restart/reload (`scripts/smart-build.sh`, `scripts/reload.sh`).
+- Nginx only loads the generated file, so app writes to `apps/` cannot overwrite canonical proxy behavior.
+- Inspect the provenance header at the top of `apps.generated.conf` for the list of included app files and overrides.
+
+When should you add an override?
+- A proxy-side fix must take precedence regardless of app changes.
+- You need to neutralize an app-generated snippet that conflicts with proxy policy.
+- You want a temporary shim while coordinating a fix in the app codebase.
+
+See `docs/CONFIG-COMPOSITION.md` for full details and examples.
+
+### Recommended Workflow: Iterate → Promote
+
+- Iterate in `apps/` while developing fixes. Ensure no file with the same name exists in `overrides/`, otherwise your app edits will be ignored for matching locations.
+- Promote to `overrides/` once stable. Copy the finalized app snippet to `overrides/` so it becomes proxy-owned and always wins.
+- Reload using `./scripts/reload.sh` (the generator runs automatically).
+
+Commands:
+
+```bash
+# Use app version during iteration
+rm -f overrides/encast.conf
+./scripts/reload.sh
+
+# When ready, promote to overrides (proxy-owned precedence)
+cp -f apps/encast.conf overrides/encast.conf
+./scripts/reload.sh
+
+# Or use the API to promote without shell copy
+curl -s -X POST http://localhost:3001/api/overrides/promote \
+  -H 'Content-Type: application/json' -d '{"filename":"encast.conf"}' | jq
+```
+
 ## What Are Route Conflicts?
 
 Route conflicts occur when multiple nginx configuration files (`*.conf` files in the `apps/` directory) declare the same `location` block:
@@ -45,7 +91,7 @@ By default, the proxy uses a **"first config wins"** strategy when scanning app 
 
 ### 2. Enhanced Visual Interface (🆕)
 
-The `/status` page now features a completely redesigned interface for conflict management:
+The `/status` provides the followingconflict management features:
 
 #### Smart Route Organization
 - **Route Grouping**: All routes automatically grouped by base upstream URL (nginx variables group by variable name, e.g., `$myapp_upstream`) (🆕)
@@ -59,7 +105,7 @@ The `/status` page now features a completely redesigned interface for conflict m
 - **Route Renaming**: Rename conflicted routes directly in the enhanced interface
 - **Persistent Decisions**: All conflict resolutions saved and persist across restarts
 
-#### Improved Config Management
+#### Config Management
 - **Per-Config Views**: Filter and view routes by specific config files
 - **JSON Export**: Export filtered route data for each config file  
 - **Live Reload**: Refresh configurations without leaving the interface

@@ -40,6 +40,36 @@ test.describe('Status Dashboard', () => {
     // Screenshot for baseline/regression
     await page.screenshot({ path: `${testInfo.outputDir}/status.png`, fullPage: true });
   });
+
+  test('Clicking stethoscope runs Calliope health when enabled', async ({ page }) => {
+    await page.goto('/status', { waitUntil: 'domcontentloaded' });
+
+    // Force-enable Calliope affordances for deterministic behavior in CI
+    await page.evaluate(() => {
+      // @ts-ignore
+      window.__calliopeEnabled = true;
+      document.body.classList.add('calliope-enabled');
+    });
+
+    // Find a specific Diagnose/Calliope button, not the drawer tab
+    const btn = page.locator('button[title="Diagnose with Calliope"]').first();
+    await btn.waitFor();
+
+    // Drawer should be initially collapsed
+    const drawer = page.locator('#aiDrawer');
+    await drawer.waitFor();
+    const collapsedBefore = await drawer.getAttribute('class');
+
+    // Click the button
+    await btn.click();
+
+    // Expect greeting bubble to appear
+    await page.getByText(/Heya! One sec while I listen to/i).waitFor();
+
+    // Drawer should be open
+    const collapsedAfter = await drawer.getAttribute('class');
+    expect(collapsedAfter?.includes('collapsed')).toBeFalsy();
+  });
 });
 
 
