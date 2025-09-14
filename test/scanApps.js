@@ -14,7 +14,7 @@ function ensureDirs() {
 }
 
 function isAssetBucket(route) {
-  const buckets = ['/art/', '/icons/', '/organizations/', '/minerals/', '/media/'];
+  const buckets = [];
   return buckets.some((b) => route.startsWith(b));
 }
 

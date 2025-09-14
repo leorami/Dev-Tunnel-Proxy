@@ -187,7 +187,7 @@ function shouldIgnoreRoute(route) {
   if (route.startsWith('/__next')) return true;
   if (route.startsWith('/favicon')) return true;
   if (route.startsWith('/logo-')) return true;
-  const assetBuckets = ['/organizations/', '/minerals/', '/media/'];
+  const assetBuckets = [];
   if (assetBuckets.some(p => route.startsWith(p))) return true;
 
   // Generic rule: root-level dev-helper routes should be ignored.
