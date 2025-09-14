@@ -7,6 +7,10 @@
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
+    <script>
+      // Default the global flag early so handlers never see undefined
+      window.__calliopeEnabled = false;
+    </script>
     <style>
       :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px}
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14}
@@ -27,7 +31,7 @@
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .container{max-width:1100px;margin:24px auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
-      .summaryRow{position:sticky;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));z-index:2004;background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px)}
+      .summaryRow{position:sticky;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));z-index:2004;background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);border-radius: 12px;}
       .appsHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;position:sticky;top:calc(var(--headerH, 64px) + var(--summaryH, 0px));z-index:590;background:var(--headerBg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
       .appsHeader .toolbar{padding-top:0}
       .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease}
@@ -40,7 +44,7 @@
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
-      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative;padding-right:80px}
+      .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative}
       .app:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
       .app.ok{border-color:rgba(22,199,132,.7);box-shadow:0 0 0 2px rgba(22,199,132,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
       .app.warn{border-color:rgba(245,158,11,.7);box-shadow:0 0 0 2px rgba(245,158,11,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
@@ -140,20 +144,22 @@
 
       /* Hierarchical Route Styles */
       .expandable-route{position:relative}
-      .route-header{cursor:pointer;padding:8px;border-radius:6px;transition:background-color 0.2s;display:flex;align-items:center;justify-content:space-between}
+      .route-header{cursor:pointer;padding:8px;border-radius:6px;transition:background-color 0.2s;display:flex;align-items:center;justify-content:space-between;position:relative}
       .route-header:hover{background:rgba(255,255,255,.05)}
       .route-title{display:flex;align-items:center;gap:8px;font-weight:600}
       .expand-icon{transition:transform 0.2s;font-size:12px;width:12px}
+      .route-chips-section{padding:8px;display:flex;flex-direction:column;gap:6px}
       .route-name{font-size:16px}
       .child-count{font-size:12px;color:var(--muted);font-weight:400}
       .route-children{margin-top:8px;margin-left:20px;border-left:2px solid var(--border);padding-left:16px}
       .route-children.hidden{display:none}
       .child-route{margin-bottom:8px;padding:8px;background:var(--appBgGlass);border-radius:6px;border-left:3px solid var(--border)}
-      .child-route-name{font-size:14px;color:var(--muted);margin-bottom:4px;flex:1}
-      .child-route-header{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+      .child-route-name{font-size:14px;color:var(--muted)}
+      .child-route-header{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:6px;transition:background-color 0.2s}
+      .child-route-header:hover{background:rgba(255,255,255,.05)}
       .header-action-btn{background:none;border:none;color:var(--textSecondary);cursor:pointer;padding:4px 8px;border-radius:4px;transition:all 0.2s ease;font-size:14px}
       .header-action-btn:hover{background:rgba(255,255,255,.1);color:var(--text)}
-      .route-header{display:flex;flex-direction:column;gap:6px;padding:8px;position:relative}
+      .route-header{display:flex;gap:6px;padding:8px;position:relative}
       .route-header:first-child{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
       .route-title{flex:1;display:flex;align-items:center;gap:8px}
       .icon-actions{position:absolute;top:8px;right:42px;display:flex;gap:8px;align-items:center}
@@ -169,17 +175,21 @@
       .route-controls .btn{margin-right:6px}
       .route-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;z-index:10}
       .route-actions .btn{margin-right:6px;min-width:60px}
-      /* Collapse controls */
-      .collapse-toggle{position:absolute;top:8px;right:8px;border:1.5px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:14px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-      .collapse-toggle:hover{background:var(--btnBgHover)}
+      /* Action buttons container */
+      .action-buttons-container{display:flex;gap:6px;align-items:center;z-index:10}
+      
+      /* Universal circular button style */
+      .circular-action-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--btnBorder);background:white;color:var(--btnText);border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);transition:background 0.2s ease}
+      .circular-action-btn:hover{background:#f0f0f0}
+      .circular-action-btn svg{width:18px;height:18px;display:block}
+      .circular-action-btn img{width:16px;height:16px;display:block}
+      
+      /* Legacy styles for compatibility */
       .icon-actions{position:absolute;top:8px;right:42px;display:flex;gap:8px;align-items:center}
-      .icon-actions .icon-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
-      .icon-actions .icon-btn:hover{background:var(--btnBgHover)}
+      .icon-actions .icon-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--btnBorder);background:white;color:var(--btnText);border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);transition:background 0.2s ease}
+      .icon-actions .icon-btn:hover{background:#f0f0f0}
       .icon-actions .icon-btn svg{width:18px;height:18px;display:block}
       .root-actions{position:absolute;top:8px;right:8px;display:flex;gap:8px;align-items:center}
-      .collapsed-bar{display:none;align-items:center;gap:8px;font-weight:700}
-      .app.collapsed .collapsed-bar{display:flex}
-      .app.collapsed > *:not(.collapse-toggle):not(.collapsed-bar){display:none}
 
       /* Hover scroll helpers */
       .hover-scroll{overflow:auto}
@@ -189,10 +199,10 @@
       .ai-drawer{position:fixed;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));right:0;height:calc(100vh - (var(--headerH, 64px) + var(--summaryGap, 12px)));width:var(--aiWidth);z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
       .ai-drawer.collapsed{transform:translateX(calc(100% - 28px));border-left:none;box-shadow:none}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
-      .ai-tab{position:absolute;left:-36px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:var(--btnBg);border:2px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25)}
-      .ai-tab .icon-steth{display:inline-flex;align-items:center;justify-content:center;margin-bottom:8px}
-      .ai-tab .icon-steth svg{width:20px;height:20px;display:block}
-      .ai-tab .label{letter-spacing:.3px}
+      .ai-tab{position:absolute;left:-36px;top:50%;transform:translateY(-50%);background:var(--btnBg);border:2px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:8px}
+      .ai-tab .icon-steth{display:flex;align-items:center;justify-content:center}
+      .ai-tab .icon-steth img{width:20px;height:20px;display:block;transform: rotate(270deg);}
+      .ai-tab .label{letter-spacing:.3px;writing-mode:vertical-rl;text-orientation:mixed;transform: rotate(180deg);}
       .ai-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
       .ai-header h2{margin:0;font-size:14px;color:var(--heading)}
       .ai-meta{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap}
@@ -268,6 +278,7 @@
         <div class="header-actions">
           <a class="btn" href="/health">Health</a>
           <a class="btn" href="/reports/">Reports</a>
+          <a class="btn" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
           <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
         </div>
@@ -295,38 +306,12 @@
 
       <div class="ai-drawer collapsed" id="aiDrawer">
         <button class="ai-tab" id="aiTab" title="Calliope">
-          <span class="icon-steth" aria-hidden="true">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="pinkSteth" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#ff8fd3"/>
-                  <stop offset="100%" stop-color="#ff5bbd"/>
-                </linearGradient>
-                <linearGradient id="metalGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f0f3f6"/>
-                  <stop offset="45%" stop-color="#cfd5dc"/>
-                  <stop offset="100%" stop-color="#8a9099"/>
-                </linearGradient>
-              </defs>
-              <g fill="none" stroke="url(#pinkSteth)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                <!-- Heart-shaped tube (open aesthetic) -->
-                <path d="M12 21c-3.9-2.7-6.6-4.9-8.4-6.6c-2.3-2.1-2.7-5.5-.4-7.1c1.7-1.2 4.1-.7 5.5.9c.5.6 1 1.3 1.3 2c.3-.7.8-1.4 1.3-2c1.4-1.6 3.8-2.1 5.5-.9c2.3 1.5 1.9 5-.4 7.1C18.6 16.1 15.9 18.3 12 21"/>
-                <!-- Earpieces -->
-                <circle cx="6.0" cy="6.0" r="1.2" fill="url(#pinkSteth)" stroke="none"/>
-                <circle cx="18.0" cy="6.0" r="1.2" fill="url(#pinkSteth)" stroke="none"/>
-                <!-- Metallic chestpiece (distinct from tube) -->
-                <circle cx="7.4" cy="16.6" r="1.9" fill="url(#metalGrad)" stroke="none"/>
-                <circle cx="7.4" cy="16.6" r="2.5"/>
-              </g>
-            </svg>
-          </span>
-          <span class="label">Calliope</span>
+          <div class="icon-steth" aria-hidden="true">
+            <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope Stethoscope" style="width:20px;height:20px;display:block;">
+          </div>
+          <div class="label">Calliope</div>
         </button>
         
-        <!-- Healing History Badge -->
-        <div class="healing-badge" id="healingBadge" title="Self-healing history">
-          <span class="healing-count">0</span>
-        </div>
         
         <!-- Healing History Panel -->
         <div class="healing-history" id="healingHistory">
@@ -342,26 +327,7 @@
         <div class="ai-header">
           <h2>
             <span class="icon-steth-header" aria-hidden="true">
-              <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="width:20px;height:20px;vertical-align:middle;margin-right:8px">
-                <defs>
-                  <linearGradient id="pinkStethHeader" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#ff8fd3"/>
-                    <stop offset="100%" stop-color="#ff5bbd"/>
-                  </linearGradient>
-                  <linearGradient id="metalGradHeader" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#f0f3f6"/>
-                    <stop offset="45%" stop-color="#cfd5dc"/>
-                    <stop offset="100%" stop-color="#8a9099"/>
-                  </linearGradient>
-                </defs>
-                <g fill="none" stroke="url(#pinkStethHeader)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 21c-3.9-2.7-6.6-4.9-8.4-6.6c-2.3-2.1-2.7-5.5-.4-7.1c1.7-1.2 4.1-.7 5.5.9c.5.6 1 1.3 1.3 2c.3-.7.8-1.4 1.3-2c1.4-1.6 3.8-2.1 5.5-.9c2.3 1.5 1.9 5-.4 7.1C18.6 16.1 15.9 18.3 12 21"/>
-                  <circle cx="6.0" cy="6.0" r="1.2" fill="url(#pinkStethHeader)" stroke="none"/>
-                  <circle cx="18.0" cy="6.0" r="1.2" fill="url(#pinkStethHeader)" stroke="none"/>
-                  <circle cx="7.4" cy="16.6" r="1.9" fill="url(#metalGradHeader)" stroke="none"/>
-                  <circle cx="7.4" cy="16.6" r="2.5" stroke="url(#pinkStethHeader)"/>
-                </g>
-              </svg>
+              <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope Stethoscope" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;">
             </span>
             Calliope
           </h2>
@@ -506,17 +472,6 @@
         try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
       }
       function savePrefs(p){ localStorage.setItem('statusPrefs', JSON.stringify(p||{})); }
-      function isCollapsed(route){
-        preferences = preferences || loadPrefs();
-        const c = preferences.collapsedRoutes || {};
-        return !!c[route];
-      }
-      function setCollapsed(route, val){
-        preferences = preferences || loadPrefs();
-        preferences.collapsedRoutes = preferences.collapsedRoutes || {};
-        if (val) preferences.collapsedRoutes[route] = true; else delete preferences.collapsedRoutes[route];
-        savePrefs(preferences);
-      }
       function loadPromotions(){
         try{ return JSON.parse(localStorage.getItem('routePromotions')||'{}'); }catch{ return {}; }
       }
@@ -725,13 +680,36 @@
           jsonBtn.className = 'btn btn-small';
           jsonBtn.textContent = 'JSON';
           jsonBtn.addEventListener('click', (e)=>{ e.preventDefault(); viewSourceJson(source, bySource[source]); });
-          const recBtn = document.createElement('a');
-          recBtn.className = 'btn btn-small'; recBtn.href = '#'; recBtn.textContent = 'Recommend';
-          recBtn.addEventListener('click', (e)=>{ e.preventDefault(); openRecommendModal(routesData, bySource[source]); });
+          const resolveBtn = document.createElement('a');
+          resolveBtn.className = 'btn btn-small'; resolveBtn.href = '#'; resolveBtn.textContent = 'Resolve Override';
+          resolveBtn.style.display = 'none';
+          resolveBtn.addEventListener('click', async (e)=>{
+            e.preventDefault();
+            const filename = (source||'').split('/').pop();
+            if (!filename) return;
+            if (!confirm(`Promote app version '${filename}' into overrides? This will replace overrides/${filename}.`)) return;
+            try{
+              const resp = await fetch('/api/overrides/promote', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ filename }) });
+              if (!resp.ok){
+                const j = await resp.json().catch(()=>({error:'request_failed'}));
+                alert(`Failed to promote: ${j.error||resp.status}`);
+              } else {
+                alert('Promoted and reloaded nginx. Regenerating view...');
+                location.reload();
+              }
+            }catch(err){ alert('Error: '+err.message); }
+          });
           buttonGroup.appendChild(jsonBtn);
-          buttonGroup.appendChild(recBtn);
+          buttonGroup.appendChild(resolveBtn);
           head.appendChild(h2);
           head.appendChild(buttonGroup);
+          // If this source has a basename conflict, show resolve button now
+          try {
+            const basename = (source||'').split('/').pop();
+            if (basename && window.conflictByName && window.conflictByName.has(basename)){
+              resolveBtn.style.display = '';
+            }
+          } catch {}
           groupCard.appendChild(head);
 
           const list = document.createElement('div');
@@ -752,30 +730,35 @@
             const app = document.createElement('div');
             app.className = 'app';
 
-            // Collapse toggle + collapsed summary bar
-            const toggle = document.createElement('button');
-            toggle.className = 'collapse-toggle';
-            toggle.type = 'button';
-            toggle.title = 'Collapse/Expand';
-            toggle.textContent = isCollapsed(group.route) ? '▢' : '▣';
-            app.appendChild(toggle);
-            const collapsedBar = document.createElement('div');
-            collapsedBar.className = 'collapsed-bar';
-            const rootTag = (group.children && group.children.length>0) ? ' (root)' : '';
-            collapsedBar.textContent = `${group.route}${rootTag}`;
-            app.appendChild(collapsedBar);
-            toggle.addEventListener('click', (e)=>{
-              e.stopPropagation();
-              const now = !app.classList.contains('collapsed');
-              app.classList.toggle('collapsed', now);
-              setCollapsed(group.route, now);
-              toggle.textContent = now ? '▢' : '▣';
-            });
+            // Create unified action buttons container
+            const actionContainer = document.createElement('div');
+            actionContainer.className = 'action-buttons-container';
+            
+            // Create action buttons in order: Open, Promote, Calliope, Diagnose
+            function createActionButton(type, options = {}) {
+              const btn = document.createElement('button');
+              btn.className = 'circular-action-btn';
+              btn.type = 'button';
+              btn.title = options.title || '';
+              btn.setAttribute('aria-label', options.ariaLabel || options.title || '');
+              if (options.innerHTML) btn.innerHTML = options.innerHTML;
+              else btn.textContent = options.text || '';
+              if (options.dataset) {
+                Object.entries(options.dataset).forEach(([key, value]) => {
+                  btn.dataset[key] = value;
+                });
+              }
+              return btn;
+            }
+            
+            app.appendChild(actionContainer);
 
             if (group.children && group.children.length > 0) {
               app.classList.add('expandable-route');
               const header = document.createElement('div');
               header.className = 'route-header';
+              
+              // Add title directly to header (left side)
               const titleSection = document.createElement('div');
               titleSection.className = 'route-title';
               titleSection.innerHTML = `
@@ -785,28 +768,89 @@
               `;
               header.appendChild(titleSection);
               
-              // Add Open button to header
-              const openBtn = document.createElement('button');
-              openBtn.className = 'header-action-btn';
-              openBtn.title = 'Open Route';
-              openBtn.setAttribute('aria-label','Open Route');
-              openBtn.innerHTML = '🚀';
+              // Add action buttons directly to header (right side)
+              header.appendChild(actionContainer);
+              
+              // Ensure action order: Open, Dashboard, Promote, Calliope
+              // Add Open button
+              const openBtn = createActionButton('open', {
+                title: 'Open Route',
+                innerHTML: '🚀',
+                dataset: { route: group.route }
+              });
               openBtn.addEventListener('click', (e) => {
                 e.preventDefault(); 
                 e.stopPropagation();
                 const url = chooseOpenUrl(routes, targets, group.route);
                 if (url) window.open(url, '_blank', 'noopener');
               });
-              header.appendChild(openBtn);
+              actionContainer.appendChild(openBtn);
+              
+              // Add Dashboard button
+              const dashBtn = createActionButton('dashboard', {
+                title: 'Open Dashboard (route-focused)',
+                innerHTML: '📊',
+                dataset: { route: group.route }
+              });
+              dashBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const route = group.route;
+                const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                const qp = new URLSearchParams();
+                if (route) qp.set('route', route);
+                if (url) qp.set('url', url);
+                window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+              });
+              actionContainer.appendChild(dashBtn);
+              
+              // Add Promote button (make this expandable group's route the root)
+              const promoteGroupBtn = createActionButton('promote', {
+                title: 'Make Root Route',
+                innerHTML: '🎓',
+                dataset: { route: group.route }
+              });
+              promoteGroupBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const base = group.baseKey || normalizeBase(meta[group.route]?.upstream || '');
+                if (!promotedRoots) promotedRoots = loadPromotions();
+                promotedRoots[base] = group.route;
+                savePromotions(promotedRoots);
+                rebuildApps();
+              });
+              actionContainer.appendChild(promoteGroupBtn);
+
+              // Add Calliope button last
+              const calliopeBtn = createActionButton('calliope', {
+                title: 'Calliope Audit + Heal',
+                innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                dataset: { route: group.route }
+              });
+              calliopeBtn.onclick = function(e){
+                e.preventDefault(); e.stopPropagation();
+                try { runCalliopeHealth(group.route); } catch(_) {
+                  const drawer = document.getElementById('aiDrawer');
+                  if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                }
+              };
+              actionContainer.appendChild(calliopeBtn);
+              
+              // Create chips section (below header)
+              const chipsSection = document.createElement('div');
+              chipsSection.className = 'route-chips-section';
+              
               const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
               const baseChipContainer = document.createElement('div');
               baseChipContainer.className = 'chips';
               baseChipContainer.appendChild(baseChip);
-              header.appendChild(baseChipContainer);
+              chipsSection.appendChild(baseChipContainer);
+              
               const parentStatusContainer = document.createElement('div');
               parentStatusContainer.className = 'chips parent-status';
               addStatusChips(parentStatusContainer, group.route, targets, routes);
-              header.appendChild(parentStatusContainer);
+              chipsSection.appendChild(parentStatusContainer);
+              
               const summaryChips = document.createElement('div');
               summaryChips.className = 'chips child-summary';
               (group.children||[]).forEach(childRoute=>{
@@ -818,24 +862,8 @@
                 const sc = chip(label, `small ${sev}`);
                 summaryChips.appendChild(sc);
               });
-              header.appendChild(summaryChips);
-              // Remove promote chips from parent header - they'll be on child cards instead
-              // Only keep the Clear Root button in the root-actions area
-              // Root actions removed - auto-grouping only from now on
-              const icons = document.createElement('div');
-              icons.className = 'icon-actions';
-              const diagBtn = document.createElement('button');
-              diagBtn.className = 'icon-btn';
-              diagBtn.title = 'Diagnose with Calliope';
-              diagBtn.setAttribute('aria-label','Diagnose with Calliope');
-              diagBtn.textContent = '🩺';
-              diagBtn.dataset.route = group.route;
-              diagBtn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-                openDiagnoseModal(group.route, targets, routes);
-              });
-              icons.appendChild(diagBtn);
-              app.appendChild(icons);
+              chipsSection.appendChild(summaryChips);
+              
               const childrenContainer = document.createElement('div');
               childrenContainer.className = 'route-children hidden';
               group.children.forEach(child => {
@@ -845,58 +873,71 @@
                 childTitle.className = 'route child-route-name';
                 childTitle.textContent = child;
                 
-                // Add Open button to child route header
-                const childOpenBtn = document.createElement('button');
-                childOpenBtn.className = 'header-action-btn';
-                childOpenBtn.title = 'Open Route';
-                childOpenBtn.setAttribute('aria-label','Open Route');
-                childOpenBtn.innerHTML = '🚀';
+                // Create child route action container
+                const childActionContainer = document.createElement('div');
+                childActionContainer.className = 'action-buttons-container';
+                
+                // Add Open button to child action container
+                const childOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: child }
+                });
                 childOpenBtn.addEventListener('click', (e) => {
                   e.preventDefault(); 
                   e.stopPropagation();
                   const url = chooseOpenUrl(routes, targets, child);
                   if (url) window.open(url, '_blank', 'noopener');
                 });
+                childActionContainer.appendChild(childOpenBtn);
+                
+                // Add Dashboard button (child)
+                const childDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: child }
+                });
+                childDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = child;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                childActionContainer.appendChild(childDashBtn);
                 
                 const childHeader = document.createElement('div');
                 childHeader.className = 'child-route-header';
                 childHeader.appendChild(childTitle);
-                childHeader.appendChild(childOpenBtn);
+                childHeader.appendChild(childActionContainer);
                 childApp.appendChild(childHeader);
+                
+                // Create chips section for child routes
+                const childChipsSection = document.createElement('div');
+                childChipsSection.className = 'route-chips-section';
+                
                 const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
                 const childBaseContainer = document.createElement('div');
                 childBaseContainer.className = 'chips';
                 childBaseContainer.appendChild(childBaseChip);
-                childApp.appendChild(childBaseContainer);
+                childChipsSection.appendChild(childBaseContainer);
+                
                 const childStatusContainer = document.createElement('div');
                 childStatusContainer.className = 'chips route-status';
                 addStatusChips(childStatusContainer, child, targets, routes);
-                childApp.appendChild(childStatusContainer);
+                childChipsSection.appendChild(childStatusContainer);
                 
-                // Create a route-actions area for normal actions
-                const childIcons = document.createElement('div');
-                childIcons.className = 'chips route-actions';
-                const childDiagBtn = document.createElement('button');
-                childDiagBtn.className = 'btn btn-small';
-                childDiagBtn.title = 'Diagnose with Calliope';
-                childDiagBtn.setAttribute('aria-label','Diagnose with Calliope');
-                childDiagBtn.textContent = '🩺';
-                childDiagBtn.dataset.route = child;
-                childDiagBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  openDiagnoseModal(child, targets, routes);
+                childApp.appendChild(childChipsSection);
+                
+                // Add Promote button (for children only)
+                const promoteBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: child }
                 });
-                childIcons.appendChild(childDiagBtn);
-                childApp.appendChild(childIcons);
-                
-                // Add dedicated bottom-right promote button per child
-                const childActions = document.createElement('div');
-                childActions.className = 'root-actions'; // Reuse the same positioning class
-                const promoteBtn = document.createElement('button');
-                promoteBtn.className = 'btn btn-small';
-                promoteBtn.title = 'Make Root Route';
-                promoteBtn.setAttribute('aria-label','Make Root Route');
-                promoteBtn.innerHTML = '🎓';
                 promoteBtn.addEventListener('click',(e)=>{
                   e.preventDefault();
                   e.stopPropagation(); // Prevent card expansion
@@ -906,8 +947,22 @@
                   savePromotions(promotedRoots);
                   rebuildApps();
                 });
-                childActions.appendChild(promoteBtn);
-                childApp.appendChild(childActions);
+                childActionContainer.appendChild(promoteBtn);
+                
+                // Add Calliope button (child)
+                const childCalliopeBtn = createActionButton('calliope', {
+                  title: 'Calliope Audit + Heal',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: child }
+                });
+                childCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(child); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                childActionContainer.appendChild(childCalliopeBtn);
                 childrenContainer.appendChild(childApp);
               });
               header.addEventListener('click', () => {
@@ -933,6 +988,7 @@
                 }
               }
               app.appendChild(header);
+              app.appendChild(chipsSection);
               app.appendChild(childrenContainer);
               applySeverityToApp(app, group.route, targets, routes);
             } else {
@@ -941,6 +997,8 @@
                 app.classList.add('expandable-route');
                 const header = document.createElement('div');
                 header.className = 'route-header';
+                
+                // Add title directly to header (left side, no chevron for promoted routes)
                 const titleSection = document.createElement('div');
                 titleSection.className = 'route-title';
                 titleSection.innerHTML = `
@@ -948,59 +1006,161 @@
                   <span class="child-count">(root)</span>
                 `;
                 header.appendChild(titleSection);
+                
+                // Add action buttons directly to header (right side)
+                header.appendChild(actionContainer);
+                
+                // Create chips section for promoted routes
+                const promotedChipsSection = document.createElement('div');
+                promotedChipsSection.className = 'route-chips-section';
+                
                 const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
                 const baseChipContainer = document.createElement('div');
                 baseChipContainer.className = 'chips';
                 baseChipContainer.appendChild(baseChip);
-                header.appendChild(baseChipContainer);
+                promotedChipsSection.appendChild(baseChipContainer);
+                
                 const statusContainer = document.createElement('div');
                 statusContainer.className = 'chips parent-status';
                 addStatusChips(statusContainer, group.route, targets, routes);
-                header.appendChild(statusContainer);
+                promotedChipsSection.appendChild(statusContainer);
+                
                 const summaryChips = document.createElement('div');
                 summaryChips.className = 'chips child-summary';
-                header.appendChild(summaryChips);
-                // Move Clear Root to bottom-right corner
-                // Root actions removed - auto-grouping only from now on
-                const icons = document.createElement('div');
-                icons.className = 'icon-actions';
-                const diagBtn = document.createElement('button');
-                diagBtn.className = 'icon-btn';
-                diagBtn.title = 'Diagnose with Calliope';
-                diagBtn.setAttribute('aria-label','Diagnose with Calliope');
-                diagBtn.textContent = '🩺';
-                diagBtn.dataset.route = group.route;
-                diagBtn.addEventListener('click', (e) => {
-                  e.preventDefault(); e.stopPropagation();
-                  openDiagnoseModal(group.route, targets, routes);
+                promotedChipsSection.appendChild(summaryChips);
+                
+                // Add Open button for promoted routes
+                const promotedOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: group.route }
                 });
-                icons.appendChild(diagBtn);
-                app.appendChild(icons);
+                promotedOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                actionContainer.appendChild(promotedOpenBtn);
+                
+                // Add Dashboard button for promoted routes
+                const promotedDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: group.route }
+                });
+                promotedDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = group.route;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                actionContainer.appendChild(promotedDashBtn);
+                
+                // Add Promote button for promoted routes (idempotent)
+                const promotedPromoteBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: group.route }
+                });
+                promotedPromoteBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const base = normalizeBase(meta[group.route]?.upstream || '');
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = group.route;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                actionContainer.appendChild(promotedPromoteBtn);
+
+                // Ensure order: Open, Dashboard, Promote, Calliope
+                // Add Calliope button for promoted routes
+                const promotedCalliopeBtn = createActionButton('calliope', {
+                  title: 'Calliope Audit + Heal',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: group.route }
+                });
+                promotedCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(group.route); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                actionContainer.appendChild(promotedCalliopeBtn);
                 app.appendChild(header);
+                app.appendChild(promotedChipsSection);
               } else {
-                const title = document.createElement('div');
-                title.className = 'route';
-                title.textContent = group.route;
-                app.appendChild(title);
+                // Create header for standalone routes
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                
+                // Add title directly to header (left side, no chevron for standalone routes)
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                titleSection.innerHTML = `<span class="route-name">${group.route}</span>`;
+                header.appendChild(titleSection);
+                
+                // Add action buttons directly to header (right side)
+                header.appendChild(actionContainer);
+                
+                // Create chips section for standalone routes
+                const standaloneChipsSection = document.createElement('div');
+                standaloneChipsSection.className = 'route-chips-section';
+                
                 const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
                 const baseContainer = document.createElement('div');
                 baseContainer.className = 'chips';
                 baseContainer.appendChild(baseChip);
-                app.appendChild(baseContainer);
+                standaloneChipsSection.appendChild(baseContainer);
+                
                 const statusContainer = document.createElement('div');
                 statusContainer.className = 'chips route-status';
                 addStatusChips(statusContainer, group.route, targets, routes);
-                app.appendChild(statusContainer);
-                // Remove promote chips at parent card; actions live on each child
-                const actions = document.createElement('div');
-                actions.className = 'chips route-actions';
+                standaloneChipsSection.appendChild(statusContainer);
                 
-                // Add Make Root button for routes without parent root
-                const makeRootBtn = document.createElement('button');
-                makeRootBtn.className = 'btn btn-small';
-                makeRootBtn.title = 'Make Root Route';
-                makeRootBtn.setAttribute('aria-label','Make Root Route');
-                makeRootBtn.innerHTML = '🎓';
+                // Add Open button for standalone routes
+                const standaloneOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: group.route }
+                });
+                standaloneOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                actionContainer.appendChild(standaloneOpenBtn);
+                
+                // Add Dashboard button for standalone routes
+                const standaloneDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: group.route }
+                });
+                standaloneDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = group.route;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                actionContainer.appendChild(standaloneDashBtn);
+                
+                // Add Make Root button for standalone routes
+                const makeRootBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: group.route }
+                });
                 makeRootBtn.addEventListener('click', (e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -1010,23 +1170,29 @@
                   savePromotions(promotedRoots);
                   rebuildApps();
                 });
-                actions.appendChild(makeRootBtn);
+                actionContainer.appendChild(makeRootBtn);
                 
-                const diagBtn = document.createElement('button');
-                diagBtn.className = 'btn btn-small';
-                diagBtn.title = 'Diagnose with Calliope';
-                diagBtn.setAttribute('aria-label','Diagnose with Calliope');
-                diagBtn.textContent = '🩺';
-                diagBtn.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  openDiagnoseModal(group.route, targets, routes);
+                // Add Calliope button for standalone routes
+                const standaloneCalliopeBtn = createActionButton('calliope', {
+                  title: 'Calliope Audit + Heal',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: group.route }
                 });
-                actions.appendChild(diagBtn);
-                app.appendChild(actions);
+                standaloneCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(group.route); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                actionContainer.appendChild(standaloneCalliopeBtn);
+                
+                // Append header and chips to standalone routes
+                app.appendChild(header);
+                app.appendChild(standaloneChipsSection);
               }
               applySeverityToApp(app, group.route, targets, routes);
             }
-            if (isCollapsed(group.route)) app.classList.add('collapsed');
             list.appendChild(app);
           });
           groupCard.appendChild(list);
@@ -1043,6 +1209,25 @@
         return routeGroups;
       }
       function rememberOrder(rendered){ preferences.routeOrder = rendered.map(g=>g.route); savePrefs(preferences); }
+
+      // Bootstrap Calliope enabled flag ASAP so global handlers have a value
+      (async function bootstrapCalliopeEnabled(){
+        try{
+          const resp = await fetch('/api/ai/health', { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          if (resp.ok){
+            const j = await resp.json();
+            window.__calliopeEnabled = !!j.enabled;
+            document.body.classList.toggle('calliope-enabled', window.__calliopeEnabled);
+          } else {
+            window.__calliopeEnabled = false;
+            document.body.classList.remove('calliope-enabled');
+          }
+        }catch{
+          window.__calliopeEnabled = false;
+          document.body.classList.remove('calliope-enabled');
+        }
+      })();
+
       (async function init(){
         preferences = loadPrefs();
         const routes = await loadJSON('/routes.json');
@@ -1114,6 +1299,15 @@
           const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
           (bySource[src] = bySource[src] || []).push(r);
         });
+
+        // Fetch override conflicts and mark sources that can be resolved
+        let conflicts = [];
+        try{
+          const c = await fetch('/api/overrides/conflicts', { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          if (c.ok){ const j = await c.json(); conflicts = Array.isArray(j.conflicts) ? j.conflicts : []; }
+        }catch{}
+        const conflictByName = new Set(conflicts.map(x=> x && x.filename).filter(Boolean));
+        window.conflictByName = conflictByName;
 
         // Build hierarchical route structure (no hardcoded roots)
         const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
@@ -1971,7 +2165,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         
         try {
           // Append a message showing we're starting healing
-          appendBubble('assistant', `🩺 Starting self-healing process... This might take a moment.`);
+          appendBubble('assistant', `<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"> Starting self-healing process... This might take a moment.`);
           
           const thinking = appendThinking();
           
@@ -2063,19 +2257,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
 
         async function refreshHealth(){
           try {
-            const h = await fetch('/api/ai/health');
-            if (!h.ok) throw new Error('disabled');
-            const hj = await h.json();
-            if (statusEl) statusEl.textContent = hj.enabled ? `Enabled${hj.model?` (${hj.model})`:''}` : 'Disabled (no key)';
+            const health = await fetch('/api/ai/health');
+            if (!health.ok) throw new Error('disabled');
+            const healthJson = await health.json();
+            if (statusEl) statusEl.textContent = healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Disabled (no key)';
             // Toggle UI affordances when Calliope is enabled
-            const calliopeEnabled = true; // features other than /ask do not require a key
+            const calliopeEnabled = healthJson.enabled; // Only enable Calliope when API key is present
+            window.__calliopeEnabled = calliopeEnabled;
             document.body.classList.toggle('calliope-enabled', calliopeEnabled);
             toggleCalliopeAffordances(calliopeEnabled);
           } catch {
             if (statusEl) statusEl.textContent = 'Unavailable';
-            // Fallback: keep Calliope UI affordances enabled even if /api/ai/health is unreachable
-            document.body.classList.add('calliope-enabled');
-            try { toggleCalliopeAffordances(true); } catch(e) {}
+            // Fallback: disable Calliope UI affordances when API health check fails (no API key)
+            document.body.classList.remove('calliope-enabled');
+            try { toggleCalliopeAffordances(false); } catch(e) {}
           }
           try {
             const s = await fetch('/api/ai/stats');
@@ -2096,7 +2291,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           const candidates = Array.from(document.querySelectorAll('button, .icon-btn')).filter(el => {
             const label = el.getAttribute('aria-label') || '';
             const text = el.textContent || '';
-            return /Diagnose/i.test(label) || text.includes('🩺');
+            return /Diagnose/i.test(label) || text.includes('Diagnose') || el.querySelector('img[src*="calliope_heart_stethoscope"]');
           });
           candidates.forEach(el => {
             const parent = el.parentNode; if (!parent) return;
@@ -2104,13 +2299,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             parent.replaceChild(clone, el);
             clone.onclick = function(e){
               e.preventDefault(); e.stopPropagation();
+              const route = clone.dataset.route || clone.closest('[data-route]')?.dataset?.route;
               if (enabled){
-                const drawer = document.getElementById('aiDrawer');
-                drawer.classList.remove('collapsed');
-                document.body.classList.add('ai-open');
-                setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); },100);
+                // When Calliope is enabled, run her health check for the specific route
+                if (route) {
+                  runCalliopeHealth(route);
+                } else {
+                  // Fallback: just open the drawer if no route is found
+                  const drawer = document.getElementById('aiDrawer');
+                  drawer.classList.remove('collapsed');
+                  document.body.classList.add('ai-open');
+                  setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); },100);
+                }
               } else {
-                const route = clone.dataset.route || clone.closest('[data-route]')?.dataset?.route;
+                // When Calliope is disabled, use the standard diagnose modal
                 if (route) openDiagnoseModal(route, targets, routes);
               }
             };
@@ -2121,6 +2323,47 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           });
         }
 
+        // Global delegated handler to ensure Calliope runs when enabled,
+        // even if buttons were (re)rendered after our overrides.
+        // Uses capture phase to pre-empt older listeners.
+        document.addEventListener('click', function(e){
+          try{
+            const enabled = !!window.__calliopeEnabled;
+            if (!enabled) return;
+            const target = e.target && (e.target.closest && e.target.closest('button, .circular-action-btn, .icon-btn'));
+            if (!target) return;
+            const label = target.getAttribute('aria-label') || '';
+            const text = target.textContent || '';
+            const hasStethoscope = !!target.querySelector && !!target.querySelector('img[src*="calliope_heart_stethoscope"]');
+            const isDiagnoseLike = /Diagnose/i.test(label) || text.includes('Diagnose') || hasStethoscope;
+            if (!isDiagnoseLike) return;
+
+            // Determine route context robustly
+            let route = null;
+            const routeContainer = target.closest && target.closest('[data-route]');
+            if (routeContainer && routeContainer.dataset && routeContainer.dataset.route) route = routeContainer.dataset.route;
+            if (!route && target.dataset && target.dataset.route) route = target.dataset.route;
+            if (!route){
+              const header = target.closest && target.closest('.route-header');
+              const nameEl = header && header.querySelector && header.querySelector('.route-name');
+              if (nameEl && nameEl.textContent) route = nameEl.textContent.trim();
+            }
+            if (!route) return;
+
+            // Override default behavior
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+            // Run Calliope health flow
+            try { runCalliopeHealth(route); } catch(err){
+              // Fallback: open the drawer at least
+              const drawer = document.getElementById('aiDrawer');
+              if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+            }
+          }catch(_e){ /* non-fatal */ }
+        }, true);
+
         async function onAsk(){
           const q = (queryEl.value||'').trim();
           if (!q){ return; }
@@ -2128,13 +2371,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           // Clear the input immediately so the user can type next question
           queryEl.value = '';
           
-          // Show thinking animation during requests too
+          // Append user bubble first so it appears before any thinking indicator
+          appendBubble('user', q);
+          // Now show thinking animation for at least a short time
           const thinking = appendThinking();
           const minThinkingTime = new Promise(resolve => setTimeout(resolve, 800));
           
           try{
-            // Append user bubble
-            appendBubble('user', q);
             const [resp] = await Promise.all([
               fetch('/api/ai/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
               minThinkingTime
@@ -2177,7 +2420,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           if (who === 'user') {
             titleEl.innerHTML = '🧑 You';
           } else {
-            titleEl.innerHTML = '🩺 Calliope';
+            titleEl.innerHTML = '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"> Calliope';
           }
           b.appendChild(titleEl);
           
@@ -2254,19 +2497,21 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         async function runCalliopeHealth(routeKey){
           ensureAiOpen();
           // First message - acknowledgment
-          appendBubble('assistant', `🩺 Heya! One sec while I listen to ${routeKey}...`);
+          appendBubble('assistant', `<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"> Heya! One sec while I listen to ${routeKey}...`);
           
-          // Show thinking indicator with minimum duration for visibility
-          const thinking = appendThinking();
+          // Show thinking indicator with minimum duration for visibility AFTER we send the request
+          let thinking;
           const minThinkingTime = new Promise(resolve => setTimeout(resolve, 1200));
           
           try{
+            // Create the thinking indicator right before sending the request so the user's bubble is visually above it
+            thinking = appendThinking();
             const [resp] = await Promise.all([
               fetch('/api/ai/self-check', { 
                 method: 'POST', 
                 headers: {'Content-Type':'application/json'}, 
                 body: JSON.stringify({ 
-                  heal: false, 
+                  heal: true, 
                   route: routeKey, 
                   hint: `Focus on route ${routeKey} and its children.` 
                 }) 
