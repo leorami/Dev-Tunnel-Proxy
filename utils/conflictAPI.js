@@ -419,7 +419,7 @@ async function handle(req, res){
         }
       }
 
-      // POST /api/ai/ask { query, ... } — graceful fallback without OpenAI
+      // POST /api/ai/ask { query, ... } — now proactive: can invoke healing when user asks to heal
       if (req.method === 'POST' && u.pathname === '/api/ai/ask'){
         const body = await parseBody(req);
         const query = (body && body.query || '').trim();
@@ -427,6 +427,320 @@ async function handle(req, res){
         const systemHint = (body && body.systemHint) || '';
         if (!query) return send(res, 400, { error: 'Missing query' });
 
+        // Lightweight intent detection
+        const lower = query.toLowerCase();
+        const wantsHeal = /(heal|fix|repair|unblock|make.*work)/.test(lower);
+        const wantsAudit = /(audit|crawl|verify|check|scan|site auditor|console|network)/.test(lower);
+        const wantsReview = /(code review|review code|analy[sz]e code|read code|scan code|recommend fixes)/.test(lower);
+        const wantsAdvanced = /(advanced\s*heal|self-?heal(ing)?|deep heal|full heal)/.test(lower);
+        // capture absolute URL if present
+        const absUrlMatch = query.match(/https?:\/\/[\w.-]+(?::\d+)?\/[\S]*/i);
+        const absoluteUrl = absUrlMatch ? absUrlMatch[0].trim() : '';
+        // capture route prefix AND optional deeper path (e.g., /mxtk/dashboard)
+        const routeMatch = query.replace(/https?:\/\/[^\s]+/ig, '').match(/\/[a-zA-Z0-9._-]+(?:\/[a-zA-Z0-9._-]+)*/);
+        const fullPath = absoluteUrl ? (new URL(absoluteUrl).pathname.replace(/\/$/, '')) : (routeMatch ? routeMatch[0].replace(/\/$/, '') : '');
+        const routeKey = fullPath ? ('/' + fullPath.split('/').filter(Boolean)[0]) : '';
+
+        // Ensure audits run with dockerized Chrome when invoked via chat
+        if (!process.env.CALLIOPE_PUPPETEER_IMAGE) process.env.CALLIOPE_PUPPETEER_IMAGE = 'ghcr.io/puppeteer/puppeteer:latest';
+        if (!process.env.CALLIOPE_PUPPETEER_PLATFORM) process.env.CALLIOPE_PUPPETEER_PLATFORM = 'linux/amd64';
+
+        // Opportunistic config repairs based on explicit chat asks
+        try {
+          const wantsRewriteFix = /(rewrite\s+\^\/mxtk\/|fix\s+rewrite|mxtk\.conf)/i.test(lower);
+          const wantsDedupeFont = /(duplicate|dedupe).+__nextjs_font/i.test(lower) || /__nextjs_font/.test(lower);
+          const wantsDeferSdk = /(encast\-sdk|iframe\.html|defer\s*dns|variable\s*proxy_pass)/i.test(lower);
+          if (wantsRewriteFix) {
+            const p = path.join(ROOT, 'overrides', 'mxtk.conf');
+            if (fs.existsSync(p)) {
+              let txt = fs.readFileSync(p, 'utf8');
+              const fixed = txt.replace(/rewrite\s+\^\/mxtk\/\(\.\*\)\$\s+[^;\n]+/g, 'rewrite ^/mxtk/(.*)$ /$1 break;');
+              if (fixed !== txt) {
+                fs.copyFileSync(p, p + '.backup.' + Date.now());
+                fs.writeFileSync(p, fixed, 'utf8');
+              }
+            }
+          }
+          if (wantsDeferSdk) {
+            const p = path.join(ROOT, 'config', 'default.conf');
+            if (fs.existsSync(p)) {
+              let txt = fs.readFileSync(p, 'utf8');
+              if (!/set\s+\$sb\s+encast\-sdk:6006;/.test(txt)) {
+                txt = txt.replace(/(location\s*=\s*\/iframe\.html\s*\{[\s\S]*?resolver_timeout\s*5s;)/, `$1\n    set $sb encast-sdk:6006;`);
+                txt = txt.replace(/(location\s*=\s*\/sdk\/iframe\.html\s*\{[\s\S]*?resolver_timeout\s*5s;)/, `$1\n    set $sb encast-sdk:6006;`);
+              }
+              txt = txt.replace(/proxy_pass\s+http:\/\/encast\-sdk:6006\/iframe\.html\s*;/g, 'proxy_pass http://$sb/iframe.html;');
+              txt = txt.replace(/proxy_pass\s+http:\/\/encast\-sdk:6006\/iframe\.html\s*;/g, 'proxy_pass http://$sb/iframe.html;');
+              fs.writeFileSync(p, txt, 'utf8');
+            }
+          }
+          if (wantsDedupeFont) {
+            try { await calliopeHealing.fixDuplicateLocationBlocks(); } catch {}
+          }
+        } catch {}
+        // If user asks for a code review, snapshot the container project and analyze for proxy-compat fixes
+        if (wantsReview){
+          try{
+            const targets = [];
+            if (routeKey === '/mxtk' || /mxtk/.test(lower)) targets.push({ name:'mxtk-site-dev', path:'/app' }, { name:'mxtk-site-dev', path:'/usr/src/app' });
+            if (routeKey === '/sdk' || /sdk|storybook/.test(lower)) targets.push({ name:'encast-sdk', path:'/app' }, { name:'encast-sdk', path:'/usr/src/app' });
+            if (targets.length === 0) targets.push({ name:'mxtk-site-dev', path:'/app' });
+            let review = null;
+            for (const t of targets){
+              const out = await calliopeHealing.backupAndAnalyzeContainerProject({ containerName: t.name, srcPathInContainer: t.path });
+              if (out && out.success){ review = out; break; }
+            }
+            const parts = [];
+            if (review && review.success){
+              parts.push('Code review suggestions:');
+              const suggestions = (review.analysis && review.analysis.suggestions) || [];
+              parts.push('```json');
+              parts.push(JSON.stringify(suggestions.slice(0, 20), null, 2));
+              parts.push('```');
+              parts.push('Snapshot root:');
+              parts.push('```');
+              parts.push(review.snapshot || '(unknown)');
+              parts.push('```');
+            } else {
+              parts.push('Code review could not complete.');
+            }
+            return send(res, 200, { ok:true, answer: parts.join('\n') });
+          } catch(e){
+            return send(res, 500, { ok:false, error: e.message });
+          }
+        }
+        // routeKey is already computed above
+
+        // If user asks to both audit and heal a specific path, run iterative audit→heal→re-audit (up to 3 passes)
+        if (wantsAudit && wantsHeal && (routeKey || fullPath || absoluteUrl)){
+          try {
+            const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
+            const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
+            const parts = [];
+            parts.push(`Focusing on ${url} (route ${routeKey || fullPath || ''})`);
+            let prev = null;
+            for (let i = 0; i < 3; i++) {
+              pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
+              const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
+              if (audit && audit.ok && audit.summary){
+                parts.push(`\nPass ${i+1} summary:`);
+                parts.push('```json');
+                parts.push(JSON.stringify(audit.summary, null, 2));
+                parts.push('```');
+                if (audit.reportPath){
+                  parts.push('Report:');
+                  parts.push('```');
+                  parts.push(audit.reportPath);
+                  parts.push('```');
+                }
+                if (prev && prev.summary){
+                  const d = {
+                    consoleErrors: (audit.summary.consoleErrors||0) - (prev.summary.consoleErrors||0),
+                    networkFailures: (audit.summary.networkFailures||0) - (prev.summary.networkFailures||0),
+                    httpIssues: (audit.summary.httpIssues||0) - (prev.summary.httpIssues||0),
+                  };
+                  parts.push('Delta vs previous pass:');
+                  parts.push('```json');
+                  parts.push(JSON.stringify(d, null, 2));
+                  parts.push('```');
+                  const totalNow = (audit.summary.consoleErrors||0)+(audit.summary.networkFailures||0)+(audit.summary.httpIssues||0);
+                  const totalPrev = (prev.summary.consoleErrors||0)+(prev.summary.networkFailures||0)+(prev.summary.httpIssues||0);
+                  if (totalNow <= totalPrev || totalNow === 0) {
+                    if (totalNow === 0) parts.push('All clear ✅');
+                    break;
+                  }
+                }
+                prev = audit;
+              } else {
+                parts.push('Audit did not complete successfully.');
+                if (audit && audit.error) parts.push(`Error: ${audit.error}`);
+                break;
+              }
+
+              // Healing between passes (ensure prefix + subpath API/dev helpers), then regenerate/reload
+              try {
+                pushThought('Applying subpath healing…', { route: routeKey });
+                const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey || '' });
+                const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey || '' });
+                await calliopeHealing.regenerateNginxBundle();
+                parts.push('Heal actions:');
+                parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
+                parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
+              } catch (e) {
+                parts.push(`Healing step error: ${e.message}`);
+                break;
+              }
+            }
+            scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
+            return send(res, 200, { ok:true, answer: parts.join('\n') });
+          } catch (e) {
+            return send(res, 500, { ok:false, error: e.message });
+          }
+        }
+
+        // If user asks to audit a route, run site auditor and return summary proof
+        if (wantsAudit && (routeKey || fullPath || absoluteUrl)){
+          try {
+            pushThought(`Auditing ${routeKey}…`, { route: routeKey });
+            const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
+            const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
+            const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
+            const parts = [];
+            parts.push(`Audit for ${routeKey} at ${url}`);
+            if (audit && audit.ok && audit.summary){
+              parts.push('Summary:');
+              parts.push('```json');
+              parts.push(JSON.stringify(audit.summary, null, 2));
+              parts.push('```');
+              if (audit.reportPath){
+                parts.push('Report:');
+                parts.push('```');
+                parts.push(audit.reportPath);
+                parts.push('```');
+              }
+            } else {
+              parts.push('Audit did not complete successfully.');
+              if (audit && audit.error) parts.push(`Error: ${audit.error}`);
+            }
+            scheduleThought('Audit complete ✅', { route: routeKey }, 60);
+            return send(res, 200, { ok:true, answer: parts.join('\n') });
+          } catch (e) {
+            return send(res, 500, { ok:false, error: e.message });
+          }
+        }
+
+        // If user asks to perform an advanced heal explicitly via chat
+        if (wantsAdvanced && routeKey){
+          try {
+            pushThought(`Running advanced heal for ${routeKey}…`, { route: routeKey });
+            const buffered = [];
+            const onUpdate = (evt) => buffered.push({ message: (evt && evt.name) || 'step', details: evt });
+            const advanced = await calliopeHealing.advancedSelfHeal({ routeKey, onUpdate });
+
+            // Re-audit to verify
+            const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
+            const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
+            const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
+
+            const parts = [];
+            parts.push(`Advanced heal for ${routeKey}: ${advanced && advanced.success ? 'success' : 'partial/failed'}`);
+            parts.push('Re-audit:');
+            if (audit && audit.ok && audit.summary){
+              parts.push('```json');
+              parts.push(JSON.stringify(audit.summary, null, 2));
+              parts.push('```');
+              if (audit.reportPath){
+                parts.push('Report:');
+                parts.push('```');
+                parts.push(audit.reportPath);
+                parts.push('```');
+              }
+            } else {
+              parts.push('Audit did not complete successfully.');
+              if (audit && audit.error) parts.push(`Error: ${audit.error}`);
+            }
+            scheduleThought('Advanced heal complete ✅', { route: routeKey }, 60);
+            return send(res, 200, { ok:true, answer: parts.join('\n') });
+          } catch (e) {
+            return send(res, 500, { ok:false, error: e.message });
+          }
+        }
+
+        // If user asks to heal a specific route, do real work first, then answer with evidence
+        if (wantsHeal && routeKey){
+          try {
+            pushThought(`On it! Healing ${routeKey}…`, { route: routeKey });
+
+            // 1) Ensure forwarded prefix and Next dev block
+            const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey });
+            // 2) Ensure subpath absolute routing for APIs and dev helpers
+            const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey });
+            // 3) Normalize X-Forwarded-Proto headers to $scheme for local dev (avoid forcing https)
+            let normalizedHeaders = false;
+            try {
+              const name = routeKey.replace(/^\//,'');
+              const overridePath = path.join(ROOT, 'overrides', `${name}.conf`);
+              if (fs.existsSync(overridePath)){
+                const src = fs.readFileSync(overridePath, 'utf8');
+                if (/proxy_set_header\s+X-Forwarded-Proto\s+https;/.test(src)){
+                  const upd = src.replace(/proxy_set_header\s+X-Forwarded-Proto\s+https;/g, 'proxy_set_header X-Forwarded-Proto $scheme;');
+                  if (upd !== src){ fs.writeFileSync(overridePath, upd, 'utf8'); normalizedHeaders = true; }
+                }
+              }
+            } catch {}
+            // 4) Regenerate bundle and reload nginx (captures test + reload internally)
+            const regenOk = await calliopeHealing.regenerateNginxBundle();
+
+            // Collect verification artifacts
+            const genPath = path.join(ROOT, 'build', 'sites-enabled', 'apps.generated.conf');
+            const genHead = fs.existsSync(genPath) ? (fs.readFileSync(genPath, 'utf8').split(/\r?\n/).slice(0, 6).join('\n')) : 'generated bundle not found';
+
+            // Try to locate the edited conf based on ensure results; fall back to overrides/apps by route name
+            let editedFile = (ensureNext && ensureNext.details && ensureNext.details.file) || (subpathFix && subpathFix.details && subpathFix.details.configFile) || '';
+            if (editedFile){ editedFile = editedFile.replace(/^\/+/, ''); }
+            let editedAbs = editedFile ? path.join(ROOT, editedFile) : '';
+            if (!editedAbs || !fs.existsSync(editedAbs)){
+              // best effort by convention: prefer overrides/<name>.conf
+              const name = routeKey.replace(/^\//,'');
+              const pref = path.join(ROOT, 'overrides', `${name}.conf`);
+              const alt = path.join(ROOT, 'apps', `${name}.conf`);
+              editedAbs = fs.existsSync(pref) ? pref : (fs.existsSync(alt) ? alt : '');
+            }
+            const fileAfter = editedAbs && fs.existsSync(editedAbs) ? fs.readFileSync(editedAbs, 'utf8') : '(unable to read edited file)';
+
+            const persona = buildFriendlyPersona();
+            const successEmoji = (persona.phrases && persona.phrases.success && persona.phrases.success[0]) || 'Done!';
+            const parts = [];
+            parts.push(`${successEmoji} I healed ${routeKey}.`);
+            parts.push('What I did:');
+            parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
+            parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
+            parts.push(`- normalize_X-Forwarded-Proto_to_$scheme → ${normalizedHeaders ? 'applied' : 'no-op'}`);
+            parts.push(`- regenerateNginxBundle → ${regenOk ? 'ok' : 'soft-reload only'}`);
+            parts.push('\nVerification:');
+            parts.push('```nginx');
+            parts.push(genHead);
+            parts.push('```');
+            if (editedAbs){
+              parts.push('Edited file:');
+              parts.push('```');
+              parts.push(path.relative(ROOT, editedAbs));
+              parts.push('```');
+              parts.push('Post-edit content (truncated if large):');
+              parts.push('```nginx');
+              parts.push(safeSlice(fileAfter, 2000));
+              parts.push('```');
+            }
+
+            // Re-audit to verify impact
+            try {
+              const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
+              const url = base.replace(/\/$/, '') + routeKey + '/';
+              const audit2 = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
+              parts.push('\nRe-audit:');
+              if (audit2 && audit2.ok && audit2.summary){
+                parts.push('```json');
+                parts.push(JSON.stringify(audit2.summary, null, 2));
+                parts.push('```');
+                if (audit2.reportPath){
+                  parts.push('Report:');
+                  parts.push('```');
+                  parts.push(audit2.reportPath);
+                  parts.push('```');
+                }
+              } else if (audit2 && audit2.error) {
+                parts.push(`Audit error: ${audit2.error}`);
+              }
+            } catch {}
+
+            scheduleThought('Verification complete ✅', { route: routeKey }, 60);
+            return send(res, 200, { ok:true, answer: parts.join('\n') });
+          } catch (e) {
+            return send(res, 500, { ok:false, error: e.message });
+          }
+        }
+
+        // Default: knowledge-style answer using docs/runtime context
         const docs = collectDocs();
         const ranked = rankDocsByQuery(docs, query).slice(0, maxDocs);
         const context = ranked.map(d => `[[${d.source}]]\n${safeSlice(d.text || d.content, 4000)}`).join('\n\n');

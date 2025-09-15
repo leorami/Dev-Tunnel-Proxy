@@ -114,6 +114,27 @@ function buildKeySetFromBlocks(blocks) {
   return keys;
 }
 
+// Remove duplicate location blocks by exact pathSpec, keeping the first occurrence
+function removeDuplicateLocationBlocksFromText(text) {
+  try {
+    const blocks = extractLocationBlocksWithText(text);
+    const seen = new Set();
+    let out = text;
+    for (const b of blocks) {
+      const key = b.pathSpec.trim().replace(/^([=~\^~*]+)\s+/, '');
+      if (seen.has(key)) {
+        // Remove this duplicate block entirely
+        out = out.replace(b.fullText, `# removed duplicate location ${key}`);
+      } else {
+        seen.add(key);
+      }
+    }
+    return out;
+  } catch {
+    return text;
+  }
+}
+
 function collectBlocksFromFiles(files) {
   const allBlocks = [];
   for (const file of files) {
@@ -200,10 +221,21 @@ function hardenLocationFullText(fullText) {
   // Dedupe noisy directives that can trigger nginx warnings when repeated across locations
   // Remove redundant 'sub_filter_types text/html;' since text/html is default for sub_filter
   const filtered = [];
-  for (const ln of lines) {
+  for (let ln of lines) {
     if (/^\s*sub_filter_types\s+text\/html\s*;\s*$/.test(ln)) {
       changed = true; // drop it
       continue;
+    }
+    // Repair malformed rewrite lines that lost their capture substitution
+    // e.g., "rewrite ^/mxtk/(.*)$ /location ^~ /mxtk/ { break" → "rewrite ^/mxtk/(.*)$ /$1 break;"
+    if (/^\s*rewrite\s+\^\/mxtk\/\(\.\*\)\$\s+\/location\s+\^~\s+\/mxtk\//.test(ln)) {
+      ln = ln.replace(/\/location\s+\^~\s+\/mxtk\/\s*\{\s*break;?\s*$/, '/$1 break;');
+      changed = true;
+    }
+    // Ensure rewrite lines are properly terminated with ';'
+    if (/^\s*rewrite\b/.test(ln) && !/;\s*$/.test(ln)) {
+      ln = ln.replace(/\s*$/, ';');
+      changed = true;
     }
     filtered.push(ln);
   }
@@ -259,16 +291,17 @@ function main() {
   lines.push('');
 
   // Emit overrides first, in file order, but dedupe identical raw path specs to avoid nginx duplicate location errors
-  const emittedOverrideRaw = new Set();
+  const emittedOverrideRaw = new Map(); // rawKey -> source
   for (const b of overrideBlocks) {
     const rawKey = `raw:${b.pathSpec.trim()}`;
     if (emittedOverrideRaw.has(rawKey)) continue; // skip duplicate exact location re-declarations
-    emittedOverrideRaw.add(rawKey);
+    emittedOverrideRaw.set(rawKey, b.sourceFile);
     lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
   }
 
   // Emit app blocks unless a conflicting key (raw or normalized) already exists
+  const emittedRawAny = new Set(Array.from(emittedOverrideRaw.keys()));
   for (const b of appBlocks) {
     const pathSpecTrim = b.pathSpec.trim();
     const rawKey = `raw:${pathSpecTrim}`;
@@ -280,14 +313,16 @@ function main() {
     if (seen.has(rawKey) || (normKey && seen.has(normKey) && !pathSpecTrim.startsWith('='))) {
       continue;
     }
-    // Avoid exact duplicate raws among app blocks, but do not mark normalized key
-    if (seen.has(rawKey)) continue;
-    seen.add(rawKey);
+    // Avoid exact duplicate raws among app blocks and previously emitted
+    if (emittedRawAny.has(rawKey)) continue;
+    emittedRawAny.add(rawKey);
     lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
   }
 
-  fs.writeFileSync(OUTPUT_FILE, lines.join('\n'), 'utf8');
+  const composed = lines.join('\n');
+  const deduped = removeDuplicateLocationBlocksFromText(composed);
+  fs.writeFileSync(OUTPUT_FILE, deduped, 'utf8');
   // eslint-disable-next-line no-console
   console.log(`Wrote ${path.relative(ROOT_DIR, OUTPUT_FILE)}`);
 

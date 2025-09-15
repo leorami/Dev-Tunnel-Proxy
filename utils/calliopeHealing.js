@@ -19,6 +19,7 @@ const CALLIOPE_DIR = path.join(ARTIFACTS_DIR, 'calliope');
 const KB_FILE = path.join(CALLIOPE_DIR, 'healing-kb.json');
 const AUDITS_DIR = path.join(ARTIFACTS_DIR, 'audits');
 const RESOURCES_DIR = path.join(CALLIOPE_DIR, 'resources');
+const AUDIT_HISTORY_DIR = path.join(CALLIOPE_DIR, 'audit-history');
 
 // Regenerate nginx bundle and reload - ensures Calliope's fixes take effect
 async function regenerateNginxBundle() {
@@ -70,6 +71,9 @@ if (!fs.existsSync(AUDITS_DIR)) {
 }
 if (!fs.existsSync(RESOURCES_DIR)) {
   fs.mkdirSync(RESOURCES_DIR, { recursive: true });
+}
+if (!fs.existsSync(AUDIT_HISTORY_DIR)) {
+  fs.mkdirSync(AUDIT_HISTORY_DIR, { recursive: true });
 }
 
 // Initialize healing log if it doesn't exist
@@ -353,7 +357,7 @@ async function snapshotContainerProject(containerName, srcPathInContainer, outNa
       '--exclude=node_modules', '--exclude=.git', '--exclude=dist', '--exclude=build', '--exclude=.next', '--exclude=out', '--exclude=coverage', '--exclude=public', '--exclude=tmp', '--exclude=.cache', '--exclude=.output'
     ].join(' ');
 
-    const cmd = `docker exec ${containerName} sh -lc "cd ${srcPathInContainer} 2>/dev/null && tar -cf - . ${excludes}" | tar -C ${dest}/src -xf -`;
+    const cmd = `docker exec ${containerName} sh -lc "cd ${srcPathInContainer} 2>/dev/null && tar -cf - ${excludes} ." | tar -C ${dest}/src -xf -`;
     execSync(cmd, { encoding: 'utf8' });
     return { success:true, dest };
   } catch (e) {
@@ -901,11 +905,20 @@ async function runSiteAuditor(urlToAudit, options = {}) {
     const timeout = Number(options.timeout || 30000);
     const outDir = AUDITS_DIR;
     let stdout = '';
-    try {
-      stdout = execSync(`node dist/cli.js ${JSON.stringify(urlToAudit)} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output ${JSON.stringify(outDir)}`, { cwd: toolDir, encoding: 'utf8' });
-    } catch (e) {
-      // try dockerized run with a Puppeteer image (bundled Chrome)
+
+    const preferDocker = !!process.env.CALLIOPE_PUPPETEER_IMAGE; // if set, skip local Puppeteer entirely
+    if (!preferDocker) {
+      try {
+        stdout = execSync(`node dist/cli.js ${JSON.stringify(urlToAudit)} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output ${JSON.stringify(outDir)}`, { cwd: toolDir, encoding: 'utf8' });
+      } catch (e) {
+        // fall through to dockerized run
+      }
+    }
+    if (!stdout) {
+      // dockerized run with a Puppeteer image (bundled Chrome)
       const img = process.env.CALLIOPE_PUPPETEER_IMAGE || 'ghcr.io/puppeteer/puppeteer:latest';
+      const desiredPlatform = process.env.CALLIOPE_PUPPETEER_PLATFORM || (process.arch === 'arm64' ? 'linux/arm64/v8' : '');
+      const platformFlag = desiredPlatform ? `--platform ${desiredPlatform}` : '';
       const cmd = `node dist/cli.js ${urlToAudit} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
       let apiContainer = 'dev-calliope-api';
@@ -914,7 +927,10 @@ async function runSiteAuditor(urlToAudit, options = {}) {
         if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
         else if (names.includes('dev-conflict-api')) apiContainer = 'dev-conflict-api';
       } catch {}
-      stdout = execSync(`docker run --rm --network devproxy --volumes-from ${apiContainer} -w /app/site-auditor-debug ${img} sh -lc ${JSON.stringify(cmd)}`, { encoding: 'utf8' });
+      const dockerCmd = [`docker run --rm`, platformFlag, `--network devproxy`, `--volumes-from ${apiContainer}`, `-w /app/site-auditor-debug`, img, `sh -lc ${JSON.stringify(cmd)}`]
+        .filter(Boolean)
+        .join(' ');
+      stdout = execSync(dockerCmd, { encoding: 'utf8' });
     }
     out.raw = stdout;
     const m = stdout.match(/Report:\s*(.*report\.json)/);
@@ -928,6 +944,35 @@ async function runSiteAuditor(urlToAudit, options = {}) {
       const failures = Array.from(new Set((report.network?.failures || []).map(x => x.url))).slice(0, 12);
       out.summary = { consoleErrors: ce, networkFailures: nf, httpIssues: hi, failures };
       out.ok = true;
+
+      // Persist audit history with deltas per-path for improvement tracking
+      try {
+        const urlObj = new URL(String(urlToAudit));
+        const pathKey = urlObj.pathname.replace(/\/$/, '') || '/';
+        const safeKey = pathKey.replace(/[^a-zA-Z0-9._-]+/g, '_') || 'root';
+        const histFile = path.join(AUDIT_HISTORY_DIR, `${safeKey}.jsonl`);
+        let prev = null;
+        if (fs.existsSync(histFile)) {
+          try {
+            const lines = fs.readFileSync(histFile, 'utf8').split(/\r?\n/).filter(Boolean);
+            if (lines.length) prev = JSON.parse(lines[lines.length - 1]);
+          } catch {}
+        }
+        const entry = {
+          timestamp: new Date().toISOString(),
+          url: urlObj.toString(),
+          summary: out.summary,
+          reportPath,
+        };
+        if (prev && prev.summary) {
+          entry.delta = {
+            consoleErrors: (out.summary.consoleErrors || 0) - (prev.summary.consoleErrors || 0),
+            networkFailures: (out.summary.networkFailures || 0) - (prev.summary.networkFailures || 0),
+            httpIssues: (out.summary.httpIssues || 0) - (prev.summary.httpIssues || 0),
+          };
+        }
+        fs.appendFileSync(histFile, JSON.stringify(entry) + '\n');
+      } catch {}
     } else {
       out.summary = { note: 'report path not found in output' };
     }
@@ -991,33 +1036,7 @@ async function applyMxtkBestPractices() {
       '}'
     ].join('\n'));
 
-    // Root directories (avoid loops) and upstream conveniences
-    ensureBlock(/location\s*\^~\s*\/art\//m, [
-      'location ^~ /art/ {',
-      '  proxy_set_header Host $host;',
-      '  proxy_set_header X-Forwarded-Proto https;',
-      '  resolver 127.0.0.11 ipv6=off;',
-      '  resolver_timeout 5s;',
-      '  set $mxtk_site_dev mxtk-site-dev:2000;',
-      '  proxy_pass http://$mxtk_site_dev/art/;',
-      '}'
-    ].join('\n'));
-    ensureBlock(/location\s*=\s*\/art\s*\{\s*return\s+204;\s*\}/m, 'location = /art { return 204; }');
-    ensureBlock(/location\s*=\s*\/art\/\s*\{\s*return\s+204;\s*\}/m, 'location = /art/ { return 204; }');
-
-    ensureBlock(/location\s*\^~\s*\/icons\//m, [
-      'location ^~ /icons/ {',
-      '  proxy_set_header Host $host;',
-      '  proxy_set_header X-Forwarded-Proto https;',
-      '  resolver 127.0.0.11 ipv6=off;',
-      '  resolver_timeout 5s;',
-      '  set $mxtk_site_dev mxtk-site-dev:2000;',
-      '  proxy_pass http://$mxtk_site_dev/icons/;',
-      '}'
-    ].join('\n'));
-    // Use empty_gif to satisfy directory probes without redirect loops
-    ensureBlock(/location\s*=\s*\/icons\s*\{[\s\S]*?\}/m, 'location = /icons { empty_gif; }');
-    ensureBlock(/location\s*=\s*\/icons\/\s*\{[\s\S]*?\}/m, 'location = /icons/ { empty_gif; }');
+    // Removed app-specific root directories (/art, /icons) – keep proxy generic
 
     if (content !== original) {
       fs.writeFileSync(overridesPath, content, 'utf8');
@@ -1073,7 +1092,8 @@ async function applySdkStorybookViteOverrides() {
       ['/sdk/sb-common-assets/', 'sb-common-assets/'],
     ];
     for (const [loc, pass] of sdkBlocks) {
-      const re = new RegExp(`location\\s*\\^~\\s*${loc.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`, 'm');
+      const safeLoc = loc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const re = new RegExp('location\\s*\\^~\\s*' + safeLoc, 'm');
       ensure(re, [
         `location ^~ ${loc} {`,
         '  proxy_http_version 1.1;',
@@ -1588,7 +1608,9 @@ async function fixSubpathAbsoluteRouting({ routePrefix = '', apiPrefix = '/api/'
     const setDirective = varMatch ? varMatch[0] : null;
 
     // Ensure API subpath block exists and strips prefix
-    const apiBlockRegex = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${apiPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{[\\s\\S]*?}`, 'm');
+    const safePrefix0 = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const safeApi0 = apiPrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const apiBlockRegex = new RegExp('location\\s*\\^~\\s*' + safePrefix0 + safeApi0 + '\\s*\\{[\\s\\S]*?\\}', 'm');
     if (!apiBlockRegex.test(content)) {
       const passLine = upstreamVar ? `proxy_pass http://$${upstreamVar}${apiPrefix};` : `proxy_pass http://host.docker.internal${apiPrefix};`;
       const block = `\nlocation ^~ ${routePrefix}${apiPrefix} {\n  proxy_http_version 1.1;\n  proxy_set_header Host $host;\n  proxy_set_header X-Forwarded-Proto $scheme;\n  proxy_set_header X-Forwarded-Host $host;\n  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n  proxy_set_header X-Forwarded-Prefix ${routePrefix};\n  proxy_buffering off;\n  proxy_request_buffering off;\n  resolver 127.0.0.11 ipv6=off;\n  resolver_timeout 5s;\n  ${upstreamVar ? '' : '# Fallback direct upstream used if no variable was detected'}\n  ${passLine}\n}\n`;
@@ -1600,7 +1622,8 @@ async function fixSubpathAbsoluteRouting({ routePrefix = '', apiPrefix = '/api/'
     // Ensure dev overlay paths under subpath exist (upstream should use ROOT path, not prefixed)
     for (const p of devPaths) {
       const full = `${routePrefix}${p}`;
-      const devRegex = new RegExp(`location\\s*=\\s*${full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*{[\\s\\S]*?}`, 'm');
+      const safeFull = full.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const devRegex = new RegExp('location\\s*=\\s*' + safeFull + '\\s*\\{[\\s\\S]*?\\}', 'm');
       if (!devRegex.test(content)) {
         // Upstream dev paths should not include the subpath prefix
         const passLine = upstreamVar ? `proxy_pass http://$${upstreamVar}${p};` : `proxy_pass http://host.docker.internal${p};`;
@@ -1641,7 +1664,8 @@ async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile 
         for (const f of files) {
           const p = path.join(baseDir, f);
           const txt = fs.readFileSync(p, 'utf8');
-          const rx = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/`);
+          const safe = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const rx = new RegExp('location\\s*\\^~\\s*' + safe + '\\/');
           if (rx.test(txt)) return p;
         }
       } catch {}
@@ -1660,7 +1684,8 @@ async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile 
     const original = content;
 
     // Ensure X-Forwarded-Prefix inside the routePrefix block
-    const locRe = new RegExp(`(location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/\\s*\\{)([\\s\\S]*?)(\\n\\})`, 'm');
+    const safe1 = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const locRe = new RegExp('(location\\s*\\^~\\s*' + safe1 + '\\/\\s*\\{)([\\s\\S]*?)(\\n\\})', 'm');
     const locMatch = content.match(locRe);
     if (!locMatch) return { success: false, message: 'Route block not found in config' };
 
@@ -1694,9 +1719,11 @@ async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile 
     content = content.replace(locRe, blockStart + updatedBody + blockEnd);
 
     // Ensure `${routePrefix}/_next/` block exists (with rewrite to /_next/ and HMR headers)
-    const nextLocRe = new RegExp(`location\\s*\\^~\\s*${routePrefix.replace(/[.*+?^${}()|[\\]\\/]/g,'\\$&')}\\/_next\\/\\s*\\{[\\s\\S]*?\\}`, 'm');
+    const safe2 = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const nextLocRe = new RegExp('location\\s*\\^~\\s*' + safe2 + '\\/_next\\/\\s*\\{[\\s\\S]*?\\}', 'm');
     if (!nextLocRe.test(content)) {
       if (!upstreamVar) return { success: false, message: 'Could not determine upstream variable for _next block' };
+      const rewriteSafe = routePrefix.replace(/\//g, '\\/');
       const block = [
         `location ^~ ${routePrefix}/_next/ {`,
         '  proxy_http_version 1.1;',
@@ -1709,7 +1736,7 @@ async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile 
         '  proxy_send_timeout 300s;',
         '  resolver 127.0.0.11 ipv6=off;',
         '  resolver_timeout 5s;',
-        `  rewrite ^${routePrefix.replace(/\//g,'\/')}\/_next\/(.*)$ \/_next/$1 break;`,
+        `  rewrite ^${rewriteSafe}\/_next\/(.*)$ \/_next/$1 break;`,
         `  proxy_pass http://$${upstreamVar};`,
         '  add_header Content-Security-Policy "upgrade-insecure-requests" always;',
         '}'
@@ -1769,7 +1796,8 @@ async function applyGenericDirectoryGuards({ routePrefix = '/', reportPath = '' 
       for (const f of files){
         const p = path.join(baseDir, f);
         const txt = fs.readFileSync(p, 'utf8');
-        const rx = new RegExp(`location\\s+[^}]*${routePrefix.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')}`);
+        const safeRoute = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const rx = new RegExp('location\\s+[^}]*' + safeRoute);
         if (rx.test(txt)) return p;
       }
       return null;
@@ -1781,7 +1809,6 @@ async function applyGenericDirectoryGuards({ routePrefix = '/', reportPath = '' 
     const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
     ensure(/location\s*=\s*\/_next\s*\{\s*return\s+204;\s*\}/m, 'location = /_next { return 204; }');
     ensure(/location\s*=\s*\/_next\/\s*\{\s*return\s+204;\s*\}/m, 'location = /_next/ { return 204; }');
-    // Keep directory guards generic; do not special-case app assets like /art or /icons
     const dirs = new Set();
     if (reportPath && fs.existsSync(reportPath)){
       try {
@@ -1836,6 +1863,7 @@ module.exports = {
   improveProxyResilience,
   restartProxyAfterUpstreams,
   fixSubpathAbsoluteRouting,
+  ensureRouteForwardedPrefixAndNext,
   
   // Core infrastructure
   regenerateNginxBundle
