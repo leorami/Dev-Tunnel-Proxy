@@ -429,8 +429,9 @@ async function handle(req, res){
 
         // Lightweight intent detection
         const lower = query.toLowerCase();
-        const wantsHeal = /(heal|fix|repair|unblock|make.*work)/.test(lower);
-        const wantsAudit = /(audit|crawl|verify|check|scan|site auditor|console|network)/.test(lower);
+        // Treat redirect/status code questions as actionable (audit + heal)
+        const wantsHeal = /(heal|fix|repair|unblock|make.*work|redirect|\b30[1278]\b|\b308\b)/.test(lower);
+        const wantsAudit = /(audit|crawl|verify|check|scan|site auditor|console|network|status\s*code|redirect|\b30[1278]\b|\b308\b)/.test(lower);
         const wantsReview = /(code review|review code|analy[sz]e code|read code|scan code|recommend fixes)/.test(lower);
         const wantsAdvanced = /(advanced\s*heal|self-?heal(ing)?|deep heal|full heal)/.test(lower);
         // capture absolute URL if present
