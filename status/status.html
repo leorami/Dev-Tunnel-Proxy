@@ -44,6 +44,8 @@
       .value{font-weight:600}
       .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
       .apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+      /* Inside a source column, each app card should span full column width (one per row) */
+      .card .apps{grid-template-columns:1fr}
       .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative}
       .app:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
       .app.ok{border-color:rgba(22,199,132,.7);box-shadow:0 0 0 2px rgba(22,199,132,var(--glowOpacity)), 0 8px 24px rgba(0,0,0,.20)}
@@ -246,6 +248,11 @@
         body.ai-open .container{max-width:none;width:calc(100% - var(--aiWidth) - 28px);margin-left:16px;margin-right:calc(var(--aiWidth) + 12px)}
       }
 
+      @media (max-width:1400px){
+        .container{padding:0 12px}
+        .grid{grid-template-columns:repeat(2, minmax(0, 1fr))}
+        .apps{grid-template-columns:repeat(2, minmax(0, 1fr))}
+      }
       @media (max-width:1024px){
         .container{padding:0 12px}
         .grid{grid-template-columns:1fr}
@@ -298,7 +305,7 @@
         </div>
       </div>
 
-      <div class="card hidden" id="conflictCard">
+      <div class="card hidden" id="conflictCard" data-dismissible="true">
         <h2>⚠️ Route Conflicts</h2>
         <p>Multiple configuration files are declaring the same routes. Choose which config should win:</p>
         <div id="conflicts">Loading conflicts...</div>
@@ -513,26 +520,13 @@
           
           const status = info.status || 0;
           let cls = 'err', reason = '';
-          
-          if (status >= 200 && status < 300) {
-            cls = 'ok';
-            reason = 'Working correctly';
-          } else if (status >= 300 && status < 400) {
-            cls = 'ok';
-            reason = 'Redirect (often expected behavior)';
-          } else if (status === 404) {
-            cls = 'warn';
-            reason = 'Not found - check route configuration';
-          } else if (status === 0) {
-            cls = 'warn';
-            reason = 'No response from this target';
-          } else if (status >= 400 && status < 500) {
-            cls = 'warn';
-            reason = 'Client error - check route configuration';
-          } else if (status >= 500) {
-            cls = 'err';
-            reason = 'Server error - upstream service issue';
-          }
+          // Treat 2xx as ok, 3xx as warn (not ok) to avoid green-on-308 confusion
+          if (status >= 200 && status < 300) { cls = 'ok'; reason = 'Working correctly'; }
+          else if (status >= 300 && status < 400) { cls = 'warn'; reason = 'Redirect'; }
+          else if (status === 404) { cls = 'warn'; reason = 'Not found - check route configuration'; }
+          else if (status === 0) { cls = 'warn'; reason = 'No response from this target'; }
+          else if (status >= 400 && status < 500) { cls = 'warn'; reason = 'Client error - check route configuration'; }
+          else if (status >= 500) { cls = 'err'; reason = 'Server error - upstream service issue'; }
           
           const labelName = (t === 'local-proxy') ? 'localhost' : t;
           const label = `${labelName}: ${status}`;
@@ -590,6 +584,11 @@
           const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
           (bySource[src] = bySource[src] || []).push(r);
         });
+        // Force the apps grid to have exactly one column per source file
+        if (appsEl) {
+          const cols = Math.max(1, Object.keys(bySource).length);
+          appsEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+        }
         function buildGroupsByBase(routesInSource, meta){
           const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
           const routesList = routesInSource.filter(r=>!systemRoutes.has(r));
@@ -1529,13 +1528,27 @@ Or check if config files have syntax errors.
         
         const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
                             (routes.conflictSummary && routes.conflictSummary.totalConflicts > 0);
+        // Hide indicator if user acknowledged
+        try{ const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null'); if (ack && ack.ts) return; }catch{}
         
-        if (!hasConflicts) {
-          conflictCard.classList.add('hidden');
-          return;
-        }
+        // Respect local acknowledgement to dismiss banner/content block
+        try{
+          const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null');
+          if (ack && ack.ts && (Date.now() - ack.ts < 7*24*3600*1000)){
+            conflictCard.classList.add('hidden');
+            return;
+          }
+        }catch{}
+        if (!hasConflicts) { conflictCard.classList.add('hidden'); return; }
         
         conflictCard.classList.remove('hidden');
+        // Add a one-time acknowledge button
+        const ackBtn = document.createElement('button');
+        ackBtn.className = 'btn';
+        ackBtn.textContent = 'Acknowledge';
+        ackBtn.onclick = ()=>{ try{ localStorage.setItem('conflictsAck', JSON.stringify({ ts: Date.now() })); }catch{} conflictCard.classList.add('hidden'); };
+        const header = conflictCard.querySelector('h2');
+        if (header && !conflictCard.querySelector('.btn.ack')){ header.appendChild(document.createTextNode(' ')); header.appendChild(ackBtn); ackBtn.classList.add('ack'); }
         conflictsDiv.innerHTML = '';
         
         // Parse nginx warnings to extract conflict information
@@ -1837,27 +1850,11 @@ Or check if config files have syntax errors.
         URL.revokeObjectURL(url);
       }
 
-      function updateGlobalConflictIndicator(routes) {
-        const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
-                            (routes.conflictSummary && routes.conflictSummary.totalConflicts > 0);
-        
-        const existingIndicator = document.querySelector('.global-conflict-indicator');
-        if (existingIndicator) existingIndicator.remove();
-        
-        if (hasConflicts) {
-          const conflictCount = routes.nginxWarnings ? routes.nginxWarnings.length : 1;
-          const indicator = document.createElement('div');
-          indicator.className = 'global-conflict-indicator';
-          indicator.innerHTML = `
-            <div class="conflict-badge">
-              ⚠️ ${conflictCount} Route Conflict${conflictCount > 1 ? 's' : ''}
-              <button onclick="document.getElementById('conflictCard').scrollIntoView({behavior: 'smooth'})">
-                Resolve
-              </button>
-            </div>
-          `;
-          document.body.appendChild(indicator);
-        }
+      function updateGlobalConflictIndicator(_routes) {
+        // Permanently disable the floating conflict banner
+        const existing = document.querySelector('.global-conflict-indicator');
+        if (existing) existing.remove();
+        return;
       }
 
       function applySeverityToApp(appElement, route, targets, routes) {
