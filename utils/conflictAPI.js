@@ -806,8 +806,11 @@ async function handle(req, res){
           const wait = Number(body && body.wait) || 2000;
           const timeout = Number(body && body.timeout) || 60000;
           const maxPasses = Math.max(1, Math.min(8, Number(body && body.maxPasses) || 4));
-          const out = await calliopeHealing.auditAndHealRoute({ url: urlToAudit, routePrefix: route, maxPasses, wait, timeout });
-          return send(res, 200, { ok: out.success, result: out });
+          const onUpdate = (evt) => pushThought((evt && evt.name) || 'step', evt);
+          const out = await calliopeHealing.auditAndHealRoute({ url: urlToAudit, routePrefix: route, maxPasses, wait, timeout, onUpdate });
+          send(res, 200, { ok: out.success, result: out });
+          scheduleThought('Audit+heal loop complete ✅', { route, success: out.success }, 60);
+          return; 
         }catch(e){
           return send(res, 500, { ok:false, error: e.message });
         }

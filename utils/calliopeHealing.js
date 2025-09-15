@@ -120,20 +120,17 @@ function ensureGenericPatterns() {
     });
   }
 
-  // Storybook + Vite under a subpath (e.g., /sdk) pattern
+  // Storybook + Vite under a subpath pattern (generic; no hardcoded route)
   if (!have.has('storybook_vite_subpath')) {
     seed.push({
       id: 'storybook_vite_subpath',
       detection: {
         signals: [
-          String.raw`/sdk/@vite/`,
-          String.raw`/sdk/@id/`,
-          String.raw`/sdk/@fs/`,
-          String.raw`/sdk/node_modules/`,
           String.raw`/(?:^|\s)/@vite/`,
           String.raw`/(?:^|\s)/@id/`,
           String.raw`/(?:^|\s)/@fs/`,
-          String.raw`/sdk/iframe\.html\?viewMode=story`,
+          String.raw`/(?:^|\s)/node_modules/`,
+          String.raw`iframe\.html\?viewMode=story`,
           String.raw`vite-inject-mocker-entry\.js`
         ],
         effects: [
@@ -142,7 +139,11 @@ function ensureGenericPatterns() {
           '404s for @vite/@id/@fs routes'
         ]
       },
-      solutions: []
+      solutions: [{
+        id: 'apply_storybook_vite_proxy_guards',
+        description: 'Ensure generic subpath proxy blocks for Storybook+Vite (prefix-agnostic)',
+        implementation: { type: 'automated', function: 'applyStorybookViteProxyGuards', params: [] }
+      }]
     });
   }
 
@@ -1052,82 +1053,121 @@ async function applyMxtkBestPractices() {
 /**
  * Ensure /sdk Storybook + Vite overrides in overrides/encast.conf (idempotent), then regenerate Nginx.
  */
-async function applySdkStorybookViteOverrides() {
+async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
   try {
-    const overridesPath = path.join(ROOT, 'overrides', 'encast.conf');
-    let content = '';
-    if (fs.existsSync(overridesPath)) content = fs.readFileSync(overridesPath, 'utf8');
+    if (!routePrefix || !routePrefix.startsWith('/')) {
+      return { success: false, message: 'routePrefix starting with / is required' };
+    }
+
+    // Find target config file that contains the routePrefix block and detect its upstream variable
+    const findConfByPrefix = (baseDir) => {
+      try {
+        const files = fs.readdirSync(baseDir).filter(f => f.endsWith('.conf'));
+        for (const f of files) {
+          const p = path.join(baseDir, f);
+          const txt = fs.readFileSync(p, 'utf8');
+          const safe = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const rx = new RegExp('location\\s*\\^~\\s*' + safe + '\\/');
+          if (rx.test(txt)) return p;
+        }
+      } catch {}
+      return null;
+    };
+    const target = findConfByPrefix(path.join(ROOT, 'overrides')) || findConfByPrefix(path.join(ROOT, 'apps'));
+    if (!target) return { success:false, message:'No config found for routePrefix' };
+
+    let content = fs.readFileSync(target, 'utf8');
+    const original = content;
+
+    // Try to detect upstream variable used in this file
+    let upstreamVar = null;
+    const bodyVar = content.match(/proxy_pass\s+http:\/\/\$([A-Za-z0-9_]+)/);
+    if (bodyVar && bodyVar[1]) upstreamVar = bodyVar[1];
+    if (!upstreamVar) {
+      const setVar = content.match(/set\s+\$([A-Za-z0-9_]+)\s+[^;]+;/);
+      if (setVar && setVar[1]) upstreamVar = setVar[1];
+    }
+    if (!upstreamVar) return { success:false, message:'Could not determine upstream variable for Storybook/Vite guards' };
 
     const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
 
-    // Remove any prior root-level helper blocks to keep hierarchy generic
-    // (Do NOT add route-specific root helpers; only subpath variants belong here)
-    try {
-      const rootHelperRe = /\n?location\s*\^~\s*\/(?:@vite|@id|@fs|node_modules|sb-manager|sb-addons|sb-common-assets)\/\s*\{[\s\S]*?\}\s*/g;
-      content = content.replace(rootHelperRe, '');
-    } catch {}
+    // Ensure core subpath block sets forwarded prefix (idempotent)
+    const safePrefix = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const locRe = new RegExp('(location\\s*\\^~\\s*' + safePrefix + '\/\\s*\{)([\\s\\S]*?)(\\n\})', 'm');
+    if (locRe.test(content)) {
+      content = content.replace(locRe, (m, a, b, c)=>{
+        if (/\bproxy_set_header\s+X-Forwarded-Prefix\b/.test(b)) return m;
+        const lines = b.split('\n');
+        let inserted = false;
+        for (let i=0;i<lines.length;i++){
+          if (/\bproxy_set_header\s+X-Forwarded-Host\b/.test(lines[i]) || /\bproxy_set_header\s+Host\b/.test(lines[i])){
+            lines.splice(i+1,0,`  proxy_set_header X-Forwarded-Prefix ${routePrefix};`);
+            inserted = true; break;
+          }
+        }
+        if (!inserted) lines.unshift(`  proxy_set_header X-Forwarded-Prefix ${routePrefix};`);
+        return a + lines.join('\n') + c;
+      });
+    }
 
-    ensure(/location\s*\^~\s*\/sdk\//m, [
-      'location ^~ /sdk/ {',
-      '  proxy_http_version 1.1;',
-      '  proxy_set_header Host $host;',
-      '  proxy_set_header X-Forwarded-Proto $scheme;',
-      '  proxy_set_header X-Forwarded-Host $host;',
-      '  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;',
-      '  proxy_set_header X-Forwarded-Prefix /sdk;',
-      '  resolver 127.0.0.11 ipv6=off;',
-      '  resolver_timeout 5s;',
-      '  set $sdk_upstream encast-sdk:6006;',
-      '  proxy_pass http://$sdk_upstream/;',
-      '}'
-    ].join('\n'));
-
-    const sdkBlocks = [
-      ['/sdk/@vite/', '@vite/'],
-      ['/sdk/@id/', '@id/'],
-      ['/sdk/@fs/', '@fs/'],
-      ['/sdk/node_modules/', 'node_modules/'],
-      ['/sdk/sb-manager/', 'sb-manager/'],
-      ['/sdk/sb-addons/', 'sb-addons/'],
-      ['/sdk/sb-common-assets/', 'sb-common-assets/'],
+    // Add Vite/Storybook helper locations under the same prefix
+    const guards = [
+      [`${routePrefix}/@vite/`, '@vite/'],
+      [`${routePrefix}/@id/`, '@id/'],
+      [`${routePrefix}/@fs/`, '@fs/'],
+      [`${routePrefix}/node_modules/`, 'node_modules/'],
+      [`${routePrefix}/sb-manager/`, 'sb-manager/'],
+      [`${routePrefix}/sb-addons/`, 'sb-addons/'],
+      [`${routePrefix}/sb-common-assets/`, 'sb-common-assets/'],
     ];
-    for (const [loc, pass] of sdkBlocks) {
+    for (const [loc, pass] of guards){
       const safeLoc = loc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
       const re = new RegExp('location\\s*\\^~\\s*' + safeLoc, 'm');
-      ensure(re, [
+      const isViteHmr = /@vite\//.test(pass);
+      const block = [
         `location ^~ ${loc} {`,
         '  proxy_http_version 1.1;',
         '  proxy_set_header Host $host;',
         '  proxy_set_header X-Forwarded-Proto $scheme;',
-        '  resolver 127.0.0.11 ipv6=off;',
-        '  resolver_timeout 5s;',
-        '  set $sdk_upstream encast-sdk:6006;',
-        `  proxy_pass http://$sdk_upstream/${pass};`,
+        ...(isViteHmr ? [
+          '  proxy_set_header Upgrade $http_upgrade;',
+          '  proxy_set_header Connection "upgrade";',
+          '  proxy_read_timeout 300s;',
+          '  proxy_send_timeout 300s;',
+          '  proxy_buffering off;',
+        ] : []),
+        `  proxy_pass http://$${upstreamVar}/${pass};`,
         '}'
-      ].join('\n'));
+      ].join('\n');
+      ensure(re, block);
     }
 
-    // Do NOT add root-level helper blocks here; hierarchy should derive from route prefixes only
-
-    fs.writeFileSync(overridesPath, content, 'utf8');
-    await regenerateNginxBundle();
-    return { success:true, message:'Applied /sdk Storybook+Vite overrides' };
+    if (content !== original){
+      fs.writeFileSync(target, content, 'utf8');
+      await regenerateNginxBundle();
+      return { success:true, message:'Applied Storybook+Vite proxy guards', details: { file: path.relative(ROOT, target), routePrefix } };
+    }
+    return { success:true, message:'Storybook+Vite proxy guards already present', details: { file: path.relative(ROOT, target), routePrefix } };
   } catch (e) {
-    return { success:false, message:`applySdkStorybookViteOverrides failed: ${e.message}` };
+    return { success:false, message:`applyStorybookViteProxyGuards failed: ${e.message}` };
   }
 }
 
 /**
  * Run auditor and apply targeted healing for a route until green or attempts exhausted
  */
-async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait = 2000, timeout = 60000 } = {}) {
+async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait = 2000, timeout = 60000, onUpdate } = {}) {
   const passes = [];
+  const emit = typeof onUpdate === 'function' ? onUpdate : ()=>{};
   for (let i=0;i<maxPasses;i++){
+    emit({ name: 'audit_pass_start', attempt: i+1, url, routePrefix });
     const run = await runSiteAuditor(url, { wait, timeout });
     const entry = { attempt: i+1, ok: run.ok, summary: run.summary, report: run.reportPath };
     passes.push(entry);
+    emit({ name: 'audit_pass_complete', attempt: i+1, ok: run.ok, summary: run.summary });
     const hasIssues = !run.ok || (run.summary && ((run.summary.consoleErrors||0) > 0 || (run.summary.networkFailures||0) > 0 || (run.summary.httpIssues||0) > 0));
     if (!hasIssues) {
+      emit({ name: 'audit_and_heal_complete', success: true });
       return { success: true, passes, message: 'Green' };
     }
 
@@ -1155,9 +1195,11 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
 
         if (needsRootDirs || missingPrefix){
           // Apply guards and ensure subpath routing resilience
+          emit({ name: 'apply_generic_directory_guards', routePrefix });
           await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath || '' });
           // Ensure forwarded prefix on app root and add /<prefix>/_next support
-          try { await ensureRouteForwardedPrefixAndNext({ routePrefix }); } catch {}
+          try { emit({ name: 'ensure_route_forwarded_prefix_and_next', routePrefix }); await ensureRouteForwardedPrefixAndNext({ routePrefix }); } catch {}
+          emit({ name: 'fix_subpath_absolute_routing', routePrefix });
           await fixSubpathAbsoluteRouting({ routePrefix });
           continue; // next pass
         }
@@ -1168,9 +1210,10 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
     } catch {}
 
     // If no targeted action detected, still try best practices once
-    if (i === 0) { await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath||'' }); continue; }
+    if (i === 0) { emit({ name: 'apply_generic_directory_guards', routePrefix }); await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath||'' }); continue; }
     break; // avoid infinite loop
   }
+  emit({ name: 'audit_and_heal_complete', success: false });
   return { success: false, passes, message: 'Could not reach green within pass limit' };
 }
 
@@ -1209,7 +1252,8 @@ async function applyHealingStrategy(strategy, issue) {
     recreateSymlinks,
     improveProxyResilience,
     restartProxyAfterUpstreams,
-    ensureRouteForwardedPrefixAndNext
+    ensureRouteForwardedPrefixAndNext,
+    applyStorybookViteProxyGuards
   };
   
   // Check if the function exists
@@ -1389,6 +1433,7 @@ async function advancedSelfHeal(options = {}) {
   for (const issue of detectedIssues) {
     const issueName = issue.pattern.id;
     result.steps.push({ name: `heal_${issueName}`, status: 'running' });
+    onUpdate({ name: `heal_${issueName}`, status: 'running' });
     
     // Find healing strategy
     const strategy = await findHealingStrategy(issue);
@@ -1398,6 +1443,7 @@ async function advancedSelfHeal(options = {}) {
         status: 'skipped', 
         reason: 'No automated strategy available'
       });
+      onUpdate({ name: `heal_${issueName}`, status: 'skipped', reason: 'No automated strategy available' });
       continue;
     }
     
@@ -1416,6 +1462,7 @@ async function advancedSelfHeal(options = {}) {
         strategy: strategy.id,
         message: healResult.message
       });
+      onUpdate({ name: `heal_${issueName}`, status: 'completed', strategy: strategy.id, message: healResult.message });
     } else {
       result.steps.push({ 
         name: `heal_${issueName}`, 
@@ -1424,17 +1471,20 @@ async function advancedSelfHeal(options = {}) {
         error: healResult.message,
         details: healResult.details
       });
+      onUpdate({ name: `heal_${issueName}`, status: 'failed', strategy: strategy.id, error: healResult.message });
     }
   }
   
   // Step 4: Final check to make sure things are working
   result.steps.push({ name: 'final_check', status: 'running' });
+  onUpdate({ name: 'final_check', status: 'running' });
   const finalDiagnostics = await runDiagnostics();
   const newIssues = await detectIssuesFromSignals(finalDiagnostics.signals);
   
   if (newIssues.length === 0) {
     result.steps.push({ name: 'final_check', status: 'completed', ok: true });
     result.success = true;
+    onUpdate({ name: 'final_check', status: 'completed', ok: true });
   } else {
     result.steps.push({ 
       name: 'final_check', 
@@ -1443,6 +1493,7 @@ async function advancedSelfHeal(options = {}) {
     });
     result.success = result.appliedStrategies.some(s => s.result.success);
     result.remainingIssues = newIssues;
+    onUpdate({ name: 'final_check', status: 'warning', remainingIssues: newIssues.length });
   }
   
   result.finishedAt = new Date().toISOString();
@@ -1849,6 +1900,7 @@ module.exports = {
   analyzeWithOpenAI,
   addPatternFromHealing,
   auditAndHealRoute,
+  applyStorybookViteProxyGuards,
   // Snapshot/Analysis
   snapshotProjectToResources,
   analyzeSnapshotForProxyCompatibility,
