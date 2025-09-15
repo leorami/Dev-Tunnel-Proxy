@@ -10,7 +10,7 @@ This example shows how to run a Next.js app behind a proxy path with proper base
 - **Proper trailing slash handling** throughout all location blocks
 
 ### ✅ Asset Loading Support  
-- **Root-level asset routes** for `/icons/`, `/robots.txt`, etc. that Next.js apps often reference
+- **BasePath-aware assets**: Prefer basePath/assetPrefix configuration in-app over proxy root exceptions
 - **Comprehensive header forwarding** including `X-Forwarded-Prefix` for proper basePath behavior
 - **Resolver configuration** with Docker DNS for reliable service discovery
 
@@ -73,13 +73,8 @@ location ~ ^/myapp/_next/(.+)$ {
 }
 ```
 
-**3. Root-Level Assets (Common Next.js Pattern)**
-```nginx
-# Many Next.js apps reference /icons/, /robots.txt without basePath
-location /icons/ {
-  proxy_pass http://$myapp_upstream/icons/;
-}
-```
+**3. Root-Level Assets**
+- Avoid adding root exceptions like `/icons/` or `/robots.txt` in the proxy. Configure your app to respect basePath and serve assets under the prefix.
 
 ## App adjustments
 - Prefer `next/link` and `next/image` so basePath is respected.
@@ -102,7 +97,7 @@ curl -I http://localhost:8080/myapp/_next/static/chunks/webpack.js  # Should be 
 ```bash
 # These should NOT return redirect loops (308/301)
 curl -I http://localhost:8080/myapp/_next/     # Should be 200 or 404, not 308
-curl -I http://localhost:8080/icons/           # Should work if app uses root icons
+# Root-level assets should be avoided; prefer /myapp/icons/ via app basePath
 ```
 
 ### 3. Development Features
