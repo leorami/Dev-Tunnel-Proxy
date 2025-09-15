@@ -28,6 +28,8 @@ Calliope is your proxy's caring, youthful AI assistant who lives inside your dev
 - POST `/api/ai/ask` - Ask Calliope questions about your setup  
 - POST `/api/ai/self-check` - Request focused health check with optional healing
 - POST `/api/ai/advanced-heal` - Trigger advanced step-by-step healing process
+- POST `/api/ai/audit` - Run a one-off site audit and return a summary
+- POST `/api/ai/audit-and-heal` - Iterate audit → heal → re-audit until green or limit
 
 ## Self-Healing Strategies (Constantly Learning)
 Calliope can automatically detect and fix these common issues:

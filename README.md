@@ -73,8 +73,7 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    - **JSON**: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
    - **Reports**: `/reports/` directory browser
 
-9) **🛠️ Advanced Conflict Management**:
-10) **🤖 Calliope AI Assistant** (Enhanced)
+9) **🤖 Calliope AI Assistant** (Enhanced)
    - **Personality**: Caring, youthful engineer who actually fixes problems instead of just giving advice
    - **Step-by-Step Healing**: Watch her investigate → diagnose → fix → test → verify
    - **Pattern Learning**: Remembers successful fixes and applies them automatically to similar issues  
@@ -88,10 +87,10 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    ```
    - Click <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icons to ask Calliope to diagnose and heal issues
    - Chat interface for natural language questions and requests
-   - Endpoints: `/api/ai/health`, `/api/ai/ask`, `/api/ai/self-check`, `/api/ai/advanced-heal`
+   - Endpoints: `/api/ai/health`, `/api/ai/ask`, `/api/ai/self-check`, `/api/ai/advanced-heal`, `/api/ai/audit`, `/api/ai/audit-and-heal`
    - See `docs/CALLIOPE-AI-ASSISTANT.md` for full capabilities
 
-9) **🛠️ Advanced Conflict Management**:
+10) **🛠️ Advanced Conflict Management**:
    - Detects when multiple apps declare the same nginx route
    - **Enhanced Visual UI**: Improved conflict resolution at `/status`
    - Route renaming and config editing capabilities
@@ -209,7 +208,7 @@ docker run --rm --network devproxy \
   -v "$PWD":/work -w /work/test/ui \
   mcr.microsoft.com/playwright:v1.46.0-jammy \
   bash -lc 'npm install --no-audit --no-fund && npx playwright install --with-deps && npm test'
-``;
+```
 
 Artifacts: `.artifacts/ui/` (screenshots, attached JSON for styles and console; traces/videos on failure)
 
@@ -334,7 +333,7 @@ The Dev Tunnel Proxy uses a **multi-container architecture** instead of consolid
 ### Container Responsibilities
 
 - **`dev-proxy` (nginx)**: Pure reverse proxy + static file serving
-- **`calliope-api` (Node.js)**: REST API for config management and conflict resolution
+- **Calliope API** (service: `conflict-api`, Node.js): REST API for config management, conflict resolution, and AI endpoints
 - **`auto-scan` (Node.js)**: Periodic route health monitoring and status generation
 - **`ngrok`**: Secure tunnel service to external networks
 

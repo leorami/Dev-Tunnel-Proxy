@@ -144,14 +144,10 @@ location ~ ^/myapp/_next/(.+)$ {
 }
 ```
 
-**3. Handle Root Assets**  
-```nginx
-# Many Next.js apps reference /icons/ without basePath
-location /icons/ {
-  set $myapp_upstream myapp-service:2000;
-  proxy_pass http://$myapp_upstream/icons/;
-}
-```
+**3. Root assets under a subpath**
+- Avoid adding root exceptions like `/icons` or `/art` at the proxy root. These hide app issues and break generic policy.
+- Instead: configure your app to use basePath/assetPrefix, ensure the proxy forwards `X-Forwarded-Prefix`, and add a `${routePrefix}/_next/` block as shown above.
+- If a temporary unblock is needed, prefer app-specific paths (e.g., `/myapp/icons/`), not root.
 
 **Prevention**: Always test both `/myapp` and `/myapp/_next/` for redirects after configuration changes.
 

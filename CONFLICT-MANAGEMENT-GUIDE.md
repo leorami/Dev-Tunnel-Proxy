@@ -91,7 +91,7 @@ By default, the proxy uses a **"first config wins"** strategy when scanning app 
 
 ### 2. Enhanced Visual Interface (🆕)
 
-The `/status` provides the followingconflict management features:
+The `/status` provides the following conflict management features:
 
 #### Smart Route Organization
 - **Route Grouping**: All routes automatically grouped by base upstream URL (nginx variables group by variable name, e.g., `$myapp_upstream`) (🆕)
