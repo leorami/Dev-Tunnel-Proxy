@@ -2285,6 +2285,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
 
         // Thought polling for progress breadcrumbing
         let thoughtsTimer = null;
+        let healthTimer = null;
         function startThoughtsPolling(){
           if (thoughtsTimer) return;
           thoughtsTimer = setInterval(async ()=>{
@@ -2315,6 +2316,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 else if (/complete ✅|all clear|finished|done/i.test(lower)) setState('status-ready','😊 Happy');
               });
             }catch{}
+          }, 2000);
+        }
+
+        function startHealthPolling(){
+          if (healthTimer) return;
+          healthTimer = setInterval(()=>{
+            refreshHealth().catch(()=>{});
           }, 2000);
         }
 
@@ -2783,6 +2791,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         await loadChatHistory();
         await refreshHealth();
         startThoughtsPolling();
+        startHealthPolling();
 
         // Allow user to stop current work by clicking the status chip
         const statusChip = document.getElementById('aiHealingStatus');
