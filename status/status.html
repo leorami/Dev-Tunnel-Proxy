@@ -2290,7 +2290,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           if (thoughtsTimer) return;
           thoughtsTimer = setInterval(async ()=>{
             try{
-              const r = await fetch('/api/ai/thoughts');
+              const r = await fetch('/api/ai/thoughts', { headers: { 'ngrok-skip-browser-warning': 'true' }, cache: 'no-cache' });
               if (!r.ok) return;
               const d = await r.json().catch(()=>null);
               const evs = (d && d.events) || [];
@@ -2323,7 +2323,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         function startHealthPolling(){
           if (healthTimer) return;
           healthTimer = setInterval(()=>{
-            refreshHealth().catch(()=>{});
+            refreshHealth().catch((e)=>{ try{ console.debug('[Calliope][health] error', e&&e.message); }catch{} });
           }, 2000);
         }
 
