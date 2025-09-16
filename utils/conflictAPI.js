@@ -549,75 +549,81 @@ async function handle(req, res){
 
         // If user asks to both audit and heal a specific path, run iterative audit→heal→re-audit
         if (wantsAudit && wantsHeal && (routeKey || fullPath || absoluteUrl)){
+          // Run heavy audit+heal in background so /thoughts and /health remain responsive
           try {
             const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
             const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
-            const parts = [];
-            parts.push(`Focusing on ${url} (route ${routeKey || fullPath || ''})`);
-            // Activity and controls
             clearCancel();
             setActivity('auditing');
+            pushThought(`Starting audit+heal for ${routeKey||fullPath||url}…`, { route: routeKey||fullPath||'' });
             const passMatch = query.toLowerCase().match(/max\s*(\d+)\s*passes?|stop\s*after\s*(\d+)\s*passes?/);
             const userMaxPasses = passMatch ? (Number(passMatch[1]||passMatch[2])||3) : 3;
             const untilGreen = /(until\s*(green|100%|all\s*passing|no\s*issues|all\s*clear)|keep\s*going|continue)/i.test(query);
-            let prev = null;
-            for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
-              pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
-              const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
-              if (audit && audit.ok && audit.summary){
-                parts.push(`\nPass ${i+1} summary:`);
-                parts.push('```json');
-                parts.push(JSON.stringify(audit.summary, null, 2));
-                parts.push('```');
-                if (audit.reportPath){
-                  parts.push('Report:');
-                  parts.push('```');
-                  parts.push(audit.reportPath);
-                  parts.push('```');
+            setTimeout(async ()=>{
+              const parts = [];
+              parts.push(`Focusing on ${url} (route ${routeKey || fullPath || ''})`);
+              let prev = null;
+              try{
+                for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
+                  pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
+                  const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
+                  if (audit && audit.ok && audit.summary){
+                    parts.push(`\nPass ${i+1} summary:`);
+                    parts.push('```json');
+                    parts.push(JSON.stringify(audit.summary, null, 2));
+                    parts.push('```');
+                    if (audit.reportPath){
+                      parts.push('Report:');
+                      parts.push('```');
+                      parts.push(audit.reportPath);
+                      parts.push('```');
+                    }
+                    if (prev && prev.summary){
+                      const d = {
+                        consoleErrors: (audit.summary.consoleErrors||0) - (prev.summary.consoleErrors||0),
+                        networkFailures: (audit.summary.networkFailures||0) - (prev.summary.networkFailures||0),
+                        httpIssues: (audit.summary.httpIssues||0) - (prev.summary.httpIssues||0),
+                      };
+                      parts.push('Delta vs previous pass:');
+                      parts.push('```json');
+                      parts.push(JSON.stringify(d, null, 2));
+                      parts.push('```');
+                      const totalNow = (audit.summary.consoleErrors||0)+(audit.summary.networkFailures||0)+(audit.summary.httpIssues||0);
+                      const totalPrev = (prev.summary.consoleErrors||0)+(prev.summary.networkFailures||0)+(prev.summary.httpIssues||0);
+                      if (isCancelled()) { parts.push('Stopped by user.'); break; }
+                      if (totalNow === 0) { parts.push('All clear ✅'); break; }
+                      if (!untilGreen && totalNow <= totalPrev) break;
+                    }
+                    prev = audit;
+                  } else {
+                    parts.push('Audit did not complete successfully.');
+                    if (audit && audit.error) parts.push(`Error: ${audit.error}`);
+                    break;
+                  }
+  
+                  try {
+                    setActivity('healing');
+                    pushThought('Applying subpath healing…', { route: routeKey });
+                    const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey || '' });
+                    const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey || '' });
+                    await calliopeHealing.regenerateNginxBundle();
+                    parts.push('Heal actions:');
+                    parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
+                    parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
+                  } catch (e) {
+                    parts.push(`Healing step error: ${e.message}`);
+                    break;
+                  }
+                  setActivity('auditing');
                 }
-                if (prev && prev.summary){
-                  const d = {
-                    consoleErrors: (audit.summary.consoleErrors||0) - (prev.summary.consoleErrors||0),
-                    networkFailures: (audit.summary.networkFailures||0) - (prev.summary.networkFailures||0),
-                    httpIssues: (audit.summary.httpIssues||0) - (prev.summary.httpIssues||0),
-                  };
-                  parts.push('Delta vs previous pass:');
-                  parts.push('```json');
-                  parts.push(JSON.stringify(d, null, 2));
-                  parts.push('```');
-                  const totalNow = (audit.summary.consoleErrors||0)+(audit.summary.networkFailures||0)+(audit.summary.httpIssues||0);
-                  const totalPrev = (prev.summary.consoleErrors||0)+(prev.summary.networkFailures||0)+(prev.summary.httpIssues||0);
-                  if (isCancelled()) { parts.push('Stopped by user.'); break; }
-                  if (totalNow === 0) { parts.push('All clear ✅'); break; }
-                  if (!untilGreen && totalNow <= totalPrev) break;
-                }
-                prev = audit;
-              } else {
-                parts.push('Audit did not complete successfully.');
-                if (audit && audit.error) parts.push(`Error: ${audit.error}`);
-                break;
+              } finally {
+                scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
+                setActivity('');
+                try { appendChat('assistant', parts.join('\n')); } catch {}
               }
-
-              // Healing between passes (ensure prefix + subpath API/dev helpers), then regenerate/reload
-              try {
-                setActivity('healing');
-                pushThought('Applying subpath healing…', { route: routeKey });
-                const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey || '' });
-                const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey || '' });
-                await calliopeHealing.regenerateNginxBundle();
-                parts.push('Heal actions:');
-                parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
-                parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
-              } catch (e) {
-                parts.push(`Healing step error: ${e.message}`);
-                break;
-              }
-              setActivity('auditing');
-            }
-            scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
-            setActivity('');
-            try { appendChat('assistant', parts.join('\n')); } catch {}
-            return send(res, 200, { ok:true, answer: parts.join('\n') });
+            }, 10);
+            // Respond immediately so UI polling can continue while background work runs
+            return send(res, 200, { ok:true, accepted:true, answer: 'Working on it — starting audit and healing now. I\'ll report progress here.' });
           } catch (e) {
             setActivity('');
             return send(res, 500, { ok:false, error: e.message });
