@@ -143,15 +143,16 @@
       .healing-entry-actions button:hover{background:var(--btnBgHover)}
       
       /* Healing Status Indicator in AI header */
-      .ai-healing-status{font-size:12px;padding:4px 4px;border-radius:999px;display:inline-flex;align-items:center;gap:0;border:1px solid var(--btnBorder);font-weight:700}
+      .ai-healing-status{font-size:12px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--btnBorder);font-weight:700}
       .ai-healing-status .pulse{display:none}
       .ai-healing-count{color:var(--muted);font-size:11px}
       :root{--ai-ready:#16c784;--ai-healing:#ff5bbd;--ai-audit:#8b5cf6;--ai-coding:#3b82f6;--ai-offline:#ef4444}
-      .ai-healing-status.status-ready{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.45);color:#8ef0c3}
-      .ai-healing-status.status-healing{background:rgba(255,91,189,.14);border-color:rgba(255,91,189,.45);color:#ffb3dc}
-      .ai-healing-status.status-auditing{background:rgba(139,92,246,.14);border-color:rgba(139,92,246,.45);color:#cdb6ff}
-      .ai-healing-status.status-coding{background:rgba(59,130,246,.14);border-color:rgba(59,130,246,.45);color:#b9d4ff}
-      .ai-healing-status.status-offline{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.5);color:#ffb1b1}
+      @keyframes chipGlow{0%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}50%{box-shadow:0 0 18px 2px rgba(255,255,255,.22)}100%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}}
+      .ai-healing-status.status-ready{background:rgba(22,199,132,.18);border-color:rgba(22,199,132,.55);color:#fff}
+      .ai-healing-status.status-healing{background:#ff5bbd;border-color:#ff5bbd;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-auditing{background:#8b5cf6;border-color:#8b5cf6;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-coding{background:#3b82f6;border-color:#3b82f6;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-offline{background:#ef4444;border-color:#ef4444;color:#fff}
 
       /* Hierarchical Route Styles */
       .expandable-route{position:relative}
@@ -210,7 +211,7 @@
       .ai-drawer{position:fixed;right:0;height:calc(88vh - (var(--headerH, 64px) + var(--summaryH, 0px)));width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
       .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
-      .ai-tab{position:absolute;left:-36px;top:50%;transform:translateY(-50%);background:var(--btnBg);border:2px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:8px}
+      .ai-tab{position:absolute;left:-36px;top:15%;transform:translateY(-50%);background:var(--btnBg);border:1px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:-6px 6px 18px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:8px}
       .ai-tab .icon-steth{display:flex;align-items:center;justify-content:center}
       .ai-tab .icon-steth img{width:20px;height:20px;display:block;transform: rotate(270deg);}
       .ai-tab .label{letter-spacing:.3px;writing-mode:vertical-rl;text-orientation:mixed;transform: rotate(180deg);}
@@ -224,7 +225,9 @@
       .bubble.user{margin-left:auto;background:rgba(125,162,255,.22);border:1px solid rgba(125,162,255,.35)}
       .bubble.assistant{margin-right:auto;background:linear-gradient(180deg, rgba(255,143,211,.12), rgba(255,91,189,.10));border:1px solid rgba(255,143,211,.45)}
       .bubble-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
-      .bubble-content{margin-top:0}
+      .bubble-content{margin-top:0; overflow-wrap:anywhere; word-break:break-word}
+      .bubble-content pre{white-space:pre-wrap; word-break:break-word}
+      .bubble-content a{word-break:break-all}
       .ai-healing-history{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted);background:rgba(125,162,255,.1);border:1px solid rgba(125,162,255,.3);padding:2px 8px;border-radius:12px;cursor:pointer;transition:all 0.2s ease}
       .ai-healing-history:hover{background:rgba(125,162,255,.2);border-color:rgba(125,162,255,.5)}
       .bubble p{margin:.4em 0}
@@ -236,7 +239,7 @@
       .ai-input{display:flex;flex-direction:column;gap:8px}
       .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body)}
       .ai-input textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
-      .ai-actions{display:flex;gap:8px;justify-content:flex-end}
+      .ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
       /* Thinking indicator */
       .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
       .dots{display:inline-flex;gap:4px;vertical-align:middle}
@@ -337,12 +340,12 @@
             </h2>
             <div class="ai-meta">
               <span class="ai-healing-history" id="aiHealingHistory">
-                <span class="ai-healing-label">Healing History</span>
+                <span class="ai-healing-history-label">Healing History</span>
               </span>
               <span class="ai-healing-status" id="aiHealingStatus">
                 <span class="pulse"></span>
-                <span class="ai-healing-label">Healing</span>
-                <span class="ai-healing-count" id="aiHealingCount"></span>
+                <span class="ai-healing-status-label" id="aiHealingStatusLabel">Healing</span>
+                <span class="ai-healing-count" style="display:none" id="aiHealingCount"></span>
               </span>
             </div>
           </div>
@@ -2099,13 +2102,14 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         
         // Update healing status in header
         const statusEl = document.getElementById('aiHealingStatus');
+        const statusLabelEl = document.getElementById('aiHealingStatusLabel');
         const countHeaderEl = document.getElementById('aiHealingCount');
         
         // Only adjust label if not overridden by refreshHealth state mapping
         if (isHealing) {
           statusEl.classList.remove('status-ready','status-auditing','status-coding','status-offline');
           statusEl.classList.add('status-healing');
-          statusEl.querySelector('.ai-healing-label').textContent = 'Healing';
+          statusLabelEl.textContent = '😵‍💫 Confused';
         }
         
         countHeaderEl.textContent = count > 0 ? `(${count})` : '';
@@ -2263,6 +2267,57 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const copyBtn = document.getElementById('aiCopyBtn');
         const healBtn = document.getElementById('aiHealBtn');
         const queryEl = document.getElementById('aiQuery');
+        // Persisted chat history loader
+        async function loadChatHistory(){
+          try{
+            const resp = await fetch('/api/ai/chat-history');
+            if (!resp.ok) return;
+            const data = await resp.json().catch(()=>null);
+            const messages = (data && data.messages) || [];
+            // Render last 100 to keep UI snappy
+            const recent = messages.slice(-100);
+            recent.forEach(m => {
+              const who = (m.role === 'assistant') ? 'assistant' : 'user';
+              appendBubble(who, m.content||'');
+            });
+          }catch{}
+        }
+
+        // Thought polling for progress breadcrumbing
+        let thoughtsTimer = null;
+        function startThoughtsPolling(){
+          if (thoughtsTimer) return;
+          thoughtsTimer = setInterval(async ()=>{
+            try{
+              const r = await fetch('/api/ai/thoughts');
+              if (!r.ok) return;
+              const d = await r.json().catch(()=>null);
+              const evs = (d && d.events) || [];
+              evs.forEach(ev => {
+                const msg = (ev && ev.message) ? String(ev.message) : '';
+                const det = ev && ev.details || {};
+                if (msg) {
+                  console.debug('[Calliope][thought]', msg, det);
+                  appendBubble('assistant', msg);
+                }
+                // Map thought tags to status chip state heuristically
+                const statusChip = document.getElementById('aiHealingStatus');
+                const labelEl = document.getElementById('aiHealingStatusLabel');
+                const lower = msg.toLowerCase();
+                const setState = (cls, text)=>{
+                  statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
+                  statusChip.classList.add(cls);
+                  labelEl.textContent = text;
+                };
+                if (/auditing/.test(lower) || /audit/.test(lower)) setState('status-auditing','🔬 Auditing');
+                else if (/healing/.test(lower) || /heal/.test(lower)) setState('status-healing','💖 Healing');
+                else if (/code review|snapshot|analyz|review/i.test(lower)) setState('status-coding','🛠️ Coding');
+                else if (/complete ✅|all clear|finished|done/i.test(lower)) setState('status-ready','😊 Happy');
+              });
+            }catch{}
+          }, 2000);
+        }
+
         
         // Healing history elements
         const healingBadge = document.getElementById('healingBadge');
@@ -2283,21 +2338,23 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
 
             // Update Calliope status chip color and label
             const statusChip = document.getElementById('aiHealingStatus');
-            const labelEl = statusChip.querySelector('.ai-healing-label');
+            const labelEl = document.getElementById('aiHealingStatusLabel');
+            
             const setState = (cls, text)=>{
               statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
               statusChip.classList.add(cls);
               labelEl.textContent = text;
             };
+
             if (!healthJson.enabled || healthJson.healthy===false){
-              setState('status-offline','Offline');
+              setState('status-offline','🫥 AFK');
             } else {
               // Prefer explicit activity if provided by API
               const activity = (healthJson.activity||'').toLowerCase();
-              if (activity === 'healing') setState('status-healing','Healing');
-              else if (activity === 'auditing') setState('status-auditing','Auditing');
-              else if (activity === 'coding') setState('status-coding','Coding');
-              else setState('status-ready','Ready');
+              if (activity === 'healing') setState('status-healing','💖 Healing');
+              else if (activity === 'auditing') setState('status-auditing','🔬 Auditing');
+              else if (activity === 'coding') setState('status-coding','🛠️ Coding');
+              else setState('status-ready','😊 Happy');
             }
           } catch {
             if (statusEl) statusEl.textContent = 'Unavailable';
@@ -2426,8 +2483,17 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const data = await resp.json().catch(()=>null);
             if (!resp.ok){ appendBubble('assistant', (data&&data.error) ? `Error: ${data.error}` : `HTTP ${resp.status}`); }
             else {
-              const txt = (data.answer||'').trim();
-              appendBubble('assistant', txt);
+              // Friendly rendering: interpret JSON summaries into human text
+              const raw = (data.answer||'').trim();
+              const friendly = raw
+                .replace(/\{\s*"consoleErrors"\s*:\s*(\d+).*?\}/gs, (m)=>{
+                  try{ const obj = JSON.parse(m); return `No console errors, ${obj.networkFailures||0} network failures, ${obj.httpIssues||0} HTTP issues.`; }catch{ return m; }
+                })
+                .replace(/```json[\s\S]*?```/g, '') // hide raw JSON blocks
+                .replace(/Report:\n```[\s\S]*?```/g, '') // hide report path blocks
+                .replace(/Pass (\d+) summary:/g, 'Pass $1:')
+                .replace(/Delta vs previous pass:/g, 'Change since last pass:');
+              appendBubble('assistant', friendly);
             }
           } catch(e){ 
             thinking.remove(); 
@@ -2442,6 +2508,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const resp = await fetch('/api/ai/reindex', { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
             const data = await resp.json().catch(()=>null);
             if (!resp.ok){ alert(`Reindex failed: ${(data&&data.error)||('HTTP '+resp.status)}`); }
+            else { appendBubble('assistant', 'Knowledge index rebuilt ✅'); }
           } catch(e){ alert('Reindex error: '+e.message); }
           await refreshHealth();
           reindexBtn.disabled = false; reindexBtn.textContent = 'Reindex';
@@ -2699,7 +2766,34 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           aiHealingStatus.style.display = 'none';
         }
         
+        // Expose minimal debug helpers
+        window.__calliopeDebug = {
+          setStatus: (s)=>{
+            const statusChip = document.getElementById('aiHealingStatus');
+            const labelEl = document.getElementById('aiHealingStatusLabel');
+            const map = { ready:['status-ready','😊 Happy'], healing:['status-healing','💖 Healing'], auditing:['status-auditing','🔬 Auditing'], coding:['status-coding','🛠️ Coding'], offline:['status-offline','🫥 AFK'] };
+            const m = map[(s||'').toLowerCase()]||map.ready;
+            statusChip.className = 'ai-healing-status ' + m[0];
+            labelEl.textContent = m[1];
+          },
+          pingThought:(m)=>fetch('/api/ai/thoughts/clear',{method:'POST'}).then(()=>appendBubble('assistant', m||'debug thought'))
+        };
+
+        // Load persisted chat first, then current health, then begin thoughts polling
+        await loadChatHistory();
         await refreshHealth();
+        startThoughtsPolling();
+
+        // Allow user to stop current work by clicking the status chip
+        const statusChip = document.getElementById('aiHealingStatus');
+        statusChip.addEventListener('click', async ()=>{
+          try{
+            const r = await fetch('/api/ai/cancel', { method:'POST' });
+            if (r.ok){
+              appendBubble('assistant', "Oops, I’ll pause now — my hyper‑focus ran away with me! 💫 I’ve stopped and I’m ready to help however you like next.");
+            }
+          }catch{}
+        });
       }
     </script>
   </body>

@@ -27,6 +27,8 @@ const APPS_DIR = path.join(ROOT, 'apps');
 const ARTIFACTS_DIR = path.join(ROOT, '.artifacts');
 const RES_FILE = path.join(ARTIFACTS_DIR, 'route-resolutions.json');
 const EMBED_FILE = path.join(ARTIFACTS_DIR, 'ai-embeddings.json');
+const CHAT_DIR = path.join(ARTIFACTS_DIR, 'calliope');
+const CHAT_FILE = path.join(CHAT_DIR, 'chat-history.json');
 const DOCS_DIR = path.join(ROOT, 'docs');
 const EXAMPLES_DIR = path.join(ROOT, 'examples');
 const README = path.join(ROOT, 'README.md');
@@ -57,6 +59,17 @@ function scheduleThought(message, details = {}, delayMs = 30){
     setTimeout(() => pushThought(message, details), Math.max(0, delayMs));
   } catch {}
 }
+
+// Activity/cancellation tracking and persistent chat
+let currentActivity = '';
+let cancelRequested = false;
+function setActivity(a){ currentActivity = a || ''; }
+function requestCancel(){ cancelRequested = true; }
+function clearCancel(){ cancelRequested = false; }
+function isCancelled(){ return !!cancelRequested; }
+function ensureChatFile(){ try{ fs.mkdirSync(CHAT_DIR, { recursive: true }); if (!fs.existsSync(CHAT_FILE)) fs.writeFileSync(CHAT_FILE, JSON.stringify({ messages: [] }, null, 2)); }catch{} }
+function loadChat(){ try{ ensureChatFile(); return JSON.parse(fs.readFileSync(CHAT_FILE, 'utf8')); }catch{ return { messages: [] }; } }
+function appendChat(role, content){ try{ ensureChatFile(); const data = loadChat(); const msg = { id: Date.now() + Math.random(), ts: new Date().toISOString(), role, content: String(content||'') }; data.messages.push(msg); if (data.messages.length > 500) data.messages.splice(0, data.messages.length - 500); fs.writeFileSync(CHAT_FILE, JSON.stringify(data, null, 2)); }catch{} }
 
 function send(res, code, data, headers = {}){
   const body = typeof data === 'string' ? data : JSON.stringify(data);
@@ -141,6 +154,15 @@ async function handle(req, res){
 
   try{
     // Thinking endpoints
+    if (req.method === 'GET' && u.pathname === '/api/ai/chat-history'){
+      const data = loadChat();
+      return send(res, 200, { ok:true, messages: data.messages || [] });
+    }
+    if (req.method === 'POST' && u.pathname === '/api/ai/cancel'){
+      requestCancel();
+      scheduleThought('Stopping current work (user requested)…', { stopped: true });
+      return send(res, 200, { ok:true, cancelled: true });
+    }
     // Overrides conflicts listing
     if (req.method === 'GET' && u.pathname === '/api/overrides/conflicts'){
       try{
@@ -281,7 +303,7 @@ async function handle(req, res){
           }
         } catch (e) {}
         
-        return send(res, 200, { enabled, model: process.env.OPENAI_MODEL || null, staticNgrokDomain });
+        return send(res, 200, { enabled, model: process.env.OPENAI_MODEL || null, staticNgrokDomain, activity: currentActivity });
       }
 
       // POST /api/ai/restart-containers { names?: string[], self?: boolean }
@@ -321,9 +343,14 @@ async function handle(req, res){
           if (!containerName || !srcPathInContainer){
             return send(res, 400, { ok:false, error: 'containerName and srcPathInContainer required' });
           }
+          setActivity('coding');
+          pushThought(`Analyzing code in ${containerName}:${srcPathInContainer}…`);
           const out = await calliopeHealing.backupAndAnalyzeContainerProject({ containerName, srcPathInContainer, outName });
+          scheduleThought('Code review complete ✅', { containerName }, 60);
+          setActivity('');
           return send(res, 200, { ok: out.success, reviewRoot: out.snapshot, suggestions: out.analysis && out.analysis.suggestions || [], message: out.message || null });
         }catch(e){
+          setActivity('');
           return send(res, 500, { ok:false, error: e.message });
         }
       }
@@ -354,9 +381,14 @@ async function handle(req, res){
           if (!projectPath){
             return send(res, 400, { ok:false, error: 'projectPath required' });
           }
+          setActivity('coding');
+          pushThought(`Analyzing code at ${projectPath}…`);
           const out = await calliopeHealing.backupAndAnalyzeProject(projectPath, outName);
+          scheduleThought('Code review complete ✅', { projectPath }, 60);
+          setActivity('');
           return send(res, 200, { ok: out.success, reviewRoot: out.snapshot, suggestions: out.analysis && out.analysis.suggestions || [], message: out.message || null });
         }catch(e){
+          setActivity('');
           return send(res, 500, { ok:false, error: e.message });
         }
       }
@@ -426,6 +458,9 @@ async function handle(req, res){
         const maxDocs = Math.max(1, Math.min(10, Number(body && body.maxDocs) || 6));
         const systemHint = (body && body.systemHint) || '';
         if (!query) return send(res, 400, { error: 'Missing query' });
+
+        // Persist user chat
+        try { appendChat('user', query); } catch {}
 
         // Lightweight intent detection
         const lower = query.toLowerCase();
@@ -512,15 +547,21 @@ async function handle(req, res){
         }
         // routeKey is already computed above
 
-        // If user asks to both audit and heal a specific path, run iterative audit→heal→re-audit (up to 3 passes)
+        // If user asks to both audit and heal a specific path, run iterative audit→heal→re-audit
         if (wantsAudit && wantsHeal && (routeKey || fullPath || absoluteUrl)){
           try {
             const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
             const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
             const parts = [];
             parts.push(`Focusing on ${url} (route ${routeKey || fullPath || ''})`);
+            // Activity and controls
+            clearCancel();
+            setActivity('auditing');
+            const passMatch = query.toLowerCase().match(/max\s*(\d+)\s*passes?|stop\s*after\s*(\d+)\s*passes?/);
+            const userMaxPasses = passMatch ? (Number(passMatch[1]||passMatch[2])||3) : 3;
+            const untilGreen = /(until\s*(green|100%|all\s*passing|no\s*issues|all\s*clear)|keep\s*going|continue)/i.test(query);
             let prev = null;
-            for (let i = 0; i < 3; i++) {
+            for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
               pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
               const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
               if (audit && audit.ok && audit.summary){
@@ -546,10 +587,9 @@ async function handle(req, res){
                   parts.push('```');
                   const totalNow = (audit.summary.consoleErrors||0)+(audit.summary.networkFailures||0)+(audit.summary.httpIssues||0);
                   const totalPrev = (prev.summary.consoleErrors||0)+(prev.summary.networkFailures||0)+(prev.summary.httpIssues||0);
-                  if (totalNow <= totalPrev || totalNow === 0) {
-                    if (totalNow === 0) parts.push('All clear ✅');
-                    break;
-                  }
+                  if (isCancelled()) { parts.push('Stopped by user.'); break; }
+                  if (totalNow === 0) { parts.push('All clear ✅'); break; }
+                  if (!untilGreen && totalNow <= totalPrev) break;
                 }
                 prev = audit;
               } else {
@@ -560,6 +600,7 @@ async function handle(req, res){
 
               // Healing between passes (ensure prefix + subpath API/dev helpers), then regenerate/reload
               try {
+                setActivity('healing');
                 pushThought('Applying subpath healing…', { route: routeKey });
                 const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey || '' });
                 const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey || '' });
@@ -571,10 +612,14 @@ async function handle(req, res){
                 parts.push(`Healing step error: ${e.message}`);
                 break;
               }
+              setActivity('auditing');
             }
             scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
+            setActivity('');
+            try { appendChat('assistant', parts.join('\n')); } catch {}
             return send(res, 200, { ok:true, answer: parts.join('\n') });
           } catch (e) {
+            setActivity('');
             return send(res, 500, { ok:false, error: e.message });
           }
         }
@@ -779,6 +824,7 @@ async function handle(req, res){
         const answer = `${greet} ${persona.affection ? persona.affection[0] : '✨'}\n\n` +
           `Here\'s my best guidance right now:\n` +
           insights.concat([`- Be sure subpath routing is consistent (basePath, assetPrefix, API prefixes).`, `- Check dev assets like /_next/ and directory requests don\'t redirect.`]).join('\n');
+        try { appendChat('assistant', answer); } catch {}
         return send(res, 200, { ok:true, answer, sources: ranked.map(d => d.source || d.relPath), usedAI: false });
       }
 
@@ -904,13 +950,18 @@ async function handle(req, res){
         if (!process.env.OPENAI_API_KEY) return send(res, 400, { error: 'AI disabled. Set OPENAI_API_KEY in environment.' });
         const embedModel = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small';
         try{
+          setActivity('coding');
+          pushThought('Rebuilding knowledge index…');
           const docs = collectDocs();
           const chunks = chunkDocs(docs);
           const vectors = await embedChunks(chunks, embedModel);
           const index = { model: embedModel, createdAt: new Date().toISOString(), dim: (vectors[0]&&vectors[0].vector&&vectors[0].vector.length)||0, chunks: vectors };
           saveEmbeddings(index);
+          scheduleThought('Index rebuilt ✅', { chunks: index.chunks.length }, 60);
+          setActivity('');
           return send(res, 200, { ok:true, chunks: index.chunks.length, model: embedModel, dim: index.dim });
         }catch(e){
+          setActivity('');
           return send(res, 500, { error: 'reindex_failed', detail: e.message });
         }
       }
