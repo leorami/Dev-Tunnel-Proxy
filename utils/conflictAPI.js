@@ -216,6 +216,19 @@ async function handle(req, res){
       drainThoughts();
       return send(res, 200, { ok:true });
     }
+    // Debug-only: inject thoughts to test UI polling
+    if (req.method === 'POST' && u.pathname === '/api/ai/thoughts/inject'){
+      try{
+        const body = await parseBody(req);
+        const list = Array.isArray(body && body.messages) ? body.messages : [];
+        list.forEach(m => { try{ pushThought(String(m||'')); }catch{} });
+        return send(res, 200, { ok:true, injected: list.length });
+      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+    }
+    if (req.method === 'GET' && u.pathname === '/api/ai/thoughts/peek'){
+      // Non-destructive peek of queue length
+      return send(res, 200, { ok:true, length: thinkingEvents.length });
+    }
 
     // GET /api/config/:file
     if (req.method === 'GET' && seg[0] === 'api' && seg[1] === 'config' && seg[2]){
