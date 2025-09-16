@@ -2310,6 +2310,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                   statusChip.classList.add(cls);
                   labelEl.textContent = text;
                 };
+                if (/working…|working\.\.\./.test(lower)) ; else
                 if (/auditing/.test(lower) || /audit/.test(lower)) setState('status-auditing','🔬 Auditing');
                 else if (/healing/.test(lower) || /heal/.test(lower)) setState('status-healing','💖 Healing');
                 else if (/code review|snapshot|analyz|review/i.test(lower)) setState('status-coding','🛠️ Coding');

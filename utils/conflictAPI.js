@@ -563,6 +563,8 @@ async function handle(req, res){
               const parts = [];
               parts.push(`Focusing on ${url} (route ${routeKey || fullPath || ''})`);
               let prev = null;
+              // Heartbeat while background task is running
+              const hb = setInterval(()=>{ try{ pushThought('Working…'); }catch{} }, 3000);
               try{
                 for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
                   pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
@@ -606,6 +608,7 @@ async function handle(req, res){
                     pushThought('Applying subpath healing…', { route: routeKey });
                     const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey || '' });
                     const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey || '' });
+                    pushThought('Reloading nginx…');
                     await calliopeHealing.regenerateNginxBundle();
                     parts.push('Heal actions:');
                     parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
@@ -617,6 +620,7 @@ async function handle(req, res){
                   setActivity('auditing');
                 }
               } finally {
+                try{ clearInterval(hb); }catch{}
                 scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
                 setActivity('');
                 try { appendChat('assistant', parts.join('\n')); } catch {}
