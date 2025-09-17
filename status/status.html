@@ -2417,9 +2417,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
 
         
-        // Healing history elements
-        const healingBadge = document.getElementById('healingBadge');
-        const healingHistory = document.getElementById('healingHistory');
+        // Healing history elements (use correct IDs; avoid name collision with history array)
+        const healingBadgeEl = document.getElementById('aiHealingHistory');
+        const healingHistoryEl = document.getElementById('healingHistory');
         const closeHistoryBtn = document.querySelector('.close-history');
 
         async function refreshHealth(){
@@ -2856,15 +2856,15 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
         
         // Healing UI handlers
-        healBtn.addEventListener('click', runSelfHeal);
+        if (healBtn) healBtn.addEventListener('click', runSelfHeal);
         
-        healingBadge.addEventListener('click', (e) => {
+        if (healingBadgeEl) healingBadgeEl.addEventListener('click', (e) => {
           e.stopPropagation();
-          healingHistory.classList.toggle('visible');
+          healingHistoryEl && healingHistoryEl.classList.toggle('visible');
         });
         
-        closeHistoryBtn.addEventListener('click', () => {
-          healingHistory.classList.remove('visible');
+        if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', () => {
+          healingHistoryEl && healingHistoryEl.classList.remove('visible');
         });
         
         // Initialize healing history
@@ -2876,9 +2876,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         
         // Hide healing status initially if empty
         const aiHealingStatus = document.getElementById('aiHealingStatus');
-        if (healingHistory.length === 0) {
-          aiHealingStatus.style.display = 'none';
-        }
+        try{ if (healingHistory.length === 0 && aiHealingStatus) aiHealingStatus.style.display = 'none'; }catch{}
         
         // Expose minimal debug helpers
         window.__calliopeDebug = {
