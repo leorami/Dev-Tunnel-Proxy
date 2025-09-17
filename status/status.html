@@ -2560,29 +2560,17 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               minThinkingTime
             ]);
             
-            // Remove thinking indicator
-            thinking.remove();
-            
-            const data = await resp.json().catch(()=>null);
-            if (!resp.ok){ appendBubble('assistant', (data&&data.error) ? `Error: ${data.error}` : `HTTP ${resp.status}`); }
-            else {
-              // Friendly rendering: interpret JSON summaries into human text
-              const raw = (data.answer||'').trim();
-              const friendly = raw
-                .replace(/\{\s*"consoleErrors"\s*:\s*(\d+).*?\}/gs, (m)=>{
-                  try{ const obj = JSON.parse(m); return `No console errors, ${obj.networkFailures||0} network failures, ${obj.httpIssues||0} HTTP issues.`; }catch{ return m; }
-                })
-                .replace(/```json[\s\S]*?```/g, '') // hide raw JSON blocks
-                .replace(/Report:\n```[\s\S]*?```/g, '') // hide report path blocks
-                .replace(/Pass (\d+) summary:/g, 'Pass $1:')
-                .replace(/Delta vs previous pass:/g, 'Change since last pass:');
-              appendBubble('assistant', friendly);
-            }
-          } catch(e){ 
-            thinking.remove(); 
+            try{ thinking.remove(); }catch{}
+            if (!resp.ok){ appendBubble('assistant', `HTTP ${resp.status}`); return; }
+            const data = await resp.json().catch(()=>({ ok:false }));
+            if (data && data.ok && data.answer){ appendBubble('assistant', data.answer); }
+            else { appendBubble('assistant', 'Something went sideways — I could not think of a good answer.'); }
+          }catch(e){
+            try{ thinking.remove(); }catch{}
             appendBubble('assistant', `Request failed: ${e.message}`); 
+          }finally{
+            askBtn.disabled = false; askBtn.textContent = 'Ask';
           }
-          finally{ askBtn.disabled = false; askBtn.textContent = 'Ask'; }
         }
 
         async function onReindex(){
@@ -2730,12 +2718,12 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             thinking.remove();
             if (!resp.ok){
               const friendly = `\nI hit a little hiccup starting my check (HTTP ${resp.status}).\n`+
-                `Here’s what I’d try next:`+
-                `\n- Click “Ask” with: 
+                `Here's what I'd try next:`+
+                `\n- Click "Ask" with: 
 \`Please audit and heal /sdk (and give yourself the Storybook/Vite knowledge you need).\``+
                 `\n- Or open my thinking stream: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
               appendBubble('assistant', friendly);
-              // reset chip back to ready so UI doesn’t look stuck on Auditing
+              // reset chip back to ready so UI doesn't look stuck on Auditing
               try{
                 const statusChip = document.getElementById('aiHealingStatus');
                 const labelEl = document.getElementById('aiHealingStatusLabel');
@@ -2890,7 +2878,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           try{
             const r = await fetch('/api/ai/cancel', { method:'POST' });
             if (r.ok){
-              appendBubble('assistant', "Oops, I’ll pause now — my hyper‑focus ran away with me! 💫 I’ve stopped and I’m ready to help however you like next.");
+              appendBubble('assistant', "Oops, I'll pause now — my hyper‑focus ran away with me! 💫 I've stopped and I'm ready to help however you like next.");
             }
           }catch{}
         });
