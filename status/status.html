@@ -310,7 +310,7 @@
           <a class="btn" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
           <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-        <button class="btn" id="aiSelfCheckGlobal" title="Diagnose with Calliope" aria-label="Diagnose with Calliope">Self‑Check</button>
+        <button class="btn" id="aiSelfCheckGlobal" title="Self-Check" aria-label="Self-Check">Self‑Check</button>
         </div>
       </div>
       
@@ -2349,9 +2349,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               evs.forEach(ev => {
                 const msg = (ev && ev.message) ? String(ev.message) : '';
                 const det = ev && ev.details || {};
-                if (msg) {
+              if (msg) {
                   console.debug('[Calliope][thought]', msg, det);
-                  appendBubble('assistant', msg);
+                  try{
+                    const chat = document.getElementById('aiChat');
+                    const hasUser = !!(chat && chat.querySelector && chat.querySelector('.bubble.user'));
+                    if (chatEngaged && (hasUserMessage || hasUser)) appendBubble('assistant', msg);
+                  }catch{}
                 }
                 // Map thought tags to status chip state heuristically
                 const statusChip = document.getElementById('aiHealingStatus');
