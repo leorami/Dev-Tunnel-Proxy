@@ -2375,16 +2375,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             }catch{}
           }, 2000);
         }
-        // Open drawer on tab click and mark engagement
-        try{
-          if (tab){
-            tab.addEventListener('click', function(){
-              try{ const d = document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); } }catch{}
-              chatEngaged = true;
-              setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
-            });
-          }
-        }catch{}
 
         function startHealthPolling(){
           if (healthTimer) return;
@@ -2788,10 +2778,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
         }
         tab.addEventListener('click', ()=>{
-          const collapsed = drawer.classList.toggle('collapsed');
-          document.body.classList.toggle('ai-open', !collapsed);
+          const wasCollapsed = drawer.classList.contains('collapsed');
+          drawer.classList.remove('collapsed');
+          document.body.classList.add('ai-open');
+          chatEngaged = true;
+          setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
           try{
-            if (!collapsed && window.__pendingDiagnoseRoute){
+            if (wasCollapsed && window.__pendingDiagnoseRoute){
               const r = window.__pendingDiagnoseRoute; delete window.__pendingDiagnoseRoute; runCalliopeHealth(r);
             }
           }catch{}
