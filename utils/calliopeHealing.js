@@ -293,10 +293,10 @@ async function analyzeSnapshotForProxyCompatibility(snapshotDir) {
           suggestions.push({ file: projectRel, issue: 'Hardcoded basePath', fix: 'Use process.env.NEXT_PUBLIC_BASE_PATH' });
         }
       }
-      if (/(<img\b[^>]*\ssrc=\s*["']\/(?!mxtk\/)\S+)/i.test(txt)) {
+      if (/(<img\b[^>]*\ssrc=\s*["']\/(?!_next\/)\S+)/i.test(txt)) {
         suggestions.push({ file: projectRel, issue: 'Raw <img> with absolute src', fix: 'Wrap with basePath-aware image/component or prefix properly' });
       }
-      if (/(<Image\b[^>]*\ssrc=\s*["']\/(?!mxtk\/)\S+)/i.test(txt)) {
+      if (/(<Image\b[^>]*\ssrc=\s*["']\/(?!_next\/)\S+)/i.test(txt)) {
         suggestions.push({ file: projectRel, issue: 'next/image with absolute src', fix: 'Route through basePath-aware helper' });
       }
       if (/\bfetch\(\s*["']\/(api|graphql)\//i.test(txt)) {
@@ -306,14 +306,14 @@ async function analyzeSnapshotForProxyCompatibility(snapshotDir) {
       // Storybook-specific heuristics
       if (hasStorybook && /\.storybook\//.test(projectRel)) {
         if (/manager-head\.html|preview-head\.html|head\.html/.test(projectRel)) {
-          if (!/<base\s+href=["']\/sdk\/["']/.test(txt)) {
-            suggestions.push({ file: projectRel, issue: 'Storybook missing <base href="/sdk/">', fix: 'Add <base href="/sdk/"> in head to support subpath dev server' });
+          if (!/<base\s+href=["'][^"']+["']/.test(txt)) {
+            suggestions.push({ file: projectRel, issue: 'Storybook missing <base href> for subpath', fix: 'Add a <base href> in head matching your deployed subpath (ideally from env)' });
           }
         }
         if (/main\.(js|ts)$/.test(projectRel)) {
           const mentionsVite = /builder:\s*'@storybook\/builder-vite'|viteFinal\s*\(/.test(txt);
-          if (mentionsVite && !/base:\s*['"]\/sdk\/["']/.test(txt)) {
-            suggestions.push({ file: projectRel, issue: 'Vite base not set for subpath', fix: 'Set Vite config base: "/sdk/" in Storybook viteFinal or Vite config' });
+          if (mentionsVite && !/base:\s*['"][^"']+["']/.test(txt)) {
+            suggestions.push({ file: projectRel, issue: 'Vite base not set for subpath', fix: 'Set Vite config base to your subpath (e.g., from PUBLIC_BASE_PATH env)' });
           }
           if (mentionsVite) {
             if (!/server\s*:\s*\{[\s\S]*host\s*:\s*true/.test(txt)) {
@@ -322,15 +322,15 @@ async function analyzeSnapshotForProxyCompatibility(snapshotDir) {
             if (!/allowedHosts/.test(txt)) {
               suggestions.push({ file: projectRel, issue: 'Vite allowedHosts missing', fix: 'In viteFinal, set server.allowedHosts to include dev-proxy and your ngrok domain' });
             }
-            if (!/hmr\s*:\s*\{[\s\S]*path\s*:\s*['"]\/sdk\/@vite\/["'][\s\S]*\}/.test(txt)) {
-              suggestions.push({ file: projectRel, issue: 'Vite HMR path not set for subpath', fix: 'In viteFinal, set server.hmr.path = "/sdk/@vite/" and protocol/port for your environment' });
+            if (!/hmr\s*:\s*\{[\s\S]*path\s*:\s*['"][^"']+@vite\/["'][\s\S]*\}/.test(txt)) {
+              suggestions.push({ file: projectRel, issue: 'Vite HMR path not set for subpath', fix: 'In viteFinal, set server.hmr.path to `${PUBLIC_BASE_PATH}/@vite/` (or your subpath)' });
             }
           } else {
             // No viteFinal present; suggest adding a block tailored for subpath + ngrok
             suggestions.push({
               file: projectRel,
               issue: 'Storybook Vite config missing viteFinal',
-              fix: 'Add viteFinal with base:"/sdk/", server.host=true, server.allowedHosts for dev-proxy and ngrok, and server.hmr.path="/sdk/@vite/"'
+              fix: 'Add viteFinal with subpath-aware base, server.host=true, allowedHosts for proxy/ngrok, and server.hmr.path="${PUBLIC_BASE_PATH}/@vite/"'
             });
           }
         }
@@ -823,7 +823,24 @@ async function improveProxyResilience(upstreamName) {
  */
 async function restartProxyAfterUpstreams() {
   try {
-    const upstreams = ['encast-api', 'encast-sdk'];
+    // Discover likely upstream container names from configs (apps/ and overrides/)
+    const confDirs = [path.join(ROOT, 'apps'), path.join(ROOT, 'overrides')];
+    const candidates = new Set();
+    for (const dir of confDirs) {
+      try {
+        const files = fs.readdirSync(dir).filter(f => f.endsWith('.conf'));
+        for (const f of files) {
+          const txt = fs.readFileSync(path.join(dir, f), 'utf8');
+          // From set $var host:port
+          const setMatches = txt.matchAll(/set\s+\$[A-Za-z0-9_]+\s+([A-Za-z0-9_.-]+)(?::\d+)?\s*;/g);
+          for (const m of setMatches) { if (m[1]) candidates.add(m[1]); }
+          // From proxy_pass http://host:port
+          const passMatches = txt.matchAll(/proxy_pass\s+http:\/\/(?:\$[A-Za-z0-9_]+|([A-Za-z0-9_.-]+)(?::\d+)?)[^;]*;/g);
+          for (const m of passMatches) { if (m[1]) candidates.add(m[1]); }
+        }
+      } catch {}
+    }
+    const upstreams = Array.from(candidates);
     let allUp = true;
     let notReadyUpstreams = [];
 
@@ -986,74 +1003,22 @@ async function runSiteAuditor(urlToAudit, options = {}) {
 }
 
 /**
- * Ensure best-practice Nginx overrides for MXTK when mounted under /mxtk
- * Idempotent: only appends missing blocks. Targets overrides/mxtk.conf.
+ * Ensure best-practice Nginx overrides for a subpath app when needed (generic)
  */
 async function applyMxtkBestPractices() {
   try {
-    const overridesPath = path.join(ROOT, 'overrides', 'mxtk.conf');
-    if (!fs.existsSync(overridesPath)) {
-      return { success: false, message: 'overrides/mxtk.conf not found' };
-    }
+    // Guardrail: this helper historically targeted a specific app.
+    // In generic mode, do nothing and return a safe message.
+    return { success: false, message: 'Generic mode: app-specific best-practices helper disabled' };
 
-    let content = fs.readFileSync(overridesPath, 'utf8');
-    const original = content;
-
-    const ensureBlock = (testRegex, block) => {
-      if (!testRegex.test(content)) {
-        content += (content.endsWith('\n') ? '' : '\n') + block + '\n';
-      }
-    };
-
-    // Ensure CSP for /mxtk and /_next
-    content = content.replace(/(location \^~ \/mxtk\/ \{[\s\S]*?)(\n\})/m, (m, a, b)=>{
-      return /upgrade-insecure-requests/.test(a) ? m : a + "\n  add_header Content-Security-Policy \"upgrade-insecure-requests\" always;" + b;
-    });
-    content = content.replace(/(location \^~ \/_next\/ \{[\s\S]*?)(\n\})/m, (m, a, b)=>{
-      return /upgrade-insecure-requests/.test(a) ? m : a + "\n  add_header Content-Security-Policy \"upgrade-insecure-requests\" always;" + b;
-    });
-
-    // Root helpers
-    ensureBlock(/location\s*=\s*\/_next\s*\{\s*return\s+204;\s*\}/m, 'location = /_next { return 204; }');
-    ensureBlock(/location\s*=\s*\/_next\/\s*\{\s*return\s+204;\s*\}/m, 'location = /_next/ { return 204; }');
-
-    // Root public mappings for common assets
-    ensureBlock(/location\s*=\s*\/logo-horizontal\.png/m, [
-      'location = /logo-horizontal.png {',
-      '  proxy_set_header Host $host;',
-      '  proxy_set_header X-Forwarded-Proto https;',
-      '  resolver 127.0.0.11 ipv6=off;',
-      '  resolver_timeout 5s;',
-      '  set $mxtk_site_dev mxtk-site-dev:2000;',
-      '  proxy_pass http://$mxtk_site_dev/logo-horizontal.png;',
-      '}'
-    ].join('\n'));
-    ensureBlock(/location\s*=\s*\/manifest\.json/m, [
-      'location = /manifest.json {',
-      '  proxy_set_header Host $host;',
-      '  proxy_set_header X-Forwarded-Proto https;',
-      '  resolver 127.0.0.11 ipv6=off;',
-      '  resolver_timeout 5s;',
-      '  set $mxtk_site_dev mxtk-site-dev:2000;',
-      '  proxy_pass http://$mxtk_site_dev/manifest.json;',
-      '}'
-    ].join('\n'));
-
-    // Removed app-specific root directories (/art, /icons) – keep proxy generic
-
-    if (content !== original) {
-      fs.writeFileSync(overridesPath, content, 'utf8');
-      await regenerateNginxBundle();
-      return { success: true, message: 'Applied MXTK best practices to overrides/mxtk.conf' };
-    }
-    return { success: true, message: 'MXTK best practices already present' };
+    // Dead code retained above for diff context; intentionally no file edits in generic mode.
   } catch (e) {
-    return { success: false, message: `applyMxtkBestPractices failed: ${e.message}` };
+    return { success: false, message: `applyMxtkBestPractices disabled in generic mode: ${e.message}` };
   }
 }
 
 /**
- * Ensure /sdk Storybook + Vite overrides in overrides/encast.conf (idempotent), then regenerate Nginx.
+ * Ensure Storybook + Vite proxy guards for a subpath (idempotent), then regenerate Nginx.
  */
 async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
   try {
@@ -1081,7 +1046,7 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
     let content = fs.readFileSync(target, 'utf8');
     const original = content;
 
-    // Try to detect upstream variable used in this file; fall back to explicit service
+    // Try to detect upstream variable used in this file; fall back to explicit host if present
     let upstreamVar = null;
     const bodyVar = content.match(/proxy_pass\s+http:\/\/\$([A-Za-z0-9_]+)/);
     if (bodyVar && bodyVar[1]) upstreamVar = bodyVar[1];
@@ -1089,7 +1054,12 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       const setVar = content.match(/set\s+\$([A-Za-z0-9_]+)\s+[^;]+;/);
       if (setVar && setVar[1]) upstreamVar = setVar[1];
     }
-    // Allow continuing even if we couldn't discover a variable
+    // Detect explicit upstream host:port in file (first occurrence)
+    let upstreamHost = null;
+    if (!upstreamVar) {
+      const hostMatch = content.match(/proxy_pass\s+http:\/\/(?:\$[A-Za-z0-9_]+|([A-Za-z0-9_.-]+(?::\d+)?))(?:\/?[;\s])/);
+      if (hostMatch && hostMatch[1]) upstreamHost = hostMatch[1];
+    }
 
     const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
 
@@ -1129,8 +1099,7 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       const block = [
         `location ^~ ${loc} {`,
         '  proxy_http_version 1.1;',
-        // Normalize Host to SDK container to reduce Storybook/Vite allowedHosts friction
-        '  proxy_set_header Host encast-sdk:6006;',
+        '  proxy_set_header Host $host;',
         '  proxy_set_header X-Forwarded-Proto $scheme;',
         ...(isViteHmr ? [
           '  proxy_set_header Upgrade $http_upgrade;',
@@ -1141,68 +1110,13 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
         ] : []),
         (upstreamVar
           ? `  proxy_pass http://$${upstreamVar}/${pass};`
-          : `  proxy_pass http://encast-sdk:6006/${pass};`),
+          : (upstreamHost ? `  proxy_pass http://${upstreamHost}/${pass};` : '  # upstream not detected; configure proxy_pass manually')),
         '}'
       ].join('\n');
       ensure(re, block);
     }
 
-    // If the app is mounted at /sdk, also create root-level fallbacks for Storybook/Vite
-    // This helps when the dev server emits absolute paths like "/@vite/client" instead of prefixing with /sdk
-    if (routePrefix === '/sdk') {
-      const rootGuards = [
-        ['/@vite/', '@vite/'],
-        ['/@id/', '@id/'],
-        ['/@fs/', '@fs/'],
-        ['/node_modules/', 'node_modules/'],
-        ['/sb-common-assets/', 'sb-common-assets/'],
-      ];
-      for (const [loc, pass] of rootGuards){
-        const safeLoc = loc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-        const re = new RegExp('location\\s*\\^~\\s*' + safeLoc, 'm');
-        const isViteHmr = /@vite\//.test(pass);
-        const block = [
-          `location ^~ ${loc} {`,
-          '  proxy_http_version 1.1;',
-          '  # Normalize Host for dev server to reduce allowedHosts friction',
-          '  proxy_set_header Host encast-sdk:6006;',
-          '  proxy_set_header X-Forwarded-Proto $scheme;',
-          ...(isViteHmr ? [
-            '  proxy_set_header Upgrade $http_upgrade;',
-            '  proxy_set_header Connection "upgrade";',
-            '  proxy_read_timeout 300s;',
-            '  proxy_send_timeout 300s;',
-            '  proxy_buffering off;',
-          ] : []),
-          (upstreamVar
-            ? `  proxy_pass http://$${upstreamVar}/${pass};`
-            : `  proxy_pass http://encast-sdk:6006/${pass};`),
-          '}'
-        ].join('\n');
-        ensure(re, block);
-      }
-
-      // Discrete root assets that Storybook may request absolutely
-      const rootFiles = [
-        ['/index.json', '/index.json'],
-        ['/vite-inject-mocker-entry.js', '/vite-inject-mocker-entry.js'],
-        ['/favicon.svg', '/favicon.svg']
-      ];
-      for (const [eqPath, upstreamPath] of rootFiles){
-        const reEq = new RegExp('location\\s*=\\s*' + eqPath.replace(/\//g,'\\/') + '\\s*\\{[\\s\\S]*?\\}', 'm');
-        const block = [
-          `location = ${eqPath} {`,
-          '  proxy_http_version 1.1;',
-          '  proxy_set_header Host encast-sdk:6006;',
-          '  proxy_set_header X-Forwarded-Proto $scheme;',
-          (upstreamVar
-            ? `  proxy_pass http://$${upstreamVar}${upstreamPath};`
-            : `  proxy_pass http://encast-sdk:6006${upstreamPath};`),
-          '}'
-        ].join('\n');
-        ensure(reEq, block);
-      }
-    }
+    // Root-level fallbacks are app-specific and disabled in generic mode
 
     if (content !== original){
       fs.writeFileSync(target, content, 'utf8');
@@ -1655,10 +1569,10 @@ async function fixStorybookViteProxyConfig() {
   const confPath = path.join(ROOT, 'apps', 'encast.conf');
   try {
     if (!fs.existsSync(confPath)) {
-      return { success: false, message: 'apps/encast.conf not found' };
+      return { success: false, message: 'No specific app config available in generic mode' };
     }
-    // Leave as-is; app-specific changes should be avoided in generic mode.
-    return { success: false, message: 'Skipped app-specific Storybook config (guardrail)' };
+    // App-specific changes should be avoided in generic mode.
+    return { success: false, message: 'Skipped app-specific Storybook config in generic mode' };
   } catch (e) {
     return { success: false, message: `fixStorybookViteProxyConfig failed: ${e.message}` };
   }
@@ -1667,21 +1581,21 @@ async function fixStorybookViteProxyConfig() {
 /**
  * Fix React bundle serving issues for subpath deployments
  */
-async function fixReactBundleSubpathIssues(routePrefix = '/impact') {
-  return { success: false, message: 'Skipped app-specific React bundle fix (guardrail)' };
+async function fixReactBundleSubpathIssues(routePrefix = '/') {
+  return { success: false, message: 'Generic mode: React bundle fix requires app-specific context; skipped' };
 }
 
 /**
  * Fix React static asset routing issues with proper path handling
  */
-async function fixReactStaticAssetRouting(routePrefix = '/impact') {
-  return { success: false, message: 'Skipped app-specific React static asset fix (guardrail)' };
+async function fixReactStaticAssetRouting(routePrefix = '/') {
+  return { success: false, message: 'Generic mode: React static asset fix requires app-specific context; skipped' };
 }
 
 /**
  * Fix mxtk API absolute-path routing and Next dev helper endpoints
  */
-async function fixMxtkApiRouting() { return { success:false, message:'Skipped app-specific MXTK API fix (guardrail)' }; }
+async function fixMxtkApiRouting() { return { success:false, message:'Generic mode: app-specific API fix is disabled' }; }
 
 /**
  * Generic subpath absolute-routing fixer.

@@ -496,14 +496,18 @@ async function handle(req, res){
 
         // Opportunistic config repairs based on explicit chat asks
         try {
-          const wantsRewriteFix = /(rewrite\s+\^\/mxtk\/|fix\s+rewrite|mxtk\.conf)/i.test(lower);
+          const wantsRewriteFix = /(rewrite\s+\^\/[a-z0-9._-]+\/|fix\s+rewrite|\.conf\b)/i.test(lower);
           const wantsDedupeFont = /(duplicate|dedupe).+__nextjs_font/i.test(lower) || /__nextjs_font/.test(lower);
-          const wantsDeferSdk = /(encast\-sdk|iframe\.html|defer\s*dns|variable\s*proxy_pass)/i.test(lower);
+          const wantsDeferSdk = /(iframe\.html|defer\s*dns|variable\s*proxy_pass)/i.test(lower);
           if (wantsRewriteFix) {
-            const p = path.join(ROOT, 'overrides', 'mxtk.conf');
+            // Attempt a generic rewrite fix on the override that matches the route name if present
+            const name = routeKey.replace(/^\//,'');
+            const p = path.join(ROOT, 'overrides', `${name||'app'}.conf`);
             if (fs.existsSync(p)) {
               let txt = fs.readFileSync(p, 'utf8');
-              const fixed = txt.replace(/rewrite\s+\^\/mxtk\/\(\.\*\)\$\s+[^;\n]+/g, 'rewrite ^/mxtk/(.*)$ /$1 break;');
+              const safe = name ? name.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&') : '[a-zA-Z0-9._-]+';
+              const rx = new RegExp(`rewrite\\s+\\^\\/${safe}\\/\\(\\.\\*\\)\\$\\s+[^;\\n]+`, 'g');
+              const fixed = txt.replace(rx, (m)=> m.replace(/\s+[^;\n]+$/, ' /$1 break;'));
               if (fixed !== txt) {
                 fs.copyFileSync(p, p + '.backup.' + Date.now());
                 fs.writeFileSync(p, fixed, 'utf8');
@@ -511,29 +515,25 @@ async function handle(req, res){
             }
           }
           if (wantsDeferSdk) {
-            const p = path.join(ROOT, 'config', 'default.conf');
-            if (fs.existsSync(p)) {
-              let txt = fs.readFileSync(p, 'utf8');
-              if (!/set\s+\$sb\s+encast\-sdk:6006;/.test(txt)) {
-                txt = txt.replace(/(location\s*=\s*\/iframe\.html\s*\{[\s\S]*?resolver_timeout\s*5s;)/, `$1\n    set $sb encast-sdk:6006;`);
-                txt = txt.replace(/(location\s*=\s*\/sdk\/iframe\.html\s*\{[\s\S]*?resolver_timeout\s*5s;)/, `$1\n    set $sb encast-sdk:6006;`);
-              }
-              txt = txt.replace(/proxy_pass\s+http:\/\/encast\-sdk:6006\/iframe\.html\s*;/g, 'proxy_pass http://$sb/iframe.html;');
-              txt = txt.replace(/proxy_pass\s+http:\/\/encast\-sdk:6006\/iframe\.html\s*;/g, 'proxy_pass http://$sb/iframe.html;');
-              fs.writeFileSync(p, txt, 'utf8');
-            }
+            // Avoid hardcoded service names; no-op in generic mode
           }
           if (wantsDedupeFont) {
             try { await calliopeHealing.fixDuplicateLocationBlocks(); } catch {}
           }
         } catch {}
-        // If user asks for a code review, snapshot the container project and analyze for proxy-compat fixes
+        // If user asks for a code review, snapshot the container project and analyze for proxy-compat fixes (generic — no app names)
         if (wantsReview){
           try{
+            // Discover running dev containers heuristically to choose a target
             const targets = [];
-            if (routeKey === '/mxtk' || /mxtk/.test(lower)) targets.push({ name:'mxtk-site-dev', path:'/app' }, { name:'mxtk-site-dev', path:'/usr/src/app' });
-            if (routeKey === '/sdk' || /sdk|storybook/.test(lower)) targets.push({ name:'encast-sdk', path:'/app' }, { name:'encast-sdk', path:'/usr/src/app' });
-            if (targets.length === 0) targets.push({ name:'mxtk-site-dev', path:'/app' });
+            try {
+              const list = spawnSync('docker', ['ps', '--format', '{{.Names}}'], { encoding: 'utf8' }).stdout.split(/\r?\n/).filter(Boolean);
+              const preferred = list.filter(n => /dev|web|app|site|client|sdk|storybook/i.test(n));
+              for (const n of preferred.slice(0, 4)) {
+                targets.push({ name: n, path: '/app' }, { name: n, path: '/usr/src/app' });
+              }
+            } catch {}
+            if (targets.length === 0) targets.push({ name: 'dev-app', path: '/app' });
             let review = null;
             for (const t of targets){
               const out = await calliopeHealing.backupAndAnalyzeContainerProject({ containerName: t.name, srcPathInContainer: t.path });
@@ -580,12 +580,12 @@ async function handle(req, res){
               const hb = setInterval(()=>{ try{ pushThought('Working…'); }catch{} }, 3000);
               try{
                 for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
-                  // Proactively apply Storybook/Vite guards if /sdk is involved
+                  // If a subpath with dev assets is involved, apply Storybook/Vite guards generically
                   try {
-                    if ((routeKey && routeKey.startsWith('/sdk')) || /\b(sdk|storybook)\b/.test(lower)) {
+                    if (/\b(storybook|vite)\b/.test(lower)) {
                       setActivity('coding');
                       pushThought('Applying Storybook/Vite proxy guards…', { route: routeKey });
-                      await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
+                      await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: routeKey || '/' });
                       setActivity('auditing');
                     }
                   } catch {}
@@ -662,13 +662,14 @@ async function handle(req, res){
             pushThought(`Auditing ${routeKey}…`, { route: routeKey });
             const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
             const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
-            if (routeKey && routeKey.startsWith('/sdk')) {
-              try {
+            // If Storybook/Vite is mentioned, attempt generic guards for the selected route
+            try {
+              if (/\b(storybook|vite)\b/.test(lower) && routeKey) {
                 setActivity('coding');
                 pushThought('Applying Storybook/Vite proxy guards…', { route: routeKey });
-                await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
-              } finally { setActivity('auditing'); }
-            }
+                await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: routeKey });
+              }
+            } finally { setActivity('auditing'); }
             const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
             const parts = [];
             parts.push(`Audit for ${routeKey} at ${url}`);
@@ -740,13 +741,13 @@ async function handle(req, res){
             const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey });
             // 2) Ensure subpath absolute routing for APIs and dev helpers
             const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey });
-            // 3) If we're working on /sdk, proactively add Storybook/Vite guards and absolute-path fallbacks
+            // 3) If the route likely hosts a Storybook/Vite dev server, add guards
             let sbGuards = null;
             try {
-              if (routeKey === '/sdk') {
+              if (/\b(storybook|vite)\b/.test(lower)) {
                 setActivity('coding');
-                pushThought('Applying Storybook/Vite proxy guards for /sdk…', { route: routeKey });
-                sbGuards = await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
+                pushThought('Applying Storybook/Vite proxy guards…', { route: routeKey });
+                sbGuards = await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: routeKey || '/' });
               }
             } finally { setActivity('healing'); }
             // 3) Normalize X-Forwarded-Proto headers to $scheme for local dev (avoid forcing https)
@@ -789,7 +790,7 @@ async function handle(req, res){
             parts.push('What I did:');
             parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
             parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
-            if (sbGuards) parts.push(`- applyStorybookViteProxyGuards(/sdk) → ${sbGuards.success ? 'ok' : 'no-op or failed'}`);
+            if (sbGuards) parts.push(`- applyStorybookViteProxyGuards(${routeKey||'/'}) → ${sbGuards.success ? 'ok' : 'no-op or failed'}`);
             parts.push(`- normalize_X-Forwarded-Proto_to_$scheme → ${normalizedHeaders ? 'applied' : 'no-op'}`);
             parts.push(`- regenerateNginxBundle → ${regenOk ? 'ok' : 'soft-reload only'}`);
             parts.push('\nVerification:');
