@@ -109,7 +109,7 @@ This guide helps you manually verify that the Calliope enable/disable logic is w
 After testing, restore the original configuration:
 ```bash
 docker stop dev-calliope-api
-docker-compose up -d conflict-api
+docker-compose up -d calliope-api
 ```
 
 ## Quick Debugging Commands

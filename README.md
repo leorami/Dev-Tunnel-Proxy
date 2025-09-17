@@ -333,7 +333,7 @@ The Dev Tunnel Proxy uses a **multi-container architecture** instead of consolid
 ### Container Responsibilities
 
 - **`dev-proxy` (nginx)**: Pure reverse proxy + static file serving
-- **Calliope API** (service: `conflict-api`, Node.js): REST API for config management, conflict resolution, and AI endpoints
+- **Calliope API** (service: `calliope-api`, Node.js): REST API for config management, conflict resolution, and AI endpoints
 - **`auto-scan` (Node.js)**: Periodic route health monitoring and status generation
 - **`ngrok`**: Secure tunnel service to external networks
 
@@ -348,10 +348,10 @@ Each container has a focused, well-defined purpose:
 #### 🚀 **Operational Benefits**
 ```bash
 # Restart just the API without affecting proxy traffic
-docker-compose restart conflict-api
+docker-compose restart calliope-api
 
 # Debug individual services independently
-docker-compose logs conflict-api --tail=50
+docker-compose logs calliope-api --tail=50
 
 # Scale specific services if needed
 docker-compose up --scale auto-scan=2
@@ -376,7 +376,7 @@ docker-compose up --scale auto-scan=2
 ```yaml
 # Easily disable development-only services in production
 services:
-  conflict-api:
+  calliope-api:
     profiles: ["development"]
   auto-scan:
     profiles: ["development"]
@@ -399,7 +399,7 @@ The current architecture allows **future consolidation** if needed:
 services:
   proxy:
     image: nginx-with-node  # Custom image combining both
-    command: ["sh", "-c", "node /conflict-api.js & nginx"]
+    command: ["sh", "-c", "node /calliope-api.js & nginx"]
 ```
 
 However, the **multi-container approach provides superior flexibility** without meaningful complexity overhead, making it the better choice for development environments where reliability and maintainability are paramount.
