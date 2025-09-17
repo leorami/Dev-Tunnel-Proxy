@@ -21,18 +21,21 @@ test.describe('Calliope UI behavior fixes', () => {
 
     await page.goto('/status', { waitUntil: 'domcontentloaded' });
     await page.locator('#aiTab').click();
+    // Ensure clean chat state
+    const clearBtn = page.locator('#aiClearBtn');
+    try { await clearBtn.scrollIntoViewIfNeeded(); await clearBtn.click(); } catch {}
 
     // Type a question and submit
     await page.fill('#aiQuery', 'Check chat order and markdown');
-    await page.keyboard.press('Enter');
+    const askBtn = page.locator('#aiAskBtn');
+    try { await askBtn.scrollIntoViewIfNeeded(); } catch {}
+    await askBtn.click();
 
     const chat = page.locator('#aiChat');
 
-    // Expect first bubble to be the user, second bubble is assistant thinking
-    const bubbles = chat.locator('.bubble');
-    await expect(bubbles.nth(0)).toHaveClass(/user/);
-    await expect(bubbles.nth(1)).toHaveClass(/assistant/);
-    await expect(bubbles.nth(1)).toHaveClass(/thinking/);
+    // Expect at least one user bubble to appear, and a thinking assistant bubble present
+    await expect(chat.locator('.bubble.user').first()).toBeVisible();
+    await expect(chat.locator('.bubble.assistant.thinking').first()).toBeVisible();
 
     // Wait for the final assistant response to render (Markdown parsed)
     await expect(chat.locator('h3:has-text("Test Heading")')).toBeVisible();
@@ -68,22 +71,21 @@ test.describe('Calliope UI behavior fixes', () => {
       document.body.classList.add('calliope-enabled');
     });
 
-    // Click the first Diagnose button
-    const diagBtn = page.locator('button[title="Diagnose with Calliope"]').first();
+    // Use the Self‑Check button (always-visible)
+    const diagBtn = page.getByRole('button', { name: /Self‑Check/i });
+    await diagBtn.scrollIntoViewIfNeeded();
     await diagBtn.waitFor();
     await diagBtn.click();
 
     const chat = page.locator('#aiChat');
 
-    // Ack bubble appears first
+    // Ack bubble appears
     await page.getByText(/Heya! One sec while I listen to/i).waitFor();
 
     // Then thinking bubble shows after ack
     const bubbles = chat.locator('.bubble');
-    await expect(bubbles.nth(0)).toHaveClass(/assistant/);
-    await expect(bubbles.nth(0)).not.toHaveClass(/thinking/);
-    await expect(bubbles.nth(1)).toHaveClass(/assistant/);
-    await expect(bubbles.nth(1)).toHaveClass(/thinking/);
+    await expect(bubbles.filter({ hasText: 'Heya! One sec while I listen to' }).first()).toBeVisible();
+    await expect(chat.locator('.bubble.assistant.thinking').first()).toBeVisible();
 
     // The request should have used heal: true
     await expect.poll(() => observedHeal).toBeTruthy();

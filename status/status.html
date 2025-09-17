@@ -213,10 +213,7 @@
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
       .ai-tab{position:absolute;left:-36px;top:15%;transform:translateY(-50%);background:var(--btnBg);border:1px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:-6px 6px 18px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:8px}
       .ai-tab .icon-steth{display:flex;align-items:center;justify-content:center}
-      .ai-tab .icon-steth .icon-stetho{width:20px;height:20px;display:block;transform: rotate(270deg);}
-      .ai-tab .icon-steth .icon-finger{width:20px;height:20px;display:none}
-      .ai-tab:hover .icon-steth .icon-stetho{display:none}
-      .ai-tab:hover .icon-steth .icon-finger{display:block}
+      .ai-tab .icon-steth img{width:20px;height:20px;display:block;transform: rotate(270deg);}
       .ai-tab .label{letter-spacing:.3px;writing-mode:vertical-rl;text-orientation:mixed;transform: rotate(180deg);}
       .ai-header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
       .ai-header h2{margin:0;font-size:14px;color:var(--heading)}
@@ -327,10 +324,9 @@
       </div>
       <div class="container">
         <div class="ai-drawer collapsed" id="aiDrawer">
-          <button class="ai-tab" id="aiTab" title="Calliope (click to open)">
+          <button class="ai-tab" id="aiTab" title="Calliope">
             <div class="icon-steth" aria-hidden="true">
-              <img class="icon-stetho" src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope Stethoscope">
-              <img class="icon-finger" src="/status/assets/finger_tap.svg" alt="Click">
+              <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope Stethoscope">
             </div>
             <div class="label">Calliope</div>
           </button>

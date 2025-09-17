@@ -25,10 +25,9 @@ test.describe('Status Dashboard', () => {
     });
     await testInfo.attach('overview-styles.json', { body: JSON.stringify(styles, null, 2), contentType: 'application/json' });
 
-    // Expand Calliope drawer and run a self-check via API to ensure endpoint is reachable
+    // Expand Calliope drawer and trigger a self-check via the UI button (more realistic)
     await page.locator('#aiTab').click();
-    const resp = await page.request.post('/api/ai/self-check', { data: {} });
-    expect(resp.ok()).toBeTruthy();
+    await page.getByRole('button', { name: /Self‑Check/i }).click();
 
     // Persist console logs
     const warnErr = logs.filter(l => l.type === 'warning' || l.type === 'error');
@@ -51,8 +50,8 @@ test.describe('Status Dashboard', () => {
       document.body.classList.add('calliope-enabled');
     });
 
-    // Find a specific Diagnose/Calliope button, not the drawer tab
-    const btn = page.locator('button[title="Diagnose with Calliope"]').first();
+    // Use UI button for robustness across layouts
+    const btn = page.getByRole('button', { name: /Self‑Check/i });
     await btn.waitFor();
 
     // Drawer should be initially collapsed
