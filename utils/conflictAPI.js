@@ -836,7 +836,10 @@ async function handle(req, res){
             } catch {}
 
             scheduleThought('Verification complete ✅', { route: routeKey }, 60);
-            return send(res, 200, { ok:true, answer: parts.join('\n') });
+            const finalAnswer = parts.join('\n');
+            try { appendChat('assistant', finalAnswer); } catch {}
+            try { pushThought(finalAnswer, { kind:'answer', route: routeKey }); } catch {}
+            return send(res, 200, { ok:true, answer: finalAnswer });
           } catch (e) {
             return send(res, 500, { ok:false, error: e.message });
           }
