@@ -207,7 +207,7 @@
       .hover-scroll{overflow:auto}
 
       /* AI Drawer */
-      :root{--aiWidth:clamp(420px, 36vw, 840px)}
+      :root{--aiWidth:360px}
       .ai-drawer{position:fixed;right:0;height:calc(88vh - (var(--headerH, 64px) + var(--summaryH, 0px)));width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
       .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
@@ -619,8 +619,10 @@
         // Force the apps grid to have exactly one column per source file (desktop),
         // but collapse to max 2 columns on tablets and 1 on mobile.
         if (appsEl) {
-          // Ensure cards never spill: enforce a sensible minimum width per column
-          appsEl.style.gridTemplateColumns = 'repeat(auto-fill, minmax(360px, 1fr))';
+          // Keep two columns where possible; allow shrink but avoid overflow
+          appsEl.style.gridTemplateColumns = 'repeat(2, minmax(280px, 1fr))';
+          const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+          if (vw < 900) appsEl.style.gridTemplateColumns = 'repeat(1, minmax(260px, 1fr))';
         }
         function buildGroupsByBase(routesInSource, meta){
           const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
@@ -1466,6 +1468,8 @@
               chatEngaged = true; hasUserMessage = true;
               appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
               await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+              // bring AI drawer into view
+              try{ d && d.scrollIntoView && d.scrollIntoView({block:'nearest'}); }catch{}
             }catch{}
           });
         }
@@ -2173,7 +2177,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         
         countHeaderEl.textContent = count > 0 ? `(${count})` : '';
         
-        // Update history panel
+        // Update history panel and also echo entries into chat for visibility
         const historyList = document.getElementById('healingHistoryList');
         
         if (count === 0) {
@@ -2231,6 +2235,14 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           entryEl.appendChild(actions);
           
           historyList.appendChild(entryEl);
+          try{
+            const summary = [
+              `Healed ${entry.route||''} ${entry.success?'✅':'❌'}`.trim(),
+              entry.actions && entry.actions.length ? `Steps: ${entry.actions.join(', ')}` : null,
+              entry.details ? `Notes: ${entry.details}` : null,
+            ].filter(Boolean).join('\n');
+            if (summary){ appendBubble('assistant', summary); }
+          }catch{}
         });
       }
       
