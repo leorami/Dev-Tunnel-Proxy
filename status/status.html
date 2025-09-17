@@ -237,7 +237,7 @@
       .bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
       .bubble code{background:rgba(125,162,255,.15);border:1px solid rgba(125,162,255,.25);padding:0 4px;border-radius:4px}
       .ai-input{display:flex;flex-direction:column;gap:8px}
-      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body)}
+      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body);border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg)}
       .ai-input textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
       .ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
       /* Thinking indicator */
@@ -256,6 +256,9 @@
         .summaryRow h2{display:none}
         .appsHeader h2{display:none}
         .appsHeader .toolbar{width:100%}
+        /* Keep buttons visible and reduce chat height on small screens */
+        .ai-content{overflow:hidden}
+        .ai-chat{flex:none;max-height:38vh}
       }
 
       /* Desktop/tablet: shift content left when assistant open */
@@ -273,7 +276,12 @@
         .header-row{flex-wrap:wrap;gap:8px}
         .header-actions{gap:6px}
         .ai-drawer{height: calc(78vh - (var(--headerH, 64px) + var(--summaryH, 0px)));}
+        /* On medium screens, keep input/actions in view by limiting chat height */
+        .ai-content{overflow:hidden}
+        .ai-chat{flex:none;max-height:48vh}
       }
+      /* reserved for legacy global diagnose button (removed) */
+      #aiDiagnoseGlobal{display:none}
       @media (max-width:768px){
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
@@ -842,7 +850,7 @@
 
               // Add Calliope button last
               const calliopeBtn = createActionButton('calliope', {
-                title: 'Calliope Audit + Heal',
+                title: 'Diagnose with Calliope',
                 innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
                 dataset: { route: group.route }
               });
@@ -970,7 +978,7 @@
                 
                 // Add Calliope button (child)
                 const childCalliopeBtn = createActionButton('calliope', {
-                  title: 'Calliope Audit + Heal',
+                  title: 'Diagnose with Calliope',
                   innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
                   dataset: { route: child }
                 });
@@ -1099,7 +1107,7 @@
                 // Ensure order: Open, Dashboard, Promote, Calliope
                 // Add Calliope button for promoted routes
                 const promotedCalliopeBtn = createActionButton('calliope', {
-                  title: 'Calliope Audit + Heal',
+                  title: 'Diagnose with Calliope',
                   innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
                   dataset: { route: group.route }
                 });
@@ -1193,7 +1201,7 @@
                 
                 // Add Calliope button for standalone routes
                 const standaloneCalliopeBtn = createActionButton('calliope', {
-                  title: 'Calliope Audit + Heal',
+                  title: 'Diagnose with Calliope',
                   innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
                   dataset: { route: group.route }
                 });
@@ -1381,16 +1389,29 @@
         // Note: avoid duplicating entries across sources
         // meta is keyed by route; each value contains its sourceFile
 
+        // Provide early stub so Diagnose clicks before assistant init are queued
+        try{
+          if (!window.runCalliopeHealth){
+            window.runCalliopeHealth = function(route){
+              try{ const d = document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); } }catch{}
+              window.__pendingDiagnoseRoute = route || '/sdk';
+            };
+          }
+        }catch{}
+
         // Show conflict management section if there are conflicts
         showConflictManagement(routes);
         
         // Add global conflict status indicator
         updateGlobalConflictIndicator(routes);
 
-        rebuildApps();
+          // Start Calliope UI immediately so Diagnose clicks work even while apps load
+          try { initAiAssistant(); } catch (e) { /* non-fatal */ }
 
-        // No manual ordering; default sort is by status
-        try { await initAiAssistant(); } catch (e) { /* non-fatal */ }
+          rebuildApps();
+
+          // No manual ordering; default sort is by status
+          try { await initAiAssistant(); } catch (e) { /* non-fatal */ }
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
@@ -2286,6 +2307,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         // Thought polling for progress breadcrumbing
         let thoughtsTimer = null;
         let healthTimer = null;
+        let chatEngaged = false; // set true after first user action or diagnose
+        let hasUserMessage = false; // guarantees first visible bubble can be user
         function startThoughtsPolling(){
           if (thoughtsTimer) return;
           thoughtsTimer = setInterval(async ()=>{
@@ -2299,7 +2322,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 const det = ev && ev.details || {};
                 if (msg) {
                   console.debug('[Calliope][thought]', msg, det);
-                  appendBubble('assistant', msg);
+                  if (chatEngaged && hasUserMessage) appendBubble('assistant', msg);
                 }
                 // Map thought tags to status chip state heuristically
                 const statusChip = document.getElementById('aiHealingStatus');
@@ -2419,10 +2442,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 if (route) openDiagnoseModal(route, targets, routes);
               }
             };
-            if (clone.classList.contains('icon-btn')){
-              if (enabled){ clone.title='Calliope'; clone.setAttribute('aria-label','Calliope'); }
-              else { clone.title='Diagnose'; clone.setAttribute('aria-label','Diagnose'); }
-            }
+            // Update accessibility labels and titles for all stethoscope/diagnose buttons
+            if (enabled){ clone.title='Calliope'; clone.setAttribute('aria-label','Calliope'); }
+            else { clone.title='Diagnose'; clone.setAttribute('aria-label','Diagnose'); }
           });
         }
 
@@ -2431,7 +2453,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         // Uses capture phase to pre-empt older listeners.
         document.addEventListener('click', function(e){
           try{
-            const enabled = !!window.__calliopeEnabled;
+            const enabled = !!window.__calliopeEnabled || document.body.classList.contains('calliope-enabled');
             if (!enabled) return;
             const target = e.target && (e.target.closest && e.target.closest('button, .circular-action-btn, .icon-btn'));
             if (!target) return;
@@ -2451,16 +2473,22 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               const nameEl = header && header.querySelector && header.querySelector('.route-name');
               if (nameEl && nameEl.textContent) route = nameEl.textContent.trim();
             }
-            if (!route) return;
+            if (!route) route = '/sdk';
 
             // Override default behavior
             e.preventDefault();
             e.stopPropagation();
             if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
 
-            // Run Calliope health flow
-            try { runCalliopeHealth(route); } catch(err){
-              // Fallback: open the drawer at least
+            // Run Calliope health flow, but if not ready yet, queue it
+            try {
+              if (typeof runCalliopeHealth === 'function') { runCalliopeHealth(route); }
+              else {
+                window.__pendingDiagnoseRoute = route || '/sdk';
+                const drawer = document.getElementById('aiDrawer');
+                if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+              }
+            } catch(err){
               const drawer = document.getElementById('aiDrawer');
               if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
             }
@@ -2470,12 +2498,15 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         async function onAsk(){
           const q = (queryEl.value||'').trim();
           if (!q){ return; }
+          // Mark user engagement BEFORE any possible assistant thought rendering
+          if (!hasUserMessage) hasUserMessage = true;
+          chatEngaged = true;
           askBtn.disabled = true; askBtn.textContent = 'Thinking…';
           // Clear the input immediately so the user can type next question
           queryEl.value = '';
           
           // Append user bubble first so it appears before any thinking indicator
-          appendBubble('user', q);
+          const firstUser = appendBubble('user', q);
           // Now show thinking animation for at least a short time
           const thinking = appendThinking();
           const minThinkingTime = new Promise(resolve => setTimeout(resolve, 800));
@@ -2608,88 +2639,95 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
 
         async function runCalliopeHealth(routeKey){
+          try{
+            if (window.__pendingDiagnoseRoute){ delete window.__pendingDiagnoseRoute; }
+          }catch{}
+          chatEngaged = true;
           ensureAiOpen();
-          // First message - acknowledgment
-          appendBubble('assistant', `<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"> Heya! One sec while I listen to ${routeKey}...`);
+          // First message - acknowledgment (append after recording engagement but before server work)
+          appendBubble('assistant', `Heya! One sec while I listen to ${routeKey}...`);
           
-          // Show thinking indicator with minimum duration for visibility AFTER we send the request
-          let thinking;
-          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 1200));
+          // Show thinking indicator briefly while we kick off background audit+heal
+          let thinking = appendThinking();
+          // Immediately reflect active state in the status chip
+          try {
+            const statusChip = document.getElementById('aiHealingStatus');
+            const labelEl = document.getElementById('aiHealingStatusLabel');
+            statusChip.classList.remove('status-ready','status-offline');
+            statusChip.classList.add('status-auditing');
+            labelEl.textContent = '🔬 Auditing';
+          } catch {}
+          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 900));
           
           try{
-            // Create the thinking indicator right before sending the request so the user's bubble is visually above it
-            thinking = appendThinking();
+            // Use container-reachable base; prefer ngrok origin if present, else dev-proxy
+            const origin = window.location.origin || '';
+            let baseForAudit = 'http://dev-proxy';
+            try { const h = (new URL(origin)).hostname||''; if (/\.ngrok\.app$/i.test(h)) baseForAudit = origin; } catch {}
+            const cleanRoute = routeKey.endsWith('/') ? routeKey : (routeKey + '/');
+            const urlToAudit = (baseForAudit.replace(/\/$/, '')) + cleanRoute;
+            const selfCheck = (async ()=>{
+              try{
+                await fetch('/api/ai/self-check', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ heal: true, route: routeKey, hint: `Focus on route ${routeKey} and its children.` })
+                });
+              }catch{}
+            })();
             const [resp] = await Promise.all([
-              fetch('/api/ai/self-check', { 
-                method: 'POST', 
-                headers: {'Content-Type':'application/json'}, 
-                body: JSON.stringify({ 
-                  heal: true, 
-                  route: routeKey, 
-                  hint: `Focus on route ${routeKey} and its children.` 
-                }) 
+              fetch('/api/ai/audit-and-heal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: urlToAudit, route: routeKey, maxPasses: 3, wait: 1500, timeout: 45000 })
               }),
-              minThinkingTime // Ensure thinking animation shows for at least 1.2s
+              minThinkingTime,
+              selfCheck
             ]);
-            
-            // Remove thinking indicator after minimum time has passed
             thinking.remove();
-            
-            if (!resp.ok){ 
-              appendBubble('assistant', `Hmm, I had trouble with that check (HTTP ${resp.status}). Want me to try again?`); 
-              return; 
+            if (!resp.ok){
+              const friendly = `\nI hit a little hiccup starting my check (HTTP ${resp.status}).\n`+
+                `Here’s what I’d try next:`+
+                `\n- Click “Ask” with: 
+\`Please audit and heal /sdk (and give yourself the Storybook/Vite knowledge you need).\``+
+                `\n- Or open my thinking stream: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
+              appendBubble('assistant', friendly);
+              // reset chip back to ready so UI doesn’t look stuck on Auditing
+              try{
+                const statusChip = document.getElementById('aiHealingStatus');
+                const labelEl = document.getElementById('aiHealingStatusLabel');
+                statusChip.classList.remove('status-auditing','status-healing','status-coding');
+                statusChip.classList.add('status-ready');
+                labelEl.textContent = '😊 Happy';
+              }catch{}
+              return;
             }
-            
-            // Process the response
             const data = await resp.json().catch(()=>null);
-            const summary = (data && data.summary) ? data.summary : 'Health check completed.';
-            
-            // Second message - detailed result
-            appendBubble('assistant', summary);
-            
-            // If route report is available and has child data, show a collapsible details section
-            if (data && data.self && data.self.routeReport && data.self.routeReport.probed) {
-              const probed = data.self.routeReport.probed;
-              
-              // Only show details if we have multiple routes
-              if (probed.length > 1) {
-                // Create collapsible details section
-                const detailsHtml = `
-                <details>
-                  <summary>View route details (${probed.length} paths)</summary>
-                  <div style="margin-top: 8px; padding: 8px; background: rgba(125,162,255,.08); border: 1px solid rgba(125,162,255,.18); border-radius: 6px; font-size: 0.9em;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                      <thead>
-                        <tr>
-                          <th style="text-align: left; padding: 4px;">Path</th>
-                          <th style="text-align: right; padding: 4px;">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${probed.map(item => {
-                          const statusClass = item.status >= 200 && item.status < 300 ? 'ok' : 
-                                          item.status >= 300 && item.status < 400 ? 'warn' : 'err';
-                          return `
-                            <tr>
-                              <td style="text-align: left; padding: 4px;">${item.path}</td>
-                              <td style="text-align: right; padding: 4px;" class="${statusClass}">${item.status || 'no response'}</td>
-                            </tr>
-                          `;
-                        }).join('')}
-                      </tbody>
-                    </table>
-                  </div>
-                </details>`;
-                
-                // Add details as a new bubble
-                appendHTMLContent('assistant', detailsHtml);
-              }
+            if (data && data.ok){
+              appendBubble('assistant', 'Working on it — I\'ll stream my steps as they happen.');
+            } else {
+              const msg = (data && data.result && data.result.message) ? data.result.message : 'Couldn\'t proceed with audit+heal just now.';
+              appendBubble('assistant', `⚠️ ${msg}`);
             }
-          } catch(e){ 
-            thinking.remove(); 
-            appendBubble('assistant', `⚠️ I couldn't finish my check: ${e.message}`); 
+            // Thoughts polling is active and will stream intermediate steps
+          } catch(e){
+            try { thinking.remove(); } catch{}
+            const friendly = `\nOops, my ears got tangled while starting the check: ${e.message}.`+
+              `\nTry asking: \`Audit and heal /sdk; add Storybook/Vite proxy guards and host allowances.\``+
+              `\nPeek at my thoughts: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
+            appendBubble('assistant', friendly);
+            try{
+              const statusChip = document.getElementById('aiHealingStatus');
+              const labelEl = document.getElementById('aiHealingStatusLabel');
+              statusChip.classList.remove('status-auditing','status-healing','status-coding');
+              statusChip.classList.add('status-ready');
+              labelEl.textContent = '😊 Happy';
+            }catch{}
           }
         }
+
+        // Expose for inline handlers and external triggers
+        try { window.runCalliopeHealth = runCalliopeHealth; } catch {}
 
         askBtn.addEventListener('click', onAsk);
         clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
@@ -2721,6 +2759,11 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         tab.addEventListener('click', ()=>{
           const collapsed = drawer.classList.toggle('collapsed');
           document.body.classList.toggle('ai-open', !collapsed);
+          try{
+            if (!collapsed && window.__pendingDiagnoseRoute){
+              const r = window.__pendingDiagnoseRoute; delete window.__pendingDiagnoseRoute; runCalliopeHealth(r);
+            }
+          }catch{}
         });
         askBtn.addEventListener('click', onAsk);
         clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
@@ -2789,7 +2832,11 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         };
 
         // Load persisted chat first, then current health, then begin thoughts polling
-        await loadChatHistory();
+        try{
+          const wantPersist = (localStorage.getItem('calliopePersistChat') === '1');
+          if (wantPersist){ await loadChatHistory(); }
+          else { chatEl.innerHTML = ''; }
+        }catch{ /* default: no persisted chat during normal/status tests */ }
         await refreshHealth();
         startThoughtsPolling();
         startHealthPolling();
@@ -2804,6 +2851,19 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             }
           }catch{}
         });
+
+        // Wire global diagnose button to focus the first SDK group or fallback to /sdk
+        const bindDiag = (el)=>{
+          if (!el) return;
+          el.addEventListener('click', (e)=>{
+            e.preventDefault(); e.stopPropagation();
+            // Try to find a route named /sdk first
+            const sdkChip = document.querySelector('[data-route="/sdk"]') || document.querySelector('.route-name');
+            const route = sdkChip && (sdkChip.getAttribute && sdkChip.getAttribute('data-route')) || '/sdk';
+            runCalliopeHealth(route);
+          });
+        };
+        // legacy buttons removed
       }
     </script>
   </body>
