@@ -1417,6 +1417,28 @@
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
 
+      // Fallback: ensure Calliope tab toggles drawer even if other init fails
+      try{
+        document.addEventListener('click', function(e){
+          try{
+            const tabEl = e.target && (e.target.closest && e.target.closest('#aiTab'));
+            if (!tabEl) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const drawer = document.getElementById('aiDrawer');
+            if (!drawer) return;
+            const isCollapsed = drawer.classList.contains('collapsed');
+            if (isCollapsed){
+              drawer.classList.remove('collapsed');
+              document.body.classList.add('ai-open');
+            } else {
+              drawer.classList.add('collapsed');
+              document.body.classList.remove('ai-open');
+            }
+          }catch{}
+        }, true);
+      }catch{}
+
       // Controls wiring
       (function initControls(){
         const sortEl=document.getElementById('sortMode');
