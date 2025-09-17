@@ -615,12 +615,8 @@
         // Force the apps grid to have exactly one column per source file (desktop),
         // but collapse to max 2 columns on tablets and 1 on mobile.
         if (appsEl) {
-          const totalSources = Math.max(1, Object.keys(bySource).length);
-          const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-          let cols = totalSources;
-          if (vw <= 768) cols = 1;
-          else if (vw <= 1200) cols = Math.min(2, totalSources);
-          appsEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+          // Ensure cards never spill: enforce a sensible minimum width per column
+          appsEl.style.gridTemplateColumns = 'repeat(auto-fill, minmax(360px, 1fr))';
         }
         function buildGroupsByBase(routesInSource, meta){
           const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
@@ -1399,7 +1395,7 @@
           if (!window.runCalliopeHealth){
             window.runCalliopeHealth = function(route){
               try{ const d = document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); } }catch{}
-              window.__pendingDiagnoseRoute = route || '/sdk';
+              window.__pendingDiagnoseRoute = route || null;
             };
           }
         }catch{}
@@ -2509,7 +2505,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               const nameEl = header && header.querySelector && header.querySelector('.route-name');
               if (nameEl && nameEl.textContent) route = nameEl.textContent.trim();
             }
-            if (!route) route = '/sdk';
+            if (!route) return; // no implicit default
 
             // Override default behavior
             e.preventDefault();
@@ -2520,7 +2516,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             try {
               if (typeof runCalliopeHealth === 'function') { runCalliopeHealth(route); }
               else {
-                window.__pendingDiagnoseRoute = route || '/sdk';
+                window.__pendingDiagnoseRoute = route || null;
                 const drawer = document.getElementById('aiDrawer');
                 if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
               }
@@ -2887,8 +2883,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             e.preventDefault(); e.stopPropagation();
             // Try to find a route named /sdk first
             const sdkChip = document.querySelector('[data-route="/sdk"]') || document.querySelector('.route-name');
-            const route = sdkChip && (sdkChip.getAttribute && sdkChip.getAttribute('data-route')) || '/sdk';
-            runCalliopeHealth(route);
+            const route = sdkChip && (sdkChip.getAttribute && sdkChip.getAttribute('data-route')) || null;
+            if (route) runCalliopeHealth(route);
           });
         };
         // legacy buttons removed
