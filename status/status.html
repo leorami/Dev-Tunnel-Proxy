@@ -2349,12 +2349,12 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               evs.forEach(ev => {
                 const msg = (ev && ev.message) ? String(ev.message) : '';
                 const det = ev && ev.details || {};
-              if (msg) {
+                if (msg) {
                   console.debug('[Calliope][thought]', msg, det);
                   try{
                     const chat = document.getElementById('aiChat');
                     const hasUser = !!(chat && chat.querySelector && chat.querySelector('.bubble.user'));
-                    if (chatEngaged && (hasUserMessage || hasUser)) appendBubble('assistant', msg);
+                    if (hasUser) appendBubble('assistant', msg);
                   }catch{}
                 }
                 // Map thought tags to status chip state heuristically
