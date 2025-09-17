@@ -207,10 +207,13 @@
       .hover-scroll{overflow:auto}
 
       /* AI Drawer */
-      :root{--aiWidth:360px}
+      :root{--aiWidth:clamp(360px, 32vw, 512px)}
       .ai-drawer{position:fixed;right:0;height:calc(88vh - (var(--headerH, 64px) + var(--summaryH, 0px)));width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
       .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
+      /* Bottom-sheet mode for small screens */
+      .ai-drawer.bottom-sheet{left:0;right:0;bottom:0;top:auto;width:auto;height:min(33vh, 420px);border-left:none;border-top:1px solid var(--border);border-radius:12px 12px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.35)}
+      .ai-drawer.bottom-sheet.collapsed{transform:translateY(100%)}
       .ai-tab{position:absolute;left:-36px;top:15%;transform:translateY(-50%);background:var(--btnBg);border:1px solid var(--btnBorder);border-right:none;border-radius:10px 0 0 10px;color:var(--btnText);padding:12px 8px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:-6px 6px 18px rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:8px}
       .ai-tab .icon-steth{display:flex;align-items:center;justify-content:center}
       .ai-tab .icon-steth img{width:20px;height:20px;display:block;transform: rotate(270deg);}
@@ -224,6 +227,9 @@
       .bubble{max-width:85%;padding:8px 12px;border-radius:14px;margin:12px 0;line-height:1.45}
       .bubble.user{margin-left:auto;background:rgba(125,162,255,.22);border:1px solid rgba(125,162,255,.35)}
       .bubble.assistant{margin-right:auto;background:linear-gradient(180deg, rgba(255,143,211,.12), rgba(255,91,189,.10));border:1px solid rgba(255,143,211,.45)}
+      /* Gentle bubble entrance */
+      @keyframes bubbleIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+      .bubble{animation:bubbleIn .18s ease-out}
       .bubble-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
       .bubble-content{margin-top:0; overflow-wrap:anywhere; word-break:break-word}
       .bubble-content pre{white-space:pre-wrap; word-break:break-word}
@@ -244,6 +250,9 @@
       .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
       .dots{display:inline-flex;gap:4px;vertical-align:middle}
       .dot{width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg,#ff8fd3,#ff5bbd);opacity:.6;animation:dotPulse 1s infinite ease-in-out}
+      /* Inline chat status at top of chat */
+      .ai-chat-status{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:linear-gradient(180deg, rgba(0,0,0,.15), transparent);padding:6px 4px;margin-bottom:4px}
+      .ai-chat-status .pulse{width:6px;height:6px;border-radius:50%;background:linear-gradient(180deg,#ff8fd3,#ff5bbd);animation:dotPulse 1s infinite ease-in-out}
       .dot:nth-child(2){animation-delay:.15s}
       .dot:nth-child(3){animation-delay:.3s}
       @keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
@@ -271,6 +280,10 @@
       }
       @media (min-width: 1681px){
         body.ai-open .content{padding-right:16px}
+      }
+      @media (max-width: 768px){
+        #aiDrawer.ai-drawer{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:min(33vh, 420px)}
+        #aiDrawer.ai-drawer.collapsed{transform:translateY(100%)}
       }
 
       @media (max-width:1400px){
@@ -2375,6 +2388,26 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         let healthTimer = null;
         let chatEngaged = false; // set true after first user action or diagnose
         let hasUserMessage = false; // guarantees first visible bubble can be user
+        const seenThoughtIds = new Set();
+        const recentThoughtTexts = [];
+        function recordThoughtSeen(ev){
+          const id = ev && (ev.id || ev.ts || ev.message);
+          if (id) seenThoughtIds.add(String(id));
+          const msg = ev && ev.message ? String(ev.message) : '';
+          if (msg){
+            recentThoughtTexts.push(msg);
+            if (recentThoughtTexts.length > 50) recentThoughtTexts.splice(0, recentThoughtTexts.length - 50);
+          }
+        }
+        function shouldDisplayThought(ev){
+          const id = ev && (ev.id || ev.ts || ev.message);
+          if (id && seenThoughtIds.has(String(id))) return false;
+          const msg = ev && ev.message ? String(ev.message) : '';
+          if (!msg) return false;
+          const last = recentThoughtTexts[recentThoughtTexts.length - 1];
+          if (last && last === msg) return false;
+          return true;
+        }
         function startThoughtsPolling(){
           if (thoughtsTimer) return;
           thoughtsTimer = setInterval(async ()=>{
@@ -2384,6 +2417,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               const d = await r.json().catch(()=>null);
               const evs = (d && d.events) || [];
               evs.forEach(ev => {
+                if (!shouldDisplayThought(ev)) { recordThoughtSeen(ev); return; }
                 const msg = (ev && ev.message) ? String(ev.message) : '';
                 const det = ev && ev.details || {};
                 if (msg) {
@@ -2392,7 +2426,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                     if (msg !== 'status'){
                       // Show streamed thoughts when chat is engaged or empty (initial state)
                       const haveUserMsg = !!(document.getElementById('aiChat')?.querySelector('.bubble.user'));
-                      if (chatEngaged || !haveUserMsg) appendBubble('assistant', msg);
+                      if (chatEngaged || !haveUserMsg) appendBubble('assistant', personaWrap(msg));
                     }
                   }catch{}
                 }
@@ -2410,9 +2444,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 else if (/healing/.test(lower) || /heal/.test(lower)) setState('status-healing','💖 Healing');
                 else if (/code review|snapshot|analyz|review/i.test(lower)) setState('status-coding','🛠️ Coding');
                 else if (/complete ✅|all clear|finished|done/i.test(lower)) setState('status-ready','😊 Happy');
+                recordThoughtSeen(ev);
               });
             }catch{}
-          }, 2000);
+          }, 1200);
         }
 
         function startHealthPolling(){
@@ -2662,6 +2697,24 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
           return b;
         }
+
+        // Persona wrapper to enrich terse backend thoughts into friendly tone
+        function personaWrap(text){
+          try{
+            const t = String(text||'');
+            if (/^Self-check completed/i.test(t)) return 'Listening closely… 🔬 Self-check completed.';
+            if (/^Audit\+heal loop complete/i.test(t)) return 'All done for now! 🎉 Audit + heal loop complete.';
+            if (/^Working/i.test(t)) return 'Working my magic… ✨';
+            if (/^Starting audit\+heal/i.test(t)) return 'Taking a peek and patching things up… 🩺✨';
+            if (/^Applying subpath healing/i.test(t)) return 'Applying subpath healing… 💖';
+            if (/^Applying Storybook\/Vite proxy guards/i.test(t)) return 'Tending to Storybook/Vite proxy guards… 🛡️';
+            if (/^Audit did not complete/i.test(t)) return 'Hmm, my audit stumbled. I’ll try a different angle. 🤔';
+            if (/^Verification complete/i.test(t)) return 'Verification complete ✅';
+            if (/^Code review complete/i.test(t)) return 'Code review complete ✅';
+            if (/^status$/i.test(t)) return '';
+            return t;
+          }catch{ return text; }
+        }
         
         // Appends raw HTML content in a bubble (for complex elements like tables)
         function appendHTMLContent(who, html){
@@ -2707,7 +2760,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           chatEngaged = true;
           ensureAiOpen();
           // First message - acknowledgment (append after recording engagement but before server work)
-          appendBubble('assistant', `Heya! One sec while I listen to ${routeKey}...`);
+          appendBubble('assistant', `Heya! ✨ One sec while I listen to ${routeKey}…`);
           
           // Show thinking indicator briefly while we kick off background audit+heal
           let thinking = appendThinking();
@@ -2766,7 +2819,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             }
             const data = await resp.json().catch(()=>null);
             if (data && data.ok){
-              appendBubble('assistant', 'Working on it — I\'ll stream my steps as they happen.');
+              appendBubble('assistant', 'Working my magic… I\'ll stream each step as it happens. ✨');
             } else {
               const msg = (data && data.result && data.result.message) ? data.result.message : 'Couldn\'t proceed with audit+heal just now.';
               appendBubble('assistant', `⚠️ ${msg}`);
@@ -2825,7 +2878,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               drawer.classList.remove('collapsed');
               document.body.classList.add('ai-open');
               chatEngaged = true;
-              try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! One sec while I listen to /api/...'); }catch{}
+              try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! ✨ One sec while I listen…'); }catch{}
               try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
               setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
             } else {
