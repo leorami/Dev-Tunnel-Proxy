@@ -2777,17 +2777,19 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
         }
         tab.addEventListener('click', ()=>{
-          const collapsed = drawer.classList.contains('collapsed');
-          drawer.classList.toggle('collapsed', !collapsed ? true : false);
-          if (collapsed){
-            drawer.classList.remove('collapsed');
-            document.body.classList.add('ai-open');
-            chatEngaged = true;
-            try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
-            setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
-          } else {
-            document.body.classList.remove('ai-open');
-          }
+          try{
+            const isCollapsed = drawer.classList.contains('collapsed');
+            if (isCollapsed){
+              drawer.classList.remove('collapsed');
+              document.body.classList.add('ai-open');
+              chatEngaged = true;
+              try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
+              setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
+            } else {
+              drawer.classList.add('collapsed');
+              document.body.classList.remove('ai-open');
+            }
+          }catch{}
         });
         askBtn.addEventListener('click', onAsk);
         clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
