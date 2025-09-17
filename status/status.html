@@ -310,6 +310,7 @@
           <a class="btn" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
           <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+        <button class="btn" id="aiSelfCheckGlobal" title="Diagnose with Calliope" aria-label="Diagnose with Calliope">Self‑Check</button>
         </div>
       </div>
       
@@ -355,7 +356,7 @@
                 <span class="ai-healing-status-label" id="aiHealingStatusLabel">Healing</span>
                 <span class="ai-healing-count" style="display:none" id="aiHealingCount"></span>
               </span>
-              <button class="btn" id="aiHealBtn" title="Diagnose with Calliope" aria-label="Diagnose with Calliope">Diagnose</button>
+              <button class="btn" id="aiHealBtn" title="Run Self-Check" aria-label="Run Self-Check">Self‑Check</button>
             </div>
           </div>
           <div class="ai-content">
@@ -1421,6 +1422,7 @@
       (function initControls(){
         const sortEl=document.getElementById('sortMode');
         const filterEl=document.getElementById('routeFilter');
+        const selfCheckBtn=document.getElementById('aiSelfCheckGlobal');
         preferences = loadPrefs();
         if (sortEl){
           const pref = (preferences.sortMode==='manual') ? 'status' : (preferences.sortMode||'status');
@@ -1431,6 +1433,16 @@
           if (preferences.filter) filterEl.value=preferences.filter;
           const debounced = debounce(()=>{ savePrefs(preferences); rebuildApps(); setTimeout(() => toggleCalliopeAffordances(true), 50); }, 250);
           filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; debounced(); });
+        }
+        if (selfCheckBtn){
+          selfCheckBtn.addEventListener('click', async ()=>{
+            try{
+              const d=document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+              chatEngaged = true; hasUserMessage = true;
+              appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
+              await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+            }catch{}
+          });
         }
       })();
 
