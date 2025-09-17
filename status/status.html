@@ -355,6 +355,7 @@
                 <span class="ai-healing-status-label" id="aiHealingStatusLabel">Healing</span>
                 <span class="ai-healing-count" style="display:none" id="aiHealingCount"></span>
               </span>
+              <button class="btn" id="aiHealBtn" title="Diagnose with Calliope" aria-label="Diagnose with Calliope">Diagnose</button>
             </div>
           </div>
           <div class="ai-content">
@@ -2303,6 +2304,22 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             });
           }catch{}
         }
+
+        // Wire the always-visible Diagnose button to trigger a self-check heal
+        try{
+          if (healBtn){
+            healBtn.addEventListener('click', async ()=>{
+              try{
+                const q = document.getElementById('aiQuery');
+                const drawer = document.getElementById('aiDrawer');
+                if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                chatEngaged = true; hasUserMessage = true;
+                appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
+                await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+              }catch{}
+            });
+          }
+        }catch{}
 
         // Thought polling for progress breadcrumbing
         let thoughtsTimer = null;
