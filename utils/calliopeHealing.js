@@ -920,13 +920,15 @@ async function runSiteAuditor(urlToAudit, options = {}) {
       const img = process.env.CALLIOPE_PUPPETEER_IMAGE || 'ghcr.io/puppeteer/puppeteer:latest';
       const desiredPlatform = process.env.CALLIOPE_PUPPETEER_PLATFORM || (process.arch === 'arm64' ? 'linux/arm64/v8' : '');
       const platformFlag = desiredPlatform ? `--platform ${desiredPlatform}` : '';
-      const cmd = `node dist/cli.js ${urlToAudit} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
+      // Quote URL to avoid shell interpreting characters like & ? *
+      const safeUrl = JSON.stringify(String(urlToAudit));
+      const cmd = `node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
       let apiContainer = 'dev-calliope-api';
       try {
         const names = execSync('docker ps --format "{{.Names}}"', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
         if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
-        else if (names.includes('dev-conflict-api')) apiContainer = 'dev-conflict-api';
+        else if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
       } catch {}
       const dockerCmd = [`docker run --rm`, platformFlag, `--network devproxy`, `--volumes-from ${apiContainer}`, `-w /app/site-auditor-debug`, img, `sh -lc ${JSON.stringify(cmd)}`]
         .filter(Boolean)
@@ -1079,7 +1081,7 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
     let content = fs.readFileSync(target, 'utf8');
     const original = content;
 
-    // Try to detect upstream variable used in this file
+    // Try to detect upstream variable used in this file; fall back to explicit service
     let upstreamVar = null;
     const bodyVar = content.match(/proxy_pass\s+http:\/\/\$([A-Za-z0-9_]+)/);
     if (bodyVar && bodyVar[1]) upstreamVar = bodyVar[1];
@@ -1087,7 +1089,7 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       const setVar = content.match(/set\s+\$([A-Za-z0-9_]+)\s+[^;]+;/);
       if (setVar && setVar[1]) upstreamVar = setVar[1];
     }
-    if (!upstreamVar) return { success:false, message:'Could not determine upstream variable for Storybook/Vite guards' };
+    // Allow continuing even if we couldn't discover a variable
 
     const ensure = (re, block) => { if (!re.test(content)) content += (content.endsWith('\n')?'':'\n') + block + '\n'; };
 
@@ -1127,7 +1129,8 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       const block = [
         `location ^~ ${loc} {`,
         '  proxy_http_version 1.1;',
-        '  proxy_set_header Host $host;',
+        // Normalize Host to SDK container to reduce Storybook/Vite allowedHosts friction
+        '  proxy_set_header Host encast-sdk:6006;',
         '  proxy_set_header X-Forwarded-Proto $scheme;',
         ...(isViteHmr ? [
           '  proxy_set_header Upgrade $http_upgrade;',
@@ -1136,10 +1139,69 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
           '  proxy_send_timeout 300s;',
           '  proxy_buffering off;',
         ] : []),
-        `  proxy_pass http://$${upstreamVar}/${pass};`,
+        (upstreamVar
+          ? `  proxy_pass http://$${upstreamVar}/${pass};`
+          : `  proxy_pass http://encast-sdk:6006/${pass};`),
         '}'
       ].join('\n');
       ensure(re, block);
+    }
+
+    // If the app is mounted at /sdk, also create root-level fallbacks for Storybook/Vite
+    // This helps when the dev server emits absolute paths like "/@vite/client" instead of prefixing with /sdk
+    if (routePrefix === '/sdk') {
+      const rootGuards = [
+        ['/@vite/', '@vite/'],
+        ['/@id/', '@id/'],
+        ['/@fs/', '@fs/'],
+        ['/node_modules/', 'node_modules/'],
+        ['/sb-common-assets/', 'sb-common-assets/'],
+      ];
+      for (const [loc, pass] of rootGuards){
+        const safeLoc = loc.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const re = new RegExp('location\\s*\\^~\\s*' + safeLoc, 'm');
+        const isViteHmr = /@vite\//.test(pass);
+        const block = [
+          `location ^~ ${loc} {`,
+          '  proxy_http_version 1.1;',
+          '  # Normalize Host for dev server to reduce allowedHosts friction',
+          '  proxy_set_header Host encast-sdk:6006;',
+          '  proxy_set_header X-Forwarded-Proto $scheme;',
+          ...(isViteHmr ? [
+            '  proxy_set_header Upgrade $http_upgrade;',
+            '  proxy_set_header Connection "upgrade";',
+            '  proxy_read_timeout 300s;',
+            '  proxy_send_timeout 300s;',
+            '  proxy_buffering off;',
+          ] : []),
+          (upstreamVar
+            ? `  proxy_pass http://$${upstreamVar}/${pass};`
+            : `  proxy_pass http://encast-sdk:6006/${pass};`),
+          '}'
+        ].join('\n');
+        ensure(re, block);
+      }
+
+      // Discrete root assets that Storybook may request absolutely
+      const rootFiles = [
+        ['/index.json', '/index.json'],
+        ['/vite-inject-mocker-entry.js', '/vite-inject-mocker-entry.js'],
+        ['/favicon.svg', '/favicon.svg']
+      ];
+      for (const [eqPath, upstreamPath] of rootFiles){
+        const reEq = new RegExp('location\\s*=\\s*' + eqPath.replace(/\//g,'\\/') + '\\s*\\{[\\s\\S]*?\\}', 'm');
+        const block = [
+          `location = ${eqPath} {`,
+          '  proxy_http_version 1.1;',
+          '  proxy_set_header Host encast-sdk:6006;',
+          '  proxy_set_header X-Forwarded-Proto $scheme;',
+          (upstreamVar
+            ? `  proxy_pass http://$${upstreamVar}${upstreamPath};`
+            : `  proxy_pass http://encast-sdk:6006${upstreamPath};`),
+          '}'
+        ].join('\n');
+        ensure(reEq, block);
+      }
     }
 
     if (content !== original){

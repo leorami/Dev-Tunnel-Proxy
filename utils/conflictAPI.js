@@ -580,6 +580,15 @@ async function handle(req, res){
               const hb = setInterval(()=>{ try{ pushThought('Working…'); }catch{} }, 3000);
               try{
                 for (let i = 0; i < Math.max(1, Math.min(8, userMaxPasses)); i++) {
+                  // Proactively apply Storybook/Vite guards if /sdk is involved
+                  try {
+                    if ((routeKey && routeKey.startsWith('/sdk')) || /\b(sdk|storybook)\b/.test(lower)) {
+                      setActivity('coding');
+                      pushThought('Applying Storybook/Vite proxy guards…', { route: routeKey });
+                      await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
+                      setActivity('auditing');
+                    }
+                  } catch {}
                   pushThought(`Auditing pass ${i+1} for ${url}…`, { route: routeKey, url });
                   const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
                   if (audit && audit.ok && audit.summary){
@@ -653,6 +662,13 @@ async function handle(req, res){
             pushThought(`Auditing ${routeKey}…`, { route: routeKey });
             const base = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
             const url = absoluteUrl || (base.replace(/\/$/, '') + (fullPath || (routeKey + '/')) + (fullPath && !/\/$/.test(fullPath) ? '' : ''));
+            if (routeKey && routeKey.startsWith('/sdk')) {
+              try {
+                setActivity('coding');
+                pushThought('Applying Storybook/Vite proxy guards…', { route: routeKey });
+                await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
+              } finally { setActivity('auditing'); }
+            }
             const audit = await calliopeHealing.runSiteAuditor(url, { wait: 1500, timeout: 45000 });
             const parts = [];
             parts.push(`Audit for ${routeKey} at ${url}`);
@@ -724,6 +740,15 @@ async function handle(req, res){
             const ensureNext = await calliopeHealing.ensureRouteForwardedPrefixAndNext({ routePrefix: routeKey });
             // 2) Ensure subpath absolute routing for APIs and dev helpers
             const subpathFix = await calliopeHealing.fixSubpathAbsoluteRouting({ routePrefix: routeKey });
+            // 3) If we're working on /sdk, proactively add Storybook/Vite guards and absolute-path fallbacks
+            let sbGuards = null;
+            try {
+              if (routeKey === '/sdk') {
+                setActivity('coding');
+                pushThought('Applying Storybook/Vite proxy guards for /sdk…', { route: routeKey });
+                sbGuards = await calliopeHealing.applyStorybookViteProxyGuards({ routePrefix: '/sdk' });
+              }
+            } finally { setActivity('healing'); }
             // 3) Normalize X-Forwarded-Proto headers to $scheme for local dev (avoid forcing https)
             let normalizedHeaders = false;
             try {
@@ -764,6 +789,7 @@ async function handle(req, res){
             parts.push('What I did:');
             parts.push(`- ensureRouteForwardedPrefixAndNext → ${ensureNext && ensureNext.success ? 'ok' : 'no-op or failed'}`);
             parts.push(`- fixSubpathAbsoluteRouting → ${subpathFix && subpathFix.success ? 'ok' : 'no-op or failed'}`);
+            if (sbGuards) parts.push(`- applyStorybookViteProxyGuards(/sdk) → ${sbGuards.success ? 'ok' : 'no-op or failed'}`);
             parts.push(`- normalize_X-Forwarded-Proto_to_$scheme → ${normalizedHeaders ? 'applied' : 'no-op'}`);
             parts.push(`- regenerateNginxBundle → ${regenOk ? 'ok' : 'soft-reload only'}`);
             parts.push('\nVerification:');
