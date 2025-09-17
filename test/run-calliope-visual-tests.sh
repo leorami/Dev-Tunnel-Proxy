@@ -54,7 +54,7 @@ test_without_api_key() {
     echo -e "${BLUE}🧪 SCENARIO 1: Testing WITHOUT OPENAI_API_KEY${NC}"
     echo -e "${YELLOW}   Restarting calliope-api without API key...${NC}"
     
-    # Stop conflict-api
+    # Stop calliope-api
     docker stop dev-calliope-api 2>/dev/null || true
     
     # Start without OPENAI_API_KEY
@@ -113,7 +113,7 @@ test_with_api_key() {
     
     echo -e "${YELLOW}   Restarting calliope-api with API key...${NC}"
     
-    # Stop conflict-api
+    # Stop calliope-api
     docker stop dev-calliope-api 2>/dev/null || true
     
     # Start with OPENAI_API_KEY
@@ -149,7 +149,7 @@ restore_services() {
     
     # Restart with docker-compose (will use original environment)
     cd "$PROJECT_ROOT"
-    docker-compose up -d conflict-api
+    docker-compose up -d calliope-api
     
     echo -e "${GREEN}✅ Services restored${NC}"
 }

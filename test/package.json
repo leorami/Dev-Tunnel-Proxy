@@ -3,9 +3,16 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "start": "node run.js"
+    "start": "node run.js",
+    "calliope:e2e": "node run-calliope-puppeteer.js"
   },
-  "dependencies": {}
+  "version": "1.0.0",
+  "main": "calliope-enable-disable-visual-test.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "puppeteer": "^22.15.0"
+  }
 }
-
-

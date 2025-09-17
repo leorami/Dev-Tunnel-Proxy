@@ -95,5 +95,5 @@
 
 console.log('\n💡 TIP: To test the opposite state, you can:');
 console.log('1. Check current docker-compose.yml for OPENAI_API_KEY');
-console.log('2. Temporarily remove/add the API key and restart: docker-compose up -d conflict-api');
+console.log('2. Temporarily remove/add the API key and restart: docker-compose up -d calliope-api');
 console.log('3. Refresh this page and run the test again');
