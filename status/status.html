@@ -2445,13 +2445,14 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           recButtons.forEach(el=> el.style.display = enabled ? 'none' : '');
           console.log('🔧 Found', recButtons.length, 'recommend buttons to hide');
           
-          // NUCLEAR APPROACH: Find ANY button with stethoscope or aria-label Diagnose and override completely
+          // NUCLEAR APPROACH: Find ANY button with stethoscope or aria-label Diagnose and override completely (exclude Calliope tab)
           const candidates = Array.from(document.querySelectorAll('button, .icon-btn')).filter(el => {
             const label = el.getAttribute('aria-label') || '';
             const text = el.textContent || '';
             return /Diagnose/i.test(label) || text.includes('Diagnose') || el.querySelector('img[src*="calliope_heart_stethoscope"]');
           });
           candidates.forEach(el => {
+            if (el.id === 'aiTab' || el.closest && el.closest('#aiTab')) return; // never hijack the Calliope tab
             const parent = el.parentNode; if (!parent) return;
             const clone = el.cloneNode(true);
             parent.replaceChild(clone, el);
@@ -2489,6 +2490,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (!enabled) return;
             const target = e.target && (e.target.closest && e.target.closest('button, .circular-action-btn, .icon-btn'));
             if (!target) return;
+            if (target.id === 'aiTab' || (target.closest && target.closest('#aiTab'))) return; // allow tab to toggle drawer
             const label = target.getAttribute('aria-label') || '';
             const text = target.textContent || '';
             const hasStethoscope = !!target.querySelector && !!target.querySelector('img[src*="calliope_heart_stethoscope"]');
