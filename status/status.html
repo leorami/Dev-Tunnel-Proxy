@@ -2782,6 +2782,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           drawer.classList.remove('collapsed');
           document.body.classList.add('ai-open');
           chatEngaged = true;
+          try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
           setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
           try{
             if (wasCollapsed && window.__pendingDiagnoseRoute){
