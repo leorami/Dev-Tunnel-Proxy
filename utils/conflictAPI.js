@@ -645,7 +645,10 @@ async function handle(req, res){
                 try{ clearInterval(hb); }catch{}
                 scheduleThought('Audit+heal loop complete ✅', { route: routeKey }, 60);
                 setActivity('');
-                try { appendChat('assistant', parts.join('\n')); } catch {}
+                const finalAnswer = parts.join('\n');
+                try { appendChat('assistant', finalAnswer); } catch {}
+                // Also emit the full answer as a thought so the UI shows details immediately
+                try { pushThought(finalAnswer, { kind: 'answer', route: routeKey||fullPath||'' }); } catch {}
               }
             }, 10);
             // Respond immediately so UI polling can continue while background work runs
@@ -689,7 +692,10 @@ async function handle(req, res){
               if (audit && audit.error) parts.push(`Error: ${audit.error}`);
             }
             scheduleThought('Audit complete ✅', { route: routeKey }, 60);
-            return send(res, 200, { ok:true, answer: parts.join('\n') });
+            const finalAnswer = parts.join('\n');
+            try { appendChat('assistant', finalAnswer); } catch {}
+            try { pushThought(finalAnswer, { kind:'answer', route: routeKey }); } catch {}
+            return send(res, 200, { ok:true, answer: finalAnswer });
           } catch (e) {
             return send(res, 500, { ok:false, error: e.message });
           }
@@ -958,11 +964,10 @@ async function handle(req, res){
           // Emit follow-up thought after response to keep bubble visible during multi-step work
           scheduleThought('Working my magic…', { step: 'advanced_heal_followup', success: true });
           // Send response first, then flush buffered updates
-          send(res, 200, { 
-            ok: true,
-            success: healResult.success,
-            result: healResult
-          });
+          const answer = `Advanced heal ${healResult.success ? 'completed successfully' : 'finished with warnings'}\n\nSummary:\n\n\`\`\`json\n${JSON.stringify({ steps: healResult.steps, applied: healResult.appliedStrategies, diagnostics: healResult.diagnostics && { containers: Object.keys(healResult.diagnostics.containers||{}).length, signals: (healResult.diagnostics.signals||[]).length } }, null, 2)}\n\`\`\``;
+          try { appendChat('assistant', answer); } catch {}
+          try { pushThought(answer, { kind:'answer', route }); } catch {}
+          send(res, 200, { ok: true, success: healResult.success, result: healResult, answer });
           setTimeout(() => { buffered.forEach(ev => pushThought(ev.message, ev.details)); }, 30);
           return;
         } catch (e) {
