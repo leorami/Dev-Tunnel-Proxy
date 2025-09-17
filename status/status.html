@@ -2389,9 +2389,11 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 if (msg) {
                   console.debug('[Calliope][thought]', msg, det);
                   try{
-                    const chat = document.getElementById('aiChat');
-                    const hasUser = !!(chat && chat.querySelector && chat.querySelector('.bubble.user'));
-                    if (hasUser) appendBubble('assistant', msg);
+                    if (msg !== 'status'){
+                      // Show streamed thoughts when chat is engaged or empty (initial state)
+                      const haveUserMsg = !!(document.getElementById('aiChat')?.querySelector('.bubble.user'));
+                      if (chatEngaged || !haveUserMsg) appendBubble('assistant', msg);
+                    }
                   }catch{}
                 }
                 // Map thought tags to status chip state heuristically
@@ -2823,6 +2825,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               drawer.classList.remove('collapsed');
               document.body.classList.add('ai-open');
               chatEngaged = true;
+              try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! One sec while I listen to /api/...'); }catch{}
               try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
               setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
             } else {
