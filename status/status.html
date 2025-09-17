@@ -2322,7 +2322,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 const det = ev && ev.details || {};
                 if (msg) {
                   console.debug('[Calliope][thought]', msg, det);
-                  if (chatEngaged && hasUserMessage) appendBubble('assistant', msg);
+                  appendBubble('assistant', msg);
                 }
                 // Map thought tags to status chip state heuristically
                 const statusChip = document.getElementById('aiHealingStatus');
@@ -2342,6 +2342,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             }catch{}
           }, 2000);
         }
+        // Open drawer on tab click and mark engagement
+        try{
+          if (tab){
+            tab.addEventListener('click', function(){
+              try{ const d = document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); } }catch{}
+              chatEngaged = true;
+              setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
+            });
+          }
+        }catch{}
 
         function startHealthPolling(){
           if (healthTimer) return;
