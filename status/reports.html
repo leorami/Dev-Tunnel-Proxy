@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Dev Proxy Reports</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <style>
+      :root{ --bg:#0b1220; --panel:#111a2b; --text:#d9e2f1; --muted:#7f90b3; --accent:#6aa6ff; --border:#1f2a44; }
+      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(10,16,30,.55);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      .header-row{display:flex;align-items:center;justify-content:space-between}
+      .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      button, a.btn{appearance:none;border:1px solid #24406e;background:#132a4d;color:#cfe0ff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+      .grid{display:grid;grid-template-columns: 1fr;gap:12px}
+      .card{background:rgba(17,26,43,.92);border:1px solid var(--border);border-radius:12px;padding:16px}
+      table{width:100%;border-collapse:collapse}
+      th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+      th{color:#cfe0ff}
+      .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#1b2640;color:#b8c8e6;font-weight:600}
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-row">
+        <h1 style="font-size:16px;margin:0;display:flex;gap:10px;align-items:center">
+          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px"/>
+          <span class="tag">Dev Tunnel Proxy</span>
+          Reports
+        </h1>
+        <div class="toolbar">
+          <a class="btn" href="/status">Status</a>
+          <a class="btn" href="/health">Health</a>
+          <a class="btn" href="/reports/">Directory</a>
+        </div>
+      </div>
+    </header>
+    <div class="container">
+      <div class="card">
+        <div class="toolbar" style="margin-bottom:12px">
+          <button id="refresh">Refresh</button>
+          <button id="prune7">Prune > 7 days</button>
+          <button id="prune30">Prune > 30 days</button>
+          <button id="pruneAllButLatest">Prune all but latest</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Kind</th><th>Size</th><th>Last Modified</th></tr>
+          </thead>
+          <tbody id="rows"><tr><td colspan="4">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      async function api(path, opts){
+        const r = await fetch(path, { headers:{'ngrok-skip-browser-warning':'true','content-type':'application/json'}, ...opts });
+        if(!r.ok) throw new Error(await r.text());
+        return r.json();
+      }
+      function fmtSize(n){ if(!n && n!==0) return '—'; const kb = n/1024; return kb<1024?`${kb.toFixed(1)} KB`:`${(kb/1024).toFixed(2)} MB`; }
+      function kindOf(name){
+        if (/health-.*\.json$/.test(name)) return 'health-json';
+        if (/health-.*\.md$/.test(name)) return 'health-md';
+        if (/scan-apps-.*\.json$/.test(name)) return 'scan-apps';
+        if (/latest\./.test(name)) return 'alias';
+        return name.split('.').pop();
+      }
+      async function load(){
+        const data = await api('/api/reports/list');
+        const tbody = document.getElementById('rows');
+        tbody.innerHTML = '';
+        data.items.forEach(it=>{
+          const tr = document.createElement('tr');
+          const link = `/reports/${encodeURIComponent(it.name)}`;
+          tr.innerHTML = `<td><a href="${link}">${it.name}</a></td>`+
+                         `<td>${kindOf(it.name)}</td>`+
+                         `<td>${fmtSize(it.size)}</td>`+
+                         `<td>${new Date(it.mtimeMs).toLocaleString()}</td>`;
+          tbody.appendChild(tr);
+        });
+      }
+      async function prune(days){
+        await api('/api/reports/prune', { method:'POST', body: JSON.stringify({ olderThanDays: days }) });
+        await load();
+      }
+      async function pruneAllButLatest(){
+        await api('/api/reports/prune', { method:'POST', body: JSON.stringify({ keepLatestPerKind: true }) });
+        await load();
+      }
+      document.getElementById('refresh').addEventListener('click', load);
+      document.getElementById('prune7').addEventListener('click', ()=>prune(7));
+      document.getElementById('prune30').addEventListener('click', ()=>prune(30));
+      document.getElementById('pruneAllButLatest').addEventListener('click', pruneAllButLatest);
+      load();
+    </script>
+  </body>
+</html>
+
+
