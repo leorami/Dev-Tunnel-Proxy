@@ -48,6 +48,28 @@ function listConfFiles(dir) {
   }
 }
 
+// Determine if a pathSpec represents a root-level dev-helper route that should not be exposed
+function isRootLevelDevHelper(pathSpec) {
+  try {
+    const ps = String(pathSpec || '').trim();
+    // Drop root catch-alls that conflict with server-level routes
+    if (/^=\s*\/(?:$|index\.html$|iframe\.html$)/.test(ps)) {
+      return true;
+    }
+    // Allow only /<prefix>/..., disallow direct root helpers
+    const disallowedRoots = [
+      '/@vite/', '/@id/', '/@fs/', '/node_modules/', '/.storybook/', '/vite-inject-mocker-entry.js'
+    ];
+    for (const root of disallowedRoots) {
+      const rx = new RegExp(String.raw`^([=~\^~*]+\s+)?` + root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      if (rx.test(ps)) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function extractLocationBlocksWithText(text) {
   const blocks = [];
   if (!text) return blocks;
@@ -118,17 +140,50 @@ function buildKeySetFromBlocks(blocks) {
 function removeDuplicateLocationBlocksFromText(text) {
   try {
     const blocks = extractLocationBlocksWithText(text);
-    const seen = new Set();
-    let out = text;
-    for (const b of blocks) {
-      const key = b.pathSpec.trim().replace(/^([=~\^~*]+)\s+/, '');
-      if (seen.has(key)) {
-        // Remove this duplicate block entirely
-        out = out.replace(b.fullText, `# removed duplicate location ${key}`);
-      } else {
-        seen.add(key);
-      }
+    // First pass: choose best block per normalized path using priority
+    const byNormBest = new Map(); // norm -> {idx, priority}
+    function modPriority(pathSpec) {
+      const spec = pathSpec.trim();
+      if (/^~\*?\s+\^\//.test(spec) || /^~\s+\^\//.test(spec) || /^\^\//.test(spec)) return 3; // regex
+      if (/^=\s+\//.test(spec)) return 2; // exact
+      if (/^\^~\s+\//.test(spec)) return 1; // prefix
+      if (/^\//.test(spec)) return 0; // plain prefix
+      return 0;
     }
+    blocks.forEach((b, idx) => {
+      const spec = b.pathSpec.trim();
+      const isExact = /^=\s+\//.test(spec);
+      // Important: Do NOT consider exact matches (e.g. "= /sdk") as duplicates of their
+      // corresponding prefix routes (e.g. "/sdk/"). We want both to coexist.
+      if (isExact) return;
+      const norm = normalizeLocationPath(b.pathSpec);
+      if (!norm) return;
+      const key = `norm:${norm}`;
+      const pr = modPriority(b.pathSpec);
+      const cur = byNormBest.get(key);
+      if (!cur || pr > cur.priority) {
+        byNormBest.set(key, { idx, priority: pr });
+      }
+    });
+
+    // Second pass: remove duplicates not selected as best for their normalized path, and raw duplicates
+    const seenRaw = new Set();
+    let out = text;
+    blocks.forEach((b, idx) => {
+      const spec = b.pathSpec.trim();
+      const rawKey = spec.replace(/^([=~\^~*]+)\s+/, '');
+      const isExact = /^=\s+\//.test(spec);
+      const norm = normalizeLocationPath(b.pathSpec);
+      const normKey = norm ? `norm:${norm}` : null;
+      const best = normKey ? byNormBest.get(normKey) : null;
+      // Keep all exact-match blocks; only dedupe among non-exact blocks for the same normalized path
+      const keepForNorm = isExact ? true : (best ? best.idx === idx : true);
+      if (!keepForNorm || seenRaw.has(rawKey)) {
+        out = out.replace(b.fullText, `# removed duplicate location ${rawKey}`);
+        return;
+      }
+      seenRaw.add(rawKey);
+    });
     return out;
   } catch {
     return text;
@@ -146,6 +201,25 @@ function collectBlocksFromFiles(files) {
     }
   }
   return allBlocks;
+}
+
+function extractRegexProtectedPrefixes(blocks) {
+  const prefixes = new Set();
+  for (const b of blocks) {
+    const ps = String(b.pathSpec || '').trim();
+    // Look for caret-regex starting with ^/something
+    const m = ps.match(/\^\/([^\s\{]+)/);
+    if (!m) continue;
+    const pathPart = `/${m[1]}`;
+    // Reduce to a stable prefix end at a slash boundary
+    const parts = pathPart.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      prefixes.add(`/${parts[0]}/${parts[1]}/`);
+    } else if (parts.length === 1) {
+      prefixes.add(`/${parts[0]}/`);
+    }
+  }
+  return prefixes;
 }
 
 // Rewrite proxy_pass http://host:port[/path] to variable-based form to defer DNS resolution
@@ -176,13 +250,43 @@ function hardenLocationFullText(fullText) {
   let varCounter = 0;
   let hasResolver = /(^|\n)\s*resolver\b/.test(body);
   let insertedResolver = false;
+  // Track local $var definitions so we can normalize variable-based proxy_pass usage
+  const localVars = new Map(); // varName -> { hostPort: string, path: string }
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/\bset\s+\$([A-Za-z0-9_]+)\s+http:\/\/([^;\s]+);/);
+    if (!m) continue;
+    const v = `$${m[1]}`;
+    const target = m[2]; // may include path
+    const hostPort = target.replace(/\/.*/, '');
+    const pathPart = target.includes('/') ? target.slice(target.indexOf('/')) : '';
+    localVars.set(v, { hostPort, path: pathPart });
+    // Normalize var to NOT include path; keep only host:port
+    const indent = (lines[i].match(/^\s*/)||[''])[0];
+    lines[i] = `${indent}set ${v} ${hostPort};`;
+  }
 
   const proxyRegex = /(\s*)proxy_pass\s+http:\/\/([a-zA-Z0-9_.-]+:[0-9]+)([^;]*);/;
   for (let idx = 0; idx < lines.length; idx++) {
     const line = lines[idx];
-    if (/\bproxy_pass\s+\$[A-Za-z0-9_]+/.test(line)) {
-      // Already variable-based; continue
-      continue;
+    // Normalize variable-based proxy_pass to include scheme on directive (not inside var) and avoid URI replacement
+    const varPass = line.match(/^(\s*)proxy_pass\s+\$([A-Za-z0-9_]+)\s*;/);
+    if (varPass) {
+      const indent = varPass[1] || '';
+      const v = `$${varPass[2]}`;
+      if (localVars.has(v)) {
+        // Ensure a resolver exists for runtime DNS
+        if (!hasResolver && !insertedResolver) {
+          lines.splice(idx, 0, `${indent}resolver 127.0.0.11 ipv6=off;`, `${indent}resolver_timeout 5s;`);
+          idx += 2;
+          insertedResolver = true;
+          hasResolver = true;
+        }
+        // Ensure scheme is present on directive; do NOT append any URI path here
+        lines[idx] = `${indent}proxy_pass http://${v};`;
+        changed = true;
+        continue;
+      }
+      // If var not defined locally, leave as-is
     }
     const m = line.match(proxyRegex);
     if (!m) continue;
@@ -205,6 +309,7 @@ function hardenLocationFullText(fullText) {
     idx += 1;
 
     // Replace proxy_pass with variable form, preserving any path suffix
+    // Preserve original restPath semantics so prefix mappings like /sb-common-assets/ continue to work
     lines[idx] = `${indent}proxy_pass http://${varName}${restPath};`;
     changed = true;
   }
@@ -253,6 +358,14 @@ function main() {
   let appFiles = listConfFiles(APPS_DIR);
   const overrideFiles = listConfFiles(OVERRIDES_DIR);
 
+  // Prefer newest app configs first so latest install wins when duplicates exist
+  try {
+    appFiles = appFiles
+      .map(p => ({ p, mtime: fs.statSync(p).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime)
+      .map(x => x.p);
+  } catch {}
+
   // Detect basename conflicts (same filename present in both dirs)
   const conflicts = [];
   if (overrideFiles.length && appFiles.length) {
@@ -270,6 +383,27 @@ function main() {
 
   const overrideBlocks = collectBlocksFromFiles(overrideFiles);
   const appBlocks = collectBlocksFromFiles(appFiles);
+
+  // Determine if a given app source file suggests Storybook/Vite dev helpers
+  // If the same source file declares /sdk or sb-* routes, allow its root helpers
+  const allowRootBySource = new Map(); // sourceFile -> boolean
+  try {
+    const bySourceTmp = new Map();
+    for (const b of appBlocks) {
+      const list = bySourceTmp.get(b.sourceFile) || [];
+      list.push(b);
+      bySourceTmp.set(b.sourceFile, list);
+    }
+    const isSbSignal = (spec) => {
+      const s = String(spec||'');
+      return /(^|\s)\^?~?\s*\/sdk\//.test(s) || /\/(sb-manager|sb-addons|sb-common-assets)\//.test(s) || /storybook-server-channel/.test(s);
+    };
+    bySourceTmp.forEach((blocks, src) => {
+      const allow = blocks.some(b => isSbSignal(b.pathSpec));
+      allowRootBySource.set(src, allow);
+    });
+  } catch {}
+  const overrideRegexPrefixes = extractRegexProtectedPrefixes(overrideBlocks);
 
   // Track override keys (raw and normalized) to let overrides win
   const seen = buildKeySetFromBlocks(overrideBlocks);
@@ -290,14 +424,19 @@ function main() {
   }
   lines.push('');
 
+  // Build diagnostics payload
+  const diagnostics = { generatedAt: new Date().toISOString(), overrides: overrideFiles.map(f=>path.relative(ROOT_DIR,f)), apps: appFiles.map(f=>path.relative(ROOT_DIR,f)), included: [], skipped: [] };
+
   // Emit overrides first, in file order, but dedupe identical raw path specs to avoid nginx duplicate location errors
   const emittedOverrideRaw = new Map(); // rawKey -> source
   for (const b of overrideBlocks) {
     const rawKey = `raw:${b.pathSpec.trim()}`;
     if (emittedOverrideRaw.has(rawKey)) continue; // skip duplicate exact location re-declarations
     emittedOverrideRaw.set(rawKey, b.sourceFile);
+    lines.push(`# source: ${path.relative(ROOT_DIR, b.sourceFile)}`);
     lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
+    diagnostics.included.push({ kind: 'override', pathSpec: b.pathSpec.trim(), source: path.relative(ROOT_DIR, b.sourceFile) });
   }
 
   // Emit app blocks unless a conflicting key (raw or normalized) already exists
@@ -307,17 +446,27 @@ function main() {
     const rawKey = `raw:${pathSpecTrim}`;
     const norm = normalizeLocationPath(b.pathSpec);
     const normKey = norm ? `norm:${norm}` : null;
+    const relSrc = path.relative(ROOT_DIR, b.sourceFile);
+    // Global policy: allow root dev-helper routes. We still emit lint warnings later for visibility.
+    // If an override declared a regex that protects a prefix, skip app blocks under that prefix
+    if (norm && overrideRegexPrefixes.has(norm)) {
+      diagnostics.skipped.push({ kind: 'app', pathSpec: pathSpecTrim, source: relSrc, reason: 'protected_by_override_regex' });
+      continue;
+    }
     // Allow both exact and prefix blocks for same normalized route.
     // Skip if an override already claimed this exact raw path, or an override claimed the normalized path
     // and this is NOT an exact match block.
     if (seen.has(rawKey) || (normKey && seen.has(normKey) && !pathSpecTrim.startsWith('='))) {
+      diagnostics.skipped.push({ kind: 'app', pathSpec: pathSpecTrim, source: relSrc, reason: 'overridden_by_override' });
       continue;
     }
     // Avoid exact duplicate raws among app blocks and previously emitted
-    if (emittedRawAny.has(rawKey)) continue;
+    if (emittedRawAny.has(rawKey)) { diagnostics.skipped.push({ kind: 'app', pathSpec: pathSpecTrim, source: relSrc, reason: 'duplicate_app_raw' }); continue; }
     emittedRawAny.add(rawKey);
+    lines.push(`# source: ${relSrc}`);
     lines.push(hardenLocationFullText(b.fullText).trimEnd());
     lines.push('');
+    diagnostics.included.push({ kind: 'app', pathSpec: pathSpecTrim, source: relSrc });
   }
 
   const composed = lines.join('\n');
@@ -325,6 +474,14 @@ function main() {
   fs.writeFileSync(OUTPUT_FILE, deduped, 'utf8');
   // eslint-disable-next-line no-console
   console.log(`Wrote ${path.relative(ROOT_DIR, OUTPUT_FILE)}`);
+
+  // Write diagnostics for UI/API
+  try {
+    ensureDirSync(ARTIFACTS_DIR);
+    fs.writeFileSync(path.join(ARTIFACTS_DIR, 'bundle-diagnostics.json'), JSON.stringify(diagnostics, null, 2), 'utf8');
+  } catch (e) {
+    try { console.warn('Could not write bundle-diagnostics.json:', e.message); } catch {}
+  }
 
   // Lint: warn if any app routes are declared at proxy root (non-prefixed dev helpers)
   const badRoots = appBlocks

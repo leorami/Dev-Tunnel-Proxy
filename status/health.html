@@ -60,7 +60,7 @@
         </h1>
         <div class="header-actions">
           <a class="btn" href="/status" title="Open status dashboard">Status</a>
-          <a class="btn" href="/reports/" title="Browse generated reports">Reports</a>
+          <a class="btn" href="/reports" title="Browse generated reports">Reports</a>
           <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
         </div>
@@ -71,7 +71,7 @@
         <div class="card">
           <h2>Overall</h2>
           <div class="row"><div class="label">Status</div><div class="value ok" id="overall-status">—</div></div>
-          <div class="row"><div class="label">Ngrok</div><div class="value" id="ngrok-url">—</div></div>
+          <div class="row"><div class="label">Proxy</div><div class="value" id="ngrok-url">—</div></div>
           <div class="row"><div class="label">Route conflicts</div><div class="value" id="api-owner">—</div></div>
         </div>
         <div class="card">
@@ -107,9 +107,18 @@
     </div>
     <script>
       async function getJson(url){
-        const res=await fetch(url,{headers:{'ngrok-skip-browser-warning':'true'}});
+        const res=await fetch(url,{headers:{'ngrok-skip-browser-warning':'true'},cache:'no-cache'});
         if(!res.ok) throw new Error('HTTP '+res.status);
         return res.json();
+      }
+      async function getJsonWithFallbacks(urls){
+        for(const u of urls){
+          try{
+            const res=await fetch(u,{headers:{'ngrok-skip-browser-warning':'true'},cache:'no-cache'});
+            if(res.ok) return res.json();
+          }catch(e){/* try next */}
+        }
+        throw new Error('All sources failed');
       }
       function initTheme(){
         const stored = localStorage.getItem('dtpTheme');
@@ -128,14 +137,14 @@
       }
       async function refresh(){
         try{
-          const health = await getJson('/health.json');
-          const status = await getJson('/status.json');
-          const routes = await getJson('/routes.json');
+          const health = await getJson('/health.json').catch(()=>({status:'unknown'}));
+          const status = await getJsonWithFallbacks(['/status.json','/.artifacts/reports/health-latest.json']).catch(()=>null);
+          const routes = await getJson('/routes.json').catch(()=>null);
           
           // Calculate conflict information first
-          const conflicts = routes.nginxConflicts || {};
-          const conflictCount = Object.keys(conflicts).length || (routes.conflictWarnings?.length > 0 ? 1 : 0);
-          const routeCount = Object.keys(routes.metadata || {}).length;
+          const conflicts = (routes && routes.nginxConflicts) || {};
+          const conflictCount = Object.keys(conflicts).length || ((routes && routes.conflictWarnings?.length>0) ? 1 : 0);
+          const routeCount = Object.keys((routes && routes.metadata) || {}).length;
           
           // Calculate overall status based on proxy health and routes
           const proxyHealthy = health.status === 'ok';
@@ -148,14 +157,14 @@
           document.getElementById('overall-status').textContent = proxyHealthy ? 
             (hasConflicts ? `OK (${conflictCount} conflicts)` : `OK (${routeCount} routes)`) : 'ERROR';
           document.getElementById('overall-status').className='value '+(overallStatus==='ok'?'ok':overallStatus==='warn'?'warn':'err');
-          document.getElementById('ngrok-url').textContent=status.ngrok||'not discovered';
+          document.getElementById('ngrok-url').textContent=(status && status.ngrok)||'not discovered';
           document.getElementById('api-owner').textContent=conflictCount > 0 ? `${conflictCount} route conflicts` : 'No conflicts';
-          document.getElementById('last-run').textContent=routes.generatedAt||status.generatedAt||new Date().toISOString();
-          const t = status.results? Object.keys(status.results).join(', '): '—';
+          document.getElementById('last-run').textContent=(routes&&routes.generatedAt)||(status&&status.generatedAt)||new Date().toISOString();
+          const t = (status&&status.results)? Object.keys(status.results).join(', '): '—';
           document.getElementById('targets').textContent=t;
           // panels
-          document.getElementById('status-json').textContent=JSON.stringify(status,null,2);
-          document.getElementById('routes-json').textContent=JSON.stringify(routes,null,2);
+          document.getElementById('status-json').textContent=status?JSON.stringify(status,null,2):'Unavailable (404)';
+          document.getElementById('routes-json').textContent=routes?JSON.stringify(routes,null,2):'Unavailable (404)';
         }catch(e){
           document.getElementById('status-json').textContent='Error: '+e.message;
         }

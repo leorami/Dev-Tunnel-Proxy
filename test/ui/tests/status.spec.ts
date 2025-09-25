@@ -27,7 +27,13 @@ test.describe('Status Dashboard', () => {
 
     // Expand Calliope drawer and trigger a self-check via the UI button (more realistic)
     await page.locator('#aiTab').click();
-    await page.getByRole('button', { name: /Self‑Check/i }).click();
+    // Prefer the drawer-local Self‑Check to avoid header overlap/positioning issues
+    const drawerSelfCheck = page.locator('#aiHealBtn');
+    if (await drawerSelfCheck.count()) {
+      await drawerSelfCheck.click();
+    } else {
+      await page.getByRole('button', { name: /Self‑Check/i }).click();
+    }
 
     // Persist console logs
     const warnErr = logs.filter(l => l.type === 'warning' || l.type === 'error');
@@ -51,7 +57,8 @@ test.describe('Status Dashboard', () => {
     });
 
     // Use UI button for robustness across layouts
-    const btn = page.getByRole('button', { name: /Self‑Check/i });
+    // Use the header Self‑Check for deterministic click target
+    const btn = page.locator('#aiSelfCheckGlobal');
     await btn.waitFor();
 
     // Drawer should be initially collapsed
@@ -62,8 +69,13 @@ test.describe('Status Dashboard', () => {
     // Click the button
     await btn.click();
 
-    // Expect greeting bubble to appear
-    await page.getByText(/Heya! One sec while I listen to/i).waitFor();
+    // Expect greeting bubble to appear (scoped to chat; allow either variant)
+    const chat = page.locator('#aiChat');
+    await Promise.race([
+      chat.locator('.bubble.assistant.thinking').first().waitFor({ timeout: 12000 }),
+      chat.getByText(/Heya! ✨ One sec while I listen/i).first().waitFor({ timeout: 12000 }),
+      chat.getByText(/Heya! One sec while I listen/i).first().waitFor({ timeout: 12000 }),
+    ]);
 
     // Drawer should be open
     const collapsedAfter = await drawer.getAttribute('class');

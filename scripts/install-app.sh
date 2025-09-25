@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "⚠️  DEPRECATED: This script is deprecated and will be removed in a future version."
+echo "⚠️  Please use the API endpoint or the api-upload-config.js script instead:"
+echo "⚠️  node examples/api-upload-config.js <app-name> <path-to-conf>"
+echo ""
+echo "⚠️  Example:"
+echo "⚠️  node examples/api-upload-config.js myapp examples/sample-prefix-app.conf"
+echo ""
+echo "⚠️  Proceeding with legacy approach..."
+echo ""
+
 if [ $# -lt 2 ]; then
   echo "usage: $0 <app-name> <path-to-conf>"
   exit 1

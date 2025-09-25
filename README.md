@@ -24,10 +24,23 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    ./scripts/smart-build.sh up
    ```
 
-4) Install app routes (from the dev-tunnel-proxy repo root):
-   ```bash
-   ./scripts/install-app.sh sample-prefix examples/sample-prefix-app.conf
-   ./scripts/install-app.sh sample-api    examples/sample-root-api-strip.conf
+4) Install app routes using the API endpoint:
+   ```javascript
+   // Using fetch API
+   fetch('http://dev-proxy:8080/api/apps/install', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       name: 'sample-prefix',
+       content: `# Sample app configuration
+location ^~ /sample-prefix/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_pass http://sample-app:3000/;
+}`
+     })
+   });
    ```
 
 5) In each app's docker-compose, join the shared network:
@@ -49,9 +62,11 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 ### Overrides and generated bundle (important)
 
 - The proxy composes `apps/*.conf` and `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`.
+- App precedence prefers the newest app `.conf` (mtime) so programmatic installs supersede previous ones.
+- Emitted blocks include `# source:` comments and `.artifacts/bundle-diagnostics.json` captures included/skipped routes with reasons.
 - Nginx only loads the generated file, preventing app snippets from overwriting proxy-owned decisions.
 - Put minimal, targeted policy fixes in `overrides/*.conf` when a route must win regardless of app output.
-- Inspect the provenance header at the top of the generated file when debugging regressions.
+- Inspect the provenance header and use the diagnostics API when debugging.
 - See `docs/CONFIG-COMPOSITION.md` for details.
 
 7) **📊 Enhanced Status Dashboard with Calliope AI** (`/status`):
@@ -71,6 +86,7 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 8) Built-in endpoints (human + JSON):
    - **Human**: `/` → `/status`, `/health` (enhanced dashboards)
    - **JSON**: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
+   - **Apps** (🆕): `/api/apps/list`, `/api/apps/active`, `/api/apps/diagnostics`, `/api/apps/regenerate`, `/api/apps/cleanup`, `/api/apps/scan`
    - **Reports**: `/reports/` directory browser
 
 9) **🤖 Calliope AI Assistant** (Enhanced)
@@ -96,6 +112,21 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
    - Route renaming and config editing capabilities
    - Persistent conflict decisions across proxy restarts
    - API endpoints for programmatic conflict management
+
+11) **🔄 Programmatic Configuration API**:
+   - Apps can programmatically upload their nginx configurations
+   - **Install Endpoint**: `POST /api/apps/install` for automated config deployment
+   - Automatic upstream hardening for resilience against DNS failures
+   - Validation and safe reloading of nginx
+   - See `docs/API-ENDPOINTS.md` for full documentation
+   - Companion diagnostics and management:
+     ```bash
+     curl -s http://localhost:3001/api/apps/list | jq
+     curl -s http://localhost:3001/api/apps/active | jq
+     curl -s http://localhost:3001/api/apps/diagnostics | jq
+     curl -s -X POST http://localhost:3001/api/apps/regenerate -H 'content-type: application/json' -d '{"reload":true}' | jq
+     curl -s -X POST http://localhost:3001/api/apps/scan -H 'content-type: application/json' -d '{"base":"http://dev-proxy"}' | jq
+     ```
 
 ## Local vs Tunnel path strategy
 
@@ -169,7 +200,7 @@ Outputs:
 Notes:
 
 - Localhost checks hit `http://localhost:8080`.
-- Ngrok URL is auto-discovered from the `dev-ngrok` container (4040 API or logs). If not found, ngrok checks are marked `no_ngrok_url`.
+- Proxy URL is auto-discovered from the `dev-ngrok` container (4040 API or logs). If not found, ngrok checks are marked `no_ngrok_url`.
 - Tests only verify app routes discovered from files in `apps/`.
 - If an app is down, it won’t block checks for other apps.
 
@@ -234,6 +265,10 @@ location /myapp/ {
 ```
 
 **Why variables?** Nginx performs DNS resolution at startup when using hardcoded upstreams like `proxy_pass http://myapp:3000`. If the service isn't running, nginx fails to start. Using variables defers DNS lookups until runtime, allowing the proxy to start successfully and gracefully handle unavailable upstreams.
+
+Notes (🆕):
+- The generator normalizes variable-based upstreams and preserves URI paths in `proxy_pass` so prefix proxies like `/sb-common-assets/` or file targets like `/index.json` work while benefiting from runtime DNS via variables.
+- Root dev helpers (e.g., `/@vite/`, `/@id/`, `/@fs/`, `/node_modules/`) are globally allowed to unblock development, but we strongly recommend configuring apps to be proxy route‑agnostic and served via a non‑root prefix whenever possible.
 
 ### Common Headers
 

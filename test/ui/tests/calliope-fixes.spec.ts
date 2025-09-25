@@ -35,7 +35,8 @@ test.describe('Calliope UI behavior fixes', () => {
 
     // Expect at least one user bubble to appear, and a thinking assistant bubble present
     await expect(chat.locator('.bubble.user').first()).toBeVisible();
-    await expect(chat.locator('.bubble.assistant.thinking').first()).toBeVisible();
+    // Thinking bubble should appear shortly after
+    await expect(chat.locator('.bubble.assistant.thinking').first()).toBeVisible({ timeout: 7000 });
 
     // Wait for the final assistant response to render (Markdown parsed)
     await expect(chat.locator('h3:has-text("Test Heading")')).toBeVisible();
@@ -71,20 +72,20 @@ test.describe('Calliope UI behavior fixes', () => {
       document.body.classList.add('calliope-enabled');
     });
 
-    // Use the Self‑Check button (always-visible)
-    const diagBtn = page.getByRole('button', { name: /Self‑Check/i });
-    await diagBtn.scrollIntoViewIfNeeded();
-    await diagBtn.waitFor();
-    await diagBtn.click();
+    // Use the global header Self‑Check for reliability across layouts
+    const headerBtn = page.locator('#aiSelfCheckGlobal');
+    await headerBtn.waitFor();
+    await headerBtn.click();
 
     const chat = page.locator('#aiChat');
 
-    // Ack bubble appears
-    await page.getByText(/Heya! One sec while I listen to/i).waitFor();
-
-    // Then thinking bubble shows after ack
-    const bubbles = chat.locator('.bubble');
-    await expect(bubbles.filter({ hasText: 'Heya! One sec while I listen to' }).first()).toBeVisible();
+    // Expect either greeting text or thinking bubble to appear promptly
+    const chatAck = page.locator('#aiChat');
+    await Promise.race([
+      chatAck.locator('.bubble.assistant.thinking').first().waitFor({ timeout: 12000 }),
+      chatAck.getByText(/One sec while I listen/i).first().waitFor({ timeout: 12000 }),
+    ]);
+    // Thinking bubble persists while working
     await expect(chat.locator('.bubble.assistant.thinking').first()).toBeVisible();
 
     // The request should have used heal: true

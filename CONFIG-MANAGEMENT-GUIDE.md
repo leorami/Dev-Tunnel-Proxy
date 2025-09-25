@@ -1,4 +1,4 @@
-# Conflict Management Guide
+# Configuration Management Guide
 
 The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes. Config serving now uses a generated bundle that composes inputs from `apps/` and `overrides/` so proxy-owned decisions always take precedence.
 
@@ -10,7 +10,7 @@ To prevent regressions when an app re-generates its own nginx snippet, the proxy
 - `overrides/*.conf` — proxy-owned, canonical snippets that must win when a route needs to be enforced
 
 Precedence rules:
-- **Overrides win**: If both an app file and an override define the same `location` (exact or normalized prefix), the override’s block is emitted and the app is skipped for that route.
+- **Overrides win**: If both an app file and an override define the same `location` (exact or normalized prefix), the override's block is emitted and the app is skipped for that route.
 - **No hardcoding of app names**: Overrides should be minimal and generic when possible; only target the necessary `location` blocks.
 - **Exact plus prefix can co-exist**: An exact match like `location = /myapp/` can live alongside a `location ^~ /myapp/` prefix. The composer keeps both.
 
@@ -329,7 +329,7 @@ location /team2-api/ {
 - **Config syntax errors**: Invalid nginx syntax prevents successful application
 
 #### Interface Problems
-- **Status page not loading**: Ensure conflict API is running (`utils/conflictAPI.js`)
+- **Status page not loading**: Ensure proxy config API is running (`utils/proxyConfigAPI.js`)
 - **JavaScript errors**: Check browser console for runtime errors
 - **Network issues**: Verify API endpoints are accessible from browser
 
@@ -376,4 +376,4 @@ if [ "$conflicts" -gt 0 ]; then
 fi
 ```
 
-This comprehensive conflict management system ensures your development proxy remains robust and manageable even as your application ecosystem grows in complexity.
+This comprehensive configuration management system ensures your development proxy remains robust and manageable even as your application ecosystem grows in complexity.

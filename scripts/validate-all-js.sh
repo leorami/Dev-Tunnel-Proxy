@@ -23,7 +23,7 @@ for file in $HTML_FILES; do
     TOTAL_FILES=$((TOTAL_FILES + 1))
     echo ""
     
-    if node test-js-syntax.js "$file"; then
+    if node utils/test-js-syntax.js "$file"; then
         VALID_FILES=$((VALID_FILES + 1))
     else
         ERROR_FILES=$((ERROR_FILES + 1))

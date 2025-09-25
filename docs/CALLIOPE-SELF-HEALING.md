@@ -35,7 +35,7 @@ The advanced healing system can currently address these common issues:
 
 1. **Duplicate Location Blocks**: Finds and removes duplicate location directives in nginx configs.
 
-2. **Ngrok Discovery Failures**: Ensures ngrok URL is correctly discovered and populated in status files.
+2. **Proxy Discovery Failures**: Ensures ngrok URL is correctly discovered and populated in status files.
 
 3. **Missing Symlinks**: Recreates symlinks to the latest report files.
 

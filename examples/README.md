@@ -26,10 +26,26 @@ This directory contains example configurations for different types of applicatio
    - Update container names to match your services
    - Adjust ports and endpoints as needed
 
-3. **Install the configuration**:
-   ```bash
-   ./scripts/install-app.sh myapp apps/myapp.conf
+3. **Install the configuration using the API endpoint** (recommended):
+   ```javascript
+   // Using fetch API
+   fetch('http://dev-proxy:8080/api/apps/install', {
+     method: 'POST',
+     headers: { 'Content-Type': 'application/json' },
+     body: JSON.stringify({
+       name: 'myapp',
+       content: fs.readFileSync('apps/myapp.conf', 'utf8')
+     })
+   });
    ```
+
+   Or use the provided example script:
+   ```bash
+   node examples/api-upload-config.js myapp apps/myapp.conf
+   ```
+
+   > [!NOTE]
+   > The legacy approach using `./scripts/install-app.sh` is deprecated and will be removed in a future version.
 
 ## Key Configuration Patterns
 

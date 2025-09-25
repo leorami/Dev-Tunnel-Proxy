@@ -57,7 +57,7 @@ Calliope is your dev tunnel proxy's voice - youthful, sweet, intelligent, and ge
 - Symlink reconstruction
 - Proxy resilience improvements
 - Duplicate block removal
-- Ngrok discovery and setup
+- Proxy discovery and setup
 
 ### 🧠 Learning & Adaptation
 - Knowledge base of solved problems

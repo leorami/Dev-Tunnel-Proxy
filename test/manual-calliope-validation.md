@@ -60,16 +60,16 @@ This guide helps you manually verify that the Calliope enable/disable logic is w
 - Calliope chat drawer: DISABLED
 
 **Manual Steps:**
-1. Stop calliope-api and restart without API key:
+1. Stop proxy-config-api and restart without API key:
    ```bash
-   docker stop dev-calliope-api
-   docker run -d --rm --name dev-calliope-api \
+   docker stop dev-proxy-config-api
+   docker run -d --rm --name dev-proxy-config-api \
      --network dev-tunnel-proxy_devproxy \
      -v $(pwd):/app \
      -w /app \
      -e NODE_ENV=development \
      node:18-alpine \
-     node utils/conflictAPI.js
+     node utils/proxyConfigAPI.js
    ```
 
 2. Refresh browser page and check API health:
@@ -108,8 +108,8 @@ This guide helps you manually verify that the Calliope enable/disable logic is w
 
 After testing, restore the original configuration:
 ```bash
-docker stop dev-calliope-api
-docker-compose up -d calliope-api
+docker stop dev-proxy-config-api
+docker-compose up -d proxy-config-api
 ```
 
 ## Quick Debugging Commands

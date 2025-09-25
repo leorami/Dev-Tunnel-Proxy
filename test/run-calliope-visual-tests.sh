@@ -26,8 +26,8 @@ check_services() {
         exit 1
     fi
     
-    if ! docker ps | grep -q "dev-calliope-api"; then
-        echo -e "${RED}❌ dev-calliope-api container is not running${NC}"
+    if ! docker ps | grep -q "dev-proxy-config-api"; then
+        echo -e "${RED}❌ dev-proxy-config-api container is not running${NC}"
         echo "Please start the services first: docker-compose up -d"
         exit 1
     fi
@@ -52,19 +52,19 @@ install_deps() {
 # Test with API key disabled
 test_without_api_key() {
     echo -e "${BLUE}🧪 SCENARIO 1: Testing WITHOUT OPENAI_API_KEY${NC}"
-    echo -e "${YELLOW}   Restarting calliope-api without API key...${NC}"
+    echo -e "${YELLOW}   Restarting proxy-config-api without API key...${NC}"
     
-    # Stop calliope-api
-    docker stop dev-calliope-api 2>/dev/null || true
+    # Stop proxy-config-api
+    docker stop dev-proxy-config-api 2>/dev/null || true
     
     # Start without OPENAI_API_KEY
-    docker run -d --rm --name dev-calliope-api \
+    docker run -d --rm --name dev-proxy-config-api \
         --network dev-tunnel-proxy_devproxy \
         -v "$PROJECT_ROOT:/app" \
         -w /app \
         -e NODE_ENV=development \
         node:18-alpine \
-        node utils/conflictAPI.js
+        node utils/proxyConfigAPI.js
     
     # Wait for service to be ready
     sleep 3
@@ -111,13 +111,13 @@ test_with_api_key() {
         esac
     fi
     
-    echo -e "${YELLOW}   Restarting calliope-api with API key...${NC}"
+    echo -e "${YELLOW}   Restarting proxy-config-api with API key...${NC}"
     
-    # Stop calliope-api
-    docker stop dev-calliope-api 2>/dev/null || true
+    # Stop proxy-config-api
+    docker stop dev-proxy-config-api 2>/dev/null || true
     
     # Start with OPENAI_API_KEY
-    docker run -d --rm --name dev-calliope-api \
+    docker run -d --rm --name dev-proxy-config-api \
         --network dev-tunnel-proxy_devproxy \
         -v "$PROJECT_ROOT:/app" \
         -w /app \
@@ -125,7 +125,7 @@ test_with_api_key() {
         -e OPENAI_API_KEY="$OPENAI_API_KEY" \
         -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}" \
         node:18-alpine \
-        node utils/conflictAPI.js
+        node utils/proxyConfigAPI.js
     
     # Wait for service to be ready
     sleep 3
@@ -145,11 +145,11 @@ restore_services() {
     echo -e "${BLUE}🔄 Restoring original services...${NC}"
     
     # Stop our test container
-    docker stop dev-calliope-api 2>/dev/null || true
+    docker stop dev-proxy-config-api 2>/dev/null || true
     
     # Restart with docker-compose (will use original environment)
     cd "$PROJECT_ROOT"
-    docker-compose up -d calliope-api
+    docker-compose up -d proxy-config-api
     
     echo -e "${GREEN}✅ Services restored${NC}"
 }

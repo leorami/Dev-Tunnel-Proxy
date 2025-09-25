@@ -1,0 +1,14 @@
+{
+  "name": "dev-tunnel-proxy-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "test/ui",
+    "site-auditor-debug"
+  ],
+  "scripts": {
+    "bootstrap": "npm install --workspaces",
+    "ui:test": "npm --workspace test/ui test",
+    "auditor:build": "npm --workspace site-auditor-debug run build"
+  }
+}

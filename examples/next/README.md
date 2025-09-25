@@ -47,7 +47,27 @@ services:
 
 ## Improved Dev Proxy Configuration
 
-Install `examples/next/myapp.conf` into `apps/` with `./scripts/install-app.sh next examples/next/myapp.conf`. 
+Install `examples/next/myapp.conf` using the API endpoint (recommended):
+
+```javascript
+// Using fetch API
+fetch('http://dev-proxy:8080/api/apps/install', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'next',
+    content: fs.readFileSync('examples/next/myapp.conf', 'utf8')
+  })
+});
+```
+
+Or use the provided example script:
+```bash
+node examples/api-upload-config.js next examples/next/myapp.conf
+```
+
+> [!NOTE]
+> The legacy approach using `./scripts/install-app.sh` is deprecated and will be removed in a future version. 
 
 ### Key Configuration Patterns:
 

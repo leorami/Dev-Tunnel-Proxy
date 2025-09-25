@@ -149,7 +149,7 @@ async function main() {
   const md = [
     `# Dev Proxy Health Report`,
     `Generated: ${new Date().toISOString()}`,
-    `Ngrok: ${ngrok || 'not discovered'}`,
+    `Proxy: ${ngrok || 'not discovered'}`,
     '',
     results['local-proxy'] ? renderSummary('local-proxy', results['local-proxy']) : 'local-proxy: failed to run',
     '',

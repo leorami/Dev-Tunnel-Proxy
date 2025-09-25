@@ -941,11 +941,11 @@ async function runSiteAuditor(urlToAudit, options = {}) {
       const safeUrl = JSON.stringify(String(urlToAudit));
       const cmd = `node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
-      let apiContainer = 'dev-calliope-api';
+      let apiContainer = 'dev-proxy-config-api';
       try {
         const names = execSync('docker ps --format "{{.Names}}"', { encoding: 'utf8' }).split(/\r?\n/).filter(Boolean);
-        if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
-        else if (names.includes('dev-calliope-api')) apiContainer = 'dev-calliope-api';
+        if (names.includes('dev-proxy-config-api')) apiContainer = 'dev-proxy-config-api';
+        else if (names.includes('dev-proxy-config-api')) apiContainer = 'dev-proxy-config-api';
       } catch {}
       const dockerCmd = [`docker run --rm`, platformFlag, `--network devproxy`, `--volumes-from ${apiContainer}`, `-w /app/site-auditor-debug`, img, `sh -lc ${JSON.stringify(cmd)}`]
         .filter(Boolean)
@@ -1099,7 +1099,7 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       const block = [
         `location ^~ ${loc} {`,
         '  proxy_http_version 1.1;',
-        '  proxy_set_header Host $host;',
+        '  proxy_set_header Host $proxy_host;',
         '  proxy_set_header X-Forwarded-Proto $scheme;',
         ...(isViteHmr ? [
           '  proxy_set_header Upgrade $http_upgrade;',
@@ -1116,7 +1116,82 @@ async function applyStorybookViteProxyGuards({ routePrefix = '' } = {}) {
       ensure(re, block);
     }
 
-    // Root-level fallbacks are app-specific and disabled in generic mode
+    // Root-level fallbacks (safe generics for Storybook/Vite): /@id/ and combined fonts regex
+    // Only emit if not present; use detected upstreamVar/host. Place after prefixed guards.
+    const rootIdRe = /\n\s*location\s*\^~\s*\/@id\//m;
+    if (!rootIdRe.test(content)){
+      const idBlock = [
+        'location ^~ /@id/ {',
+        '  proxy_http_version 1.1;',
+        '  proxy_set_header Host $proxy_host;',
+        '  proxy_set_header X-Forwarded-Proto $scheme;',
+        '  proxy_set_header X-Forwarded-Host $host;',
+        '  proxy_set_header ngrok-skip-browser-warning "true";',
+        '  resolver 127.0.0.11 ipv6=off;',
+        '  resolver_timeout 5s;',
+        (upstreamVar
+          ? `  proxy_pass http://$${upstreamVar}/@id/;`
+          : (upstreamHost ? `  proxy_pass http://${upstreamHost}/@id/;` : '  # configure proxy_pass for /@id/')),
+        '}'
+      ].join('\n');
+      content += (content.endsWith('\n')?'':'\n') + idBlock + '\n';
+    }
+
+    const fontsRe = /location\s+~\*\s+\^\/\(sdk\/\)\?sb-common-assets\//m;
+    if (!fontsRe.test(content)){
+      const hostHeader = 'proxy_set_header Host $proxy_host;';
+      const passLine = (upstreamVar
+        ? `proxy_pass http://$${upstreamVar}/sb-common-assets/$2.woff2;`
+        : (upstreamHost ? `proxy_pass http://${upstreamHost}/sb-common-assets/$2.woff2;` : '# configure proxy_pass for fonts'));
+      const fontsBlock = [
+        'location ~* ^/(sdk/)?sb-common-assets/(.+)\\.woff2$ {',
+        '  proxy_http_version 1.1;',
+        `  ${hostHeader}`,
+        '  proxy_set_header X-Forwarded-Proto $scheme;',
+        '  proxy_set_header X-Forwarded-Host $host;',
+        '  resolver 127.0.0.11 ipv6=off;',
+        '  resolver_timeout 5s;',
+        `  ${passLine}`,
+        '  proxy_hide_header Content-Type;',
+        '  add_header Content-Type font/woff2;',
+        '}'
+      ].join('\n');
+      content += (content.endsWith('\n')?'':'\n') + fontsBlock + '\n';
+    }
+
+    // Also add explicit prefix blocks which outrank a broader "^~ /sdk/" catch-all
+    const sdkFontsPrefix = new RegExp('\\n\\s*location\\s*\\^~\\s*/sdk/sb-common-assets/','m');
+    if (!sdkFontsPrefix.test(content)){
+      const passLine2 = (upstreamVar
+        ? `proxy_pass http://$${upstreamVar}/sb-common-assets/;`
+        : (upstreamHost ? `proxy_pass http://${upstreamHost}/sb-common-assets/;` : '# configure proxy_pass'));
+      const block2 = [
+        'location ^~ /sdk/sb-common-assets/ {',
+        '  proxy_http_version 1.1;',
+        '  proxy_set_header Host $proxy_host;',
+        '  proxy_set_header X-Forwarded-Proto $scheme;',
+        '  proxy_set_header X-Forwarded-Host $host;',
+        `  ${passLine2}`,
+        '}'
+      ].join('\n');
+      content += (content.endsWith('\n')?'':'\n') + block2 + '\n';
+    }
+    const rootFontsPrefix = new RegExp('\\n\\s*location\\s*\\^~\\s*/sb-common-assets/','m');
+    if (!rootFontsPrefix.test(content)){
+      const passLine3 = (upstreamVar
+        ? `proxy_pass http://$${upstreamVar}/sb-common-assets/;`
+        : (upstreamHost ? `proxy_pass http://${upstreamHost}/sb-common-assets/;` : '# configure proxy_pass'));
+      const block3 = [
+        'location ^~ /sb-common-assets/ {',
+        '  proxy_http_version 1.1;',
+        '  proxy_set_header Host $proxy_host;',
+        '  proxy_set_header X-Forwarded-Proto $scheme;',
+        '  proxy_set_header X-Forwarded-Host $host;',
+        `  ${passLine3}`,
+        '}'
+      ].join('\n');
+      content += (content.endsWith('\n')?'':'\n') + block3 + '\n';
+    }
 
     if (content !== original){
       fs.writeFileSync(target, content, 'utf8');
@@ -1619,7 +1694,11 @@ async function fixSubpathAbsoluteRouting({ routePrefix = '', apiPrefix = '/api/'
           const routes = JSON.parse(fs.readFileSync(routesPath, 'utf8'));
           const meta = routes && routes.metadata && routes.metadata[`${routePrefix}/`];
           const src = meta && meta.sourceFile;
-          if (src) targetConf = path.join(ROOT, 'apps', src);
+          if (src) {
+            if (path.isAbsolute(src)) targetConf = src;
+            else if (/^(apps|overrides)\//.test(src)) targetConf = path.join(ROOT, src);
+            else targetConf = path.join(ROOT, 'apps', src);
+          }
         }
       }
     } catch {}
@@ -1785,6 +1864,82 @@ async function ensureRouteForwardedPrefixAndNext({ routePrefix = '', configFile 
 }
 
 /**
+ * Ensure the `${routePrefix}/_next/` location proxies to the same upstream as the route prefix.
+ * Corrects cases where it points to an unrelated upstream (e.g., API) by rewriting proxy_pass.
+ */
+async function fixPrefixedNextBlockUpstream({ routePrefix = '', configFile = '' } = {}) {
+  try {
+    if (!routePrefix || !routePrefix.startsWith('/')) {
+      return { success: false, message: 'routePrefix starting with / is required' };
+    }
+    const findConfByPrefix = (baseDir) => {
+      try {
+        const files = fs.readdirSync(baseDir).filter(f => f.endsWith('.conf'));
+        for (const f of files) {
+          const p = path.join(baseDir, f);
+          const txt = fs.readFileSync(p, 'utf8');
+          const safe = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const rx = new RegExp('location\\s*\\^~\\s*' + safe + '\\/');
+          if (rx.test(txt)) return p;
+        }
+      } catch {}
+      return null;
+    };
+    let targetConf = '';
+    if (configFile && fs.existsSync(configFile)) {
+      targetConf = configFile;
+    } else {
+      targetConf = findConfByPrefix(path.join(ROOT, 'overrides')) || findConfByPrefix(path.join(ROOT, 'apps')) || '';
+    }
+    if (!targetConf) return { success: false, message: 'No config found containing routePrefix block' };
+
+    let content = fs.readFileSync(targetConf, 'utf8');
+
+    // Detect upstream variable by checking the routePrefix block first
+    const safePrefix = routePrefix.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const locRe = new RegExp('(location\\s*\\^~\\s*' + safePrefix + '\\/\\s*\\{)([\\s\\S]*?)(\\n\\})', 'm');
+    const locMatch = content.match(locRe);
+    if (!locMatch) return { success: false, message: 'Route block not found in config' };
+    const routeBody = locMatch[2] || '';
+
+    let upstreamVar = null;
+    const bodyVar = routeBody.match(/proxy_pass\s+http:\/\/\$([A-Za-z0-9_]+)/);
+    if (bodyVar && bodyVar[1]) upstreamVar = bodyVar[1];
+    if (!upstreamVar) {
+      const setVar = content.match(/set\s+\$([A-Za-z0-9_]+)\s+[^;]+;/);
+      if (setVar && setVar[1]) upstreamVar = setVar[1];
+    }
+    if (!upstreamVar) return { success: false, message: 'Could not determine upstream variable for route' };
+
+    // Now ensure the `${routePrefix}/_next/` block exists and proxies to that upstreamVar
+    const nextRe = new RegExp('(location\\s*\\^~\\s*' + safePrefix + '\\/_next\\/\\s*\\{)([\\s\\S]*?)(\\n\\})', 'm');
+    if (!nextRe.test(content)) {
+      // Let ensureRouteForwardedPrefixAndNext create it if missing
+      await ensureRouteForwardedPrefixAndNext({ routePrefix, configFile: targetConf });
+      content = fs.readFileSync(targetConf, 'utf8');
+    }
+    if (!nextRe.test(content)) return { success: false, message: 'Next block still not present' };
+
+    content = content.replace(nextRe, (m, a, b, c) => {
+      // Replace any proxy_pass inside with the correct upstreamVar form
+      let body = b;
+      body = body.replace(/proxy_pass\s+http:\/\/\$[A-Za-z0-9_]+\s*;/, `proxy_pass http://$${upstreamVar};`);
+      // Also fix cases where it used a bare variable without scheme
+      body = body.replace(/proxy_pass\s+\$[A-Za-z0-9_]+\s*;/, `proxy_pass http://$${upstreamVar};`);
+      return a + body + c;
+    });
+
+    const backup = `${targetConf}.backup.${Date.now()}`;
+    fs.copyFileSync(targetConf, backup);
+    fs.writeFileSync(targetConf, content, 'utf8');
+    await regenerateNginxBundle();
+    return { success: true, message: 'Fixed _next upstream', details: { file: path.relative(ROOT, targetConf), upstreamVar, routePrefix } };
+  } catch (e) {
+    return { success: false, message: `fixPrefixedNextBlockUpstream failed: ${e.message}` };
+  }
+}
+
+/**
  * Add a new pattern to the knowledge base for future healing.
  */
 function addPatternFromHealing(patternId, solution, isNew, details = {}) {
@@ -1892,6 +2047,7 @@ module.exports = {
   restartProxyAfterUpstreams,
   fixSubpathAbsoluteRouting,
   ensureRouteForwardedPrefixAndNext,
+  fixPrefixedNextBlockUpstream,
   
   // Core infrastructure
   regenerateNginxBundle

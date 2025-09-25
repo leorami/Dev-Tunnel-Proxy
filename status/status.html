@@ -143,16 +143,16 @@
       .healing-entry-actions button:hover{background:var(--btnBgHover)}
       
       /* Healing Status Indicator in AI header */
-      .ai-healing-status{font-size:12px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--btnBorder);font-weight:700}
+      .ai-healing-status{font-size:12px;padding:4px 8px;border-radius:999px;display:inline-flex !important;align-items:center;gap:6px;border:1px solid var(--btnBorder);font-weight:700}
       .ai-healing-status .pulse{display:none}
       .ai-healing-count{color:var(--muted);font-size:11px}
       :root{--ai-ready:#16c784;--ai-healing:#ff5bbd;--ai-audit:#8b5cf6;--ai-coding:#3b82f6;--ai-offline:#ef4444}
       @keyframes chipGlow{0%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}50%{box-shadow:0 0 18px 2px rgba(255,255,255,.22)}100%{box-shadow:0 0 0 0 rgba(255,255,255,.0)}}
-      .ai-healing-status.status-ready{background:rgba(22,199,132,.18);border-color:rgba(22,199,132,.55);color:#fff}
-      .ai-healing-status.status-healing{background:#ff5bbd;border-color:#ff5bbd;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
-      .ai-healing-status.status-auditing{background:#8b5cf6;border-color:#8b5cf6;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
-      .ai-healing-status.status-coding{background:#3b82f6;border-color:#3b82f6;color:#fff;animation:chipGlow 1.6s ease-in-out infinite}
-      .ai-healing-status.status-offline{background:#ef4444;border-color:#ef4444;color:#fff}
+      .ai-healing-status.status-ready{background:rgba(22,199,132,.18);border-color:rgba(22,199,132,.55);color:#fff !important}
+      .ai-healing-status.status-healing{background:#ff5bbd;border-color:#ff5bbd;color:#fff !important;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-auditing{background:#8b5cf6;border-color:#8b5cf6;color:#fff !important;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-coding{background:#3b82f6;border-color:#3b82f6;color:#fff !important;animation:chipGlow 1.6s ease-in-out infinite}
+      .ai-healing-status.status-offline{background:#ef4444;border-color:#ef4444;color:#fff !important}
 
       /* Hierarchical Route Styles */
       .expandable-route{position:relative}
@@ -243,8 +243,9 @@
       .bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
       .bubble code{background:rgba(125,162,255,.15);border:1px solid rgba(125,162,255,.25);padding:0 4px;border-radius:4px}
       .ai-input{display:flex;flex-direction:column;gap:8px}
-      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body);border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg)}
+      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body);border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);color:var(--text);caret-color:var(--text)}
       .ai-input textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
+      .ai-input textarea:focus{outline:none;border-color:var(--lnk);box-shadow:0 0 0 2px rgba(125,176,255,.25)}
       .ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
       /* Thinking indicator */
       .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
@@ -626,7 +627,8 @@
         const meta = routes.metadata || {};
         const bySource = {};
         Object.keys(meta).forEach(r => {
-          const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          const srcFull = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          const src = srcFull.split('/').pop();
           (bySource[src] = bySource[src] || []).push(r);
         });
         // Force the apps grid to have exactly one column per source file (desktop),
@@ -762,7 +764,11 @@
           const list = document.createElement('div');
           list.className = 'apps';
 
-          const inThisSource = Object.keys(meta).filter(r => (meta[r]||{}).sourceFile === source);
+          const inThisSource = Object.keys(meta).filter(r => {
+            const srcFull = (meta[r]||{}).sourceFile || '';
+            const base = srcFull.split('/').pop();
+            return base === source;
+          });
           let routeGroups = buildGroupsByBase(inThisSource, meta);
           const targetsArr = Object.keys(routes.summary||{});
           const sortEl = document.getElementById('sortMode');
@@ -1336,7 +1342,7 @@
         summaryWrap.innerHTML = '';
         const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
         summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Generated:</strong> ${generatedTime}`;
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Ngrok URL:</strong> ${ngrokTxt}`;
+        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Proxy URL:</strong> ${ngrokTxt}`;
         const targets = Object.keys(routes.summary||{});
         summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Targets:</strong> ${targets.join(', ') || '—'}`;
 
@@ -1344,7 +1350,8 @@
         const meta = routes.metadata || {};
         const bySource = {};
         Object.keys(meta).forEach(r => {
-          const src = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          const srcFull = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
+          const src = srcFull.split('/').pop();
           (bySource[src] = bySource[src] || []).push(r);
         });
 
@@ -1475,14 +1482,15 @@
           filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; debounced(); });
         }
         if (selfCheckBtn){
-          selfCheckBtn.addEventListener('click', async ()=>{
+          selfCheckBtn.addEventListener('click', ()=>{
             try{
-              const d=document.getElementById('aiDrawer'); if (d){ d.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
-              chatEngaged = true; hasUserMessage = true;
-              appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
-              await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
-              // bring AI drawer into view
-              try{ d && d.scrollIntoView && d.scrollIntoView({block:'nearest'}); }catch{}
+              // Mark intent so init can honor it if handler isn't ready yet
+              window.__pendingSelfCheck = true;
+              // Try immediately if available; otherwise pending flag will trigger later
+              if (window.CalliopeUI && window.CalliopeUI.greetAndSelfCheck){
+                window.CalliopeUI.greetAndSelfCheck();
+                window.__pendingSelfCheck = false;
+              }
             }catch{}
           });
         }
@@ -1507,7 +1515,7 @@
           });
           if (freshRoutes.ok) {
             scanSuccess = true;
-            console.log('✅ Routes data refreshed');
+            logInfo('✅ Routes data refreshed');
           }
           
           if (scanSuccess) {
@@ -2160,38 +2168,48 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             healingHistory = data.entries || [];
             updateHealingUI();
           } else {
-            console.log('No healing history found');
+          logDebug('No healing history found');
           }
         } catch (e) {
-          console.log('Error loading healing history', e);
+          logError('Error loading healing history', e);
         }
       }
       
       function updateHealingUI() {
         const badge = document.getElementById('healingBadge');
+        if (!badge) return; // guard if badge not present
         const countEl = badge.querySelector('.healing-count');
+        if (!countEl) return; // guard if inner element missing
         const count = healingHistory.length;
         
         // Update badge
         countEl.textContent = count > 99 ? '99+' : count;
         badge.style.display = count > 0 ? 'flex' : 'none';
         
-        // Update healing status in header
+        // Update healing status in header (ensure chip is visible and prominent)
         const statusEl = document.getElementById('aiHealingStatus');
         const statusLabelEl = document.getElementById('aiHealingStatusLabel');
         const countHeaderEl = document.getElementById('aiHealingCount');
+        try{ 
+          if (statusEl){
+            statusEl.style.display = 'inline-flex'; 
+            statusEl.style.visibility = 'visible';
+            statusEl.style.opacity = '1';
+          }
+        }catch{}
         
         // Only adjust label if not overridden by refreshHealth state mapping
-        if (isHealing) {
+        if (isHealing && statusEl && statusLabelEl) {
           statusEl.classList.remove('status-ready','status-auditing','status-coding','status-offline');
           statusEl.classList.add('status-healing');
           statusLabelEl.textContent = '😵‍💫 Confused';
         }
         
-        countHeaderEl.textContent = count > 0 ? `(${count})` : '';
+        if (countHeaderEl) countHeaderEl.textContent = count > 0 ? `(${count})` : '';
         
-        // Update history panel and also echo entries into chat for visibility
+        // Update history panel UI
         const historyList = document.getElementById('healingHistoryList');
+        if (!historyList) return; // guard if panel not present
         
         if (count === 0) {
           historyList.innerHTML = '<div class="empty-history">No healing actions recorded yet.</div>';
@@ -2367,21 +2385,19 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }catch{}
         }
 
-        // Wire the always-visible Diagnose button to trigger a self-check heal
+        // Wire the drawer Self‑Check button to trigger a self-check heal
         try{
           if (healBtn){
-            healBtn.addEventListener('click', async ()=>{
+            healBtn.addEventListener('click', ()=>{
               try{
-                const q = document.getElementById('aiQuery');
-                const drawer = document.getElementById('aiDrawer');
-                if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
-                chatEngaged = true; hasUserMessage = true;
-                appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
-                await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+                (window.CalliopeUI && window.CalliopeUI.greetAndSelfCheck) ? window.CalliopeUI.greetAndSelfCheck() : window.dispatchEvent(new CustomEvent('calliope:self-check'));
               }catch{}
             });
           }
         }catch{}
+
+        // Header Self‑Check flow implemented here so chat helpers are in scope
+        window.addEventListener('calliope:self-check', ()=>{ try{ (window.CalliopeUI && window.CalliopeUI.greetAndSelfCheck) && window.CalliopeUI.greetAndSelfCheck(); }catch{} });
 
         // Thought polling for progress breadcrumbing
         let thoughtsTimer = null;
@@ -2421,40 +2437,56 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 const msg = (ev && ev.message) ? String(ev.message) : '';
                 const det = ev && ev.details || {};
                 if (msg) {
-                  console.debug('[Calliope][thought]', msg, det);
+                  logDebug('[Calliope][thought]', msg, det);
                   try{
                     if (msg !== 'status'){
                       // Show streamed thoughts when chat is engaged or empty (initial state)
                       const haveUserMsg = !!(document.getElementById('aiChat')?.querySelector('.bubble.user'));
-                      if (chatEngaged || !haveUserMsg) appendBubble('assistant', personaWrap(msg));
+                      if (chatEngaged || !haveUserMsg) {
+                        const lastAssistant = document.querySelector('#aiChat .bubble.assistant:last-of-type');
+                        const isThinking = lastAssistant && lastAssistant.classList.contains('thinking');
+                        if (!isThinking){
+                          appendBubble('assistant', personaWrap(msg));
+                        }
+                      }
                     }
                   }catch{}
                 }
                 // Map thought tags to status chip state heuristically
-                const statusChip = document.getElementById('aiHealingStatus');
-                const labelEl = document.getElementById('aiHealingStatusLabel');
-                const lower = msg.toLowerCase();
-                const setState = (cls, text)=>{
+              const statusChip = document.getElementById('aiHealingStatus');
+              const labelEl = document.getElementById('aiHealingStatusLabel');
+              const lower = msg.toLowerCase();
+              const setState = (cls, text)=>{
                   statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
                   statusChip.classList.add(cls);
                   labelEl.textContent = text;
                 };
+              // If backend emits a dedicated status event with a chip hint, honor it
+              if (msg === 'status' && det && det.chip){
+                const chip = String(det.chip||'').toLowerCase();
+                if (chip==='healing') setState('status-healing','💖 Healing');
+                else if (chip==='auditing') setState('status-auditing','🔬 Auditing');
+                else if (chip==='coding') setState('status-coding','🛠️ Coding');
+                else if (chip==='happy' || chip==='ready' || chip==='idle') setState('status-ready','😊 Happy');
+                else if (chip==='offline') setState('status-offline','Offline');
+              } else {
                 if (/working…|working\.\.\./.test(lower)) ; else
                 if (/auditing/.test(lower) || /audit/.test(lower)) setState('status-auditing','🔬 Auditing');
                 else if (/healing/.test(lower) || /heal/.test(lower)) setState('status-healing','💖 Healing');
                 else if (/code review|snapshot|analyz|review/i.test(lower)) setState('status-coding','🛠️ Coding');
                 else if (/complete ✅|all clear|finished|done/i.test(lower)) setState('status-ready','😊 Happy');
+              }
                 recordThoughtSeen(ev);
               });
             }catch{}
-          }, 1200);
+          }, 15000);
         }
 
         function startHealthPolling(){
           if (healthTimer) return;
           healthTimer = setInterval(()=>{
-            refreshHealth().catch((e)=>{ try{ console.debug('[Calliope][health] error', e&&e.message); }catch{} });
-          }, 2000);
+            refreshHealth().catch((e)=>{ try{ logDebug('[Calliope][health] error', e&&e.message); }catch{} });
+          }, 15000);
         }
 
         
@@ -2513,12 +2545,12 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
 
         function toggleCalliopeAffordances(enabled){
-          console.log('🔧 toggleCalliopeAffordances called with enabled:', enabled);
+          logDebug('🔧 toggleCalliopeAffordances called with enabled:', enabled);
           
           // Hide Recommend buttons
           const recButtons = Array.from(document.querySelectorAll('a.btn, button.btn')).filter(el=>/Recommend/i.test(el.textContent||''));
           recButtons.forEach(el=> el.style.display = enabled ? 'none' : '');
-          console.log('🔧 Found', recButtons.length, 'recommend buttons to hide');
+          logDebug('🔧 Found', recButtons.length, 'recommend buttons to hide');
           
           // NUCLEAR APPROACH: Find ANY button with stethoscope or aria-label Diagnose and override completely (exclude Calliope tab)
           const candidates = Array.from(document.querySelectorAll('button, .icon-btn')).filter(el => {
@@ -2708,7 +2740,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (/^Starting audit\+heal/i.test(t)) return 'Taking a peek and patching things up… 🩺✨';
             if (/^Applying subpath healing/i.test(t)) return 'Applying subpath healing… 💖';
             if (/^Applying Storybook\/Vite proxy guards/i.test(t)) return 'Tending to Storybook/Vite proxy guards… 🛡️';
-            if (/^Audit did not complete/i.test(t)) return 'Hmm, my audit stumbled. I’ll try a different angle. 🤔';
+            if (/^Audit did not complete/i.test(t)) return 'Hmm, my audit stumbled. I\'ll try a different angle. 🤔';
             if (/^Verification complete/i.test(t)) return 'Verification complete ✅';
             if (/^Code review complete/i.test(t)) return 'Code review complete ✅';
             if (/^status$/i.test(t)) return '';
@@ -2752,6 +2784,27 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             document.body.classList.add('ai-open');
           }
         }
+
+        // Expose a stable, globally callable Self‑Check routine to avoid race conditions
+        async function greetAndSelfCheck(){
+          ensureAiOpen();
+          chatEngaged = true; hasUserMessage = true;
+          // If there is already a thinking bubble, don't add another
+          const alreadyThinking = !!document.querySelector('#aiChat .bubble.assistant.thinking');
+          if (!alreadyThinking) appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
+          const thinking = alreadyThinking ? document.querySelector('#aiChat .bubble.assistant.thinking') : appendThinking();
+          try{
+            await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+          }catch{} finally{
+            // Keep the thinking bubble visible until next assistant message arrives; do not auto-remove here
+          }
+        }
+        try{
+          window.CalliopeUI = Object.assign(window.CalliopeUI||{}, { greetAndSelfCheck });
+          if (window.__pendingSelfCheck){
+            setTimeout(()=>{ try{ window.CalliopeUI.greetAndSelfCheck(); window.__pendingSelfCheck=false; }catch{} }, 50);
+          }
+        }catch{}
 
         async function runCalliopeHealth(routeKey){
           try{
@@ -2916,11 +2969,26 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
         
         // Healing UI handlers
-        if (healBtn) healBtn.addEventListener('click', runSelfHeal);
+        // Drawer Self‑Check uses lightweight self‑check flow (not advanced-heal)
         
         if (healingBadgeEl) healingBadgeEl.addEventListener('click', (e) => {
           e.stopPropagation();
           healingHistoryEl && healingHistoryEl.classList.toggle('visible');
+          try{
+            const recent5 = [...healingHistory].reverse().slice(0,5);
+            if (recent5.length){
+              const lines = recent5.map((h)=>{
+                const when = h.timestamp ? new Date(h.timestamp).toLocaleString() : '—';
+                const route = h.route || h.issue || 'unknown';
+                const outcome = h.success ? '✅' : '❌';
+                const steps = (h.actions && h.actions.length) ? ` — steps: ${h.actions.join(', ')}` : '';
+                return `${when} • ${route} ${outcome}${steps}`;
+              }).join('\n');
+              appendBubble('assistant', `**Recent healing summaries (latest 5)**\n\n${lines}`);
+            } else {
+              appendBubble('assistant', 'No healing history available yet.');
+            }
+          }catch{}
         });
         
         if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', () => {
@@ -2967,7 +3035,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           try{
             const r = await fetch('/api/ai/cancel', { method:'POST' });
             if (r.ok){
-              appendBubble('assistant', "Oops, I'll pause now — my hyper‑focus ran away with me! 💫 I've stopped and I'm ready to help however you like next.");
+              appendBubble('assistant', "Oops, I\'ll pause now — my hyper‑focus ran away with me! 💫 I\'ve stopped and I\'m ready to help however you like next.");
             }
           }catch{}
         });
@@ -2985,6 +3053,21 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         };
         // legacy buttons removed
       }
+
+      // Global debug flag (enable via ?debug=1 or localStorage.calliope_debug)
+      const DEBUG = (()=>{
+        try{
+          const qs = new URLSearchParams(location.search);
+          if ((qs.get('debug')||'').toString() === '1') return true;
+          const v = localStorage.getItem('calliope_debug');
+          return v === '1' || v === 'true';
+        }catch{}
+        return false;
+      })();
+      const logDebug = (...args)=>{ try{ if (DEBUG) console.debug(...args); }catch{} };
+      const logInfo = (...args)=>{ try{ console.info(...args); }catch{} };
+      const logWarn = (...args)=>{ try{ console.warn(...args); }catch{} };
+      const logError = (...args)=>{ try{ console.error(...args); }catch{} };
     </script>
   </body>
   </html>

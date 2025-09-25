@@ -75,11 +75,13 @@ function parseSingleFile(text, meta = {}) {
   // Roughly capture location blocks. We'll do a naive brace-matching scan.
   const locations = extractLocationBlocks(text);
   const entries = [];
+  // Global policy: allow root helpers in parsing; do not ignore routes solely due to being root dev helpers
+  let allowRootHelpers = true;
 
   for (const loc of locations) {
     const route = normalizeLocationPath(loc.path);
     if (!route) continue;
-    if (shouldIgnoreRoute(route)) continue;
+    if (!allowRootHelpers && shouldIgnoreRoute(route)) continue; // currently allowRootHelpers is always true
 
     // Find proxy_pass within the block
     const proxyPassMatch = loc.body.match(/\bproxy_pass\s+([^;]+);/);
@@ -192,10 +194,9 @@ function shouldIgnoreRoute(route) {
 
   // Generic rule: root-level dev-helper routes should be ignored.
   // App routes must live under an app prefix; helpers like @vite, @id, @fs,
-  // node_modules, sb-* should not appear at the proxy root.
+  // node_modules should not appear at the proxy root.
   const devHelperRoots = [
     '/@vite/', '/@id/', '/@fs/', '/node_modules/',
-    '/sb-manager/', '/sb-addons/', '/sb-common-assets/',
     '/src/'
   ];
   const isDevHelperRoot = devHelperRoots.some(p => route.startsWith(p));

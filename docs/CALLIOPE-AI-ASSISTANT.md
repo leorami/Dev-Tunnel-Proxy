@@ -46,7 +46,7 @@ Calliope can automatically detect and fix these common issues:
 - **Proxy Resilience**: Adds upstream failover and proper timeout handling
 
 ### **Infrastructure & Connectivity**
-- **Ngrok Discovery**: Forces detection and updates of ngrok tunnel URLs
+- **Proxy Discovery**: Forces detection and updates of ngrok tunnel URLs
 - **Symlink Recreation**: Rebuilds broken symlinks to latest health reports  
 - **Container Health Checks**: Verifies and restarts services that have failed
 

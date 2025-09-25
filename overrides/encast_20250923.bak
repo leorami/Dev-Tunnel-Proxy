@@ -1,0 +1,791 @@
+# Overrides for Storybook + Vite under /sdk and root dev helpers
+# These blocks forward requests to encast-sdk:6006 and are idempotent
+
+# Runtime-resolved upstream for SDK (prevents stale DNS after container restarts)
+set $up_encast_sdk encast-sdk:6006;
+
+# Root helpers → redirect to /sdk (no upstream exposure)
+location = /index.json { return 302 /sdk/index.json; }
+location = /@vite/client { return 302 /sdk/@vite/client; }
+location = /vite-inject-mocker-entry.js { return 302 /sdk/vite-inject-mocker-entry.js; }
+location ^~ /@id/ { return 302 /sdk$uri; }
+location ^~ /.cache/storybook/ { return 302 /sdk$uri; }
+location ^~ /node_modules/ { return 302 /sdk$uri; }
+location ^~ /sb-common-assets/ { return 302 /sdk$uri; }
+location ^~ /sb-manager/ { return 302 /sdk$uri; }
+location ^~ /sb-addons/ { return 302 /sdk$uri; }
+# replace any existing root /storybook-server-channel location
+location ^~ /storybook-server-channel {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host $host;
+  proxy_set_header Origin https://$host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/storybook-server-channel;
+}
+
+# SDK Storybook base route (strip /sdk/ prefix) with HMR
+location = /sdk { rewrite ^ /sdk/ last; }
+location /sdk/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header Origin https://$host;
+  # Force https for tunneled hosts to avoid mixed-content in generated HTML/JS
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types text/html application/javascript text/javascript application/json;
+  sub_filter_once off;
+  sub_filter '/@vite/client' '/sdk/@vite/client';
+  sub_filter '/vite-inject-mocker-entry.js' '/sdk/vite-inject-mocker-entry.js';
+  sub_filter '/.storybook/' '/sdk/.storybook/';
+  sub_filter '/node_modules/' '/sdk/node_modules/';
+  sub_filter '"/storybook-server-channel"' '"/sdk/storybook-server-channel"';
+  sub_filter '/storybook-server-channel' '/sdk/storybook-server-channel';
+  # Make absolutely sure unencoded vite-app.js URLs become encoded under /sdk
+  sub_filter '/@id/__x00__/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js' '/sdk/@id/__x00__virtual%3A/@storybook/builder-vite/vite-app.js';
+  sub_filter '/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js' '/sdk/@id/__x00__virtual%3A/@storybook/builder-vite/vite-app.js';
+  # Force https for absolute host refs in tunneled content
+  sub_filter "http://$host" "https://$host";
+  add_header Content-Security-Policy "upgrade-insecure-requests" always;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/;  # trailing slash strips /sdk/
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Storybook/Vite internals under /sdk
+location = /sdk/@vite/client {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  # Force https for tunneled hosts
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  sub_filter_types application/javascript text/javascript;
+  sub_filter_once off;
+  sub_filter 'ws://' 'wss://';
+  sub_filter "http://$host" "https://$host";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/@vite/client;
+}
+
+# 1) If the colon form is ever requested, 302 the browser to the encoded form.
+location = /sdk/@id/__x00__/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js {
+  return 302 /sdk/@id/__x00__virtual%3A/@storybook/builder-vite/vite-app.js;
+}
+
+location ^~ /sdk/@vite/ {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_read_timeout 1h;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk_6006_1/@vite/;
+}
+
+## removed duplicated @id prefix handler (normalized by consolidated virtual-module block)
+
+## removed duplicate older __x00__virtual and x00virtual normalization blocks (see canonical ones later)
+
+# Generic @id handler
+location ~ ^/sdk/@id/(?!__x00__virtual(?:[:%3A])\/)(?!@id\/)(.+)$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  proxy_set_header Accept-Encoding "";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  # Rewrite absolute-root imports inside Vite virtual modules
+  sub_filter_types application/javascript text/javascript;
+  sub_filter_once off;
+  sub_filter '/@vite/client' '/sdk/@vite/client';
+  sub_filter '/.storybook/' '/sdk/.storybook/';
+  sub_filter '/node_modules/' '/sdk/node_modules/';
+  sub_filter '"/storybook-server-channel"' '"/sdk/storybook-server-channel"';
+  sub_filter '/storybook-server-channel' '/sdk/storybook-server-channel';
+  sub_filter "http://$host" "https://$host";
+  sub_filter 'ws://' 'wss://';
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/@id/$1;
+}
+
+## removed duplicate older __x00__virtual normalization (see canonical encoded-colon block later)
+
+location ^~ /sdk/@fs/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk_6006_1/@fs/;
+}
+
+location ^~ /sdk/node_modules/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  # Many node_modules requests are actually Vite virtual module aliases
+  # Try upstream /node_modules/ first; if 404, fall back to @id/
+  error_page 404 = @sdk_node_modules_as_id;
+  proxy_pass http://$up_encast_sdk_6006_1/node_modules/;
+}
+
+location @sdk_node_modules_as_id {
+  internal;
+  # Convert /sdk/node_modules/<path> → /@id/node_modules/<path>
+  rewrite ^/sdk/node_modules/(.*)$ /@id/node_modules/$1 break;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  proxy_pass http://$up_encast_sdk_6006_1;
+}
+
+# Map Vite client env file under /sdk to @id path to avoid 404
+location = /sdk/node_modules/vite/dist/client/env.mjs {
+  proxy_set_header Host encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/@id/vite/dist/client/env.mjs;
+}
+
+
+# Normalize Storybook builder-vite virtual module path to encoded form and forward reliably
+location ~ ^/sdk/@id/(?:__x00__/@id/)?__x00__virtual(:|%3A)/?@storybook/builder-vite/vite-app\.js(?:\?.*)?$ {
+  proxy_http_version 1.1;
+
+  # unified upstream identity & context
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+
+  # tunnel semantics
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+
+  # reliability
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_set_header Accept-Encoding "";
+
+  # optional: JS-friendly headers (harmless)
+  proxy_set_header Accept "application/javascript, text/javascript, */*;q=0.1";
+  proxy_set_header Cache-Control "no-cache";
+  proxy_set_header Pragma "no-cache";
+
+  absolute_redirect off;
+  proxy_redirect off;
+
+  # normalize colon → %3A for upstream
+  rewrite ^/sdk/@id/(?:__x00__/@id/)?__x00__virtual(?:%3A|:)/?@storybook/builder-vite/vite-app\.js(?:\?.*)?$ /@id/__x00__virtual%3A/@storybook/builder-vite/vite-app.js break;
+
+  # runtime DNS resolution
+  proxy_pass http://$up_encast_sdk;
+
+  # (optional) local stub so this path never 5xx even if upstream hiccups
+  proxy_intercept_errors on;
+  error_page 404 500 502 503 504 = @vite_app_stub;
+}
+
+location @vite_app_stub {
+  default_type application/javascript;
+  add_header Cache-Control "no-cache" always;
+  return 200 "/* proxy stub: vite-app.js */ export {}\n";
+}
+
+# Normalize single- and double-@id virtual module paths to upstream Vite
+location ~ ^/sdk/@id/(?:__x00__/@id/)?__x00__virtual(:|%3A)/(.*)$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header Accept-Encoding "";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  rewrite ^/sdk/@id/(?:__x00__/@id/)?__x00__virtual(?:%3A|:)/(.*)$ /@id/__x00__virtual%3A/$1 break;
+  proxy_pass http://$up_encast_sdk;
+}
+
+# Compatibility: x00virtual form → Vite's __x00__virtual:
+location ~ ^/sdk/@id/x00virtual(:|%3A)/(.*)$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header Accept-Encoding "";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  rewrite ^/sdk/@id/x00virtual(?:%3A|:)/(.*)$ /@id/__x00__virtual%3A/$1 break;
+  proxy_pass http://$up_encast_sdk;
+}
+
+# Storybook config files under /sdk
+location ^~ /sdk/.storybook/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  proxy_pass http://$up_encast_sdk_6006_1/.storybook/;
+}
+
+# Story index JSONs (serve as JSON to avoid SPA fallback)
+location = /sdk/sb-index.json {
+  proxy_set_header Host encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/sb-index.json;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/json;
+}
+location = /sdk/index.json {
+  proxy_set_header Host encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/index.json;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/json;
+}
+
+# Fonts under /sdk only (serve with correct content-type)
+location ~* ^/sdk/sb-common-assets/(.+)\.woff2$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  set $upstream_path /sb-common-assets/$1.woff2;
+  proxy_pass http://$up_encast_sdk$upstream_path;
+  proxy_hide_header Content-Type;
+  add_header Content-Type font/woff2;
+}
+
+# Generic Storybook common assets under /sdk (not only fonts)
+location ^~ /sdk/sb-common-assets/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  proxy_pass http://$up_encast_sdk_6006_1/sb-common-assets/;
+}
+
+# Storybook manager/addon bundles (SB9 serves at root; also provide /sdk/* exacts)
+
+# Exact font assets under /sdk to bypass other handlers
+location = /sdk/sb-common-assets/nunito-sans-regular.woff2 {
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_pass http://$up_encast_sdk/sb-common-assets/nunito-sans-regular.woff2;
+}
+location = /sdk/sb-common-assets/nunito-sans-bold.woff2 {
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_pass http://$up_encast_sdk/sb-common-assets/nunito-sans-bold.woff2;
+}
+location = /sdk/sb-common-assets/nunito-sans-italic.woff2 {
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_pass http://$up_encast_sdk/sb-common-assets/nunito-sans-italic.woff2;
+}
+location = /sdk/sb-common-assets/nunito-sans-bold-italic.woff2 {
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_pass http://$up_encast_sdk/sb-common-assets/nunito-sans-bold-italic.woff2;
+}
+
+# Same manager assets under /sdk/ path (precise matches to avoid HTML fallback)
+## removed exact-match sb-addons/common-manager-bundle.js (prefix handler covers it)
+
+# removed duplicate /sdk/@id/ block (handled above)
+
+## REMOVED duplicate /sdk/sb-common-assets block (see canonical one later in file)
+
+# removed root-scoped dev helper: /vite-inject-mocker-entry.js
+
+# SDK-prefixed vite-inject-mocker-entry.js
+location = /sdk/vite-inject-mocker-entry.js {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/vite-inject-mocker-entry.js;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/javascript;
+}
+
+# Root-level Storybook/Vite fallbacks (when dev server emits absolute paths)
+# removed root /@vite/ (apps must live under /sdk)
+
+# Additional Vite dev server routes (root-scoped)
+# removed root /.vite/
+
+# removed root /assets/
+
+# removed root /__vite_ping
+
+# duplicate removed: /sdk/__vite_ping (see canonical earlier)
+
+# removed root /__open-in-editor
+
+# removed root /vite/
+
+# removed root /sb-
+
+# Root UI and iframe (exact matches) — all removed to avoid root exposure
+
+# removed root-capable sb-common-assets regex (enforced /sdk-only above)
+
+# Exact font assets at root (some managers preload these at root)
+# removed root font exposures
+
+# removed root index.json exposure
+
+# Optional: quiet 404s for Storybook source fetches
+# removed root .storybook exposure
+
+# Optional HMR WS (if not already present)
+location ^~ /sdk/storybook-server-channel {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host encast-sdk:6006;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_pass http://$up_encast_sdk/storybook-server-channel;
+}
+
+# API → Django (preserve /api prefix)
+location /api/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  set $up_encast_api_8000_2 http://encast-api:8000;
+  proxy_pass $up_encast_api_8000_2;      # no trailing slash, preserves /api/*
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Health check endpoint for Django API
+location /api/health/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_api_8000_1 http://encast-api:8000;
+  proxy_pass $up_encast_api_8000_1;      # preserve /health/*
+}
+
+# API static files (strip /api prefix → forward to Django /static)
+location ^~ /api/static/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  # Dev CORS headers for static assets
+  if ($request_method = 'OPTIONS') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Vary' 'Origin' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Origin, Accept, Content-Type, Authorization' always;
+    add_header 'Access-Control-Max-Age' 3600 always;
+    return 204;
+  }
+  add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+  add_header 'Vary' 'Origin' always;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_api_8000_3 http://encast-api:8000;
+  rewrite ^/api/static/(.*)$ /static/$1 break;
+  proxy_pass $up_encast_api_8000_3;      # 🤖 CALLIOPE AUTO-FIX: Added rewrite rule
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# API media files (strip /api prefix → forward to Django /media)
+location ^~ /api/media/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  # Dev CORS headers for media assets
+  if ($request_method = 'OPTIONS') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Vary' 'Origin' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Origin, Accept, Content-Type, Authorization' always;
+    add_header 'Access-Control-Max-Age' 3600 always;
+    return 204;
+  }
+  add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+  add_header 'Vary' 'Origin' always;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_api_8000_4 http://encast-api:8000;
+  rewrite ^/api/media/(.*)$ /media/$1 break;
+  proxy_pass $up_encast_api_8000_4;      # 🤖 CALLIOPE AUTO-FIX: Added rewrite rule
+}
+
+# Impact (CRA dev server, HMR/WS)
+location = /impact { rewrite ^ /impact/ last; }
+location = /impact/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  # Serve the index for base route from upstream root
+  set $up_encast_impact_3000_5 http://encast-impact:3000/;
+  proxy_pass $up_encast_impact_3000_5;
+}
+location /impact/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header X-Forwarded-Prefix /impact;
+  # Add headers to help React dev server understand the context
+  proxy_set_header X-Original-URI $request_uri;
+  proxy_set_header X-Forwarded-URI $request_uri;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_6 http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_6;    # preserve /impact/ for app routes
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Impact dev server assets & HMR endpoints at root (index uses absolute paths)
+# Route these to the Impact dev server so /impact/ works end-to-end
+location = /bundle.js {
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_bundle http://encast-impact:3000/bundle.js;
+  proxy_pass $up_encast_impact_3000_bundle;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/javascript;
+}
+# Enhanced bundle.js route - 🤖 CALLIOPE AUTO-FIX: Added content-type forcing
+location = /static/js/bundle.js {
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_static_bundle http://encast-impact:3000/static/js/bundle.js;
+  proxy_pass $up_encast_impact_3000_static_bundle;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/javascript;  # 🤖 FORCES CORRECT CONTENT-TYPE
+}
+location ^~ /static/ {
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  # 🤖 CALLIOPE FIX: Remove trailing slash from variable to preserve full request path
+  set $up_encast_impact_3000_static http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_static;
+}
+# Handle bundle.js requested through /impact path (React may use relative paths)
+location = /impact/bundle.js {
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_impact_bundle http://encast-impact:3000/bundle.js;
+  proxy_pass $up_encast_impact_3000_impact_bundle;
+  proxy_hide_header Content-Type;
+  add_header Content-Type application/javascript;
+}
+location ^~ /impact/static/ {
+  proxy_set_header Host encast-impact:3000;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  # Rewrite /impact/static/... → /static/... before proxying to preserve path with variable-based proxy_pass
+  rewrite ^/impact/static/(.*)$ /static/$1 break;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_static http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_static;
+}
+location ^~ /sockjs-node {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host encast-impact:3000;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_impact_3000_7 http://encast-impact:3000/sockjs-node;
+  proxy_pass $up_encast_impact_3000_7;
+}
+location ^~ /impact/asset-manifest.json {
+  proxy_set_header Host encast-impact:3000;
+  rewrite ^/impact/asset-manifest\.json$ /asset-manifest.json break;
+  set $up_encast_impact_3000_1 http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_1;
+}
+location ^~ /impact/favicon.ico {
+  proxy_set_header Host encast-impact:3000;
+  rewrite ^/impact/favicon\.ico$ /favicon.ico break;
+  set $up_encast_impact_3000_2 http://encast-impact:3000;
+  proxy_pass $up_encast_impact_3000_2;
+}
+
+# Inspire (React dev server) - strip /inspire/ prefix
+location = /inspire { rewrite ^ /inspire/ last; }
+location ^~ /inspire/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  # Defer name resolution so nginx reload doesn't fail when service is down
+  set $inspire_upstream encast-inspire:3001;
+  proxy_pass http://$inspire_upstream/;      # trailing slash strips /inspire/
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Storybook WS is accessed under /sdk/storybook-server-channel and handled by the /sdk/ block above.
+# Some clients use an absolute root WS path without /sdk – support that too
+# removed root storybook-server-channel exposure
+
+# Admin - preserve /admin/ prefix
+location ^~ /admin/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_api_8000_38 http://encast-api:8000;
+  proxy_pass $up_encast_api_8000_38;      # preserve /admin/*
+}
+
+# Payment - strip /payment/ prefix
+location ^~ /payment/ {
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header ngrok-skip-browser-warning "true";
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  # Defer name resolution so nginx reload doesn't fail when service is down
+  set $payment_upstream encast-payment:5454;
+  proxy_pass http://$payment_upstream/; # trailing slash strips /payment/
+}
+location = /_next { return 204; }
+
+location = /_next/ { return 204; }
+location = /_next/webpack-hmr { return 204; }
+location ^~ /sdk/sb-manager/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types application/javascript text/javascript;
+  sub_filter_once off;
+  sub_filter '/storybook-server-channel' '/sdk/storybook-server-channel';
+  sub_filter "/sb-" "/sdk/sb-";
+  proxy_pass http://$up_encast_sdk/sb-manager/;
+}
+location ^~ /sdk/sb-addons/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  set $fp $scheme;
+  if ($host ~* ngrok\.app$) { set $fp https; }
+  proxy_set_header X-Forwarded-Proto $fp;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  absolute_redirect off;
+  proxy_redirect off;
+  proxy_set_header Accept-Encoding "";
+  sub_filter_types application/javascript text/javascript;
+  sub_filter "/sb-" "/sdk/sb-";
+  proxy_pass http://$up_encast_sdk/sb-addons/;
+}
+location ^~ /sdk/_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host encast-sdk:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  proxy_pass http://$up_encast_sdk_6006_1/_next/;
+}
+
+location ^~ /sdk/api/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_buffering off;
+  proxy_request_buffering off;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_encast_sdk_6006_1 encast-sdk:6006;
+  proxy_pass http://$up_encast_sdk_6006_1/api/;
+}
+
+location = /sdk/__nextjs_original-stack-frames {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  proxy_pass http://$up_encast_sdk/__nextjs_original-stack-frames;
+}

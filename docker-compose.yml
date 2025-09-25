@@ -10,7 +10,7 @@ services:
       - ./build/sites-enabled:/etc/nginx/conf.d/sites-enabled:ro
       - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
       - ./.artifacts:/usr/share/nginx/html/.artifacts
-      - ./.artifacts/certs:/etc/nginx/certs:ro
+      - ./.certs:/etc/nginx/certs:ro
       - ./status:/usr/share/nginx/html/status:ro
       - ./dashboard/public:/usr/share/nginx/html/dashboard:ro
     networks:
@@ -51,14 +51,14 @@ services:
     networks:
       - devproxy
 
-  calliope-api:
+  proxy-config-api:
     image: node:18-alpine
-    container_name: dev-calliope-api
+    container_name: dev-proxy-config-api
     working_dir: /app
     # Ensure Docker CLI is available so Calliope can self‑heal by reloading nginx, regenerating bundles, etc.
     # Also mount the host Docker socket for docker exec/run calls.
     user: root
-    command: ["sh", "-c", "apk add --no-cache docker-cli >/dev/null 2>&1 || true; node utils/conflictAPI.js"]
+    command: ["sh", "-c", "apk add --no-cache docker-cli >/dev/null 2>&1 || true; node utils/proxyConfigAPI.js"]
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -86,7 +86,7 @@ services:
       - NODE_ENV=development
       - LOCAL_PROXY_BASE=http://dev-proxy
     entrypoint: ["sh", "-c"]
-    command: ["while true; do node test/scanApps.js; sleep 30; done"]
+    command: ["while true; do node test/scanApps.js; sleep 15; done"]
     networks:
       - devproxy
     depends_on:

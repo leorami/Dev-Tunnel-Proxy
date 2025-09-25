@@ -95,11 +95,85 @@ location /myapp/ {
 }
 ```
 
-### 3a. Install Your Configuration
+### 3a. Install Your Configuration (Programmatic API)
+
+Use the programmatic API endpoint to install your configuration:
+
+```javascript
+// Using fetch API
+fetch('http://dev-proxy:8080/api/apps/install', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'myapp',
+    content: `# Your nginx configuration here
+location ^~ /myapp/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  
+  # WebSocket support for HMR
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  
+  # Development helpers
+  proxy_set_header ngrok-skip-browser-warning "true";
+  proxy_buffering off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  
+  # CRITICAL: Use variables for upstream resolution
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $your_app_upstream your-service:3000;
+  proxy_pass http://$your_app_upstream/;
+}`
+  })
+});
+```
+
+Or use the provided example script:
 
 ```bash
-# From the dev-tunnel-proxy directory
-./scripts/install-app.sh myapp path/to/your-app.conf
+# Using the helper script
+node examples/api-upload-config.js myapp path/to/your-app.conf
+```
+
+> [!NOTE]
+> The legacy approach using `./scripts/install-app.sh` is deprecated and no longer supported.
+
+#### Diagnostics & Verification (🆕)
+
+After installing, use the control-plane APIs to verify what is active and to refresh status artifacts used by `/status`:
+
+```bash
+# List installed app files (sorted by mtime)
+curl -s http://localhost:3001/api/apps/list | jq
+
+# Show final active locations (order + source)
+curl -s http://localhost:3001/api/apps/active | jq
+
+# View bundle diagnostics (included vs skipped + reasons)
+curl -s http://localhost:3001/api/apps/diagnostics | jq
+
+# Force regenerate + nginx reload (usually not needed; install already does this)
+curl -s -X POST http://localhost:3001/api/apps/regenerate \
+  -H 'content-type: application/json' -d '{"reload":true}' | jq
+
+# Rescan routes and refresh routes.json (drives the Status UI)
+curl -s -X POST http://localhost:3001/api/apps/scan -H 'content-type: application/json' \
+  -d '{"base":"http://dev-proxy"}' | jq
+```
+
+Quick smoke checks (recommended gates before running your app tests):
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/sb-manager/runtime.js
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/sb-addons/common-manager-bundle.js
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/index.json
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/sb-common-assets/nunito-sans-regular.woff2
 ```
 
 ### 4. Configure Your App for Proxy Usage
@@ -163,6 +237,32 @@ module.exports = {
 STORYBOOK_BASE_PATH=/storybook
 PROXY_MODE=true
 ```
+
+**Root dev helpers (🆕 globally allowed, use sparingly):**
+
+Some frameworks (Storybook/Vite, certain Next.js dev flows) reference helper paths at the proxy root. These are now allowed globally to unblock development. We strongly recommend designing apps to be proxy‑route‑agnostic and serving from a non‑root prefix; use root helpers only when a framework forces it.
+
+```nginx
+# Root helpers
+location ^~ /sb-manager/            { proxy_pass http://your-storybook:6006/sb-manager/; }
+location ^~ /sb-addons/             { proxy_pass http://your-storybook:6006/sb-addons/; }
+location ^~ /sb-common-assets/      { proxy_pass http://your-storybook:6006/sb-common-assets/; }
+location = /index.json              { proxy_pass http://your-storybook:6006/index.json; }
+
+# WebSocket at both the subpath and root (if applicable in your setup)
+location ^~ /sdk/storybook-server-channel {
+  proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";
+  proxy_pass http://your-storybook:6006/storybook-server-channel;
+}
+location ^~ /storybook-server-channel {
+  proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";
+  proxy_pass http://your-storybook:6006/storybook-server-channel;
+}
+```
+
+Notes:
+- Always prefer variable-based upstreams in your blocks and include the Docker DNS resolver for reliability.
+- Root helpers are permitted globally to unblock tricky dev setups. Favor prefix-based serving; keep root usage minimal.
 
 #### Generic Web App Best Practices
 
@@ -277,6 +377,10 @@ location @myapp_fallback {
 - ✅ "Open" button uses ngrok URL correctly
 - ✅ No conflict warnings displayed
 
+**New tooling (🆕):**
+- “Rescan” button to refresh `routes.json` by calling `/api/apps/scan`.
+- Columns are grouped by the basename of the source file (e.g., both `apps/encast.conf` and `overrides/encast.conf` appear under `encast.conf`).
+
 ### 2. Basic Connectivity Tests
 ```bash
 # Test direct container access
@@ -359,6 +463,8 @@ set $myapp_service myapp-site-dev-myapp:3000;  # Actual container name
 # Notes on Config Composition (🆕)
 
 - The proxy composes `apps/*.conf` with optional `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`.
+- App precedence within the same route prefers the newest file (mtime) so API re-installs supersede prior app snippets.
+- Emitted blocks are annotated with `# source: <relative-path>` and diagnostics are written to `.artifacts/bundle-diagnostics.json`.
 - Nginx includes only generated files. Your `apps/*.conf` remain the source inputs.
 - To force proxy-owned behavior, place minimal snippets in `overrides/` (no app names required).
 - You can manually regenerate the bundle with:
