@@ -1,0 +1,142 @@
+# ========= Encast (isolated) =========
+
+# API → Django (strip /api prefix)
+location /api/ {
+  rewrite ^/api/(.*)$ /$1 break;
+  set $up_api_8000_1 http://api:8000;
+  proxy_pass $up_api_8000_1;
+
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header ngrok-skip-browser-warning "true";
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Impact (CRA dev server, HMR/WS)
+location /impact/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  set $up_impact_3000_2 http://impact:3000;
+  proxy_pass $up_impact_3000_2;
+  proxy_read_timeout 300;
+  proxy_send_timeout 300;
+}
+
+# Inspire (CRA @ 3001)
+location /inspire/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  set $up_inspire_3001_3 http://inspire:3001;
+  proxy_pass $up_inspire_3001_3;
+}
+
+# SDK Storybook (6006)
+location /sdk/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  # Strip /sdk/ prefix when proxying to Storybook dev server at root
+  set $up_sdk_6006_4 http://sdk:6006/;
+  proxy_pass $up_sdk_6006_4;
+}
+
+# Strip /sdk prefix for all virtual module and Vite client paths so upstream sees root-form
+location ^~ /sdk/@id/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  rewrite ^/sdk/(.*)$ /$1 break;
+  set $up_sdk_6006_5 http://sdk:6006;
+  proxy_pass $up_sdk_6006_5;
+}
+
+location ^~ /sdk/@vite/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  rewrite ^/sdk/(.*)$ /$1 break;
+  set $up_sdk_6006_6 http://sdk:6006;
+  proxy_pass $up_sdk_6006_6;
+}
+
+location = /sdk/vite-inject-mocker-entry.js {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  set $up_sdk_6006_7 http://sdk:6006/vite-inject-mocker-entry.js;
+  proxy_pass $up_sdk_6006_7;
+}
+
+# Root-level Vite virtual module path normalization: collapse duplicate @id and encode ':'
+# Example: /@id/__x00__/@id/__x00__virtual:/@storybook/builder-vite/vite-app.js
+# →       /@id/__x00__virtual%3A/@storybook/builder-vite/vite-app.js
+location ^~ /@id/__x00__/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Referer $scheme://$host/sdk/iframe.html;
+  proxy_set_header Origin $scheme://$host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  set $up_sdk_6006_8 http://sdk:6006;
+  proxy_pass $up_sdk_6006_8;
+}
+
+# Root-level Vite dev helper and virtual module paths used by Storybook preview HTML
+# Forward them to the SDK dev server, preserving the path
+location ^~ /@id/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Referer $scheme://$host/sdk/iframe.html;
+  proxy_set_header Origin $scheme://$host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  set $up_sdk_6006_9 http://sdk:6006;
+  proxy_pass $up_sdk_6006_9;
+}
+
+location ^~ /@vite/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Referer $scheme://$host/sdk/iframe.html;
+  proxy_set_header Origin $scheme://$host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  set $up_sdk_6006_10 http://sdk:6006;
+  proxy_pass $up_sdk_6006_10;
+}
+
+location = /vite-inject-mocker-entry.js {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Prefix /sdk;
+  set $up_sdk_6006_11 http://sdk:6006/vite-inject-mocker-entry.js;
+  proxy_pass $up_sdk_6006_11;
+}
+
+# Admin and payment
+location /admin/   { proxy_pass http://api:8000/admin/;   proxy_set_header ngrok-skip-browser-warning "true"; }
+location /payment/ { proxy_pass http://payment:5454/;     proxy_set_header ngrok-skip-browser-warning "true"; }

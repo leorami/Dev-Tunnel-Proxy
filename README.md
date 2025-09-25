@@ -21,6 +21,9 @@ A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) f
 
 3) Bring up the proxy + ngrok:
    ```bash
+   # One-time setup: installs workspace deps, prepares .certs/, prebuilds bundle
+   ./smart-build.sh setup
+
    ./scripts/smart-build.sh up
    ```
 
