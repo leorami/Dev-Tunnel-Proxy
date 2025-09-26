@@ -7,6 +7,9 @@
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
+    <link rel="stylesheet" href="/status/global.css" />
+    <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/common.js"></script>
     <style>
       :root{
         --bg:#0b1220;--bg2:#0e1627;--panel:#111a2b;--panelGlass:rgba(17,26,43,.92);--muted:#5b6b8a;--text:#d9e2f1;--heading:#cfe0ff;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640;
@@ -24,6 +27,7 @@
       header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
       header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      body.ai-open[data-page="health"] .container{padding-right:0 !important;margin-right:calc(var(--aiWidth) + var(--aiGutter))}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
       .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:transform .12s ease, box-shadow .12s ease}
       .card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.30)}
@@ -36,8 +40,20 @@
       .toolbar{display:flex;gap:8px;flex-wrap:wrap}
       button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none;text-align:center}
       button:hover, a.btn:hover{background:var(--btnBgHover)}
+      /* Header nav + actions grouping */
+      .header-actions{display:flex;align-items:center;gap:8px}
+      .header-actions .tab{background:var(--btnBg)}
+      .header-actions .tab.active{background:#d9e2ff;color:#0b1220;border-color:#bfd1ff}
+      [data-theme="dark"] .header-actions .tab.active{background:#1a2a4b;color:#cfe0ff;border-color:#36568c}
+      .header-actions .action{background:#0f2242;border-color:#2a4a7e}
+      :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
+      .header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
+      header h1 .brand{font-weight:700;color:var(--heading);background:transparent;padding:0;border-radius:0}
       .split{display:grid;grid-template-columns: repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
       pre{margin:0;background:var(--codeBg, #0a1223);border:1px solid var(--codeBorder, #1b2a48);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      /* Ensure Calliope chat inherits shared theme styles */
+      /* Stronger specificity to override any theme or page defaults */
+      body[data-page="health"] #aiDrawer .ai-chat,#aiDrawer .ai-chat#aiChat{background:var(--codeBg) !important;border:1px solid var(--codeBorder) !important}
       .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
       .quick-actions-card{grid-column:1 / -1}
       .quick-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -51,18 +67,22 @@
     </style>
   </head>
   <body>
-    <header>
+    <script>window.DTP && DTP.attachHeader('health'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
+    <header style="display:none">
       <div class="header-row">
         <h1>
           <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
-          <span>Dev Tunnel Proxy</span>
-          Health Dashboard
+          <span class="brand">Dev Tunnel Proxy</span>
         </h1>
         <div class="header-actions">
-          <a class="btn" href="/status" title="Open status dashboard">Status</a>
-          <a class="btn" href="/reports" title="Browse generated reports">Reports</a>
-          <button class="btn" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <a class="btn tab" href="/status" title="Open status dashboard">Status</a>
+          <a class="btn tab active" href="/health" title="Health dashboard">Health</a>
+          <a class="btn tab" href="/reports" title="Browse generated reports">Reports</a>
+          <a class="btn tab" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
+          <span class="divider" aria-hidden="true"></span>
+          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="btn action" id="aiSelfCheckGlobal" title="Calliope" aria-label="Calliope"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
         </div>
       </div>
     </header>
@@ -240,9 +260,11 @@ Or check if config files have syntax errors.
           reloadBtn.style.color = '';
         }, 3000);
       }
-      document.getElementById('reloadConfigs').addEventListener('click',reloadConfigs);
-      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-      initTheme();
+      try{ document.getElementById('reloadConfigs').addEventListener('click',reloadConfigs); }catch{}
+      try{ document.getElementById('themeToggle').addEventListener('click', toggleTheme); }catch{}
+      // Use shared theme and Calliope drawer if available
+      try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}
+      try{ if (window.DTP && DTP.initTheme) DTP.initTheme(); else initTheme(); }catch{}
       refresh();
     </script>
   </body>

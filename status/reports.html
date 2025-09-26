@@ -5,35 +5,41 @@
     <title>Dev Proxy Reports</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <link rel="stylesheet" href="/status/global.css" />
     <style>
-      :root{ --bg:#0b1220; --panel:#111a2b; --text:#d9e2f1; --muted:#7f90b3; --accent:#6aa6ff; --border:#1f2a44; }
-      body{margin:0;background:linear-gradient(180deg,#0b1220,#0e1627);color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-      header{padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(10,16,30,.55);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      body{margin:0}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
       .header-row{display:flex;align-items:center;justify-content:space-between}
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      body.ai-open[data-page="reports"] .container{padding-right:0 !important;margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+      .header-actions{display:flex;align-items:center;gap:8px}
+      .header-actions .tab{background:#132a4d}
+      .header-actions .tab.active{background:#d9e2ff;color:#0b1220;border-color:#bfd1ff}
+      [data-theme="dark"] .header-actions .tab.active{background:#1a2a4b;color:#cfe0ff;border-color:#36568c}
+      .header-actions .action{background:#0f2242;border-color:#2a4a7e}
+      :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
+      .header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-      button, a.btn{appearance:none;border:1px solid #24406e;background:#132a4d;color:#cfe0ff;border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
       .grid{display:grid;grid-template-columns: 1fr;gap:12px}
-      .card{background:rgba(17,26,43,.92);border:1px solid var(--border);border-radius:12px;padding:16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px}
       table{width:100%;border-collapse:collapse}
       th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
-      th{color:#cfe0ff}
-      .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:#1b2640;color:#b8c8e6;font-weight:600}
+      th{color:var(--text)}
+      .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
     </style>
+    <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/common.js"></script>
   </head>
   <body>
-    <header>
+    <script>window.DTP && DTP.attachHeader('reports'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
+    <header style="display:none">
       <div class="header-row">
         <h1 style="font-size:16px;margin:0;display:flex;gap:10px;align-items:center">
           <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px"/>
           <span class="tag">Dev Tunnel Proxy</span>
-          Reports
         </h1>
-        <div class="toolbar">
-          <a class="btn" href="/status">Status</a>
-          <a class="btn" href="/health">Health</a>
-          <a class="btn" href="/reports/">Directory</a>
-        </div>
+        <div class="header-actions"></div>
       </div>
     </header>
     <div class="container">
@@ -93,6 +99,11 @@
       document.getElementById('prune7').addEventListener('click', ()=>prune(7));
       document.getElementById('prune30').addEventListener('click', ()=>prune(30));
       document.getElementById('pruneAllButLatest').addEventListener('click', pruneAllButLatest);
+      // Align Directory button right over the table by moving it beside the actions
+      try { document.getElementById('directoryBtn').style.marginLeft = 'auto'; } catch {}
+      // Use shared Calliope + theme
+      try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}
+      try{ if (window.DTP && DTP.initTheme) DTP.initTheme(); }catch{}
       load();
     </script>
   </body>

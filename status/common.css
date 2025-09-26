@@ -1,0 +1,65 @@
+/* Shared header + Calliope drawer styles */
+:root{--aiWidth:clamp(360px, 32vw, 512px);--aiGutter:16px}
+header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+.header-row{display:flex;align-items:center;justify-content:space-between}
+.header-actions{display:flex;align-items:center;gap:8px}
+.header-actions .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.header-actions .tab{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+.header-actions .tab.active{background:#1a2a4b;border-color:#36568c;color:#cfe0ff}
+.header-actions .action{appearance:none;border:1px solid var(--btnBorder);background:#0f2242;border-color:#2a4a7e;color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
+.header-actions .action.active{outline:2px solid #36568c}
+.header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
+header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
+header h1 .brand{font-weight:700;color:var(--heading)}
+
+/* Light theme adjustments */
+:root[data-theme="light"] .header-actions .tab.active{background:#d9e2ff;border-color:#bfd1ff;color:#0b1220}
+:root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
+
+/* Calliope drawer (shared minimal) */
+.ai-drawer{position:fixed;right:0;top:72px;height:calc(88vh - 72px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
+.ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
+.ai-tab{display:none}
+.ai-content{flex:1;display:flex;flex-direction:column;gap:8px}
+/* Match Status page header structure */
+.ai-header{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 8px;border-bottom:1px solid var(--border)}
+.ai-content{margin-top:6px}
+.ai-header h2{margin:0;font-size:14px;display:flex;align-items:center;gap:8px;color:var(--heading)}
+.ai-meta{display:flex;align-items:center;gap:8px}
+.ai-healing-status,.ai-healing-history{font-size:12px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--btnBorder);font-weight:700;background:var(--btnBg);color:var(--btnText)}
+.ai-healing-status .pulse{display:none}
+.ai-hint{display:none;color:var(--muted);font-size:12px;margin:2px 2px 6px}
+.ai-drawer img{max-width:100%;height:auto}
+.ai-chat{flex:1;overflow:auto;border:1px solid var(--codeBorder);border-radius:10px;padding:10px;background:var(--codeBg)}
+.bubble{max-width:85%;padding:8px 12px;border-radius:14px;margin:12px 0;line-height:1.45}
+.bubble.user{margin-left:auto;background:rgba(125,162,255,.22);border:1px solid rgba(125,162,255,.35)}
+.bubble.assistant{margin-right:auto;background:linear-gradient(180deg, rgba(255,143,211,.12), rgba(255,91,189,.10));border:1px solid rgba(255,143,211,.45)}
+.bubble-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
+.bubble-content{margin-top:0; overflow-wrap:anywhere; word-break:break-word}
+.bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
+.ai-input{display:flex;gap:8px;flex-direction:column;border-top:1px solid var(--border);padding-top:8px}
+.ai-input textarea{flex:1;border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);color:var(--text)}
+.ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
+.ai-actions .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600}
+
+/* When Calliope drawer is open, reserve space for either layout wrapper used */
+body.ai-open .content{margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;padding-right:0 !important}
+body.ai-open .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+/* Actively reduce max width by drawer + gutter to maintain consistent spacing */
+body.ai-open .content{max-width:calc(100% - var(--aiWidth) - var(--aiGutter))}
+body.ai-open .container{max-width:calc(100% - var(--aiWidth) - var(--aiGutter))}
+/* Remove built-in page paddings that would add to the gutter */
+body.ai-open .container, body.ai-open .content{padding-right:0 !important}
+
+/* Page-specific tuning for layout wrappers */
+body.ai-open[data-page="dashboard"] .content{padding-right:0;margin-right:calc(var(--aiWidth) + var(--aiGutter));max-width:1160px}
+body.ai-open[data-page="status"] .content{margin-right:calc(var(--aiWidth) + var(--aiGutter));padding-right:0}
+body.ai-open[data-page="health"] .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+body.ai-open[data-page="reports"] .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+
+@media (max-width: 768px){
+  .ai-drawer{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:min(50vh, calc(100vh - 120px));border-radius:12px}
+  .ai-tab{display:none}
+}
+
+

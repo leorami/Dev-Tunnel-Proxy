@@ -4,43 +4,41 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dev Tunnel Dashboard</title>
+    <link rel="stylesheet" href="/status/global.css" />
+    <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/common.js"></script>
     <style>
-      :root{--bg:#0b0d10;--panel:#12151a;--muted:#9aa4b2;--text:#e8edf2;--accent:#5bd6c1;--border:#263141}
       *{box-sizing:border-box}
-      body{font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;line-height:1.5;margin:0;background:linear-gradient(180deg,#0b0d10,#0e1217);color:var(--text)}
-      header{display:flex;justify-content:space-between;align-items:center;padding:20px 28px;border-bottom:1px solid var(--border);position:sticky;top:0;background:rgba(11,13,16,.8);backdrop-filter:blur(6px)}
-      header h1{font-size:16px;margin:0;color:#cfe8ff;letter-spacing:.2px}
+      body{line-height:1.5;margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text)}
       main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:18px}
-      .card{background:var(--panel);border:1px solid var(--border);border-radius:12px}
-      .card h3{font-size:14px;margin:0 0 8px 0;color:#cfe1f8}
+      body.ai-open[data-page="dashboard"] main{padding-right:0 !important;margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px)}
+      .card h3{font-size:14px;margin:0 0 8px 0;color:var(--heading)}
       .side{padding:14px}
       .row{display:flex;gap:8px;align-items:center;margin:10px 0}
-      input[type=text]{flex:1;min-width:280px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#0e1217;color:var(--text)}
-      button{padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#121821;color:var(--text);cursor:pointer}
-      button:hover{border-color:#2f3b4e}
+      input[type=text]{flex:1;min-width:280px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text)}
+      button{padding:8px 10px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600}
+      button:hover{background:var(--btnBgHover)}
       .accent{background:var(--accent);color:#0a1116;border-color:transparent}
       .routes{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-      .route{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:#0f141b}
+      .route{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
       .route small{color:var(--muted)}
       .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);font-size:12px}
       .content{padding:14px}
-      pre{white-space:pre-wrap;background:#0f141b;border:1px solid var(--border);padding:12px;border-radius:10px;max-width:100%}
+      pre{white-space:pre-wrap;background:var(--codeBg);border:1px solid var(--codeBorder);padding:12px;border-radius:10px;max-width:100%}
       .log{max-height:360px;overflow:auto}
     </style>
   </head>
   <body>
-    <header>
+    <script>window.DTP && DTP.attachHeader('dashboard'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
+    <header style="display:none">
       <h1>Dev Tunnel Dashboard • Calliope Tools</h1>
-      <div class="row">
-        <button id="btnThoughts">Updates</button>
-      </div>
+      <div class="row"><button id="btnThoughts">Updates</button></div>
     </header>
-    <main>
-      <section class="card side">
+    <main class="content" style="max-width:1160px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:320px 1fr;gap:16px;">
+      <section class="card side" style="padding:14px">
         <h3>Quick Audit</h3>
-        <div class="row">
-          <input id="auditUrl" type="text" placeholder="https://your-ngrok-domain/mxtk" />
-        </div>
+        <div class="row"><input id="auditUrl" type="text" placeholder="https://your-ngrok-domain/mxtk" /></div>
         <div class="row">
           <button id="btnAudit" class="accent">Run Audit</button>
           <button id="btnAuditHeal">Audit + Heal</button>
@@ -49,7 +47,7 @@
         <h3 style="margin-top:16px">Routes</h3>
         <div id="routes" class="routes"></div>
       </section>
-      <section class="card content">
+      <section class="card content" style="padding:14px">
         <h3>Result</h3>
         <pre id="out" class="log">No output yet.</pre>
       </section>
