@@ -32,7 +32,7 @@
       '    <span class="divider" aria-hidden="true"></span>'+
       '    <button class="action btn" id="reloadConfigs" title="Reload configurations">🔄</button>'+
       '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>'+
-      '    <button class="action btn" id="calliopeOpen" title="Open Calliope" aria-label="Open Calliope"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
+      '    <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
       '  </div>'+
       '</div>'
     );
@@ -59,10 +59,6 @@
     const drawer = document.createElement('div');
     drawer.id='aiDrawer'; drawer.className='ai-drawer collapsed';
     drawer.innerHTML = (
-      '<button class="ai-tab" id="aiTab" title="Calliope">'+
-      '  <div class="icon-steth" aria-hidden="true"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;"></div>'+
-      '  <div class="label">Calliope</div>'+
-      '</button>'+
       '<div class="ai-header">'+
       '  <h2><span class="icon-steth-header" aria-hidden="true"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;"></span>Calliope</h2>'+
       '  <div class="ai-meta">'+
@@ -143,6 +139,20 @@
         textarea.addEventListener('blur', ()=>{ if (!textarea.value.trim()) textarea.placeholder = defaultPH; });
       }
     }catch{}
+
+    // Compute drawer top/height based on header and standard gap
+    try{
+      function recalc(){
+        const header = document.querySelector('header');
+        const topGap = 16; // standard section gap
+        const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
+        const top = h + topGap;
+        drawer.style.top = top + 'px';
+        drawer.style.height = `calc(100vh - ${top + topGap}px)`; // bottom gap = topGap
+      }
+      recalc();
+      window.addEventListener('resize', recalc);
+    }catch{}
   }
 
   function openCalliopeWithContext(){
@@ -158,11 +168,17 @@
         const context = path.startsWith('/reports') ? 'Analyze report retention and conflicts.' : path.startsWith('/health') ? 'Summarize current health and conflicts.' : path.startsWith('/dashboard') ? 'Assist with audits from dashboard.' : 'Help with route issues.';
         const hint = document.getElementById('aiHint');
         if (hint) { hint.textContent = `You are Calliope. Context page: ${path}. ${context}`; }
+        // ensure layout sizing is correct when opening
+        try{ const evt = new Event('resize'); window.dispatchEvent(evt); }catch{}
       } else {
         drawer.classList.add('collapsed');
         document.body.classList.remove('ai-open');
       }
-      const btn = document.getElementById('calliopeOpen'); if (btn) btn.classList.toggle('active', isCollapsed);
+      const btn = document.getElementById('calliopeOpen');
+      if (btn){
+        btn.classList.toggle('active', isCollapsed);
+        btn.setAttribute('aria-pressed', String(isCollapsed));
+      }
     }catch{}
   }
 

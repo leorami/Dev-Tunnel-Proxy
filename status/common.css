@@ -17,7 +17,7 @@ header h1 .brand{font-weight:700;color:var(--heading)}
 :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
 
 /* Calliope drawer (shared minimal) */
-.ai-drawer{position:fixed;right:0;top:72px;height:calc(88vh - 72px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
+.ai-drawer{position:fixed;right:0;top:72px;height:calc(100vh - 104px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
 .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
 .ai-tab{display:none}
 .ai-content{flex:1;display:flex;flex-direction:column;gap:8px}
