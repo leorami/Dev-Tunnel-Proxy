@@ -49,8 +49,8 @@
     try{ document.body.setAttribute('data-page', String(active||'')); }catch{}
     const themeBtn = h.querySelector('#themeToggle');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-    const calliopeBtn = h.querySelector('#calliopeOpen');
-    if (calliopeBtn) calliopeBtn.addEventListener('click', ()=> openCalliopeWithContext());
+    const calliopeBtns = Array.from(h.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal'));
+    calliopeBtns.forEach((b)=> b.addEventListener('click', ()=> openCalliopeWithContext()));
     initTheme();
   }
 
@@ -174,11 +174,15 @@
         drawer.classList.add('collapsed');
         document.body.classList.remove('ai-open');
       }
-      const btn = document.getElementById('calliopeOpen');
-      if (btn){
-        btn.classList.toggle('active', isCollapsed);
-        btn.setAttribute('aria-pressed', String(isCollapsed));
-      }
+      // Reflect state on any header toggle buttons present
+      const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
+      btns.forEach((btn)=>{
+        try{
+          btn.classList.toggle('active', isCollapsed);
+          btn.setAttribute('aria-pressed', String(isCollapsed));
+          btn.setAttribute('title', isCollapsed ? 'Close Calliope' : 'Open Calliope');
+        }catch{}
+      });
     }catch{}
   }
 

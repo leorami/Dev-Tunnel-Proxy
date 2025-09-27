@@ -42,7 +42,7 @@ Authoritative source for shared UI/UX conventions. Status page is the master for
   - [ ] Standard gap between drawer and main content is exactly 16px (`--aiGutter`)
   - [ ] When open, content width reduces by `drawerWidth + 16px` (no extra whitespace column)
   - [ ] The left gutter of the page equals the right drawer gap for symmetry
-  - [ ] All pages use a common page wrapper (e.g., `.content`/`.container`) so sections resize uniformly
+  - [ ] Wrap each page’s content in a single wrapper (`.content` or `.container`) so its sections keep a consistent total width and resize/move uniformly (with or without drawer)
 - [ ] Chat area, bubbles, textarea
   - [ ] Chat bubbles match Status styling (bg `var(--codeBg)`, border `var(--codeBorder)`, radii, padding)
   - [ ] Textarea shows placeholder only (no prefill), clears on focus, restores on blur if empty
@@ -87,7 +87,7 @@ Authoritative source for shared UI/UX conventions. Status page is the master for
 - Navigating between any pages: header does not shift, active tab highlighted, actions aligned right
 - Theme toggle switches all pages and persists via `localStorage.dtpTheme`
 - Calliope button toggles drawer open/closed and shows active state
-- Calliope chat persists per browser session until cleared; “Clear” requires confirmation
+- Calliope chat persists per browser session and page switching until cleared; “Clear” requires confirmation
 - Drawer is pinned and aligned, with a consistent 16px gap to content on all pages
 - Separators span the full drawer width; action row sticks to the bottom and is right-aligned
 - Button order is Copy, Clear, Ask, Self-Check across all pages
