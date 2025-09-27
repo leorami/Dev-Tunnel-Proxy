@@ -80,3 +80,4 @@ Calliope can automatically detect and fix these common issues:
 - **Knowledge Base**: Stores healing patterns in `.artifacts/calliope/healing-kb.json`
 - **Safe Operations**: All configuration changes are tested before applying
 - **Automatic Rebuilds**: Regenerates nginx bundles and reloads safely after fixes
+- **Storybook + Vite**: Enforces static root `/@id` and `/@vite` pass-throughs, canonical `/sdk` handler, and can run `scripts/test_storybook_proxy.sh` as a regression check

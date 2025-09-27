@@ -143,6 +143,14 @@ function ensureGenericPatterns() {
         id: 'apply_storybook_vite_proxy_guards',
         description: 'Ensure generic subpath proxy blocks for Storybook+Vite (prefix-agnostic)',
         implementation: { type: 'automated', function: 'applyStorybookViteProxyGuards', params: [] }
+      }, {
+        id: 'ensure_static_vite_root_pass_throughs',
+        description: 'Ensure root /@id and /@vite use static upstream and minimal headers',
+        implementation: { type: 'automated', function: 'ensureStaticViteRootPassThroughs', params: [] }
+      }, {
+        id: 'run_storybook_proxy_tests',
+        description: 'Run regression sanity/smoke tests for Storybook proxy',
+        implementation: { type: 'automated', function: 'runStorybookProxyTests', params: [] }
       }]
     });
   }
@@ -1940,6 +1948,73 @@ async function fixPrefixedNextBlockUpstream({ routePrefix = '', configFile = '' 
 }
 
 /**
+ * Ensure root-level Vite pass-throughs are static and minimal in config/default.conf
+ * - Enforce named upstream or direct sdk:6006 target for /@id, /@vite, /@fs
+ * - Remove resolver, Referer/Origin headers, and variable proxy_pass forms
+ */
+async function ensureStaticViteRootPassThroughs() {
+  try {
+    const conf = path.join(ROOT, 'config', 'default.conf');
+    if (!fs.existsSync(conf)) return { success:false, message:'config/default.conf not found' };
+    let src = fs.readFileSync(conf, 'utf8');
+    const original = src;
+
+    // Normalize /@id/, /@vite/, /@fs/ to static upstream block usage
+    const blocks = ['/@id/', '/@vite/', '/@fs/'];
+    for (const b of blocks){
+      const rx = new RegExp(`(location\\s*\^~\\s*${b.replace(/[\/?+*.^$|(){}[\]\\]/g,'\\$&')}[\s\S]*?\})`, 'g');
+      src = src.replace(rx, (m)=>{
+        // Build a minimal static block
+        const isHmr = b === '/@vite/';
+        const lines = [
+          `location ^~ ${b} {`,
+          '  proxy_http_version 1.1;',
+          '  proxy_set_header Host $host;',
+          '  proxy_set_header X-Forwarded-Proto $scheme;',
+          ...(isHmr ? [
+            '  proxy_set_header Upgrade $http_upgrade;',
+            '  proxy_set_header Connection "upgrade";',
+          ] : []),
+          '  proxy_read_timeout 86400;',
+          '  proxy_pass http://storybook_sdk;',
+          '}',
+        ];
+        return lines.join('\n');
+      });
+    }
+
+    // Remove any resolver/Referer/Origin lines inside these blocks if they lingered outside replace
+    src = src.replace(/\n\s*resolver\s+127\.0\.0\.11[\s\S]*?;\n/g, '\n');
+    src = src.replace(/\n\s*proxy_set_header\s+(Referer|Origin)\b[^;]*;\n/g, '\n');
+    // Remove variable proxy_pass for these blocks
+    src = src.replace(/proxy_pass\s+http:\/\/\$[A-Za-z0-9_]+;?/g, 'proxy_pass http://storybook_sdk;');
+
+    if (src !== original){
+      fs.writeFileSync(conf, src, 'utf8');
+      await regenerateNginxBundle();
+      return { success:true, message:'Enforced static Vite root pass-throughs in config/default.conf' };
+    }
+    return { success:true, message:'Static Vite root pass-throughs already enforced' };
+  } catch (e) {
+    return { success:false, message:`ensureStaticViteRootPassThroughs failed: ${e.message}` };
+  }
+}
+
+/**
+ * Run scripts/test_storybook_proxy.sh inside host context to validate proxy config
+ */
+async function runStorybookProxyTests() {
+  try {
+    const script = path.join(ROOT, 'scripts', 'test_storybook_proxy.sh');
+    if (!fs.existsSync(script)) return { success:false, message:'scripts/test_storybook_proxy.sh not found' };
+    execSync(`bash ${JSON.stringify(script)}`, { cwd: ROOT, stdio: 'pipe' });
+    return { success:true, message:'storybook proxy tests passed' };
+  } catch (e) {
+    return { success:false, message:`storybook proxy tests failed: ${e.message}` };
+  }
+}
+
+/**
  * Add a new pattern to the knowledge base for future healing.
  */
 function addPatternFromHealing(patternId, solution, isNew, details = {}) {
@@ -2048,6 +2123,8 @@ module.exports = {
   fixSubpathAbsoluteRouting,
   ensureRouteForwardedPrefixAndNext,
   fixPrefixedNextBlockUpstream,
+  ensureStaticViteRootPassThroughs,
+  runStorybookProxyTests,
   
   // Core infrastructure
   regenerateNginxBundle
