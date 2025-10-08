@@ -49,3 +49,6 @@ logs/
 # Site auditor outputs and test artifacts
 site-auditor-out/
 test-results/
+
+# Keep overrides confidential and out of repo
+overrides/**
