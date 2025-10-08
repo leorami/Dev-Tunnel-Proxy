@@ -336,7 +336,7 @@
           <a class="btn tab" href="/dashboard/">Dashboard</a>
           <span class="divider" aria-hidden="true"></span>
           <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="btn action" id="themeToggleFallback" title="Toggle theme" aria-label="Toggle theme">🌙</button>
           <button class="btn action" id="aiSelfCheckGlobal" title="Calliope" aria-label="Calliope">
             <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
           </button>
@@ -432,7 +432,7 @@
         // Default to dark if nothing stored
         const theme = stored || 'dark';
         document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
-        const tbtn = document.getElementById('themeToggle');
+        const tbtn = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
         tbtn.textContent = theme==='light' ? '🌙' : '☀️';
         tbtn.setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
       }
@@ -449,7 +449,7 @@
         const next = cur==='light'?'dark':'light';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('dtpTheme', next);
-        const tbtn = document.getElementById('themeToggle');
+        const tbtn = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
         tbtn.textContent = next==='light' ? '🌙' : '☀️';
         tbtn.setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
       }

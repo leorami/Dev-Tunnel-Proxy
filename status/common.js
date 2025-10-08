@@ -13,7 +13,8 @@
     const next = cur==='light'?'dark':'light';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('dtpTheme', next);
-    const t = document.getElementById('themeToggle');
+    const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
+    const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
     if (t){ t.textContent = next==='light' ? '🌙' : '☀️'; }
   }
   function buildHeader(active){
@@ -47,7 +48,7 @@
     if (first && first.tagName.toLowerCase()==='header'){ first.replaceWith(h); } else { document.body.prepend(h); }
     // annotate page for CSS tweaks
     try{ document.body.setAttribute('data-page', String(active||'')); }catch{}
-    const themeBtn = h.querySelector('#themeToggle');
+    const themeBtn = h.querySelector('#themeToggle') || h.querySelector('#themeToggleFallback');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
     // Only attach Calliope click handler if there's no existing drawer (status page has its own)
     if (!document.getElementById('aiDrawer')) {
