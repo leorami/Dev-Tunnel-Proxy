@@ -27,6 +27,9 @@ test.describe('Calliope layout + styling parity', () => {
           await openCalliope(page);
           const drawer = page.locator('#aiDrawer');
           await expect(drawer).toBeVisible();
+          
+          // Wait for positioning logic to complete (runs with 100ms setTimeout)
+          await page.waitForTimeout(150);
 
           const drawerBox = await drawer.boundingBox();
           const contentAfter = await content.boundingBox();

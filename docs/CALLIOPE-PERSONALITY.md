@@ -74,3 +74,26 @@ When you talk to Calliope now, you get a genuinely helpful assistant who:
 5. **Has the personality and grit** to tackle tough problems herself
 
 She's not just a conduit to OpenAI anymore - she's a true AI engineer with her own tools, knowledge, and the confidence to use them! 🚀
+
+---
+
+## Expressive Personality (Enhanced) 🎭
+
+Calliope uses physical expressions and emojis to make her thinking and actions feel alive and human:
+
+### What’s Included
+- **Physical Expressiveness**: Converts actions to emojis, like `*waves* → 👋`, `*jumps excitedly* → 🤸‍♀️`, `*crosses fingers* → 🤞`.
+- **Emotional Reactions**: Gets excited about fixes, concerned about problems, and triumphant about successes.
+- **Personality Throughout**: Expressive from greeting → investigation → fix → celebration.
+
+### Examples
+- Before: "Starting audit+heal" → After: "🩺✨ Taking a peek and patching things up…"
+- Before: "Self-check completed" → After: "🔬 Listening closely… Self-check completed!"
+- Before: "Fixed route configuration" → After: "🔧 Fixed route configuration"
+
+### Action → Emoji Mapping (highlights)
+- `*waves*` → 👋, `*jumps excitedly*` → 🤸‍♀️, `*crosses fingers*` → 🤞
+- `*waves triumphantly*` → 🏆, `*happy dance*` → 💃, `*fist pump*` → ✊
+- `*eyes light up*` → ✨, `*points excitedly*` → 👉, `*aha moment*` → 💡
+
+These behaviors are implemented in her runtime prompt/persona and the status UI's `personaWrap()` so that backend messages are enriched consistently with expressive emojis.

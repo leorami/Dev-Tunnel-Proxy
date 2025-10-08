@@ -49,8 +49,11 @@
     try{ document.body.setAttribute('data-page', String(active||'')); }catch{}
     const themeBtn = h.querySelector('#themeToggle');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-    const calliopeBtns = Array.from(h.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal'));
-    calliopeBtns.forEach((b)=> b.addEventListener('click', ()=> openCalliopeWithContext()));
+    // Only attach Calliope click handler if there's no existing drawer (status page has its own)
+    if (!document.getElementById('aiDrawer')) {
+      const calliopeBtns = Array.from(h.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal'));
+      calliopeBtns.forEach((b)=> b.addEventListener('click', ()=> openCalliopeWithContext()));
+    }
     initTheme();
   }
 
@@ -139,50 +142,124 @@
         textarea.addEventListener('blur', ()=>{ if (!textarea.value.trim()) textarea.placeholder = defaultPH; });
       }
     }catch{}
-
-    // Compute drawer top/height based on header and standard gap
+    
+    // Restore Calliope state from localStorage
+    try {
+      const wasOpen = localStorage.getItem('dtpCalliopeOpen') === 'true';
+      if (wasOpen) {
+        setTimeout(() => {
+          const drawer = document.getElementById('aiDrawer');
+          if (drawer && drawer.classList.contains('collapsed')) {
+            drawer.classList.remove('collapsed');
+            document.body.classList.add('ai-open');
+            // Update button states
+            const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
+            btns.forEach((btn) => {
+              btn.classList.add('active');
+              btn.setAttribute('aria-pressed', 'true');
+              btn.setAttribute('title', 'Close Calliope');
+            });
+            // Trigger positioning
+            setTimeout(() => {
+              const recalcEvent = new CustomEvent('calliope-recalc');
+              window.dispatchEvent(recalcEvent);
+            }, 50);
+          }
+        }, 100);
+      }
+    } catch {}
+    
+    // Compute drawer top/height based on visible header and standard gap
     try{
       function recalc(){
-        const header = document.querySelector('header');
+        // Find the visible header (not the hidden one)
+        const headers = document.querySelectorAll('header');
+        let header = null;
+        for (const h of headers) {
+          const style = getComputedStyle(h);
+          if (style.display !== 'none' && style.visibility !== 'hidden') {
+            header = h;
+            break;
+          }
+        }
         const topGap = 16; // standard section gap
         const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
         const top = h + topGap;
         drawer.style.top = top + 'px';
         drawer.style.height = `calc(100vh - ${top + topGap}px)`; // bottom gap = topGap
       }
-      recalc();
+      // Initial calc and on resize
+      setTimeout(recalc, 100); // delay to ensure header is rendered
       window.addEventListener('resize', recalc);
+      window.addEventListener('calliope-recalc', recalc);
     }catch{}
   }
 
   function openCalliopeWithContext(){
     try{
-      attachCalliope();
+      // Only attach if drawer doesn't exist
+      if (!document.getElementById('aiDrawer')) {
+        attachCalliope();
+      }
       const drawer = document.getElementById('aiDrawer');
       if (!drawer) return;
       const isCollapsed = drawer.classList.contains('collapsed');
       if (isCollapsed){
+        // Opening drawer
         drawer.classList.remove('collapsed');
         document.body.classList.add('ai-open');
+        // Save state
+        try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
         const path = location.pathname;
         const context = path.startsWith('/reports') ? 'Analyze report retention and conflicts.' : path.startsWith('/health') ? 'Summarize current health and conflicts.' : path.startsWith('/dashboard') ? 'Assist with audits from dashboard.' : 'Help with route issues.';
         const hint = document.getElementById('aiHint');
         if (hint) { hint.textContent = `You are Calliope. Context page: ${path}. ${context}`; }
         // ensure layout sizing is correct when opening
-        try{ const evt = new Event('resize'); window.dispatchEvent(evt); }catch{}
+        try{ 
+          const evt = new Event('resize'); 
+          window.dispatchEvent(evt); 
+          // Force recalc positioning
+          setTimeout(() => {
+            const recalcEvent = new CustomEvent('calliope-recalc');
+            window.dispatchEvent(recalcEvent);
+          }, 50);
+          // Also directly recalc positioning
+          setTimeout(() => {
+            const headers = document.querySelectorAll('header');
+            let header = null;
+            for (const h of headers) {
+              const style = getComputedStyle(h);
+              if (style.display !== 'none' && style.visibility !== 'hidden') {
+                header = h;
+                break;
+              }
+            }
+            const topGap = 16;
+            const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
+            const top = h + topGap;
+            drawer.style.top = top + 'px';
+            drawer.style.height = `calc(100vh - ${top + topGap}px)`;
+          }, 100);
+        }catch{}
       } else {
+        // Closing drawer
         drawer.classList.add('collapsed');
         document.body.classList.remove('ai-open');
+        // Save state
+        try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
       }
-      // Reflect state on any header toggle buttons present
-      const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
-      btns.forEach((btn)=>{
-        try{
-          btn.classList.toggle('active', isCollapsed);
-          btn.setAttribute('aria-pressed', String(isCollapsed));
-          btn.setAttribute('title', isCollapsed ? 'Close Calliope' : 'Open Calliope');
-        }catch{}
-      });
+      // Reflect state on any header toggle buttons present (after DOM updates)
+      setTimeout(() => {
+        const currentDrawer = document.getElementById('aiDrawer');
+        if (!currentDrawer) return;
+        const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
+        const nowOpen = !currentDrawer.classList.contains('collapsed');
+        btns.forEach((btn)=>{
+          btn.classList.toggle('active', nowOpen);
+          btn.setAttribute('aria-pressed', String(nowOpen));
+          btn.setAttribute('title', nowOpen ? 'Close Calliope' : 'Open Calliope');
+        });
+      }, 50);
     }catch{}
   }
 

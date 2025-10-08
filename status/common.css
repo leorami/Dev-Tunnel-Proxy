@@ -17,7 +17,8 @@ header h1 .brand{font-weight:700;color:var(--heading)}
 :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
 
 /* Calliope drawer (shared minimal) */
-.ai-drawer{position:fixed;right:0;top:72px;height:calc(100vh - 104px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
+.ai-drawer{position:fixed;right:var(--aiGutter);top:72px;height:calc(100vh - 104px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
+/* JS will override top/height for proper positioning */
 .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
 .ai-tab{display:none}
 .ai-content{flex:1;display:flex;flex-direction:column;gap:8px}
@@ -42,20 +43,48 @@ header h1 .brand{font-weight:700;color:var(--heading)}
 .ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
 .ai-actions .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600}
 
-/* When Calliope drawer is open, reserve space for either layout wrapper used */
-body.ai-open .content{margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;padding-right:0 !important}
-body.ai-open .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
-/* Actively reduce max width by drawer + gutter to maintain consistent spacing */
-body.ai-open .content{max-width:calc(100% - var(--aiWidth) - var(--aiGutter))}
-body.ai-open .container{max-width:calc(100% - var(--aiWidth) - var(--aiGutter))}
+/* When Calliope drawer is open, shrink content to fit available space with equal gaps */
 /* Remove built-in page paddings that would add to the gutter */
 body.ai-open .container, body.ai-open .content{padding-right:0 !important}
 
-/* Page-specific tuning for layout wrappers */
-body.ai-open[data-page="dashboard"] .content{padding-right:0;margin-right:calc(var(--aiWidth) + var(--aiGutter));max-width:1160px}
-body.ai-open[data-page="status"] .content{margin-right:calc(var(--aiWidth) + var(--aiGutter));padding-right:0}
-body.ai-open[data-page="health"] .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
-body.ai-open[data-page="reports"] .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
+/* Fix gap issues for Status and Dashboard pages specifically */
+body.ai-open[data-page="status"] .content{
+  /* Status page: adjust for equal 16px gaps */
+  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left:16px !important;
+  margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;
+}
+
+body.ai-open[data-page="dashboard"] .content{
+  margin-top:24px !important;
+  margin-bottom:24px !important;
+  /* Dashboard page: adjust for equal 16px gaps */
+  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left:16px !important;
+  margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;
+}
+
+/* Dashboard Result section should maintain reasonable width */
+body.ai-open[data-page="dashboard"] section.card.content{
+  min-width:500px !important;
+  flex-shrink:0 !important;
+}
+
+body.ai-open[data-page="health"] .container{
+  margin-top:24px !important;
+  margin-bottom:24px !important;
+  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left:16px !important;
+  margin-right:calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+}
+
+body.ai-open[data-page="reports"] .container{
+  margin-top:24px !important;
+  margin-bottom:24px !important;
+  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left:16px !important;
+  margin-right:calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+}
 
 @media (max-width: 768px){
   .ai-drawer{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:min(50vh, calc(100vh - 120px));border-radius:12px}

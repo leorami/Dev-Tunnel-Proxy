@@ -947,7 +947,9 @@ async function runSiteAuditor(urlToAudit, options = {}) {
       const platformFlag = desiredPlatform ? `--platform ${desiredPlatform}` : '';
       // Quote URL to avoid shell interpreting characters like & ? *
       const safeUrl = JSON.stringify(String(urlToAudit));
-      const cmd = `node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
+      // Ensure Chrome is installed/available inside the puppeteer image; try to install if missing
+      const preInstall = `if ! npx puppeteer browsers install chrome >/dev/null 2>&1; then echo 'puppeteer install failed or already installed'; fi`;
+      const cmd = `${preInstall} && node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
       let apiContainer = 'dev-proxy-config-api';
       try {
@@ -1219,11 +1221,11 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
   const passes = [];
   const emit = typeof onUpdate === 'function' ? onUpdate : ()=>{};
   for (let i=0;i<maxPasses;i++){
-    emit({ name: 'audit_pass_start', attempt: i+1, url, routePrefix });
+    emit({ name: 'thinking', message: `Starting audit pass ${i+1} for ${url}`, routePrefix });
     const run = await runSiteAuditor(url, { wait, timeout });
     const entry = { attempt: i+1, ok: run.ok, summary: run.summary, report: run.reportPath };
     passes.push(entry);
-    emit({ name: 'audit_pass_complete', attempt: i+1, ok: run.ok, summary: run.summary });
+    emit({ name: 'status', message: run.ok ? 'Audit pass complete ✅' : 'Audit pass complete (issues remain) ⚠️', summary: run.summary });
     const hasIssues = !run.ok || (run.summary && ((run.summary.consoleErrors||0) > 0 || (run.summary.networkFailures||0) > 0 || (run.summary.httpIssues||0) > 0));
     if (!hasIssues) {
       emit({ name: 'audit_and_heal_complete', success: true });
@@ -1254,11 +1256,11 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
 
         if (needsRootDirs || missingPrefix){
           // Apply guards and ensure subpath routing resilience
-          emit({ name: 'apply_generic_directory_guards', routePrefix });
+          emit({ name: 'healing', message: 'Applying safe directory guards for subpath assets…', routePrefix });
           await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath || '' });
           // Ensure forwarded prefix on app root and add /<prefix>/_next support
-          try { emit({ name: 'ensure_route_forwarded_prefix_and_next', routePrefix }); await ensureRouteForwardedPrefixAndNext({ routePrefix }); } catch {}
-          emit({ name: 'fix_subpath_absolute_routing', routePrefix });
+          try { emit({ name: 'healing', message: 'Ensuring forwarded prefix and Next.js dev paths…', routePrefix }); await ensureRouteForwardedPrefixAndNext({ routePrefix }); } catch {}
+          emit({ name: 'healing', message: 'Improving subpath absolute routing…', routePrefix });
           await fixSubpathAbsoluteRouting({ routePrefix });
           continue; // next pass
         }
@@ -1269,10 +1271,10 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
     } catch {}
 
     // If no targeted action detected, still try best practices once
-    if (i === 0) { emit({ name: 'apply_generic_directory_guards', routePrefix }); await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath||'' }); continue; }
+    if (i === 0) { emit({ name: 'healing', message: 'Applying safe directory guards…', routePrefix }); await applyGenericDirectoryGuards({ routePrefix, reportPath: run.reportPath||'' }); continue; }
     break; // avoid infinite loop
   }
-  emit({ name: 'audit_and_heal_complete', success: false });
+  emit({ name: 'status', message: 'Could not reach green within pass limit', success: false });
   return { success: false, passes, message: 'Could not reach green within pass limit' };
 }
 

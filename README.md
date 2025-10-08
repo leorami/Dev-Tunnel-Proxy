@@ -70,7 +70,7 @@ location ^~ /sample-prefix/ {
 - Nginx only loads the generated file, preventing app snippets from overwriting proxy-owned decisions.
 - Put minimal, targeted policy fixes in `overrides/*.conf` when a route must win regardless of app output.
 - Inspect the provenance header and use the diagnostics API when debugging.
-- See `docs/CONFIG-COMPOSITION.md` for details.
+- See `docs/CONFIG-MANAGEMENT-GUIDE.md` for details.
 
 7) **📊 Enhanced Status Dashboard with Calliope AI** (`/status`):
   - **Route Grouping**: Routes automatically grouped by base upstream URL
@@ -291,6 +291,94 @@ resolver_timeout 5s;
 
 This enables nginx to resolve Docker service names dynamically within the `devproxy` network.
 
+### Storybook + Vite behind the proxy (subpath)
+
+When running Storybook 9 with the Vite builder under a subpath (for example `/sdk` or `/storybook`), add explicit proxy guards so dev-helper paths and HMR work reliably.
+
+Nginx example (mount at `/storybook`):
+
+```nginx
+# Exact base and critical roots
+location = /storybook/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host storybook-service:6006;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /storybook;
+  resolver 127.0.0.11 ipv6=off; resolver_timeout 5s;
+  set $sb_upstream storybook-service:6006;
+  proxy_pass http://$sb_upstream/;
+}
+location = /storybook/iframe.html { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_pass http://$sb_upstream/iframe.html; }
+location = /storybook/index.json  { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_pass http://$sb_upstream/index.json; }
+
+# Manager, addons, common assets
+location ^~ /sb-manager/       { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_pass http://$sb_upstream/sb-manager/; }
+location ^~ /sb-addons/        { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_pass http://$sb_upstream/sb-addons/; }
+location ^~ /sb-common-assets/ { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_pass http://$sb_upstream/sb-common-assets/; }
+
+# Vite dev endpoints often require Host normalization
+location ^~ /@vite/ { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_set_header Host localhost:6006; proxy_pass http://$sb_upstream/@vite/; }
+location ^~ /@id/   { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_set_header Host localhost:6006; proxy_pass http://$sb_upstream/@id/; }
+location ^~ /node_modules/ { resolver 127.0.0.11 ipv6=off; resolver_timeout 5s; set $sb_upstream storybook-service:6006; proxy_set_header Host localhost:6006; proxy_pass http://$sb_upstream/node_modules/; }
+
+# HMR WebSocket under subpath
+location ^~ /storybook/storybook-server-channel {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host storybook-service:6006;
+  resolver 127.0.0.11 ipv6=off; resolver_timeout 5s;
+  set $sb_upstream storybook-service:6006;
+  proxy_pass http://$sb_upstream/storybook-server-channel;
+}
+```
+
+Storybook config (.storybook/main.ts) — set your base path for the Vite builder:
+
+```ts
+import { defineConfig } from 'vite';
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const base = process.env.STORYBOOK_BASE_PATH || '/storybook/';
+
+const config: StorybookConfig = {
+  framework: {
+    name: '@storybook/react-vite',
+    options: {}
+  },
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|ts|tsx)'],
+  addons: ['@storybook/addon-essentials'],
+  async viteFinal(viteConfig) {
+    return {
+      ...viteConfig,
+      base,
+      // HMR generally works via the proxy guards above; tweak only if needed:
+      // server: { hmr: { protocol: 'ws' } }
+    } as ReturnType<typeof defineConfig>;
+  }
+};
+
+export default config;
+```
+
+Vite app (non‑Storybook) example (vite.config.ts) when serving under a prefix:
+
+```ts
+import { defineConfig } from 'vite';
+export default defineConfig({
+  base: process.env.BASE_PATH || '/myapp/',
+  // Optional HMR hints behind tunnels/proxies
+  // server: { hmr: { protocol: 'ws' } }
+});
+```
+
+Notes:
+- Always use nginx variable upstreams (as above) so nginx starts even if Storybook is down.
+- Some Vite setups require `Host: localhost:6006` for `@vite`, `@id`, and `node_modules`.
+- Prefer mounting Storybook under a prefix (e.g., `/storybook` or `/sdk`).
+
+
 ## Repo hygiene
 
 - App-specific names have been removed from core code. The included demo service lives under `dashboard/` only for local testing. You can remove it entirely and still use the proxy.
@@ -343,7 +431,11 @@ dev-tunnel-proxy/
 
 - **[Project Integration Guide](PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
 - **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Config Composition & Precedence](docs/CONFIG-COMPOSITION.md)** - How the generator works, migration notes, overrides
+- **[Configuration Management Guide](docs/CONFIG-MANAGEMENT-GUIDE.md)** - How the generator works, migration notes, overrides
+- **[Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and integrated self‑healing
+- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior (with action→emoji mapping)
+- **[Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and self‑healing
+- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior
 
 ## Inspiration: Calliope
 

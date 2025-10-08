@@ -81,3 +81,35 @@ Calliope can automatically detect and fix these common issues:
 - **Safe Operations**: All configuration changes are tested before applying
 - **Automatic Rebuilds**: Regenerates nginx bundles and reloads safely after fixes
 - **Storybook + Vite**: Enforces static root `/@id` and `/@vite` pass-throughs, canonical `/sdk` handler, and can run `scripts/test_storybook_proxy.sh` as a regression check
+
+---
+
+## Advanced Self-Healing (Integrated)
+
+Calliope includes an advanced self-healing system that identifies common issues and applies fixes automatically.
+
+### Architecture & Flow
+- Knowledge base of patterns at `.artifacts/calliope/healing-kb.json`
+- Pattern matching from logs/configs to detect issues
+- Tiered healing strategies with verification and safe rollback
+- Feedback loop writes outcomes to `.artifacts/calliope/healing-log.json`
+
+### Current Capabilities
+- Duplicate `location` block deduplication
+- Proxy discovery and ngrok URL refresh
+- Missing symlink reconstruction for latest reports
+- Resilience improvements for upstream readiness
+
+### APIs
+```bash
+# Focused self-check (optional advanced heal)
+POST /api/ai/self-check { "heal": true, "advanced": true, "route": "/sdk/" }
+
+# Advanced heal (explicit)
+POST /api/ai/advanced-heal { "route": "/api/", "hint": "nginx test failed" }
+```
+
+### Guardrails
+- Prefer automated, reversible proxy-side fixes first
+- Keep patterns generic and non app-specific where possible
+- Provide concise suggestions when automation cannot safely proceed

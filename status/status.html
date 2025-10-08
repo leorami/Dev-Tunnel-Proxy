@@ -31,7 +31,6 @@
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .content{width: 100%}
       .container{max-width:1100px;margin:16px 16px}
-      body.ai-open[data-page="status"] .container{margin-right:calc(var(--aiWidth) + var(--aiGutter))}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
       .summaryRow{position:sticky;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));z-index:2004;background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);border-radius: 12px;}
       .appsHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:var(--headerBg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
@@ -274,15 +273,6 @@
 
       /* Layout container centering */
       .content{max-width:1280px;margin:0 auto;padding:0 16px}
-
-      /* Desktop/tablet: only add right padding for the drawer on narrower viewports.
-         On wide screens, keep centered content width unchanged (overlay drawer). */
-      @media (min-width: 769px) and (max-width: 1680px){
-        body.ai-open .content{padding-right:calc(var(--aiWidth) + 24px)}
-      }
-      @media (min-width: 1681px){
-        body.ai-open .content{padding-right:16px}
-      }
       @media (max-width: 768px){
         #aiDrawer.ai-drawer{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;height:min(33vh, 420px)}
         #aiDrawer.ai-drawer.collapsed{transform:translateY(100%)}
@@ -332,7 +322,7 @@
     <script src="/status/common.js"></script>
   </head>
   <body>
-    <script>window.DTP && DTP.attachHeader('status');</script>
+    <script>window.DTP && DTP.attachHeader('status'); window.DTP && DTP.initTheme && DTP.initTheme();</script>
     <header style="display:none">
       <div class="header-row">
         <h1>
@@ -576,8 +566,9 @@
           
           const status = info.status || 0;
           let cls = 'err', reason = '';
-          // Treat 2xx as ok, 3xx as warn (not ok) to avoid green-on-308 confusion
+          // Treat 2xx as ok; 308 Permanent Redirect is also OK for prefixed routes
           if (status >= 200 && status < 300) { cls = 'ok'; reason = 'Working correctly'; }
+          else if (status === 308) { cls = 'ok'; reason = 'Permanent redirect'; }
           else if (status >= 300 && status < 400) { cls = 'warn'; reason = 'Redirect'; }
           else if (status === 404) { cls = 'warn'; reason = 'Not found - check route configuration'; }
           else if (status === 0) { cls = 'warn'; reason = 'No response from this target'; }
@@ -591,13 +582,14 @@
         }
       }
       function severityOf(route, targets, routes){
-        // ok if ANY target is ok; redirects/0 treated as warn
+        // ok if ANY target is ok; treat 308 as ok, other 3xx/0 as warn
         let sev='err';
         for (const t of targets){
           const info=(routes.summary?.[t]||{})[route];
           if (!info) continue;
           const s = info.status||0;
           if (s>=200 && s<300) return 'ok';
+          if (s===308) return 'ok';
           if (s>=300 && s<400) sev = sev==='ok'?'ok':'warn';
           else if (s===0) sev = sev==='ok'?'ok':'warn';
         }
@@ -1457,7 +1449,7 @@
       try{
         document.addEventListener('click', function(e){
           try{
-            const tabEl = e.target && (e.target.closest && e.target.closest('#aiTab'));
+            const tabEl = e.target && (e.target.closest && e.target.closest('#calliopeOpen'));
             if (!tabEl) return;
             e.preventDefault();
             e.stopPropagation();
@@ -1467,10 +1459,36 @@
             if (isCollapsed){
               drawer.classList.remove('collapsed');
               document.body.classList.add('ai-open');
+              // Save state
+              try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
+              // Position drawer correctly when opening
+              setTimeout(() => {
+                const headers = document.querySelectorAll('header');
+                let header = null;
+                for (const h of headers) {
+                  const style = getComputedStyle(h);
+                  if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    header = h;
+                    break;
+                  }
+                }
+                const topGap = 16;
+                const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
+                const top = h + topGap;
+                drawer.style.top = top + 'px';
+                drawer.style.height = `calc(100vh - ${top + topGap}px)`;
+              }, 50);
             } else {
               drawer.classList.add('collapsed');
               document.body.classList.remove('ai-open');
+              // Save state
+              try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
             }
+            // Update button state
+            const nowOpen = !drawer.classList.contains('collapsed');
+            tabEl.classList.toggle('active', nowOpen);
+            tabEl.setAttribute('aria-pressed', String(nowOpen));
+            tabEl.setAttribute('title', nowOpen ? 'Close Calliope' : 'Open Calliope');
           }catch{}
         }, true);
       }catch{}
@@ -2370,7 +2388,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
       
       async function initAiAssistant(){
         const drawer = document.getElementById('aiDrawer');
-        const tab = document.getElementById('aiTab');
+        const tab = document.getElementById('calliopeOpen');
         const statusEl = document.getElementById('aiStatus');
         const indexEl = document.getElementById('aiIndex');
         const chatEl = document.getElementById('aiChat');
@@ -2569,7 +2587,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             return /Diagnose/i.test(label) || text.includes('Diagnose') || el.querySelector('img[src*="calliope_heart_stethoscope"]');
           });
           candidates.forEach(el => {
-            if (el.id === 'aiTab' || el.closest && el.closest('#aiTab')) return; // never hijack the Calliope tab
+            if (el.id === 'calliopeOpen' || el.closest && el.closest('#calliopeOpen')) return; // never hijack the Calliope tab
             const parent = el.parentNode; if (!parent) return;
             const clone = el.cloneNode(true);
             parent.replaceChild(clone, el);
@@ -2607,7 +2625,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (!enabled) return;
             const target = e.target && (e.target.closest && e.target.closest('button, .circular-action-btn, .icon-btn'));
             if (!target) return;
-            if (target.id === 'aiTab' || (target.closest && target.closest('#aiTab'))) return; // allow tab to toggle drawer
+            if (target.id === 'calliopeOpen' || (target.closest && target.closest('#calliopeOpen'))) return; // allow tab to toggle drawer
             const label = target.getAttribute('aria-label') || '';
             const text = target.textContent || '';
             const hasStethoscope = !!target.querySelector && !!target.querySelector('img[src*="calliope_heart_stethoscope"]');
@@ -2740,20 +2758,49 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           return b;
         }
 
-        // Persona wrapper to enrich terse backend thoughts into friendly tone
+        // Persona wrapper to enrich terse backend thoughts into friendly tone with expressive actions
         function personaWrap(text){
           try{
-            const t = String(text||'');
-            if (/^Self-check completed/i.test(t)) return 'Listening closely… 🔬 Self-check completed.';
-            if (/^Audit\+heal loop complete/i.test(t)) return 'All done for now! 🎉 Audit + heal loop complete.';
-            if (/^Working/i.test(t)) return 'Working my magic… ✨';
-            if (/^Starting audit\+heal/i.test(t)) return 'Taking a peek and patching things up… 🩺✨';
-            if (/^Applying subpath healing/i.test(t)) return 'Applying subpath healing… 💖';
-            if (/^Applying Storybook\/Vite proxy guards/i.test(t)) return 'Tending to Storybook/Vite proxy guards… 🛡️';
-            if (/^Audit did not complete/i.test(t)) return 'Hmm, my audit stumbled. I\'ll try a different angle. 🤔';
-            if (/^Verification complete/i.test(t)) return 'Verification complete ✅';
-            if (/^Code review complete/i.test(t)) return 'Code review complete ✅';
+            let t = String(text||'');
+            
+            // Convert actions to emojis first (like the personality system I use!)
+            const actionMap = {
+              '*waves*': '👋', '*wave*': '👋', '*waving*': '👋',
+              '*jumps excitedly*': '🤸‍♀️', '*jumps up excitedly*': '🤸‍♀️', 
+              '*bounces*': '🎉', '*bounces happily*': '🎉',
+              '*crosses fingers*': '🤞', '*fingers crossed*': '🤞',
+              '*waves triumphantly*': '🏆', '*triumph*': '🏆', '*triumphant*': '🏆',
+              '*rolls up sleeves*': '💪', '*gets serious*': '😤', '*determined*': '😤',
+              '*eyes light up*': '✨', '*gasps*': '😰', '*points*': '👉', '*points excitedly*': '👉',
+              '*happy dance*': '💃', '*celebrates*': '🎊', '*cheers*': '🎊',
+              '*examines*': '🔍', '*investigates*': '🕵️‍♀️', '*detective mode*': '🕵️‍♀️',
+              '*lightbulb moment*': '💡', '*aha*': '💡', '*eureka*': '💡',
+              '*fist pump*': '✊', '*pumps fist*': '✊', '*victory lap*': '🏃‍♀️',
+              '*rubs hands together excitedly*': '💫', '*giggles*': '😊'
+            };
+            
+            // Apply action-to-emoji conversions
+            for (const [action, emoji] of Object.entries(actionMap)) {
+              t = t.replace(new RegExp(action.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), emoji);
+            }
+            
+            // Enhanced expressive conversions for common backend messages
+            if (/^Self-check completed/i.test(t)) return '🔬 Listening closely… Self-check completed!';
+            if (/^Audit\+heal loop complete/i.test(t)) return '🎉 All done for now! Audit + heal loop complete.';
+            if (/^Working/i.test(t)) return '✨ Working my magic…';
+            if (/^Starting audit\+heal/i.test(t)) return '🩺✨ Taking a peek and patching things up…';
+            if (/^Applying subpath healing/i.test(t)) return '💖 Applying subpath healing…';
+            if (/^Applying Storybook\/Vite proxy guards/i.test(t)) return '🛡️ Tending to Storybook/Vite proxy guards…';
+            if (/^Audit did not complete/i.test(t)) return '🤔 Hmm, my audit stumbled. I\'ll try a different angle.';
+            if (/^Verification complete/i.test(t)) return '✅ Verification complete!';
+            if (/^Code review complete/i.test(t)) return '✅ Code review complete!';
+            if (/^Found.*issue/i.test(t)) return `👉 ${t}`;
+            if (/^Fixed|Repaired|Resolved/i.test(t)) return `🔧 ${t}`;
+            if (/^Success|Complete.*success/i.test(t)) return `🎉 ${t}`;
+            if (/^Error|Failed|Problem/i.test(t)) return `😰 ${t}`;
+            if (/^Testing|Checking/i.test(t)) return `🔍 ${t}`;
             if (/^status$/i.test(t)) return '';
+            
             return t;
           }catch{ return text; }
         }
@@ -2932,12 +2979,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
           }
         }
-        if (tab) tab.addEventListener('click', ()=>{
+        if (tab) {
+          try {
+            tab.addEventListener('click', ()=>{
           try{
             const isCollapsed = drawer.classList.contains('collapsed');
             if (isCollapsed){
               drawer.classList.remove('collapsed');
               document.body.classList.add('ai-open');
+              // Save state
+              try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
               chatEngaged = true;
               try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! ✨ One sec while I listen…'); }catch{}
               try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
@@ -2945,9 +2996,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             } else {
               drawer.classList.add('collapsed');
               document.body.classList.remove('ai-open');
+              // Save state
+              try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
             }
+            // Update button state
+            const nowOpen = !drawer.classList.contains('collapsed');
+            tab.classList.toggle('active', nowOpen);
+            tab.setAttribute('aria-pressed', String(nowOpen));
+            tab.setAttribute('title', nowOpen ? 'Close Calliope' : 'Open Calliope');
           }catch{}
-        });
+            });
+          } catch (e) {
+            console.error('Error attaching click handler:', e);
+          }
+        }
         askBtn.addEventListener('click', onAsk);
         clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
         copyBtn.addEventListener('click', onCopy);
@@ -2976,6 +3038,39 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
         }
         
+        // Restore Calliope state from localStorage
+        try {
+          const wasOpen = localStorage.getItem('dtpCalliopeOpen') === 'true';
+          if (wasOpen && drawer.classList.contains('collapsed')) {
+            drawer.classList.remove('collapsed');
+            document.body.classList.add('ai-open');
+            // Update button states
+            const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
+            btns.forEach((btn) => {
+              btn.classList.add('active');
+              btn.setAttribute('aria-pressed', 'true');
+              btn.setAttribute('title', 'Close Calliope');
+            });
+            // Position drawer correctly
+            setTimeout(() => {
+              const headers = document.querySelectorAll('header');
+              let header = null;
+              for (const h of headers) {
+                const style = getComputedStyle(h);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                  header = h;
+                  break;
+                }
+              }
+              const topGap = 16;
+              const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
+              const top = h + topGap;
+              drawer.style.top = top + 'px';
+              drawer.style.height = `calc(100vh - ${top + topGap}px)`;
+            }, 100);
+          }
+        } catch {}
+
         // Healing UI handlers
         // Drawer Self‑Check uses lightweight self‑check flow (not advanced-heal)
         
