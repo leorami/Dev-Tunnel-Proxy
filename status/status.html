@@ -321,9 +321,9 @@
     <link rel="stylesheet" href="/status/common.css" />
     <script src="/status/common.js"></script>
   </head>
-  <body>
-    <script>window.DTP && DTP.attachHeader('status'); window.DTP && DTP.initTheme && DTP.initTheme();</script>
-    <header style="display:none">
+  <body data-page="status">
+    <script>(function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('status'); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} })();</script>
+    <header>
       <div class="header-row">
         <h1>
           <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
@@ -336,8 +336,11 @@
           <a class="btn tab" href="/dashboard/">Dashboard</a>
           <span class="divider" aria-hidden="true"></span>
           <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn action" id="themeToggleFallback" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-          <button class="btn action" id="aiSelfCheckGlobal" title="Calliope" aria-label="Calliope">
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false">
+            <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
+          </button>
+          <button class="btn action" id="aiSelfCheckGlobal" title="Self‑Check" aria-label="Self‑Check">
             <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
           </button>
         </div>
@@ -2180,7 +2183,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         bd.addEventListener('click', (e)=>{ if (e.target===bd) close(); });
         window.addEventListener('keydown', (e)=>{ if (e.key==='Escape') close(); }, { once:true });
       }
-      document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+      (function wireTheme(){ try{ (document.getElementById('themeToggle')||document.getElementById('themeToggleFallback')).addEventListener('click', toggleTheme); }catch{} })();
       initTheme();
 
       // ===== AI Assistant Wiring =====
