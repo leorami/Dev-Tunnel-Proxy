@@ -52,8 +52,10 @@
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
     // Only attach Calliope click handler if there's no existing drawer (status page has its own)
     if (!document.getElementById('aiDrawer')) {
-      const calliopeBtns = Array.from(h.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal'));
-      calliopeBtns.forEach((b)=> b.addEventListener('click', ()=> openCalliopeWithContext()));
+      const calliopeBtn = h.querySelector('#calliopeOpen');
+      if (calliopeBtn){ calliopeBtn.addEventListener('click', ()=> openCalliopeWithContext()); }
+      const selfCheckBtn = h.querySelector('#aiSelfCheckGlobal');
+      if (selfCheckBtn){ selfCheckBtn.addEventListener('click', ()=>{ try{ openCalliopeWithContext(); }catch{} try{ document.getElementById('aiHealBtn')?.click(); }catch{} }); }
     }
     initTheme();
   }
