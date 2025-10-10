@@ -322,7 +322,7 @@
     <script src="/status/common.js"></script>
   </head>
   <body data-page="status">
-    <script>(function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('status'); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} })();</script>
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('status'); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
     <header>
       <div class="header-row">
         <h1>
@@ -338,9 +338,6 @@
           <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
           <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false">
-            <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
-          </button>
-          <button class="btn action" id="aiSelfCheckGlobal" title="Self‑Check" aria-label="Self‑Check">
             <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
           </button>
         </div>
@@ -2590,7 +2587,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             return /Diagnose/i.test(label) || text.includes('Diagnose') || el.querySelector('img[src*="calliope_heart_stethoscope"]');
           });
           candidates.forEach(el => {
-            if (el.id === 'calliopeOpen' || el.closest && el.closest('#calliopeOpen')) return; // never hijack the Calliope tab
+            if (el && (el.id === 'calliopeOpen' || (el.closest && el.closest('#calliopeOpen')))) return; // never hijack the Calliope tab
             const parent = el.parentNode; if (!parent) return;
             const clone = el.cloneNode(true);
             parent.replaceChild(clone, el);
@@ -2628,7 +2625,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (!enabled) return;
             const target = e.target && (e.target.closest && e.target.closest('button, .circular-action-btn, .icon-btn'));
             if (!target) return;
-            if (target.id === 'calliopeOpen' || (target.closest && target.closest('#calliopeOpen'))) return; // allow tab to toggle drawer
+            if (target && (target.id === 'calliopeOpen' || (target.closest && target.closest('#calliopeOpen')))) return; // allow tab to toggle drawer
             const label = target.getAttribute('aria-label') || '';
             const text = target.textContent || '';
             const hasStethoscope = !!target.querySelector && !!target.querySelector('img[src*="calliope_heart_stethoscope"]');
@@ -3048,7 +3045,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             drawer.classList.remove('collapsed');
             document.body.classList.add('ai-open');
             // Update button states
-            const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
+            const btns = document.querySelectorAll('#calliopeOpen');
             btns.forEach((btn) => {
               btn.classList.add('active');
               btn.setAttribute('aria-pressed', 'true');

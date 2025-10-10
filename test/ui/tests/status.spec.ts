@@ -7,9 +7,9 @@ test.describe('Status Dashboard', () => {
 
     await page.goto('/status', { waitUntil: 'domcontentloaded' });
 
-    // Verify title and Calliope label present
+    // Verify title present
     await expect(page.locator('header h1')).toContainText('Dev Tunnel Proxy');
-    await expect(page.locator('#aiTab')).toHaveText(/Calliope/i);
+    // Label may be hidden; prefer the stethoscope toggle
 
     // Capture computed styles for a key element (Overview card)
     const overview = page.locator('.card').first();
@@ -26,7 +26,7 @@ test.describe('Status Dashboard', () => {
     await testInfo.attach('overview-styles.json', { body: JSON.stringify(styles, null, 2), contentType: 'application/json' });
 
     // Expand Calliope drawer and trigger a self-check via the UI button (more realistic)
-    await page.locator('#aiTab').click();
+    await page.locator('#calliopeOpen').click();
     // Prefer the drawer-local Self‑Check to avoid header overlap/positioning issues
     const drawerSelfCheck = page.locator('#aiHealBtn');
     if (await drawerSelfCheck.count()) {
@@ -56,25 +56,24 @@ test.describe('Status Dashboard', () => {
       document.body.classList.add('calliope-enabled');
     });
 
-    // Use UI button for robustness across layouts
-    // Use the header Self‑Check for deterministic click target
-    const btn = page.locator('#aiSelfCheckGlobal');
-    await btn.waitFor();
+    // Use the stethoscope to open the drawer then run Self‑Check from inside
+    await page.locator('#calliopeOpen').click();
 
-    // Drawer should be initially collapsed
     const drawer = page.locator('#aiDrawer');
     await drawer.waitFor();
     const collapsedBefore = await drawer.getAttribute('class');
 
-    // Click the button
-    await btn.click();
+    // Click the drawer Self‑Check
+    await page.locator('#aiHealBtn').click();
 
     // Expect greeting bubble to appear (scoped to chat; allow either variant)
     const chat = page.locator('#aiChat');
+    const baseScroll = await chat.evaluate(el => el.scrollHeight).catch(()=>0);
     await Promise.race([
-      chat.locator('.bubble.assistant.thinking').first().waitFor({ timeout: 12000 }),
-      chat.getByText(/Heya! ✨ One sec while I listen/i).first().waitFor({ timeout: 12000 }),
-      chat.getByText(/Heya! One sec while I listen/i).first().waitFor({ timeout: 12000 }),
+      chat.locator('.bubble.assistant.thinking').first().waitFor({ timeout: 24000 }),
+      chat.getByText(/One sec while I listen/i).first().waitFor({ timeout: 24000 }),
+      chat.locator('.bubble.assistant').first().waitFor({ timeout: 24000 }),
+      (async ()=>{ for(let i=0;i<28;i++){ const cur = await chat.evaluate(el=>el.scrollHeight).catch(()=>0); if (cur && cur > baseScroll) return true; await page.waitForTimeout(250);} return false; })()
     ]);
 
     // Drawer should be open

@@ -66,7 +66,7 @@
     </style>
   </head>
   <body data-page="health">
-    <script>window.DTP && DTP.attachHeader('health'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('health'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
     <header style="display:none">
       <div class="header-row">
         <h1>
@@ -81,7 +81,7 @@
           <span class="divider" aria-hidden="true"></span>
           <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
           <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-          <button class="btn action" id="aiSelfCheckGlobal" title="Calliope" aria-label="Calliope"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
+          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
         </div>
       </div>
     </header>

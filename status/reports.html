@@ -31,14 +31,23 @@
     <script src="/status/common.js"></script>
   </head>
   <body data-page="reports">
-    <script>window.DTP && DTP.attachHeader('reports'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
     <header style="display:none">
       <div class="header-row">
         <h1 style="font-size:16px;margin:0;display:flex;gap:10px;align-items:center">
           <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px"/>
           <span class="tag">Dev Tunnel Proxy</span>
         </h1>
-        <div class="header-actions"></div>
+        <div class="header-actions">
+          <a class="btn tab" href="/status">Status</a>
+          <a class="btn tab" href="/health">Health</a>
+          <a class="btn tab active" href="/reports">Reports</a>
+          <a class="btn tab" href="/dashboard/">Dashboard</a>
+          <span class="divider" aria-hidden="true"></span>
+          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
+        </div>
       </div>
     </header>
     <div class="container">

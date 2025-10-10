@@ -14,7 +14,6 @@
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('dtpTheme', next);
     const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
-    const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
     if (t){ t.textContent = next==='light' ? '🌙' : '☀️'; }
   }
   function buildHeader(active){
@@ -34,6 +33,7 @@
       '    <button class="action btn" id="reloadConfigs" title="Reload configurations">🔄</button>'+
       '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>'+
       '    <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
+      '    <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
       '  </div>'+
       '</div>'
     );
@@ -45,18 +45,19 @@
     }
     const h = buildHeader(active);
     const first = document.body.firstElementChild;
-    if (first && first.tagName.toLowerCase()==='header'){ first.replaceWith(h); } else { document.body.prepend(h); }
+    // If page provided a hidden header placeholder, replace it; otherwise prepend
+    const pageHeader = document.querySelector('body > header');
+    if (pageHeader){ pageHeader.replaceWith(h); } else if (first && first.tagName.toLowerCase()==='header'){ first.replaceWith(h); } else { document.body.prepend(h); }
     // annotate page for CSS tweaks
     try{ document.body.setAttribute('data-page', String(active||'')); }catch{}
     const themeBtn = h.querySelector('#themeToggle') || h.querySelector('#themeToggleFallback');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
-    // Only attach Calliope click handler if there's no existing drawer (status page has its own)
-    if (!document.getElementById('aiDrawer')) {
-      const calliopeBtn = h.querySelector('#calliopeOpen');
-      if (calliopeBtn){ calliopeBtn.addEventListener('click', ()=> openCalliopeWithContext()); }
-      const selfCheckBtn = h.querySelector('#aiSelfCheckGlobal');
-      if (selfCheckBtn){ selfCheckBtn.addEventListener('click', ()=>{ try{ openCalliopeWithContext(); }catch{} try{ document.getElementById('aiHealBtn')?.click(); }catch{} }); }
-    }
+    // Always wire Calliope header controls
+    const calliopeBtn = h.querySelector('#calliopeOpen');
+    if (calliopeBtn){ calliopeBtn.addEventListener('click', ()=> openCalliopeWithContext()); }
+    // No Self‑Check button in header to keep headers consistent across pages
+    const aiTab = h.querySelector('#aiTab');
+    if (aiTab){ aiTab.addEventListener('click', ()=>{ try{ openCalliopeWithContext(); }catch{} }); }
     initTheme();
   }
 
