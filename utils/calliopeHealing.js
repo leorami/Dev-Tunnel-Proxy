@@ -929,6 +929,8 @@ async function runSiteAuditor(urlToAudit, options = {}) {
     const headless = options.headless === false ? 'false' : 'true';
     const wait = Number(options.wait || 1500);
     const timeout = Number(options.timeout || 30000);
+    // Use 'load' instead of 'networkidle2' for more reliable completion in Docker
+    const waitUntil = options.waitUntil || 'load';
     const outDir = AUDITS_DIR;
     let stdout = '';
 
@@ -947,9 +949,9 @@ async function runSiteAuditor(urlToAudit, options = {}) {
       const platformFlag = desiredPlatform ? `--platform ${desiredPlatform}` : '';
       // Quote URL to avoid shell interpreting characters like & ? *
       const safeUrl = JSON.stringify(String(urlToAudit));
-      // Ensure Chrome is installed/available inside the puppeteer image; try to install if missing
-      const preInstall = `if ! npx puppeteer browsers install chrome >/dev/null 2>&1; then echo 'puppeteer install failed or already installed'; fi`;
-      const cmd = `${preInstall} && node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
+      // Ensure Chrome is installed/available inside the puppeteer image
+      const preInstall = `npx puppeteer browsers install chrome 2>&1 | grep -E 'chrome@|already' || true`;
+      const cmd = `${preInstall} && node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil ${waitUntil} --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
       let apiContainer = 'dev-proxy-config-api';
       try {
@@ -957,7 +959,11 @@ async function runSiteAuditor(urlToAudit, options = {}) {
         if (names.includes('dev-proxy-config-api')) apiContainer = 'dev-proxy-config-api';
         else if (names.includes('dev-proxy-config-api')) apiContainer = 'dev-proxy-config-api';
       } catch {}
-      const dockerCmd = [`docker run --rm`, platformFlag, `--network devproxy`, `--volumes-from ${apiContainer}`, `-w /app/site-auditor-debug`, img, `sh -lc ${JSON.stringify(cmd)}`]
+      // Copy site-auditor to container temp dir to avoid node_modules conflicts
+      const setupCmd = `cp -r /app/site-auditor-debug /tmp/auditor && cd /tmp/auditor && npm install --no-audit --no-fund 2>&1 | grep -E 'added|up to date' || echo 'deps ready'`;
+      const adjustedCmd = cmd.replace(/\/app\/\.artifacts\/audits/g, '/app/.artifacts/audits');
+      const fullCmd = `${setupCmd} && cd /tmp/auditor && ${adjustedCmd}`;
+      const dockerCmd = [`docker run --rm`, platformFlag, `--network devproxy`, `--volumes-from ${apiContainer}`, img, `sh -lc ${JSON.stringify(fullCmd)}`]
         .filter(Boolean)
         .join(' ');
       stdout = execSync(dockerCmd, { encoding: 'utf8' });

@@ -174,6 +174,8 @@ export async function runAudit(opts: AuditOptions): Promise<AuditResult> {
 
   try {
     const page = await browser.newPage();
+    page.setDefaultTimeout(navTimeout);
+    page.setDefaultNavigationTimeout(navTimeout);
     if (opts.blockPatterns?.length) await applyRequestBlocking(page, opts.blockPatterns);
     attachCapture(page, result);
 

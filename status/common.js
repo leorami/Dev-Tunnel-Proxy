@@ -79,6 +79,7 @@
       '  <div class="ai-input">'+
       '    <textarea id="aiQuery" rows="3" placeholder="Ask about proxy/network issues"></textarea>'+
       '    <div class="ai-actions">'+
+      '      <button class="btn" id="aiStopBtn" style="display:none" title="Stop current operation">⏹ Stop</button>'+
       '      <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>'+
       '      <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>'+
       '      <button class="btn" id="aiAskBtn">Ask</button>'+
@@ -113,23 +114,224 @@
       }
     })();
     renderChat();
+    
+    // Progress polling for background operations
+    let progressPoller = null;
+    let lastSeenThoughtId = null;
+    
+    function startProgressPolling(){
+      if (progressPoller) return; // Already polling
+      progressPoller = setInterval(async () => {
+        try {
+          const r = await fetch('/api/ai/thoughts', { cache: 'no-cache' });
+          if (!r.ok) return;
+          const data = await r.json();
+          const events = (data && data.events) || [];
+          
+          // Process new events
+          for (const ev of events) {
+            const evId = ev.id || ev.ts;
+            if (lastSeenThoughtId && evId <= lastSeenThoughtId) continue;
+            lastSeenThoughtId = evId;
+            
+            const msg = (ev && ev.message) ? String(ev.message) : '';
+            const details = ev.details || {};
+            
+            // Update thinking bubble status
+            const thinkingBubble = document.querySelector('#aiChat .bubble.assistant.thinking .bubble-content');
+            if (thinkingBubble && msg !== 'status') {
+              // Map status to user-friendly text
+              if (details.chip) {
+                const statusMap = {
+                  'Auditing': 'Auditing...',
+                  'Healing': 'Healing...',
+                  'Coding': 'Writing fixes...',
+                  'Happy': 'Done!'
+                };
+                thinkingBubble.textContent = statusMap[details.chip] || details.chip;
+              } else if (msg && msg.length < 100) {
+                thinkingBubble.textContent = msg;
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Progress polling error:', e);
+        }
+      }, 800);
+    }
+    
+    function stopProgressPolling(){
+      if (progressPoller) {
+        clearInterval(progressPoller);
+        progressPoller = null;
+      }
+    }
+    
     const ask = drawer.querySelector('#aiAskBtn');
     async function submitQuery(){
       const textarea = document.getElementById('aiQuery');
       const q = (textarea && textarea.value || '').trim();
       if (!q) return;
-      const hist = loadChat(); hist.push({ role:'user', content:q, ts:Date.now() }); saveChat(hist); renderChat();
+      
+      // Show user message
+      const hist = loadChat(); 
+      hist.push({ role:'user', content:q, ts:Date.now() }); 
+      saveChat(hist); 
+      renderChat();
+      
+      // Clear input immediately
+      if (textarea) textarea.value='';
+      
+      // Show thinking indicator
+      const chat = document.getElementById('aiChat');
+      const thinkingBubble = document.createElement('div');
+      thinkingBubble.className = 'bubble assistant thinking';
+      thinkingBubble.innerHTML = '<div class="bubble-title">🩺 Calliope</div><div class="bubble-content thinking-dots">thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
+      chat.appendChild(thinkingBubble);
+      chat.scrollTop = chat.scrollHeight;
+      
+      // Disable ask button, enable stop button
+      const askBtn = document.getElementById('aiAskBtn');
+      const stopBtn = document.getElementById('aiStopBtn');
+      if (askBtn) {
+        askBtn.disabled = true;
+        askBtn.textContent = 'Thinking…';
+      }
+      if (stopBtn) {
+        stopBtn.style.display = 'inline-block';
+      }
+      
+      // Start progress polling
+      startProgressPolling();
+      
+      // Poll for completed responses in chat history
+      const chatPollStartTime = Date.now();
+      const chatPoller = setInterval(async () => {
+        try {
+          const chatData = await fetch('/api/ai/chat-history', { cache: 'no-cache' }).then(r => r.json());
+          const messages = (chatData && chatData.messages) || [];
+          const lastMsg = messages[messages.length - 1];
+          
+          // If there's a new assistant message after we started, operation is complete
+          if (lastMsg && lastMsg.role === 'assistant' && new Date(lastMsg.ts).getTime() > chatPollStartTime) {
+            // Stop polling
+            clearInterval(chatPoller);
+            stopProgressPolling();
+            
+            // Remove thinking indicator
+            if (thinkingBubble && thinkingBubble.parentNode) {
+              thinkingBubble.remove();
+            }
+            
+            // Reload and render chat
+            renderChat();
+            
+            // Re-enable ask button, hide stop button
+            if (askBtn) {
+              askBtn.disabled = false;
+              askBtn.textContent = 'Ask';
+            }
+            if (stopBtn) {
+              stopBtn.style.display = 'none';
+            }
+          }
+        } catch (e) {
+          console.error('Chat polling error:', e);
+        }
+      }, 1000);
+      
       try{
         const r = await fetch('/api/ai/ask', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ query: q }) });
         const j = await r.json();
         const ans = j && (j.answer || j.message || '');
-        const hist2 = loadChat(); hist2.push({ role:'assistant', content: String(ans||'(no answer)'), ts:Date.now() }); saveChat(hist2); renderChat();
-      }catch(e){ const h = loadChat(); h.push({ role:'assistant', content: `Error: ${e.message}`, ts:Date.now() }); saveChat(h); renderChat(); }
-      if (textarea) textarea.value='';
+        
+        // If response is immediate (not background), stop polling
+        if (!j.accepted) {
+          clearInterval(chatPoller);
+          stopProgressPolling();
+          
+          // Remove thinking indicator
+          if (thinkingBubble && thinkingBubble.parentNode) {
+            thinkingBubble.remove();
+          }
+          
+          const hist2 = loadChat(); 
+          hist2.push({ role:'assistant', content: String(ans||'(no answer)'), ts:Date.now() }); 
+          saveChat(hist2); 
+          renderChat();
+          
+          // Re-enable ask button, hide stop button
+          if (askBtn) {
+            askBtn.disabled = false;
+            askBtn.textContent = 'Ask';
+          }
+          if (stopBtn) {
+            stopBtn.style.display = 'none';
+          }
+        }
+      }catch(e){ 
+        // Stop polling on error
+        clearInterval(chatPoller);
+        stopProgressPolling();
+        
+        // Remove thinking indicator on error too
+        if (thinkingBubble && thinkingBubble.parentNode) {
+          thinkingBubble.remove();
+        }
+        
+        const h = loadChat(); 
+        h.push({ role:'assistant', content: `Error: ${e.message}`, ts:Date.now() }); 
+        saveChat(h); 
+        renderChat();
+        
+        // Re-enable ask button, hide stop button
+        if (askBtn) {
+          askBtn.disabled = false;
+          askBtn.textContent = 'Ask';
+        }
+        if (stopBtn) {
+          stopBtn.style.display = 'none';
+        }
+      }
     }
     ask.addEventListener('click', submitQuery);
     const textareaEvt = drawer.querySelector('#aiQuery');
     if (textareaEvt){ textareaEvt.addEventListener('keydown', (ev)=>{ if (ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); submitQuery(); } }); }
+    
+    // Stop button functionality
+    const stopBtn = drawer.querySelector('#aiStopBtn');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', async () => {
+        try {
+          // Request cancellation via API
+          await fetch('/api/ai/cancel', { method: 'POST' });
+          
+          // Stop polling
+          stopProgressPolling();
+          
+          // Remove thinking bubble
+          const thinkingBubble = document.querySelector('#aiChat .bubble.assistant.thinking');
+          if (thinkingBubble) thinkingBubble.remove();
+          
+          // Add cancellation message
+          const h = loadChat();
+          h.push({ role:'assistant', content: 'Operation stopped by user.', ts:Date.now() });
+          saveChat(h);
+          renderChat();
+          
+          // Re-enable ask button, hide stop button
+          const askBtn = document.getElementById('aiAskBtn');
+          if (askBtn) {
+            askBtn.disabled = false;
+            askBtn.textContent = 'Ask';
+          }
+          stopBtn.style.display = 'none';
+        } catch (e) {
+          console.error('Stop error:', e);
+        }
+      });
+    }
+    
     const clearBtn = drawer.querySelector('#aiClearBtn');
     clearBtn.addEventListener('click', ()=>{ if (confirm('Clear Calliope chat history?')){ try{ localStorage.removeItem(LS_KEY); }catch{} renderChat(); } });
     const copyBtn = drawer.querySelector('#aiCopyBtn');

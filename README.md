@@ -1,301 +1,734 @@
-# Dev Tunnel Proxy
+<div align="center">
+  <img src="./status/assets/logo.svg" alt="Dev Tunnel Proxy" width="200" />
+  
+  # Dev Tunnel Proxy
+  
+  A standalone, reusable development proxy + ngrok tunnel for teams with intelligent routing, conflict resolution, and AI-powered self-healing capabilities.
+  
+  [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+  [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](docker-compose.yml)
+</div>
 
-A standalone, reusable **Dev Tunnel Proxy** (development proxy + ngrok tunnel) for teams.
-- Tiny **core** Nginx config that `include`s generated app routes only.
-- Separate **ngrok** container tunnels to the proxy.
-- Each app contributes **local snippets** (e.g., `sample-prefix.conf`, `sample-api.conf`) that are composed into a single generated file. No monolithic config to edit.
-- All apps that should be exposed join the shared Docker network: **`devproxy`**.
+---
 
-## Quick start
+## Table of Contents
 
-1) Set your ngrok token (or copy `.env.example` to `.env` and fill it):
-   ```bash
-   export NGROK_AUTHTOKEN=YOUR_TOKEN
-   ```
+- [Key Features](#key-features)
+- [Quick Start](#quick-start)
+- [Configuration Management](#configuration-management)
+- [📊 Enhanced Status Dashboard](#-enhanced-status-dashboard)
+- [<img src="./status/assets/calliope_heart_stethoscope.svg" width="16" style="vertical-align: middle;" /> Calliope AI Assistant](#-calliope-ai-assistant)
+- [🔄 API Endpoints](#-api-endpoints)
+- [Development Workflow](#development-workflow)
+- [Testing & Validation](#testing--validation)
+- [Nginx Configuration Patterns](#nginx-configuration-patterns)
+- [Framework-Specific Examples](#framework-specific-examples)
+- [Example Configurations](#example-configurations)
+- [Repository Organization](#repository-organization)
+- [Architecture: Why Separate Containers?](#architecture-why-separate-containers)
+- [📚 Documentation](#-documentation)
+- [🚀 Quick Reference](#-quick-reference)
 
-2) (Optional) If you own a reserved ngrok domain, set `NGROK_STATIC_DOMAIN` in `.env`:
-   ```bash
-   export NGROK_STATIC_DOMAIN=your-domain.ngrok.app
-   ```
-   If not set (or empty), ngrok will use a dynamic domain.
+---
 
-3) Bring up the proxy + ngrok:
-   ```bash
-   # One-time setup: installs workspace deps, prepares .certs/, prebuilds bundle
-   ./smart-build.sh setup
+## Key Features
 
-   ./scripts/smart-build.sh up
-   ```
+- **🔧 Smart Configuration Management**: Tiny core Nginx config that composes app routes from `apps/` and `overrides/` directories into a single generated bundle
+- **🌐 Secure Tunneling**: Separate ngrok container provides secure public access to your development environment
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI-Powered Assistant**: Calliope, your caring AI assistant, proactively monitors, diagnoses, and heals routing issues
+- **📊 Enhanced Status Dashboard**: Visual route management with grouping, promotion system, and real-time health monitoring
+- **🔄 Programmatic API**: RESTful endpoints for configuration management, conflict resolution, and diagnostics
+- **🐳 Docker-Native**: All apps join the shared `devproxy` Docker network for seamless connectivity
+- **⚡ Hot Reload**: Safe configuration updates without downtime
+- **🧪 Automated Testing**: Built-in health checks, route scanning, and UI testing with Playwright
 
-4) Install app routes using the API endpoint:
-   ```javascript
-   // Using fetch API
-   fetch('http://dev-proxy:8080/api/apps/install', {
-     method: 'POST',
-     headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({
-       name: 'sample-prefix',
-       content: `# Sample app configuration
-location ^~ /sample-prefix/ {
-  proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_pass http://sample-app:3000/;
-}`
-     })
-   });
-   ```
+## Quick Start
 
-5) In each app's docker-compose, join the shared network:
-   ```yaml
-   networks:
-     devproxy:
-       external: true
+### 1. Initial Setup
 
-   services:
-     web:
-       # ...
-       networks:
-         - devproxy
-   ```
-
-6) Open the ngrok URL from the `dev-ngrok` container logs or dashboard.
-   Your routes (e.g., `/myapp`, `/api`) should work immediately.
-
-### Overrides and generated bundle (important)
-
-- The proxy composes `apps/*.conf` and `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`.
-- App precedence prefers the newest app `.conf` (mtime) so programmatic installs supersede previous ones.
-- Emitted blocks include `# source:` comments and `.artifacts/bundle-diagnostics.json` captures included/skipped routes with reasons.
-- Nginx only loads the generated file, preventing app snippets from overwriting proxy-owned decisions.
-- Put minimal, targeted policy fixes in `overrides/*.conf` when a route must win regardless of app output.
-- Inspect the provenance header and use the diagnostics API when debugging.
-- See `docs/CONFIG-MANAGEMENT-GUIDE.md` for details.
-
-7) **📊 Enhanced Status Dashboard with Calliope AI** (`/status`):
-  - **Route Grouping**: Routes automatically grouped by base upstream URL
-  - **Calliope Assistant**: Youthful, caring AI assistant for proactive diagnostics and healing  
-  - **Promotion System**: Designate parent routes within each upstream group
-  - **Visual Organization**: Collapsible route groups with status indicators
-  - **Smart Actions**: Stethoscope-guided diagnostics, one-click route opening from headers
-  - **Auto-Healing**: Calliope detects and fixes common issues automatically (React bundles, nginx configs, etc.)
-  - **Real-Time Updates**: Watch Calliope's thinking process and step-by-step healing
-  - **Live Reload**: Refresh configurations without leaving the browser  
-  - **Per-Config JSON**: View filtered route data for each config file
-  - **Per-Card Collapse**: Collapse any card to a compact header; state persists
-  - **Sticky Summary & Controls**: Overview and Configured Apps header stay pinned
-  - **Advanced Filter**: Match by route, severity (`ok|warn|err`), codes (`200`), or target-qualified (`ngrok:200`, `localhost:404`)
-
-8) Built-in endpoints (human + JSON):
-   - **Human**: `/` → `/status`, `/health` (enhanced dashboards)
-   - **JSON**: `/status.json`, `/health.json`, `/routes.json`, `/ngrok.json`
-   - **Apps** (🆕): `/api/apps/list`, `/api/apps/active`, `/api/apps/diagnostics`, `/api/apps/regenerate`, `/api/apps/cleanup`, `/api/apps/scan`
-   - **Reports**: `/reports/` directory browser
-
-9) **🤖 Calliope AI Assistant** (Enhanced)
-   - **Personality**: Caring, youthful engineer who actually fixes problems instead of just giving advice
-   - **Step-by-Step Healing**: Watch her investigate → diagnose → fix → test → verify
-   - **Pattern Learning**: Remembers successful fixes and applies them automatically to similar issues  
-   - **Self-Healing Strategies**: React bundle issues, nginx config problems, proxy resilience, and more
-   - **Visible Thinking**: Animated thinking dots show when she's working
-   - (Optional) Provide OpenAI key in `.env` for enhanced Q&A capabilities:
-   ```bash
-   OPENAI_API_KEY=sk-...
-   OPENAI_MODEL=gpt-4o-mini
-   OPENAI_EMBED_MODEL=text-embedding-3-small
-   ```
-   - Click <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icons to ask Calliope to diagnose and heal issues
-   - Chat interface for natural language questions and requests
-   - Endpoints: `/api/ai/health`, `/api/ai/ask`, `/api/ai/self-check`, `/api/ai/advanced-heal`, `/api/ai/audit`, `/api/ai/audit-and-heal`
-   - See `docs/CALLIOPE-AI-ASSISTANT.md` for full capabilities
-
-10) **🛠️ Advanced Conflict Management**:
-   - Detects when multiple apps declare the same nginx route
-   - **Enhanced Visual UI**: Improved conflict resolution at `/status`
-   - Route renaming and config editing capabilities
-   - Persistent conflict decisions across proxy restarts
-   - API endpoints for programmatic conflict management
-
-11) **🔄 Programmatic Configuration API**:
-   - Apps can programmatically upload their nginx configurations
-   - **Install Endpoint**: `POST /api/apps/install` for automated config deployment
-   - Automatic upstream hardening for resilience against DNS failures
-   - Validation and safe reloading of nginx
-   - See `docs/API-ENDPOINTS.md` for full documentation
-   - Companion diagnostics and management:
-     ```bash
-     curl -s http://localhost:3001/api/apps/list | jq
-     curl -s http://localhost:3001/api/apps/active | jq
-     curl -s http://localhost:3001/api/apps/diagnostics | jq
-     curl -s -X POST http://localhost:3001/api/apps/regenerate -H 'content-type: application/json' -d '{"reload":true}' | jq
-     curl -s -X POST http://localhost:3001/api/apps/scan -H 'content-type: application/json' -d '{"base":"http://dev-proxy"}' | jq
-     ```
-
-## Local vs Tunnel path strategy
-
-- **Local**: run apps at `/` (no basePath) for ergonomics.
-- **Tunnel**: enable a prefix (e.g., `/myapp`) only when going through this proxy.
-  - For Next.js, gate `basePath`/`assetPrefix` behind an env var (e.g., `BEHIND_PROXY=1`).
-
-## Scripts
-
-- `scripts/install-app.sh` — copies a snippet into `apps/<name>.conf` and hot-reloads Nginx.
-- `scripts/reload.sh` — safe Nginx reload; regenerates composed config before reload.
-- `scripts/smart-build.sh` — convenience wrapper to start/stop, install app snippets, and show logs. Generates composed config at start/restart.
-
-## Conflict Management
-
-When multiple app configs declare the same nginx route (e.g., both `app1.conf` and `app2.conf` define `location /api/`), the proxy automatically detects and resolves conflicts using a **"first config wins"** strategy.
-
-### Enhanced Visual Interface
-
-Visit `/status` for the completely redesigned conflict management experience:
-
-- **Grouped Routes**: Routes organized by base upstream URL for clarity
-- **Smart Promotion**: Designate parent routes within upstream groups  
-- **One-Click Resolution**: Choose conflict winners with immediate visual feedback
-- **Route Renaming**: Rename conflicted routes directly in the interface
-- **Config Management**: View, edit, and download nginx config files  
-- **Live Reload**: Refresh configurations and see changes immediately
-- **Collapsible Cards (🆕)** and **Sticky Header (🆕)** for faster navigation
-- **Filter Enhancements (🆕)**: search by status codes and targets
-
-### Persistence
-
-All conflict resolution decisions are saved to `.artifacts/route-resolutions.json` and persist across proxy restarts. This ensures consistent behavior in team environments.
-
-### API Endpoints
-
-Programmatic access for advanced workflows:
+First, configure your ngrok authentication:
 
 ```bash
+# Create .env file with your ngrok token
+export NGROK_AUTHTOKEN=YOUR_TOKEN
+
+# (Optional) Use a reserved ngrok domain
+export NGROK_STATIC_DOMAIN=your-domain.ngrok.app
+```
+
+### 2. One-Time Setup
+
+Run the setup command to install dependencies, generate TLS certificates, and prepare the configuration bundle:
+
+```bash
+./smart-build.sh setup
+```
+
+This command:
+- Installs workspace dependencies (including test/ui and site-auditor-debug)
+- Generates self-signed TLS certificates in `.certs/`
+- Hardens upstream configurations for resilience
+- Pre-generates the nginx configuration bundle
+
+### 3. Start the Proxy
+
+```bash
+./smart-build.sh up
+```
+
+This starts all services in detached mode:
+- **dev-proxy**: Nginx reverse proxy (port 8080)
+- **dev-ngrok**: Secure tunnel to external networks
+- **dev-proxy-config-api**: Configuration and AI management API (port 3001)
+- **dev-auto-scan**: Periodic route health monitoring
+
+### 4. Install App Routes
+
+Use the programmatic API to install your app's nginx configuration:
+
+```javascript
+// Using fetch API from within your app container
+fetch('http://dev-proxy:8080/api/apps/install', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    name: 'myapp',
+    content: `# My app configuration
+location ^~ /myapp/ {
+  proxy_http_version 1.1;
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp-service:3000;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_pass http://$myapp_upstream/;
+}`
+  })
+});
+```
+
+Or use the helper script:
+
+```bash
+node examples/api-upload-config.js myapp path/to/myapp.conf
+```
+
+### 5. Connect Your App
+
+In your app's `docker-compose.yml`, join the shared network:
+
+```yaml
+networks:
+  devproxy:
+    external: true
+    name: devproxy
+
+services:
+  myapp:
+    # ... your service configuration
+    networks:
+      - devproxy
+```
+
+### 6. Access Your App
+
+- **Local**: `http://localhost:8080/myapp/`
+- **Tunnel**: Get the ngrok URL from container logs:
+  ```bash
+  ./smart-build.sh logs ngrok
+  ```
+- **Status Dashboard**: Visit `http://localhost:8080/status` to see all routes and their health
+
+## Configuration Management
+
+### How It Works
+
+The proxy uses a **composition-based approach** to manage nginx configurations:
+
+1. **Apps Directory** (`apps/*.conf`): Each app contributes its own nginx configuration snippet (gitignored, local-only)
+2. **Overrides Directory** (`overrides/*.conf`): Proxy-owned configurations that always take precedence (gitignored)
+3. **Generated Bundle** (`build/sites-enabled/apps.generated.conf`): Single composed file that nginx actually loads
+
+### Precedence Rules
+
+- **Overrides win**: If both an app and override define the same location, the override is used
+- **Newest app wins**: Among apps, the most recently modified file takes precedence for conflicting routes
+- **Exact + prefix coexist**: `location = /myapp/` and `location ^~ /myapp/` can both exist
+
+### Key Benefits
+
+- ✅ **No monolithic config**: Each app manages its own snippet independently
+- ✅ **Conflict resolution**: Automatic detection and resolution of route conflicts
+- ✅ **Proxy-owned fixes**: Overrides ensure critical routes can't be accidentally changed
+- ✅ **Provenance tracking**: Generated file includes `# source:` comments for debugging
+- ✅ **Diagnostics**: `.artifacts/bundle-diagnostics.json` shows included/skipped routes with reasons
+
+### Workflow
+
+```bash
+# View diagnostics
+curl -s http://localhost:3001/api/apps/diagnostics | jq
+
+# List active locations
+curl -s http://localhost:3001/api/apps/active | jq
+
+# Force regenerate bundle
+curl -s -X POST http://localhost:3001/api/apps/regenerate \
+  -H 'content-type: application/json' -d '{"reload":true}' | jq
+```
+
+See **[Configuration Management Guide](docs/CONFIG-MANAGEMENT-GUIDE.md)** for complete details.
+
+## 📊 Enhanced Status Dashboard
+
+Visit `/status` for a comprehensive view of your proxy's health and routes.
+
+### Key Features
+
+#### 🎯 **Smart Route Organization**
+- **Automatic Grouping**: Routes grouped by base upstream URL for clarity
+- **Promotion System**: Designate parent routes within each upstream group
+- **Collapsible Cards**: Minimize individual route cards to compact headers
+- **Sticky Controls**: Summary and header remain visible while scrolling
+- **Visual Hierarchy**: Parent-child relationships clearly displayed
+
+#### 🔍 **Advanced Filtering**
+- Search by route path (e.g., `/myapp/`)
+- Filter by severity: `ok`, `warn`, `err`
+- Filter by status codes: `200`, `404`, `502`
+- Target-qualified filters: `ngrok:200`, `localhost:404`
+
+#### <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> **Calliope AI Integration**
+- Click <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icons for AI-powered diagnostics
+- Watch real-time thinking animations and step-by-step healing
+- Automatic detection and fixing of common issues
+- Pattern learning for faster resolution of similar problems
+
+#### ⚡ **Live Actions**
+- **Open Button**: Access routes directly via ngrok tunnel
+- **Diagnose**: Get detailed route information and troubleshooting
+- **Live Reload**: Refresh configurations without leaving the browser
+- **Per-Config Views**: Filter and export route data by config file
+- **Rescan**: Trigger immediate route health check
+
+#### 🎨 **UI Enhancements**
+- **Theme Toggle**: Switch between light and dark modes
+- **Responsive Design**: Optimized for desktop and mobile
+- **Status Indicators**: Color-coded health status (green/yellow/red)
+- **Shared Header**: Consistent navigation across all dashboard pages
+
+## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope AI Assistant
+
+**Calliope** is your proxy's caring, youthful AI assistant who proactively monitors, diagnoses, and heals routing issues. She's not just an advisor—she actually fixes problems herself.
+
+### Core Capabilities
+
+#### 💪 **Proactive Self-Healing**
+- **Takes immediate action** when issues are detected
+- **Runs her own diagnostics** using container access and network tools
+- **Applies fixes automatically** with verification and testing
+- **Learns from each healing** to handle similar issues faster
+
+#### 🔬 **Advanced Diagnostics**
+- Container health monitoring
+- Network connectivity testing
+- Configuration validation
+- Log analysis and pattern recognition
+- Real-time route probing
+
+#### 🛠️ **Healing Strategies**
+
+**React & Frontend Issues:**
+- Static asset routing fixes (404s for images, CSS, JS)
+- Bundle.js content-type corrections
+- Subpath asset handling for React apps
+
+**Nginx Configuration:**
+- Variable-based proxy_pass fixes
+- Duplicate location block removal
+- Resolver configuration
+- Upstream failover and timeout handling
+
+**Infrastructure:**
+- Proxy discovery and ngrok URL updates
+- Symlink reconstruction
+- Container health checks and restarts
+
+#### 🧠 **Pattern Learning**
+- Saves successful fixes to knowledge base
+- Automatic application of known patterns
+- Continuous improvement through feedback loop
+
+### How to Use
+
+#### Via Status Interface
+1. Click the <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icon next to any route
+2. Watch her thinking animation as she investigates
+3. See step-by-step healing process in real-time
+4. Get caring, personal explanations of fixes
+
+#### Via Chat Interface
+- Ask questions: "Why is my logo not loading?"
+- Request healing: "Can you fix the /impact route?"
+- Get help: "What does this 404 mean?"
+
+#### Via API
+```bash
+# Health check
+GET /api/ai/health
+
+# Ask a question
+POST /api/ai/ask
+{"query": "Why is /myapp returning 502?"}
+
+# Self-check with healing
+POST /api/ai/self-check
+{"heal": true, "route": "/myapp/"}
+
+# Advanced healing
+POST /api/ai/advanced-heal
+{"route": "/api/", "hint": "nginx test failed"}
+
+# Site audit
+POST /api/ai/audit
+{"url": "http://dev-proxy/myapp"}
+
+# Audit and heal iteratively
+POST /api/ai/audit-and-heal
+{"url": "http://dev-proxy/myapp", "maxPasses": 3}
+```
+
+### Optional: OpenAI Integration
+
+For enhanced Q&A capabilities, configure OpenAI in `.env`:
+
+```bash
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_EMBED_MODEL=text-embedding-3-small
+```
+
+### Learn More
+
+- **[Calliope AI Assistant Guide](docs/CALLIOPE-AI-ASSISTANT.md)** - Full capabilities and technical details
+- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Her caring, proactive approach
+
+## 🔄 API Endpoints
+
+The proxy provides comprehensive RESTful APIs for configuration management, diagnostics, and AI assistance.
+
+### Configuration Management
+
+#### Install App Configuration
+```bash
+POST /api/apps/install
+{
+  "name": "myapp",
+  "content": "# nginx configuration..."
+}
+```
+
+Automatically:
+- Saves configuration to `apps/` directory
+- Hardens upstreams for resilience
+- Regenerates nginx bundle
+- Tests and reloads nginx
+
+#### Configuration Operations
+```bash
+# List all app configs
+GET /api/apps/list
+
+# View active locations
+GET /api/apps/active
+
+# Get bundle diagnostics
+GET /api/apps/diagnostics
+
+# Force regenerate bundle
+POST /api/apps/regenerate
+{"reload": true}
+
+# Scan routes and update status
+POST /api/apps/scan
+{"base": "http://dev-proxy"}
+
+# Cleanup old artifacts
+POST /api/apps/cleanup
+```
+
+#### Config File Management
+```bash
 # View config file
-GET /api/config/myapp.conf
+GET /api/config/:filename
 
-# Save config file  
-POST /api/config/myapp.conf
+# Update config file
+POST /api/config/:filename
+{"content": "# nginx configuration..."}
+```
 
-# Resolve conflict (choose winner)
+### Conflict Resolution
+
+```bash
+# Resolve route conflict
 POST /api/resolve-conflict
 {"route": "/api/", "winner": "myapp.conf"}
 
 # Rename route in config
-POST /api/rename-route  
-{"oldRoute": "/api/", "newRoute": "/myapp-api/", "configFile": "myapp.conf"}
+POST /api/rename-route
+{
+  "oldRoute": "/api/",
+  "newRoute": "/myapp-api/",
+  "configFile": "myapp.conf"
+}
+
+# Promote app config to override
+POST /api/overrides/promote
+{"filename": "myapp.conf"}
+
+# List override conflicts
+GET /api/overrides/conflicts
 ```
 
-## Connectivity tests (localhost and ngrok)
-
-Generic tests verify that configured apps are reachable through the dev proxy on localhost and via ngrok. Tests auto-discover routes from Nginx app configs and perform best-effort auto-fixes for common misconfigurations. Artifacts are written under `.artifacts/reports`.
-
-Run:
+### <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI Assistant APIs
 
 ```bash
-node ./test/run.js        # deep health for a specific page
-node ./test/scanApps.js   # generic scanner for all configured routes
+# Calliope health check
+GET /api/ai/health
+
+# Ask Calliope a question
+POST /api/ai/ask
+{"query": "Why is /myapp returning 502?"}
+
+# Self-check with optional healing
+POST /api/ai/self-check
+{"heal": true, "route": "/myapp/"}
+
+# Advanced healing
+POST /api/ai/advanced-heal
+{"route": "/api/", "hint": "nginx test failed"}
+
+# Site audit
+POST /api/ai/audit
+{"url": "http://dev-proxy/myapp", "wait": 2000}
+
+# Audit and heal iteratively
+POST /api/ai/audit-and-heal
+{"url": "http://dev-proxy/myapp", "maxPasses": 3}
+
+# Get thinking events (SSE-like polling)
+GET /api/ai/thinking
+
+# Cancel current operation
+POST /api/ai/cancel
+
+# Get current activity
+GET /api/ai/activity
 ```
 
-Outputs:
-
-- JSON reports under `.artifacts/reports/` and visible at `/reports/`
-  - Latest shortcuts: `/status.json` (health-latest), `/routes.json` (scan-apps-latest)
-
-Notes:
-
-- Localhost checks hit `http://localhost:8080`.
-- Proxy URL is auto-discovered from the `dev-ngrok` container (4040 API or logs). If not found, ngrok checks are marked `no_ngrok_url`.
-- Tests only verify app routes discovered from files in `apps/`.
-- If an app is down, it won’t block checks for other apps.
-
-### What the tests check
-
-- Asset availability (2xx, non-empty, no HTML for JS/CSS)
-- API discovery from HTML/JS and checks for both bare `/api/*` and prefixed `/myapp/api/*`
-- Websocket upgrade for HMR paths
-- Ownership conflicts (e.g., `/api` owned by another app)
-
-## Testing
-
-### Backend diagnostics
-
-Run health and route scans (Dockerized, uses `LOCAL_PROXY_BASE` if set):
+### Reports Management
 
 ```bash
-docker run --rm --network devproxy \
-  -e LOCAL_PROXY_BASE=http://dev-proxy \
-  -v "$PWD":/app -w /app node:18-alpine \
-  sh -lc 'node test/run.js && node test/scanApps.js'
+# List all reports
+GET /api/reports/list
+
+# Prune old reports
+POST /api/reports/prune
+{"keep": 10}
 ```
 
-Artifacts:
-- `.artifacts/reports/health-*.{json,md}`, latest aliases `health-latest.*`
-- `.artifacts/reports/scan-apps-*.json`, latest alias `scan-apps-latest.json`
-
-### UI tests (Playwright)
-
-Run a headless browser pass that captures screenshots, console logs (warn/error), computed styles, traces and videos on failure:
+### Status & Health
 
 ```bash
-mkdir -p .artifacts/ui
+# Human-readable dashboards
+GET /status          # Enhanced status dashboard
+GET /health          # Health dashboard
+GET /reports         # Reports browser
+
+# JSON endpoints
+GET /status.json     # Latest health report
+GET /health.json     # Basic health check
+GET /routes.json     # Latest route scan
+GET /ngrok.json      # Ngrok tunnel info
+```
+
+See **[API Endpoints Documentation](docs/API-ENDPOINTS.md)** for complete details and examples.
+
+## Development Workflow
+
+### Smart Build Commands
+
+The `smart-build.sh` script provides convenient commands for managing the proxy:
+
+```bash
+# Initial setup (one-time)
+./smart-build.sh setup
+
+# Start all services
+./smart-build.sh up
+
+# Stop all services
+./smart-build.sh down
+
+# Restart (down + up with fresh bundle)
+./smart-build.sh restart
+
+# View logs
+./smart-build.sh logs              # All services
+./smart-build.sh logs proxy        # Just proxy
+./smart-build.sh logs ngrok        # Just ngrok
+
+# Reload nginx configuration
+./smart-build.sh reload
+
+# App management (legacy - prefer API)
+./smart-build.sh install-app NAME path/to/config.conf
+./smart-build.sh uninstall-app NAME
+./smart-build.sh list-apps
+
+# Check service status
+./smart-build.sh status
+```
+
+### Local vs Tunnel Strategy
+
+**Local Development:**
+- Run apps at `/` (no basePath) for ergonomics
+- Direct access without proxy overhead
+
+**Tunnel Access:**
+- Enable prefix (e.g., `/myapp`) when going through proxy
+- For Next.js, gate `basePath`/`assetPrefix` behind env var:
+  ```javascript
+  const basePath = process.env.BEHIND_PROXY ? '/myapp' : '';
+  ```
+
+### Helper Scripts
+
+- **`scripts/reload.sh`**: Safe nginx reload with bundle regeneration
+- **`scripts/nginx-entrypoint.sh`**: Nginx container initialization
+- **`scripts/ngrok-entrypoint.sh`**: Conditional static/dynamic domain setup
+- **`scripts/test_storybook_proxy.sh`**: Storybook+Vite proxy regression tests
+- **`scripts/validate-all-js.sh`**: Validate JavaScript syntax across project
+
+## Testing & Validation
+
+### Automated Health Monitoring
+
+The `dev-auto-scan` service continuously monitors route health:
+
+```bash
+# Manual scan
+node ./test/scanApps.js
+
+# Deep health check for specific page
+node ./test/run.js
+
+# Check status endpoints
+curl http://localhost:8080/status.json
+curl http://localhost:8080/health.json
+```
+
+### UI Testing with Playwright
+
+Run comprehensive UI tests with screenshot capture:
+
+```bash
+# From workspace root
+npm run ui:test
+
+# Or via Docker
 docker run --rm --network devproxy \
   -e UI_BASE_URL=http://dev-proxy \
   -v "$PWD":/work -w /work/test/ui \
   mcr.microsoft.com/playwright:v1.46.0-jammy \
-  bash -lc 'npm install --no-audit --no-fund && npx playwright install --with-deps && npm test'
+  bash -lc 'npm install && npx playwright install --with-deps && npm test'
 ```
 
-Artifacts: `.artifacts/ui/` (screenshots, attached JSON for styles and console; traces/videos on failure)
+Artifacts: `.artifacts/ui/` (screenshots, traces, videos on failure)
 
-## Examples
+### Site Auditor
 
-- `examples/sample-prefix-app.conf` — App served under `/myapp/` (keeps prefix)
-- `examples/sample-root-api-strip.conf` — API mounted at `/api/` (strips prefix)
-- `examples/next/` — Full example for Next.js basePath pattern (compose overlay + nginx snippet)
+The included `site-auditor-debug` tool provides comprehensive page auditing:
+
+```bash
+cd site-auditor-debug
+pnpm install
+pnpm run build
+
+# Single page audit
+node dist/cli.js https://your-ngrok-url.ngrok.app/myapp
+
+# Crawl mode
+node dist/cli.js --crawl \
+  --start-urls https://your-ngrok-url.ngrok.app \
+  --max-pages 25 --concurrency 3
+
+# With custom viewports and style capture
+node dist/cli.js https://your-ngrok-url.ngrok.app/myapp \
+  --viewports "375x812@mobile,1440x900@desktop" \
+  --styles-mode tags --tags img,button
+```
+
+Features:
+- Multi-viewport screenshots
+- Console error capture
+- Network failure detection
+- Computed styles export
+- Crawling with sitemap support
+
+### What Tests Check
+
+- **Asset Availability**: 2xx responses, non-empty, correct content-type
+- **API Discovery**: Both bare `/api/*` and prefixed `/myapp/api/*`
+- **WebSocket Support**: HMR paths and upgrade headers
+- **Ownership Conflicts**: Route collision detection
+- **UI Functionality**: Status dashboard, Calliope integration, theme toggle
 
 ## Nginx Configuration Patterns
 
-### Dynamic Upstream Resolution
+### Critical: Variable-Based Upstream Resolution
 
-All example configurations use nginx variables for upstream resolution to ensure reliable startup:
+**Always use nginx variables** for upstream resolution to ensure reliable startup:
 
 ```nginx
+# ❌ Wrong: Hardcoded upstream (fails if service is down at startup)
 location /myapp/ {
-  # Use variable for dynamic upstream resolution
-  set $upstream_app "myapp:3000";
-  proxy_pass http://$upstream_app;
-  # ... other directives
+  proxy_pass http://myapp:3000/;
+}
+
+# ✅ Correct: Variable resolution (defers DNS lookup to runtime)
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp:3000;
+  proxy_pass http://$myapp_upstream/;
 }
 ```
 
-**Why variables?** Nginx performs DNS resolution at startup when using hardcoded upstreams like `proxy_pass http://myapp:3000`. If the service isn't running, nginx fails to start. Using variables defers DNS lookups until runtime, allowing the proxy to start successfully and gracefully handle unavailable upstreams.
+**Why?** Nginx performs DNS resolution at startup for hardcoded upstreams. If the service isn't running, nginx fails to start. Variables defer DNS lookups until runtime, allowing graceful handling of unavailable services.
 
-Notes (🆕):
-- The generator normalizes variable-based upstreams and preserves URI paths in `proxy_pass` so prefix proxies like `/sb-common-assets/` or file targets like `/index.json` work while benefiting from runtime DNS via variables.
-- Root dev helpers (e.g., `/@vite/`, `/@id/`, `/@fs/`, `/node_modules/`) are globally allowed to unblock development, but we strongly recommend configuring apps to be proxy route‑agnostic and served via a non‑root prefix whenever possible.
+**Note:** The bundle generator normalizes variable-based upstreams and preserves URI paths in `proxy_pass`, so prefix proxies and file targets work correctly while benefiting from runtime DNS.
 
-### Common Headers
-
-All configurations include essential proxy headers:
-- **WebSocket support**: `Upgrade` and `Connection` headers for HMR and real-time features
-- **Forwarding context**: `X-Forwarded-Proto`, `X-Forwarded-Host` for proper URL generation
-- **Development helpers**: `ngrok-skip-browser-warning` to bypass ngrok's browser warning
-
-### Resolver Configuration
-
-When using variables, include the Docker DNS resolver:
+### Essential Proxy Headers
 
 ```nginx
-resolver 127.0.0.11 ipv6=off;
-resolver_timeout 5s;
+location /myapp/ {
+  # Basic forwarding
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  
+  # WebSocket support (for HMR)
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  
+  # Development helpers
+  proxy_set_header ngrok-skip-browser-warning "true";
+  proxy_buffering off;
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+}
 ```
 
-This enables nginx to resolve Docker service names dynamically within the `devproxy` network.
+### Trailing Slash Behavior
 
-### Storybook + Vite behind the proxy (subpath)
+**Critical:** Trailing slash in `proxy_pass` affects path handling:
 
-When running Storybook 9 with the Vite builder under a subpath (for example `/sdk` or `/storybook`), add explicit proxy guards so dev-helper paths and HMR work reliably.
+```nginx
+# Strips prefix: /myapp/api/data → /api/data
+location /myapp/ {
+  proxy_pass http://$upstream:3000/;  # Trailing slash strips /myapp/
+}
 
-Nginx example (mount at `/storybook`):
+# Preserves prefix: /myapp/api/data → /myapp/api/data
+location /myapp/ {
+  proxy_pass http://$upstream:3000;   # No trailing slash preserves /myapp/
+}
+```
+
+**When to use each:**
+- **Strip prefix**: API backends that don't expect the route prefix
+- **Preserve prefix**: Apps configured with `basePath`/`PUBLIC_URL` (React, Next.js)
+
+### Root Dev Helpers
+
+Some frameworks (Storybook/Vite, Next.js dev mode) require helper paths at the proxy root. These are now globally allowed to unblock development:
+
+- `/@vite/`, `/@id/`, `/@fs/` - Vite dev server helpers
+- `/node_modules/` - Direct module access
+- `/sb-manager/`, `/sb-addons/`, `/sb-common-assets/` - Storybook assets
+
+**Recommendation:** Design apps to be proxy-route-agnostic and serve from non-root prefixes when possible. Use root helpers only when frameworks require them.
+
+## Framework-Specific Examples
+
+### React/Create React App
+
+```nginx
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp-service:3000;
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_pass http://$myapp_upstream/;
+}
+```
+
+App configuration:
+```bash
+# .env
+PUBLIC_URL=/myapp
+REACT_APP_API_URL=/myapp/api
+```
+
+### Next.js with basePath
+
+See `examples/next/` for complete setup. Key pattern:
+
+```nginx
+# Handle both /myapp and /myapp/
+location ~ ^/myapp/?$ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $nextjs_upstream nextjs-service:3000;
+  proxy_set_header X-Forwarded-Prefix /myapp;
+  proxy_pass http://$nextjs_upstream/myapp;
+}
+
+# Handle _next assets
+location /myapp/_next/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $nextjs_upstream nextjs-service:3000;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_pass http://$nextjs_upstream/myapp/_next/;
+}
+```
+
+Next.js config:
+```javascript
+module.exports = {
+  basePath: process.env.BEHIND_PROXY ? '/myapp' : '',
+  assetPrefix: process.env.BEHIND_PROXY ? '/myapp' : '',
+};
+```
+
+### Storybook + Vite
+
+When running Storybook with Vite builder under a subpath (e.g., `/storybook`), configure explicit routes for dev helpers and HMR.
+
+**Nginx configuration:**
 
 ```nginx
 # Exact base and critical roots
@@ -334,92 +767,92 @@ location ^~ /storybook/storybook-server-channel {
 }
 ```
 
-Storybook config (.storybook/main.ts) — set your base path for the Vite builder:
+**Storybook configuration (.storybook/main.ts):**
 
-```ts
+```typescript
 import { defineConfig } from 'vite';
 import type { StorybookConfig } from '@storybook/react-vite';
 
-const base = process.env.STORYBOOK_BASE_PATH || '/storybook/';
-
 const config: StorybookConfig = {
-  framework: {
-    name: '@storybook/react-vite',
-    options: {}
-  },
+  framework: '@storybook/react-vite',
   stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|ts|tsx)'],
   addons: ['@storybook/addon-essentials'],
   async viteFinal(viteConfig) {
     return {
       ...viteConfig,
-      base,
-      // HMR generally works via the proxy guards above; tweak only if needed:
-      // server: { hmr: { protocol: 'ws' } }
-    } as ReturnType<typeof defineConfig>;
+      base: process.env.STORYBOOK_BASE_PATH || '/storybook/',
+    };
   }
 };
 
 export default config;
 ```
 
-Vite app (non‑Storybook) example (vite.config.ts) when serving under a prefix:
+**Notes:**
+- Always use variable upstreams so nginx starts even if Storybook is down
+- Some setups require `Host: localhost:6006` for `@vite`, `@id`, `node_modules`
+- See `examples/storybook/` for complete examples
+- Run `scripts/test_storybook_proxy.sh` for regression testing
 
-```ts
+### Vite Apps
+
+```typescript
+// vite.config.ts
 import { defineConfig } from 'vite';
+
 export default defineConfig({
   base: process.env.BASE_PATH || '/myapp/',
-  // Optional HMR hints behind tunnels/proxies
-  // server: { hmr: { protocol: 'ws' } }
+  server: {
+    hmr: { protocol: 'ws' } // Optional for tunnels
+  }
 });
 ```
 
-Notes:
-- Always use nginx variable upstreams (as above) so nginx starts even if Storybook is down.
-- Some Vite setups require `Host: localhost:6006` for `@vite`, `@id`, and `node_modules`.
-- Prefer mounting Storybook under a prefix (e.g., `/storybook` or `/sdk`).
+## Example Configurations
+
+- **`examples/sample-prefix-app.conf`** - App served under `/myapp/` (keeps prefix)
+- **`examples/sample-root-api-strip.conf`** - API mounted at `/api/` (strips prefix)
+- **`examples/next/`** - Next.js with basePath pattern (compose overlay + nginx)
+- **`examples/storybook/`** - Storybook + Vite proxy configurations
+- **`examples/cra/`** - Create React App setup
+- **`examples/api-upload-config.js`** - Programmatic config installation
 
 
-## Repo hygiene
+## Repository Organization
 
-- App-specific names have been removed from core code. The included demo service lives under `dashboard/` only for local testing. You can remove it entirely and still use the proxy.
-- Status UI lives under `status/` and serves its own assets.
-- All app snippets are local-only (ignored by git). Use `examples/` as templates.
-
-### Next.js basePath pattern (summary)
-
-Run two dev instances from the same codebase:
-- Local dev at `/` (no basePath)
-- A second instance with `NEXT_PUBLIC_BASE_PATH=/myapp` and `NEXT_DIST_DIR=.next-myapp`, exposed only to the devproxy network
-
-Mount the second instance at `/myapp` in the proxy and do not strip the prefix. See `examples/next/` for the compose overlay and nginx snippet.
-
-## Project layout
+### Directory Structure
 
 ```
 dev-tunnel-proxy/
-├─ apps/                     # per-app snippets (local, gitignored)
-├─ overrides/                # proxy-owned override snippets (optional)
-├─ build/
-│  └─ sites-enabled/
-│     └─ apps.generated.conf # composed output (mounted into nginx)
-├─ config/
-│  ├─ default.conf           # core: includes apps/*.conf
-│  ├─ ngrok.dynamic.yml      # dynamic domain template
-│  └─ ngrok.yml              # (legacy, replaced by entrypoint)
-├─ examples/
-│  ├─ sample-prefix-app.conf
-│  └─ sample-root-api-strip.conf
-├─ scripts/
-│  ├─ install-app.sh
-│  ├─ ngrok-entrypoint.sh    # conditional static/dynamic domain
-│  ├─ reload.sh
-│  └─ smart-build.sh
-├─ docker-compose.yml
-├─ .env.example
-├─ .gitignore
-├─ .dockerignore
-└─ LICENSE
+├── apps/                     # Per-app nginx snippets (gitignored, local-only)
+├── overrides/                # Proxy-owned overrides (gitignored)
+├── build/
+│   └── sites-enabled/
+│       └── apps.generated.conf  # Composed output (mounted into nginx)
+├── config/
+│   ├── default.conf          # Core nginx config
+│   ├── ngrok.dynamic.yml     # Dynamic domain template
+│   └── ngrok.yml             # Static domain template
+├── dashboard/                # Optional demo dashboard
+├── docs/                     # Comprehensive documentation
+├── examples/                 # Configuration templates
+├── scripts/                  # Management and helper scripts
+├── site-auditor-debug/       # Puppeteer-based auditing tool
+├── status/                   # Status dashboard UI
+├── test/                     # Test suites and utilities
+├── utils/                    # Core utilities (~6800 lines)
+├── .artifacts/               # Generated reports and diagnostics
+├── docker-compose.yml        # Service definitions
+└── smart-build.sh            # Main management script
 ```
+
+### Key Principles
+
+- **Generic Core**: No app-specific names in core code
+- **Gitignored Configs**: `apps/` and `overrides/` are local-only
+- **Template-Based**: Use `examples/` as starting points
+- **Self-Contained**: Status UI and dashboard are independent
+- **Artifact Tracking**: All generated data in `.artifacts/`
 
 ## Notes
 - Never commit your ngrok authtoken. Use env vars or a local `.env` file.
@@ -427,23 +860,22 @@ dev-tunnel-proxy/
 - WebSockets/HMR: all example snippets include the required headers.
 - **App configs are git-ignored** - Each project manages its own `apps/*.conf` files locally.
 
-## Documentation
+## 📚 Documentation
 
-- **[Project Integration Guide](PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
-- **[Troubleshooting Guide](TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Project Integration Guide](docs/PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
 - **[Configuration Management Guide](docs/CONFIG-MANAGEMENT-GUIDE.md)** - How the generator works, migration notes, overrides
-- **[Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and integrated self‑healing
-- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior (with action→emoji mapping)
-- **[Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and self‑healing
-- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior
+- **[API Endpoints](docs/API-ENDPOINTS.md)** - Complete API reference and examples
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and integrated self-healing
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior
 
-## Inspiration: Calliope
+## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Inspiration: Calliope
 
-Calliope is named in honor of the author's daughter, who lives with tuberous sclerosis complex (TSC). Her resilience, kindness, and youthful spirit inspire this project's mission: a caring AI assistant who proactively keeps your dev environment healthy so you can focus on building and sharing amazing things.
+**Calliope** is named in honor of the author's daughter, who lives with tuberous sclerosis complex (TSC). Her resilience, kindness, and youthful spirit inspire this project's mission: a caring AI assistant who proactively keeps your dev environment healthy so you can focus on building and sharing amazing things.
 
-Like her namesake, Calliope approaches problems with empathy, persistence, and a genuine desire to help. She doesn't just diagnose issues - she fixes them herself, learns from each success, and celebrates when everything works perfectly.
+Like her namesake, Calliope approaches problems with empathy, persistence, and a genuine desire to help. She doesn't just diagnose issues—she fixes them herself, learns from each success, and celebrates when everything works perfectly. 💖
 
-If you feel inspired by Calliope's caring approach to development support, please consider supporting families affected by TSC by donating to the TSC Alliance: https://www.tscalliance.org/
+If you feel inspired by Calliope's caring approach to development support, please consider supporting families affected by TSC by donating to the [TSC Alliance](https://www.tscalliance.org/).
 
 ## How to contribute
 
@@ -458,14 +890,14 @@ Keep examples generic and focused on common patterns (prefix-kept vs prefix-stri
 
 ## Architecture: Why Separate Containers?
 
-The Dev Tunnel Proxy uses a **multi-container architecture** instead of consolidating everything into a single container. Here's the rationale behind this design:
+The Dev Tunnel Proxy uses a **multi-container architecture** for optimal separation of concerns and operational flexibility.
 
 ### Container Responsibilities
 
-- **`dev-proxy` (nginx)**: Pure reverse proxy + static file serving
-- **Calliope API** (service: `calliope-api`, Node.js): REST API for config management, conflict resolution, and AI endpoints
-- **`auto-scan` (Node.js)**: Periodic route health monitoring and status generation
-- **`ngrok`**: Secure tunnel service to external networks
+- **`dev-proxy`** (nginx): Pure reverse proxy + static file serving
+- **`proxy-config-api`** <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> (Node.js): REST API for config management, conflict resolution, and Calliope AI endpoints
+- **`auto-scan`** (Node.js): Periodic route health monitoring and status generation
+- **`dev-ngrok`**: Secure tunnel service to external networks
 
 ### Why This Approach Works Better
 
@@ -478,10 +910,10 @@ Each container has a focused, well-defined purpose:
 #### 🚀 **Operational Benefits**
 ```bash
 # Restart just the API without affecting proxy traffic
-docker-compose restart calliope-api
+docker-compose restart proxy-config-api
 
 # Debug individual services independently
-docker-compose logs calliope-api --tail=50
+docker-compose logs proxy-config-api --tail=50
 
 # Scale specific services if needed
 docker-compose up --scale auto-scan=2
@@ -493,9 +925,9 @@ docker-compose up --scale auto-scan=2
 - **Independent lifecycles**: Can start/stop services without affecting others
 
 #### 🔧 **Fault Isolation**
-- Conflict API crash → Status UI loses some features, but proxy continues working
+- Config API crash → Status UI loses some features, but proxy continues working
 - Auto-scan failure → Health monitoring affected, but routing unimpacted
-- nginx issues → Only proxy affected, APIs remain functional for diagnostics
+- Nginx issues → Only proxy affected, APIs remain functional for diagnostics
 
 #### 🏗️ **Development Flexibility**
 - Change API logic without nginx config reloads
@@ -506,7 +938,7 @@ docker-compose up --scale auto-scan=2
 ```yaml
 # Easily disable development-only services in production
 services:
-  calliope-api:
+  proxy-config-api:
     profiles: ["development"]
   auto-scan:
     profiles: ["development"]
@@ -529,7 +961,41 @@ The current architecture allows **future consolidation** if needed:
 services:
   proxy:
     image: nginx-with-node  # Custom image combining both
-    command: ["sh", "-c", "node /calliope-api.js & nginx"]
+    command: ["sh", "-c", "node /proxy-config-api.js & nginx"]
 ```
 
 However, the **multi-container approach provides superior flexibility** without meaningful complexity overhead, making it the better choice for development environments where reliability and maintainability are paramount.
+
+---
+
+## 🚀 Quick Reference
+
+### Common Commands
+
+```bash
+# Start the proxy
+./smart-build.sh up
+
+# View logs
+./smart-build.sh logs
+
+# Reload configuration
+./smart-build.sh reload
+
+# Check status
+./smart-build.sh status
+```
+
+### Key Endpoints
+
+- **Status Dashboard**: `http://localhost:8080/status`
+- **Health Check**: `http://localhost:8080/health`
+- **API Docs**: `http://localhost:3001/api/`
+- **Reports**: `http://localhost:8080/reports`
+
+### Need Help?
+
+- <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> **Ask Calliope**: Click the stethoscope icon in the status dashboard
+- **Documentation**: See `docs/` directory
+- **Examples**: See `examples/` directory
+- **Troubleshooting**: Check `docs/TROUBLESHOOTING.md`
