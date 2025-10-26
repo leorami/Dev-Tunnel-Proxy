@@ -4,7 +4,7 @@ set -euo pipefail
 # smart-build.sh
 # PURPOSE: Dev utility for build/status/test. Root-level, proxy-aware.
 # Commands: setup, up, down, restart, logs, reload, status, apply
-# Test helpers: test:thoughts, test:calliope, test:browser, test:all
+# Test helpers: test:thoughts, test:calliope, test:auditor, test:browser, test:all
 
 # Project root
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -272,7 +272,24 @@ cmd_test_calliope() {
   node "$ROOT_DIR/test/calliope-simple-test.js" || { echo "❌ Calliope tests failed"; return 1; }
   
   echo ""
+  echo "2. Site auditor..."
+  node "$ROOT_DIR/test/site-auditor-test.js" || { echo "❌ Site auditor tests failed"; return 1; }
+  
+  echo ""
   echo "✅ Calliope tests complete"
+}
+
+cmd_test_auditor() {
+  echo "🧪 Testing site auditor..."
+  if [ "${DRY_RUN:-}" = "1" ]; then
+    echo "DRY RUN: would run auditor tests"
+    return 0
+  fi
+  
+  node "$ROOT_DIR/test/site-auditor-test.js" || { echo "❌ Auditor tests failed"; return 1; }
+  
+  echo ""
+  echo "✅ Auditor tests complete"
 }
 
 cmd_test_browser() {
@@ -355,6 +372,7 @@ Commands:
   # Tests
   test:thoughts        Test real-time thoughts system
   test:calliope        Test Calliope AI functionality
+  test:auditor         Test site auditor (Puppeteer-based)
   test:browser         Test browser/console error detection
   test:mixed-content   Test mixed content detection
   test:all             Run all tests
@@ -389,6 +407,7 @@ main() {
     # Tests
     test:thoughts) cmd_test_thoughts;;
     test:calliope) cmd_test_calliope;;
+    test:auditor) cmd_test_auditor;;
     test:browser) cmd_test_browser;;
     test:mixed-content) cmd_test_mixed_content;;
     test:all) cmd_test_all;;

@@ -1024,7 +1024,12 @@ async function runSiteAuditor(urlToAudit, options = {}) {
     const preferDocker = !!process.env.CALLIOPE_PUPPETEER_IMAGE; // if set, skip local Puppeteer entirely
     if (!preferDocker) {
       try {
-        stdout = execSync(`node dist/cli.js ${JSON.stringify(urlToAudit)} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output ${JSON.stringify(outDir)}`, { cwd: toolDir, encoding: 'utf8' });
+        // Translate Docker hostnames to localhost for local Puppeteer runs
+        const localUrl = String(urlToAudit)
+          .replace(/http:\/\/dev-proxy(\/|:|$)/i, 'http://localhost:8080$1')
+          .replace(/http:\/\/proxy(\/|:|$)/i, 'http://localhost:8080$1');
+        
+        stdout = execSync(`node dist/cli.js ${JSON.stringify(localUrl)} --headless ${headless} --waitUntil networkidle2 --timeout ${timeout} --wait ${wait} --styles-mode off --output ${JSON.stringify(outDir)}`, { cwd: toolDir, encoding: 'utf8' });
       } catch (e) {
         // fall through to dockerized run
       }
@@ -1032,13 +1037,19 @@ async function runSiteAuditor(urlToAudit, options = {}) {
     if (!stdout) {
       // dockerized run with a Puppeteer image (bundled Chrome)
       const img = process.env.CALLIOPE_PUPPETEER_IMAGE || 'ghcr.io/puppeteer/puppeteer:latest';
-      const desiredPlatform = process.env.CALLIOPE_PUPPETEER_PLATFORM || (process.arch === 'arm64' ? 'linux/arm64/v8' : '');
+      // Always use linux/amd64 for Puppeteer image (no ARM64 image available)
+      // On Apple Silicon, this will use Rosetta 2 emulation (slower but works)
+      const desiredPlatform = process.env.CALLIOPE_PUPPETEER_PLATFORM || 'linux/amd64';
       const platformFlag = desiredPlatform ? `--platform ${desiredPlatform}` : '';
+      
+      // On ARM64 hosts, emulation is slower, so increase timeouts
+      const dockerTimeout = process.arch === 'arm64' ? Math.max(timeout * 3, 90000) : timeout;
+      
       // Quote URL to avoid shell interpreting characters like & ? *
       const safeUrl = JSON.stringify(String(urlToAudit));
       // Ensure Chrome is installed/available inside the puppeteer image
       const preInstall = `npx puppeteer browsers install chrome 2>&1 | grep -E 'chrome@|already' || true`;
-      const cmd = `${preInstall} && node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil ${waitUntil} --timeout ${timeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
+      const cmd = `${preInstall} && node dist/cli.js ${safeUrl} --headless ${headless} --waitUntil ${waitUntil} --timeout ${dockerTimeout} --wait ${wait} --styles-mode off --output /app/.artifacts/audits`;
       // Prefer reusing volumes from the API container (Docker Desktop file sharing already approved there)
       let apiContainer = 'dev-proxy-config-api';
       try {
