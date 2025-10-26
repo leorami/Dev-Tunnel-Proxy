@@ -183,6 +183,93 @@ function ensureGenericPatterns() {
     });
   }
 
+  // Mixed Content Errors (HTTP resources on HTTPS pages)
+        if (!have.has('mixed_content_errors')) {
+          seed.push({
+            id: 'mixed_content_errors',
+            detection: {
+              signals: [
+                String.raw`Mixed Content`,
+                String.raw`was loaded over HTTPS, but requested an insecure`,
+                String.raw`This request has been blocked`,
+                String.raw`http://.*\.ngrok\.app`,
+                String.raw`ERR_NETWORK_CHANGED`
+              ],
+              effects: [
+                'Assets fail to load on HTTPS pages',
+                'Browser blocks HTTP requests',
+                'Stylesheet and script tags fail to load',
+                'ERR_NETWORK_CHANGED errors from failed requests'
+              ]
+            },
+            solutions: [{
+              id: 'fix_nginx_absolute_redirects',
+              description: 'Disable nginx absolute_redirect to prevent HTTP URLs in redirect headers',
+              implementation: { type: 'automated', function: 'fixNginxAbsoluteRedirects', params: [] }
+            }, {
+              id: 'fix_x_forwarded_proto',
+              description: 'Set X-Forwarded-Proto to https for apps behind HTTPS proxies',
+              implementation: { type: 'automated', function: 'fixXForwardedProto', params: [] }
+            }, {
+              id: 'run_mixed_content_test',
+              description: 'Run browser test to detect mixed content errors',
+              implementation: { type: 'automated', function: 'runMixedContentTest', params: [] }
+            }]
+          });
+        }
+
+        if (!have.has('redirect_loop_errors')) {
+          seed.push({
+            id: 'redirect_loop_errors',
+            detection: {
+              signals: [
+                String.raw`ERR_TOO_MANY_REDIRECTS`,
+                String.raw`too many redirects`,
+                String.raw`redirect loop`,
+                String.raw`Redirect limit exceeded`,
+                String.raw`308 Permanent Redirect.*/_next`
+              ],
+              effects: [
+                'Assets fail to load with redirect errors',
+                'Browser console shows ERR_TOO_MANY_REDIRECTS',
+                '308 redirects on /_next/ paths',
+                'Infinite redirect loop between paths with/without trailing slash'
+              ]
+            },
+            solutions: [{
+              id: 'fix_redirect_loop',
+              description: 'Fix nginx proxy_pass configuration to prevent redirect loops on /_next/ paths',
+              implementation: { type: 'automated', function: 'fixRedirectLoop', params: [] }
+            }]
+          });
+        }
+
+        if (!have.has('nextjs_auth_errors')) {
+          seed.push({
+            id: 'nextjs_auth_errors',
+            detection: {
+              signals: [
+                String.raw`\[next-auth\]\[error\]\[CLIENT_FETCH_ERROR\]`,
+                String.raw`Unexpected token '<', "<!DOCTYPE "`,
+                String.raw`/api/auth/session.*not valid JSON`,
+                String.raw`POST.*\/api\/auth\/_log.*500`,
+                String.raw`next-auth.*errors#client_fetch_error`
+              ],
+              effects: [
+                'Auth endpoints return HTML instead of JSON',
+                'Session management fails',
+                'Auth logging returns 500 errors',
+                'User authentication broken'
+              ]
+            },
+            solutions: [{
+              id: 'diagnose_nextjs_auth',
+              description: 'App-level Next.js auth configuration issue - recommend config fixes',
+              implementation: { type: 'recommendation', guidance: 'Next.js Auth Configuration Issues Detected' }
+            }]
+          });
+        }
+
   if (seed.length) {
     for (const p of seed) {
       addPatternFromHealing(p.id, p.solutions[0], true, {
@@ -1245,6 +1332,30 @@ async function auditAndHealRoute({ url, routePrefix = '/', maxPasses = 4, wait =
         const failures = rep.network?.failures || [];
         const httpIssues = rep.network?.httpIssues || [];
         const responses = rep.network?.responses || [];
+        const consoleErrors = rep.console?.errors || [];
+        const pageErrors = rep.console?.pageErrors || [];
+
+        // Check for Next.js auth errors (app-level, not proxy)
+        const authErrors = [
+          ...consoleErrors.filter(e => 
+            e.text && (
+              /\[next-auth\].*CLIENT_FETCH_ERROR/.test(e.text) ||
+              /Unexpected token '<'.*<!DOCTYPE/.test(e.text) ||
+              /\/api\/auth\/_log.*500/.test(e.text)
+            )
+          ),
+          ...pageErrors.filter(e => 
+            typeof e === 'string' && /next-auth|auth.*session|auth.*JSON/.test(e)
+          )
+        ];
+
+        if (authErrors.length > 0) {
+          emit({ 
+            name: 'app_level_issue_detected', 
+            message: '⚠️ Detected Next.js auth configuration errors - these are app-level issues', 
+            authErrors: authErrors.length 
+          });
+        }
 
         const urls = new Set([
           ...failures.map(f=>f.url).filter(Boolean),
@@ -1320,7 +1431,11 @@ async function applyHealingStrategy(strategy, issue) {
     improveProxyResilience,
     restartProxyAfterUpstreams,
     ensureRouteForwardedPrefixAndNext,
-    applyStorybookViteProxyGuards
+    applyStorybookViteProxyGuards,
+    fixNginxAbsoluteRedirects,
+    fixXForwardedProto,
+    runMixedContentTest,
+    fixRedirectLoop
   };
   
   // Check if the function exists
@@ -2104,6 +2219,214 @@ async function applyGenericDirectoryGuards({ routePrefix = '/', reportPath = '' 
   }
 }
 
+/**
+ * Fix nginx absolute_redirect setting to prevent HTTP URLs in redirects
+ * This fixes mixed content errors when nginx issues 301/308 redirects
+ */
+async function fixNginxAbsoluteRedirects() {
+  try {
+    const defaultConf = path.join(ROOT, 'config', 'default.conf');
+    if (!fs.existsSync(defaultConf)) {
+      return { success: false, message: 'config/default.conf not found' };
+    }
+
+    let content = fs.readFileSync(defaultConf, 'utf8');
+    
+    // Check if already has absolute_redirect off
+    if (/absolute_redirect\s+off\s*;/.test(content)) {
+      return { success: true, message: 'absolute_redirect already set to off' };
+    }
+
+    // Add absolute_redirect off and port_in_redirect off after server_name
+    const serverBlock = /server\s*\{[^}]*server_name\s+[^;]+;/;
+    if (serverBlock.test(content)) {
+      content = content.replace(
+        /(server\s*\{[^}]*server_name\s+[^;]+;)/,
+        `$1\n  \n  # Prevent nginx from issuing absolute HTTP URLs in redirects\n  # This fixes mixed content errors when accessed via HTTPS (ngrok)\n  absolute_redirect off;\n  port_in_redirect off;`
+      );
+      
+      fs.writeFileSync(defaultConf, content, 'utf8');
+      await regenerateNginxBundle();
+      
+      return { 
+        success: true, 
+        message: 'Added absolute_redirect off and port_in_redirect off to default.conf to prevent HTTP URLs in redirects' 
+      };
+    }
+
+    return { success: false, message: 'Could not find server block in default.conf' };
+  } catch (e) {
+    return { success: false, message: `fixNginxAbsoluteRedirects failed: ${e.message}` };
+  }
+}
+
+/**
+ * Fix X-Forwarded-Proto headers in app configs to use https
+ * This ensures apps generate HTTPS URLs for assets when behind ngrok
+ */
+async function fixXForwardedProto(route) {
+  try {
+    const appsDir = path.join(ROOT, 'apps');
+    const overridesDir = path.join(ROOT, 'overrides');
+    
+    const fixes = [];
+    let fixed = false;
+
+    // If route specified, target that specific config
+    const targetFiles = [];
+    if (route) {
+      const routeName = route.replace(/^\//, '').replace(/\/$/, '');
+      const appFile = path.join(appsDir, `${routeName}.conf`);
+      const overrideFile = path.join(overridesDir, `${routeName}.conf`);
+      if (fs.existsSync(appFile)) targetFiles.push(appFile);
+      if (fs.existsSync(overrideFile)) targetFiles.push(overrideFile);
+    } else {
+      // Fix all app configs
+      if (fs.existsSync(appsDir)) {
+        fs.readdirSync(appsDir)
+          .filter(f => f.endsWith('.conf'))
+          .forEach(f => targetFiles.push(path.join(appsDir, f)));
+      }
+      if (fs.existsSync(overridesDir)) {
+        fs.readdirSync(overridesDir)
+          .filter(f => f.endsWith('.conf'))
+          .forEach(f => targetFiles.push(path.join(overridesDir, f)));
+      }
+    }
+
+    for (const file of targetFiles) {
+      let content = fs.readFileSync(file, 'utf8');
+      const original = content;
+
+      // Replace proxy_set_header X-Forwarded-Proto $scheme with "https"
+      content = content.replace(
+        /proxy_set_header\s+X-Forwarded-Proto\s+\$scheme\s*;/g,
+        'proxy_set_header X-Forwarded-Proto "https";'
+      );
+
+      if (content !== original) {
+        fs.writeFileSync(file, content, 'utf8');
+        fixes.push(path.relative(ROOT, file));
+        fixed = true;
+      }
+    }
+
+    if (fixed) {
+      await regenerateNginxBundle();
+      return { 
+        success: true, 
+        message: `Fixed X-Forwarded-Proto in ${fixes.length} config(s): ${fixes.join(', ')}` 
+      };
+    }
+
+    return { success: true, message: 'No X-Forwarded-Proto issues found' };
+  } catch (e) {
+    return { success: false, message: `fixXForwardedProto failed: ${e.message}` };
+  }
+}
+
+/**
+ * Run mixed content test using Puppeteer
+ * Detects HTTP resources on HTTPS pages
+ */
+async function runMixedContentTest(url) {
+  try {
+    const testScript = path.join(ROOT, 'test', 'mixed-content-test.js');
+    if (!fs.existsSync(testScript)) {
+      return { success: false, message: 'test/mixed-content-test.js not found' };
+    }
+
+    const output = execSync(`node ${testScript}`, { 
+      cwd: ROOT, 
+      encoding: 'utf8',
+      env: { ...process.env, TEST_URL: url }
+    });
+
+    const hasMixedContent = output.includes('Mixed Content Errors:') && !output.includes('Mixed Content Errors: 0');
+    const httpRequests = output.match(/HTTP Requests: (\d+)/);
+    const httpCount = httpRequests ? parseInt(httpRequests[1]) : 0;
+
+    return {
+      success: httpCount === 0,
+      message: hasMixedContent 
+        ? `Found ${httpCount} mixed content issues - see output` 
+        : 'No mixed content errors detected',
+      output: output.slice(-1000) // Last 1000 chars
+    };
+  } catch (e) {
+    // Test script returns exit code 1 on failure
+    const output = e.stdout || e.message;
+    const httpRequests = output.match(/HTTP Requests: (\d+)/);
+    const httpCount = httpRequests ? parseInt(httpRequests[1]) : 0;
+    
+    return {
+      success: false,
+      message: `Mixed content test failed: ${httpCount} HTTP requests on HTTPS page`,
+      output: output.slice(-1000)
+    };
+  }
+}
+
+async function fixRedirectLoop(route) {
+  try {
+    const routeKey = route || '/lyra';
+    const appName = routeKey.replace(/^\//, '');
+    const confPath = path.join(ROOT, 'apps', `${appName}.conf`);
+    
+    if (!fs.existsSync(confPath)) {
+      return { success: false, message: `Config file not found: ${confPath}` };
+    }
+
+    let content = fs.readFileSync(confPath, 'utf8');
+    let changed = false;
+
+    // Fix pattern 1: location block for /_next/ with full path in proxy_pass
+    // BAD: proxy_pass http://upstream:4000/route/_next/;
+    // GOOD: proxy_pass http://upstream:4000;
+    const nextProxyPassRegex = new RegExp(`proxy_pass\\s+http://([^/]+)/${appName}/_next/`, 'g');
+    if (nextProxyPassRegex.test(content)) {
+      content = content.replace(
+        new RegExp(`(location\\s+[^{]*\\/${appName}\\/_next\\/[^{]*\\{[^}]*proxy_pass\\s+)(http://[^/]+)\\/${appName}\\/_next\\/`, 'g'),
+        '$1$2'
+      );
+      changed = true;
+    }
+
+    // Fix pattern 2: regex location with $request_uri
+    // Convert regex to simple prefix location
+    const regexLocationPattern = new RegExp(`location\\s+~\\s+\\^\/${appName}\\/_next`, 'g');
+    if (regexLocationPattern.test(content)) {
+      content = content.replace(
+        new RegExp(`location\\s+~\\s+\\^\/${appName}\\/_next[^{]*\\{([^}]*proxy_pass\\s+http://[^$]+)\\$request_uri[^;]*;`, 'g'),
+        `location /${appName}/_next/ {$1;`
+      );
+      changed = true;
+    }
+
+    if (!changed) {
+      return { success: false, message: 'No redirect loop pattern found in config' };
+    }
+
+    // Write the fixed config
+    fs.writeFileSync(confPath, content, 'utf8');
+
+    // Regenerate nginx bundle
+    const bundleScript = path.join(ROOT, 'utils', 'generateAppsBundle.js');
+    execSync(`node ${bundleScript}`, { cwd: ROOT, encoding: 'utf8' });
+
+    // Reload nginx
+    execSync('docker exec dev-proxy nginx -s reload', { encoding: 'utf8' });
+
+    return {
+      success: true,
+      message: `Fixed redirect loop in ${appName}.conf and reloaded nginx`,
+      details: { configPath: confPath, regenerated: true }
+    };
+  } catch (e) {
+    return { success: false, message: `Error fixing redirect loop: ${e.message}` };
+  }
+}
+
 module.exports = {
   loadKnowledgeBase,
   saveKnowledgeBase,
@@ -2133,6 +2456,14 @@ module.exports = {
   fixPrefixedNextBlockUpstream,
   ensureStaticViteRootPassThroughs,
   runStorybookProxyTests,
+  
+  // Mixed content healing
+  fixNginxAbsoluteRedirects,
+  fixXForwardedProto,
+  runMixedContentTest,
+  
+  // Redirect loop healing
+  fixRedirectLoop,
   
   // Core infrastructure
   regenerateNginxBundle
