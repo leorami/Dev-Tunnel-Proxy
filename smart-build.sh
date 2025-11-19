@@ -34,6 +34,68 @@ get_ngrok_url() {
   echo ""
 }
 
+check_and_reindex_calliope() {
+  # Check if documentation has changed and reindex Calliope's knowledge base if needed
+  local docs_hash_file="$ROOT_DIR/.artifacts/calliope/docs-hash.txt"
+  local reindex_script="$ROOT_DIR/scripts/reindex-calliope.sh"
+  
+  # Skip if reindex script doesn't exist
+  if [ ! -f "$reindex_script" ]; then
+    return 0
+  fi
+  
+  # Calculate current hash of all documentation
+  local current_hash=""
+  if command -v shasum >/dev/null 2>&1; then
+    # Find all markdown files and hash them
+    current_hash=$(find "$ROOT_DIR/docs" "$ROOT_DIR/examples" "$ROOT_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | \
+      sort | xargs shasum 2>/dev/null | shasum | cut -d' ' -f1)
+  elif command -v sha1sum >/dev/null 2>&1; then
+    current_hash=$(find "$ROOT_DIR/docs" "$ROOT_DIR/examples" "$ROOT_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | \
+      sort | xargs sha1sum 2>/dev/null | sha1sum | cut -d' ' -f1)
+  else
+    # No hash utility available, skip check
+    return 0
+  fi
+  
+  # If we couldn't compute hash, skip
+  if [ -z "$current_hash" ]; then
+    return 0
+  fi
+  
+  # Check if hash file exists and compare
+  local needs_reindex=0
+  if [ ! -f "$docs_hash_file" ]; then
+    needs_reindex=1
+    echo "📚 First-time documentation indexing needed"
+  else
+    local stored_hash
+    stored_hash=$(cat "$docs_hash_file" 2>/dev/null || echo "")
+    if [ "$current_hash" != "$stored_hash" ]; then
+      needs_reindex=1
+      echo "📚 Documentation changes detected - Calliope needs reindexing"
+    fi
+  fi
+  
+  # Reindex if needed
+  if [ $needs_reindex -eq 1 ]; then
+    # Check if Calliope API is running
+    if curl -s http://localhost:3001/api/ai/health > /dev/null 2>&1; then
+      echo "🧠 Updating Calliope's knowledge base..."
+      if "$reindex_script" 2>&1 | grep -v "^#" | tail -5; then
+        # Save new hash
+        mkdir -p "$(dirname "$docs_hash_file")"
+        echo "$current_hash" > "$docs_hash_file"
+        echo "✅ Calliope's knowledge base updated"
+      else
+        echo "⚠️  Reindex failed, but continuing..."
+      fi
+    else
+      echo "ℹ️  Calliope API not running yet - will reindex when available"
+    fi
+  fi
+}
+
 show_access_info() {
   echo ""
   echo "🌐 ACCESS INFORMATION======================================"
@@ -138,6 +200,7 @@ cmd_up() {
   echo "==> Starting containers..."
   (cd "$ROOT_DIR" && $COMPOSE up -d)
   sleep 2
+  check_and_reindex_calliope
   show_access_info
 }
 
@@ -159,6 +222,7 @@ cmd_restart() {
   fi
   (cd "$ROOT_DIR" && $COMPOSE up -d)
   sleep 2
+  check_and_reindex_calliope
   show_access_info
 }
 
@@ -174,6 +238,7 @@ cmd_logs() {
 cmd_reload() {
   echo "==> Hot-reloading Nginx config..."
   "$ROOT_DIR/scripts/reload.sh"
+  check_and_reindex_calliope
 }
 
 cmd_status() {
@@ -197,6 +262,7 @@ cmd_apply() {
   fi
   (cd "$ROOT_DIR" && $COMPOSE up -d --force-recreate)
   sleep 2
+  check_and_reindex_calliope
   show_access_info
 }
 
@@ -235,6 +301,36 @@ cmd_uninstall_app() {
 cmd_list_apps() {
   echo "==> Installed apps:"
   ls -1 "$ROOT_DIR/apps"/*.conf 2>/dev/null | xargs -n1 basename | sed 's/.conf$//' || echo "(none)"
+}
+
+cmd_reindex() {
+  echo "🧠 Manually triggering Calliope knowledge base reindex..."
+  local reindex_script="$ROOT_DIR/scripts/reindex-calliope.sh"
+  
+  if [ ! -f "$reindex_script" ]; then
+    echo "❌ Reindex script not found: $reindex_script"
+    exit 1
+  fi
+  
+  if ! curl -s http://localhost:3001/api/ai/health > /dev/null 2>&1; then
+    echo "❌ Calliope API is not running on port 3001"
+    echo "   Start it with: ./smart-build.sh up"
+    exit 1
+  fi
+  
+  "$reindex_script"
+  
+  # Update hash to prevent auto-reindex
+  local docs_hash_file="$ROOT_DIR/.artifacts/calliope/docs-hash.txt"
+  if command -v shasum >/dev/null 2>&1; then
+    local current_hash
+    current_hash=$(find "$ROOT_DIR/docs" "$ROOT_DIR/examples" "$ROOT_DIR" -maxdepth 1 -name "*.md" -type f 2>/dev/null | \
+      sort | xargs shasum 2>/dev/null | shasum | cut -d' ' -f1)
+    if [ -n "$current_hash" ]; then
+      mkdir -p "$(dirname "$docs_hash_file")"
+      echo "$current_hash" > "$docs_hash_file"
+    fi
+  fi
 }
 
 # -----------------
@@ -369,6 +465,10 @@ Commands:
   uninstall-app NAME                       Remove app config
   list-apps                                List installed apps
   
+  reindex         Manually reindex Calliope's knowledge base
+                  (Auto-reindexing happens on up/restart/reload/apply
+                   when documentation changes are detected)
+  
   # Tests
   test:thoughts        Test real-time thoughts system
   test:calliope        Test Calliope AI functionality
@@ -379,8 +479,9 @@ Commands:
 
 Examples:
   ./smart-build.sh setup          # First-time setup
-  ./smart-build.sh up             # Start everything
+  ./smart-build.sh up             # Start everything (auto-reindexes if docs changed)
   ./smart-build.sh status         # Check status and health
+  ./smart-build.sh reindex        # Force reindex Calliope's knowledge
   ./smart-build.sh test:all       # Run all tests
   ./smart-build.sh logs proxy     # Watch proxy logs
   ./smart-build.sh reload         # Reload nginx after config change
@@ -403,6 +504,7 @@ main() {
     install-app) cmd_install_app "$@";;
     uninstall-app) cmd_uninstall_app "$@";;
     list-apps) cmd_list_apps;;
+    reindex) cmd_reindex;;
     
     # Tests
     test:thoughts) cmd_test_thoughts;;

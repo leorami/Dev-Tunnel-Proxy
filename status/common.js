@@ -376,6 +376,7 @@
     } catch {}
     
     // Compute drawer top/height based on visible header and standard gap
+    // Ensure equal gaps above and below, and align with content sections
     try{
       function recalc(){
         // Find the visible header (not the hidden one)
@@ -388,11 +389,11 @@
             break;
           }
         }
-        const topGap = 16; // standard section gap
+        const gap = 16; // standard gap - equal above and below
         const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
-        const top = h + topGap;
+        const top = h + gap;
         drawer.style.top = top + 'px';
-        drawer.style.height = `calc(100vh - ${top + topGap}px)`; // bottom gap = topGap
+        drawer.style.height = `calc(100vh - ${top}px - ${gap}px)`; // Equal gap at bottom
       }
       // Initial calc and on resize
       setTimeout(recalc, 100); // delay to ensure header is rendered
@@ -440,11 +441,11 @@
                 break;
               }
             }
-            const topGap = 16;
+            const gap = 16; // Equal gap above and below
             const h = (header && header.offsetHeight) ? header.offsetHeight : 72;
-            const top = h + topGap;
+            const top = h + gap;
             drawer.style.top = top + 'px';
-            drawer.style.height = `calc(100vh - ${top + topGap}px)`;
+            drawer.style.height = `calc(100vh - ${top}px - ${gap}px)`;
           }, 100);
         }catch{}
       } else {

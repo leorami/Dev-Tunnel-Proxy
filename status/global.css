@@ -1,22 +1,130 @@
-/* Global theme tokens (Status is the source of truth) */
-:root{
-  --bg:#0b1220;--bg2:#0e1627;--panel:#111a2b;--panelGlass:rgba(17,26,43,.92);
-  --muted:#5b6b8a;--text:#d9e2f1;--heading:#cfe0ff;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640;
-  --btnBg:#132a4d;--btnBgHover:#16345f;--btnBorder:#24406e;--btnText:#cfe0ff;--border:#1f2a44;--headerBg:rgba(10,16,30,.55);
-  --codeBg:#0a1223;--codeBorder:#1b2a48;
+/**
+ * Global Theme Tokens and Base Styles
+ * 
+ * This is the source of truth for the Dev Tunnel Proxy theming system.
+ * All status pages (status, health, reports, dashboard) inherit these variables.
+ * 
+ * Theme Structure:
+ * - Dark theme (default)
+ * - Light theme (via data-theme="light" attribute)
+ */
+
+/* ============================================================================
+   DARK THEME (DEFAULT)
+   ============================================================================ */
+
+:root {
+  /* Background Colors */
+  --bg: #0b1220;                      /* Primary background */
+  --bg2: #0e1627;                     /* Secondary background (gradient) */
+  --panel: #111a2b;                   /* Panel/card background */
+  --panelGlass: rgba(17, 26, 43, .92); /* Glassmorphic panel with transparency */
+  
+  /* Text Colors */
+  --muted: #5b6b8a;                   /* Muted/secondary text */
+  --text: #d9e2f1;                    /* Primary text color */
+  --heading: #cfe0ff;                 /* Headings and emphasis */
+  
+  /* Accent & Status Colors */
+  --accent: #6aa6ff;                  /* Links and accents */
+  --ok: #16c784;                      /* Success/healthy status */
+  --warn: #f59e0b;                    /* Warning status */
+  --err: #ef4444;                     /* Error status */
+  --chip: #1b2640;                    /* Status chip background */
+  
+  /* Button Styles */
+  --btnBg: #132a4d;                   /* Button background */
+  --btnBgHover: #16345f;              /* Button hover state */
+  --btnBorder: #24406e;               /* Button border */
+  --btnText: #cfe0ff;                 /* Button text */
+  
+  /* UI Elements */
+  --border: #1f2a44;                  /* General borders */
+  --headerBg: rgba(10, 16, 30, .55);  /* Header background with transparency */
+  
+  /* Code/Terminal Styles */
+  --codeBg: #0a1223;                  /* Code block background */
+  --codeBorder: #1b2a48;              /* Code block border */
 }
-:root[data-theme="light"]{
-  --bg:#edf2fb;--bg2:#f8fbff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);
-  --muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--accent:#2d6cdf;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--chip:#e8eefc;
-  --btnBg:#eef2ff;--btnBgHover:#e2e8ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--border:#d6e0f5;--headerBg:rgba(255,255,255,.78);
-  --codeBg:#f6f8ff;--codeBorder:#d6e0f5;
+
+/* ============================================================================
+   LIGHT THEME
+   ============================================================================ */
+
+:root[data-theme="light"] {
+  /* Background Colors */
+  --bg: #edf2fb;                      /* Primary background */
+  --bg2: #f8fbff;                     /* Secondary background (gradient) */
+  --panel: #ffffff;                   /* Panel/card background */
+  --panelGlass: rgba(255, 255, 255, .88); /* Glassmorphic panel with transparency */
+  
+  /* Text Colors */
+  --muted: #5b6b8a;                   /* Muted/secondary text (same as dark) */
+  --text: #0b1220;                    /* Primary text color */
+  --heading: #0b1220;                 /* Headings and emphasis */
+  
+  /* Accent & Status Colors */
+  --accent: #2d6cdf;                  /* Links and accents */
+  --ok: #0f9d6a;                      /* Success/healthy status */
+  --warn: #b7791f;                    /* Warning status */
+  --err: #c24141;                     /* Error status */
+  --chip: #e8eefc;                    /* Status chip background */
+  
+  /* Button Styles */
+  --btnBg: #eef2ff;                   /* Button background */
+  --btnBgHover: #e2e8ff;              /* Button hover state */
+  --btnBorder: #bfd1ff;               /* Button border */
+  --btnText: #0b1220;                 /* Button text */
+  
+  /* UI Elements */
+  --border: #d6e0f5;                  /* General borders */
+  --headerBg: rgba(255, 255, 255, .78); /* Header background with transparency */
+  
+  /* Code/Terminal Styles */
+  --codeBg: #f6f8ff;                  /* Code block background */
+  --codeBorder: #d6e0f5;              /* Code block border */
 }
 
-/* Base typography */
-*{box-sizing:border-box}
-body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
-button,a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
-.card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px}
-pre{background:var(--codeBg);border:1px solid var(--codeBorder)}
+/* ============================================================================
+   BASE STYLES
+   ============================================================================ */
 
+/* Universal box-sizing for consistent layout */
+* {
+  box-sizing: border-box;
+}
 
+/* Body: gradient background and typography */
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--bg), var(--bg2));
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica Neue, Arial, Noto Sans;
+}
+
+/* Button and button-styled links */
+button,
+a.btn {
+  appearance: none;
+  border: 1px solid var(--btnBorder);
+  background: var(--btnBg);
+  color: var(--btnText);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Card/panel container */
+.card {
+  background: var(--panelGlass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+/* Code block styling */
+pre {
+  background: var(--codeBg);
+  border: 1px solid var(--codeBorder);
+}

@@ -263,9 +263,33 @@ function ensureGenericPatterns() {
               ]
             },
             solutions: [{
-              id: 'diagnose_nextjs_auth',
-              description: 'App-level Next.js auth configuration issue - recommend config fixes',
-              implementation: { type: 'recommendation', guidance: 'Next.js Auth Configuration Issues Detected' }
+              id: 'fix_nginx_location_priority',
+              description: 'Add ^~ prefix to location block for higher priority matching of API routes',
+              implementation: { type: 'automated', function: 'fixNginxLocationPriority', params: [] }
+            }]
+          });
+        }
+        
+        if (!have.has('nginx_location_priority')) {
+          seed.push({
+            id: 'nginx_location_priority',
+            detection: {
+              signals: [
+                String.raw`location /[^/]+/ \{`,
+                String.raw`/api/.*not valid JSON`,
+                String.raw`API routes returning HTML`,
+                String.raw`proxy_pass.*:(\d+)/[^/]+/`
+              ],
+              effects: [
+                'API routes under subpath return wrong content',
+                'Location blocks being bypassed by other routes',
+                'Subpath app API routes return 404 or HTML'
+              ]
+            },
+            solutions: [{
+              id: 'add_priority_prefix_modifier',
+              description: 'Add ^~ prefix modifier to subpath location blocks for priority matching',
+              implementation: { type: 'automated', function: 'fixNginxLocationPriority', params: [] }
             }]
           });
         }

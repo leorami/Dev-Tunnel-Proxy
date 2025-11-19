@@ -1,106 +1,479 @@
-/* Shared header + Calliope drawer styles */
-:root{--aiWidth:clamp(360px, 32vw, 512px);--aiGutter:16px}
-header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
-.header-row{display:flex;align-items:center;justify-content:space-between}
-.header-actions{display:flex;align-items:center;gap:8px}
-.header-actions .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-.header-actions .tab{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
-.header-actions .tab.active{background:#1a2a4b;border-color:#36568c;color:#cfe0ff}
-.header-actions .action{appearance:none;border:1px solid var(--btnBorder);background:#0f2242;border-color:#2a4a7e;color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
-.header-actions .action.active{outline:2px solid #36568c}
-.header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
-header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
-header h1 .brand{font-weight:700;color:var(--heading)}
+/**
+ * Common Styles for Status Pages
+ * 
+ * Shared components across all status pages:
+ * - Header navigation with tabs and actions
+ * - Calliope AI assistant drawer
+ * - Page-specific layout adjustments when Calliope is open
+ * 
+ * This file works in conjunction with global.css for theming.
+ */
 
-/* Light theme adjustments */
-:root[data-theme="light"] .header-actions .tab.active{background:#d9e2ff;border-color:#bfd1ff;color:#0b1220}
-:root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
+/* ============================================================================
+   CALLIOPE DRAWER CONFIGURATION
+   ============================================================================ */
 
-/* Calliope drawer (shared minimal) */
-.ai-drawer{position:fixed;right:var(--aiGutter);top:72px;height:calc(100vh - 104px);width:var(--aiWidth);padding:8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
-/* JS will override top/height for proper positioning */
-.ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
-.ai-tab{display:none}
-.ai-content{flex:1;display:flex;flex-direction:column;gap:8px}
-/* Match Status page header structure */
-.ai-header{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 8px;border-bottom:1px solid var(--border)}
-.ai-content{margin-top:6px}
-.ai-header h2{margin:0;font-size:14px;display:flex;align-items:center;gap:8px;color:var(--heading)}
-.ai-meta{display:flex;align-items:center;gap:8px}
-.ai-healing-status,.ai-healing-history{font-size:12px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--btnBorder);font-weight:700;background:var(--btnBg);color:var(--btnText)}
-.ai-healing-status .pulse{display:none}
-.ai-hint{display:none;color:var(--muted);font-size:12px;margin:2px 2px 6px}
-.ai-drawer img{max-width:100%;height:auto}
-.ai-chat{flex:1;overflow:auto;border:1px solid var(--codeBorder);border-radius:10px;padding:10px;background:var(--codeBg)}
-.bubble{max-width:85%;padding:8px 12px;border-radius:14px;margin:12px 0;line-height:1.45}
-.bubble.user{margin-left:auto;background:rgba(125,162,255,.22);border:1px solid rgba(125,162,255,.35)}
-.bubble.assistant{margin-right:auto;background:linear-gradient(180deg, rgba(255,143,211,.12), rgba(255,91,189,.10));border:1px solid rgba(255,143,211,.45)}
-.bubble-title{font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1)}
-.bubble-content{margin-top:0; overflow-wrap:anywhere; word-break:break-word}
-.bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
-.ai-input{display:flex;gap:8px;flex-direction:column;border-top:1px solid var(--border);padding-top:8px}
-.ai-input textarea{flex:1;border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);color:var(--text)}
-.ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
-.ai-actions .btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600}
-
-/* When Calliope drawer is open, shrink content to fit available space with equal gaps */
-/* Remove built-in page paddings that would add to the gutter */
-body.ai-open .container, body.ai-open .content{padding-right:0 !important}
-
-/* Fix gap issues for Status and Dashboard pages specifically */
-body.ai-open[data-page="status"] .content{
-  /* Status page: adjust for equal 16px gaps */
-  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
-  margin-left:16px !important;
-  margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;
+:root {
+  /* Calliope drawer width: responsive between 360px and 512px */
+  --aiWidth: clamp(360px, 32vw, 512px);
+  
+  /* Standard gap between drawer and viewport edge */
+  --aiGutter: 16px;
 }
 
-body.ai-open[data-page="dashboard"] .content{
-  margin-top:24px !important;
-  margin-bottom:24px !important;
-  /* Dashboard page: adjust for equal 16px gaps */
-  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
-  margin-left:16px !important;
-  margin-right:calc(var(--aiWidth) + var(--aiGutter)) !important;
+/* ============================================================================
+   HEADER & NAVIGATION
+   ============================================================================ */
+
+/* Main header: sticky at top with glassmorphic effect */
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--headerBg);
+  backdrop-filter: saturate(180%) blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-/* Dashboard Result section should maintain reasonable width */
-body.ai-open[data-page="dashboard"] section.card.content{
-  min-width:500px !important;
-  flex-shrink:0 !important;
+/* Header layout: logo on left, actions on right */
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-body.ai-open[data-page="health"] .container{
-  margin-top:24px !important;
-  margin-bottom:24px !important;
-  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
-  margin-left:16px !important;
-  margin-right:calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+/* Header branding */
+header h1 {
+  font-size: 16px;
+  margin: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-body.ai-open[data-page="reports"] .container{
-  margin-top:24px !important;
-  margin-bottom:24px !important;
-  max-width:calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
-  margin-left:16px !important;
-  margin-right:calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+header h1 .brand {
+  font-weight: 700;
+  color: var(--heading);
 }
 
-@media (max-width: 768px){
-  .ai-drawer{left:12px;right:12px;top:auto;bottom:12px;width:auto;height:min(50vh, calc(100vh - 120px));border-radius:12px}
-  .ai-tab{display:none}
+/* Header action buttons container */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* Thinking indicator animation */
-.bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
-.thinking-dots{display:inline-block}
-.thinking-dots .dot{opacity:0;animation:dotFade 1.4s infinite}
-.thinking-dots .dot:nth-child(1){animation-delay:0s}
-.thinking-dots .dot:nth-child(2){animation-delay:0.2s}
-.thinking-dots .dot:nth-child(3){animation-delay:0.4s}
-@keyframes dotFade{
-  0%, 20%{opacity:0}
-  50%{opacity:1}
-  100%{opacity:0}
+/* Standard header button */
+.header-actions .btn {
+  appearance: none;
+  border: 1px solid var(--btnBorder);
+  background: var(--btnBg);
+  color: var(--btnText);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
+/* Navigation tabs (Status, Health, Reports, Dashboard) */
+.header-actions .tab {
+  appearance: none;
+  border: 1px solid var(--btnBorder);
+  background: var(--btnBg);
+  color: var(--btnText);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Active tab styling (dark theme) */
+.header-actions .tab.active {
+  background: #1a2a4b;
+  border-color: #36568c;
+  color: #cfe0ff;
+}
+
+/* Action buttons (reload, theme toggle, Calliope) */
+.header-actions .action {
+  appearance: none;
+  border: 1px solid var(--btnBorder);
+  background: #0f2242;
+  border-color: #2a4a7e;
+  color: var(--btnText);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Active action button (e.g., Calliope open) */
+.header-actions .action.active {
+  outline: 2px solid #36568c;
+}
+
+/* Visual divider between button groups */
+.header-actions .divider {
+  display: inline-block;
+  width: 10px;
+  height: 28px;
+  margin: 0 6px;
+  border-left: 1px solid var(--border);
+}
+
+/* Light theme adjustments for header buttons */
+:root[data-theme="light"] .header-actions .tab.active {
+  background: #d9e2ff;
+  border-color: #bfd1ff;
+  color: #0b1220;
+}
+
+:root[data-theme="light"] .header-actions .action {
+  background: #eef2ff;
+  border-color: #bfd1ff;
+  color: #0b1220;
+}
+
+/* ============================================================================
+   CALLIOPE AI DRAWER
+   ============================================================================ */
+
+/* Main drawer container: fixed to right side of viewport
+ * Note: JavaScript overrides top/height for dynamic positioning
+ */
+.ai-drawer {
+  position: fixed;
+  right: var(--aiGutter);
+  top: 88px;  /* Default; JS calculates based on header height */
+  height: calc(100vh - 120px);  /* Default; JS ensures equal gaps */
+  width: var(--aiWidth);
+  padding: 8px;
+  z-index: 2005;  /* Above most content but below modals */
+  background: var(--panelGlass);
+  border-left: 1px solid var(--border);
+  border-radius: 12px 0 0 12px;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .35);
+  backdrop-filter: saturate(160%) blur(8px);
+  display: flex;
+  flex-direction: column;
+  transition: transform .18s ease;
+}
+
+/* Collapsed state: slide out to the right */
+.ai-drawer.collapsed {
+  transform: translateX(calc(100%));
+  border-left: none;
+  box-shadow: none;
+}
+
+/* Legacy tab element (hidden, button in header used instead) */
+.ai-tab {
+  display: none;
+}
+
+/* ============================================================================
+   CALLIOPE DRAWER LAYOUT
+   ============================================================================ */
+
+/* Main content container: flexbox with constrained overflow */
+.ai-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;  /* Critical: allows flex children to shrink properly */
+  overflow: hidden;  /* Prevents content from escaping container */
+}
+
+/* Drawer header: title and status badges */
+.ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 6px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;  /* Prevent header from shrinking */
+}
+
+.ai-header h2 {
+  margin: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--heading);
+}
+
+/* Metadata badges container (healing status, history) */
+.ai-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Status badges styling */
+.ai-healing-status,
+.ai-healing-history {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--btnBorder);
+  font-weight: 700;
+  background: var(--btnBg);
+  color: var(--btnText);
+}
+
+/* Pulse indicator (shown during active operations) */
+.ai-healing-status .pulse {
+  display: none;
+}
+
+/* Context hint (hidden by default, used for debugging) */
+.ai-hint {
+  display: none;
+  color: var(--muted);
+  font-size: 12px;
+  margin: 2px 2px 6px;
+}
+
+/* Images in drawer: responsive sizing */
+.ai-drawer img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================================================
+   CALLIOPE CHAT AREA
+   ============================================================================ */
+
+/* Scrollable chat container */
+.ai-chat {
+  flex: 1;
+  min-height: 0;  /* Critical: allows overflow to work in flexbox */
+  overflow: auto;
+  border: 1px solid var(--codeBorder);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--codeBg);
+}
+
+/* Chat bubble base styling */
+.bubble {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  margin: 12px 0;
+  line-height: 1.45;
+}
+
+/* User message bubble: blue, aligned right */
+.bubble.user {
+  margin-left: auto;
+  background: rgba(125, 162, 255, .22);
+  border: 1px solid rgba(125, 162, 255, .35);
+}
+
+/* Assistant message bubble: pink gradient, aligned left */
+.bubble.assistant {
+  margin-right: auto;
+  background: linear-gradient(180deg, rgba(255, 143, 211, .12), rgba(255, 91, 189, .10));
+  border: 1px solid rgba(255, 143, 211, .45);
+}
+
+/* Bubble header (shows "You" or "Calliope") */
+.bubble-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+}
+
+/* Bubble content: prevent overflow */
+.bubble-content {
+  margin-top: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Code blocks within bubbles */
+.bubble pre {
+  margin: .5em 0;
+  background: var(--codeBg);
+  border: 1px solid var(--codeBorder);
+  padding: 10px;
+  border-radius: 10px;
+  overflow: auto;
+}
+
+/* Thinking indicator bubble (shown during processing) */
+.bubble.thinking {
+  background: transparent;
+  border: 1px dashed var(--btnBorder);
+  opacity: .85;
+}
+
+/* ============================================================================
+   CALLIOPE INPUT AREA
+   ============================================================================ */
+
+/* Input section: textarea + buttons */
+.ai-input {
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  flex-shrink: 0;  /* Prevent input area from shrinking */
+}
+
+/* User input textarea */
+.ai-input textarea {
+  flex: 1;
+  border: 1px solid var(--codeBorder);
+  border-radius: 10px;
+  background: var(--codeBg);
+  color: var(--text);
+  min-height: 60px;  /* Minimum comfortable size */
+  max-height: 120px;  /* Prevent excessive growth */
+  padding: 8px;
+  resize: vertical;
+}
+
+/* Action buttons container */
+.ai-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-shrink: 0;  /* Prevent buttons from shrinking */
+}
+
+.ai-actions .btn {
+  appearance: none;
+  border: 1px solid var(--btnBorder);
+  background: var(--btnBg);
+  color: var(--btnText);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   THINKING ANIMATION
+   ============================================================================ */
+
+.thinking-dots {
+  display: inline-block;
+}
+
+.thinking-dots .dot {
+  opacity: 0;
+  animation: dotFade 1.4s infinite;
+}
+
+.thinking-dots .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.thinking-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.thinking-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotFade {
+  0%, 20% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ============================================================================
+   PAGE LAYOUT ADJUSTMENTS WHEN CALLIOPE IS OPEN
+   ============================================================================ */
+
+/* Base adjustment: remove padding that would add to gutter */
+body.ai-open .container,
+body.ai-open .content {
+  padding-right: 0 !important;
+}
+
+/* Status page: ensure equal 16px gaps on all sides */
+body.ai-open[data-page="status"] .content {
+  max-width: calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left: 16px !important;
+  margin-right: calc(var(--aiWidth) + var(--aiGutter)) !important;
+}
+
+/* Dashboard page: similar adjustments with vertical spacing */
+body.ai-open[data-page="dashboard"] .content {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+  max-width: calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left: 16px !important;
+  margin-right: calc(var(--aiWidth) + var(--aiGutter)) !important;
+}
+
+/* Dashboard result section: maintain minimum usable width */
+body.ai-open[data-page="dashboard"] section.card.content {
+  min-width: 500px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Health page layout adjustments */
+body.ai-open[data-page="health"] .container {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+  max-width: calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left: 16px !important;
+  margin-right: calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+}
+
+/* Reports page layout adjustments */
+body.ai-open[data-page="reports"] .container {
+  margin-top: 24px !important;
+  margin-bottom: 24px !important;
+  max-width: calc(100vw - var(--aiWidth) - var(--aiGutter) - 32px) !important;
+  margin-left: 16px !important;
+  margin-right: calc(var(--aiWidth) + var(--aiGutter) + 16px) !important;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+/* Mobile/tablet: drawer becomes bottom sheet */
+@media (max-width: 768px) {
+  .ai-drawer {
+    left: 12px;
+    right: 12px;
+    top: auto;
+    bottom: 12px;
+    width: auto;
+    height: min(50vh, calc(100vh - 120px));
+    border-radius: 12px;
+  }
+  
+  .ai-tab {
+    display: none;
+  }
+}
