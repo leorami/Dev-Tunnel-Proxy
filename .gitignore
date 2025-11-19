@@ -29,6 +29,7 @@ coverage/
 
 # Apps runtime snippets (ignored to keep project generic)
 apps/*.conf
+apps/*.conf.backup.*
 
 # Logs
 logs/
