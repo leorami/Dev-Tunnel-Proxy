@@ -301,9 +301,27 @@ POST /api/ai/audit-and-heal
 {"url": "http://dev-proxy/myapp", "maxPasses": 3}
 ```
 
-### Optional: OpenAI Integration
+### 📚 **Knowledge Base & RAG System**
+- **Documentation Embeddings**: Calliope has access to all internal documentation via semantic search
+- **Automatic Reindexing**: Smart-build detects doc changes and rebuilds knowledge base automatically
+- **Comprehensive Coverage**: ~97k characters across 10 docs (README, troubleshooting, API guides, etc.)
+- **Natural Queries**: Ask about features, configuration, roadmap - she searches embedded docs for answers
 
-For enhanced Q&A capabilities, configure OpenAI in `.env`:
+#### RAG Features
+```bash
+# Reindex knowledge base manually
+./smart-build.sh reindex
+
+# Auto-reindex happens on: up, restart, reload, apply
+./smart-build.sh reload  # Checks for doc changes, reindexes if needed
+
+# Check index status
+curl http://localhost:3001/api/ai/stats
+```
+
+### OpenAI Integration
+
+Configure OpenAI in `.env` for AI-powered healing and Q&A:
 
 ```bash
 OPENAI_API_KEY=sk-...
@@ -313,8 +331,7 @@ OPENAI_EMBED_MODEL=text-embedding-3-small
 
 ### Learn More
 
-- **[Calliope AI Assistant Guide](docs/CALLIOPE-AI-ASSISTANT.md)** - Full capabilities and technical details
-- **[Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Her caring, proactive approach
+- **[Calliope Complete Guide](docs/CALLIOPE.md)** - Full capabilities, personality, RAG system, and technical details
 
 ## 🔄 API Endpoints
 
@@ -484,6 +501,9 @@ The `smart-build.sh` script provides convenient commands for managing the proxy:
 # Reload nginx configuration
 ./smart-build.sh reload
 
+# Rebuild Calliope's knowledge base
+./smart-build.sh reindex
+
 # App management (legacy - prefer API)
 ./smart-build.sh install-app NAME path/to/config.conf
 ./smart-build.sh uninstall-app NAME
@@ -491,6 +511,9 @@ The `smart-build.sh` script provides convenient commands for managing the proxy:
 
 # Check service status
 ./smart-build.sh status
+
+# Run tests
+./smart-build.sh test:all
 ```
 
 ### Local vs Tunnel Strategy
@@ -862,12 +885,25 @@ dev-tunnel-proxy/
 
 ## 📚 Documentation
 
-- **[Project Integration Guide](docs/PROJECT-INTEGRATION.md)** - Step-by-step setup for new projects
+### Getting Started
+- **[User Guide](docs/USER_GUIDE.md)** - Complete guide including initial setup, integration, and daily usage
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+### Technical Documentation
+- **[Architecture](docs/ARCHITECTURE.md)** - System design, container architecture, and design decisions
 - **[Configuration Management Guide](docs/CONFIG-MANAGEMENT-GUIDE.md)** - How the generator works, migration notes, overrides
 - **[API Endpoints](docs/API-ENDPOINTS.md)** - Complete API reference and examples
-- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope AI Assistant](docs/CALLIOPE-AI-ASSISTANT.md)** - Capabilities, endpoints, and integrated self-healing
-- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope Personality](docs/CALLIOPE-PERSONALITY.md)** - Tone, traits, and expressive behavior
+- **[Testing Guide](docs/TESTING.md)** - Test suites, running tests, and quality assurance
+- **[Data Lifecycle](docs/DATA_LIFECYCLE.md)** - How data flows through the system
+
+### Calliope AI Assistant
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope Complete Guide](docs/CALLIOPE.md)** - Comprehensive guide covering personality, capabilities, RAG system, healing, and API endpoints
+
+### Project Information
+- **[Product Overview](docs/PRODUCT.md)** - Vision, features, and use cases
+- **[Roadmap](docs/ROADMAP.md)** - Planned features and future development
+- **[Security](docs/SECURITY.md)** - Security considerations and best practices
+- **[Known Issues](docs/KNOWN_ISSUES.md)** - Current limitations and workarounds
 
 ## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Inspiration: Calliope
 
