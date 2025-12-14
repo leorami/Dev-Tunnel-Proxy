@@ -217,6 +217,73 @@ Expected response:
 
 ## Adding Your App
 
+### ⚠️ Important: Reserved Paths Restriction
+
+**The root path (`/`) is FORBIDDEN for apps and is reserved exclusively for the Dev Tunnel Proxy landing page.**
+
+#### What This Means
+
+- ❌ **Apps cannot define** `location = /` in their nginx configuration
+- ✅ **Apps must use** their own namespaced path (e.g., `/myapp/`, `/api/`, `/service/`)
+- 🚫 **Automatic blocking** - Any attempt to define the root path will be silently ignored with a warning
+
+#### Why This Exists
+
+1. The root path serves as the proxy's landing page and brand identity
+2. It provides visitors with system information and documentation links
+3. It prevents conflicts between multiple apps competing for the root
+4. It ensures consistent navigation and user experience
+
+#### Reserved Proxy Paths
+
+Avoid using these paths in your app configurations:
+
+| Path | Purpose | Status |
+|------|---------|--------|
+| `/` | Landing page | **FORBIDDEN** |
+| `/status` | Status dashboard | Reserved |
+| `/health` | Health page | Reserved |
+| `/reports` | Reports page | Reserved |
+| `/dashboard` | Dashboard | Reserved |
+| `/api/ai/*` | Calliope AI | Reserved |
+| `/api/config/*` | Config API | Reserved |
+| `/api/apps/*` | Apps API | Reserved |
+| `/health.json` | Health JSON | Reserved |
+| `/routes.json` | Routes JSON | Reserved |
+| `/.artifacts/*` | Artifacts | Reserved |
+
+#### Correct Configuration Examples
+
+```nginx
+# ❌ FORBIDDEN - Will be automatically blocked
+location = / {
+  proxy_pass http://my-app:3000;
+}
+
+# ✅ CORRECT - Use your own namespaced path
+location ^~ /myapp/ {
+  proxy_pass http://my-app:3000/;
+}
+
+# ✅ CORRECT - API endpoint with prefix
+location ^~ /api/v1/ {
+  proxy_pass http://api-service:8000/;
+}
+
+# ✅ CORRECT - Service with exact match redirect
+location = /service {
+  return 301 /service/;
+}
+
+location ^~ /service/ {
+  proxy_pass http://service:4000/;
+}
+```
+
+**See [CONFIG-MANAGEMENT-GUIDE.md](./CONFIG-MANAGEMENT-GUIDE.md#reserved-paths---root-path-restriction) for complete details.**
+
+---
+
 ### Method 1: Automatic (Recommended)
 
 If your app is already running in Docker, use the API:

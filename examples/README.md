@@ -49,6 +49,31 @@ This directory contains example configurations for different types of applicatio
 
 ## Key Configuration Patterns
 
+### ⚠️ Reserved Root Path (Critical)
+
+**Apps are FORBIDDEN from defining `location = /`.**
+
+The root path is exclusively reserved for the Dev Tunnel Proxy landing page and cannot be used by any application configuration.
+
+```nginx
+# ❌ FORBIDDEN - Will be automatically blocked
+location = / {
+  proxy_pass http://my-app:3000;
+}
+
+# ✅ CORRECT - Use your app's namespaced path
+location ^~ /myapp/ {
+  proxy_pass http://my-app:3000/;
+}
+```
+
+**Reserved proxy paths to avoid:**
+- `/` (landing page) - **FORBIDDEN**
+- `/status`, `/health`, `/reports`, `/dashboard` - UI endpoints
+- `/api/ai/*`, `/api/config/*`, `/api/apps/*` - API endpoints
+
+See [CONFIG-MANAGEMENT-GUIDE.md](../docs/CONFIG-MANAGEMENT-GUIDE.md#reserved-paths---root-path-restriction) for complete details.
+
 ### Dynamic Upstream Resolution (Required)
 All examples use nginx variables to prevent startup failures:
 ```nginx

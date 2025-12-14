@@ -279,6 +279,43 @@ docker network create devproxy
 3. **Exact vs prefix** - `location = /app/` and `location ^~ /app/` can coexist
 4. **Include order** - Apps included before generic `location /` in default.conf
 
+### Reserved Path Enforcement
+
+**Root Path (`/`) is FORBIDDEN for apps** and reserved exclusively for the proxy landing page.
+
+The configuration generator (`utils/generateAppsBundle.js`) enforces this restriction:
+
+```javascript
+function isRootLevelDevHelper(pathSpec) {
+  // FORBIDDEN: Apps cannot define location = /
+  if (/^=\s*\/(?:$|index\.html$|iframe\.html$)/.test(pathSpec)) {
+    console.warn(`⚠️  BLOCKED: Apps are FORBIDDEN from defining root path`);
+    return true; // Block this location
+  }
+  // ... additional checks
+}
+```
+
+**Enforcement mechanism:**
+1. Generator scans all `location` blocks during composition
+2. Detects any attempts to define `location = /`
+3. Automatically blocks the location from being included
+4. Logs warning to console for visibility
+5. No override possible - even `overrides/` cannot define root
+
+**Reserved paths protected:**
+- `/` - Landing page (FORBIDDEN)
+- `/status`, `/health`, `/reports`, `/dashboard` - UI endpoints
+- `/api/ai/*`, `/api/config/*`, `/api/apps/*` - API endpoints
+- `/.artifacts/*` - Internal artifacts
+- `/health.json`, `/routes.json`, `/status.json` - JSON endpoints
+
+**Why this matters:**
+- Ensures consistent user experience
+- Provides single source of truth about the proxy
+- Prevents conflicts between apps
+- Maintains brand identity and documentation access
+
 ### Generation Process
 
 ```

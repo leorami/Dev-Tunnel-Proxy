@@ -2,6 +2,73 @@
 
 The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes. Config serving now uses a generated bundle that composes inputs from `apps/` and `overrides/` so proxy-owned decisions always take precedence.
 
+## Reserved Paths - ROOT PATH RESTRICTION
+
+**IMPORTANT: Apps are FORBIDDEN from defining the root path (`location = /`).**
+
+The root path is **exclusively reserved** for the Dev Tunnel Proxy's landing page and cannot be overridden by any application configuration.
+
+### Why This Restriction Exists
+
+1. **Brand Identity**: The root path serves as the professional face of Dev Tunnel Proxy
+2. **Documentation Hub**: Provides visitors with comprehensive information about the system
+3. **Navigation**: Central point for accessing status dashboards, health endpoints, and GitHub
+4. **Conflict Prevention**: Eliminates conflicts between apps trying to claim the root
+
+### What Happens If Apps Try to Define Root
+
+If any app configuration file (`apps/*.conf` or `overrides/*.conf`) attempts to define `location = /`:
+
+- ✅ **Automatic Blocking**: The configuration generator will silently skip the block
+- ⚠️ **Warning Logged**: A clear warning message will be displayed:
+  ```
+  ⚠️  BLOCKED: Apps are FORBIDDEN from defining root path "location = /"
+     The root path (/) is reserved for the Dev Tunnel Proxy landing page.
+     Apps must use their own basePath (e.g., /myapp/).
+  ```
+- 🚫 **No Override Possible**: Even `overrides/` cannot override this restriction
+
+### Correct App Configuration
+
+Apps must use their own base path prefix:
+
+```nginx
+# ❌ FORBIDDEN - Will be automatically blocked
+location = / {
+  proxy_pass http://my-app:3000;
+}
+
+# ✅ CORRECT - Use your app's base path
+location = /myapp {
+  return 301 /myapp/;
+}
+
+location ^~ /myapp/ {
+  proxy_pass http://my-app:3000;
+}
+```
+
+### Reserved Proxy Paths
+
+The following paths are reserved for proxy functionality:
+
+- `/` - Landing page (FORBIDDEN to apps)
+- `/status` - Status dashboard
+- `/health` - Health check page
+- `/reports` - Reports page
+- `/dashboard` - Dashboard interface
+- `/api/ai/` - Calliope AI endpoints
+- `/api/config/` - Configuration API
+- `/api/apps/` - Apps API
+- `/api/overrides/` - Overrides API
+- `/api/reports/` - Reports API
+- `/health.json` - Health status JSON
+- `/routes.json` - Routes configuration JSON
+- `/status.json` - Status JSON
+- `/.artifacts/` - Artifacts directory
+
+Apps should avoid these paths and use their own namespaced paths (e.g., `/myapp/`, `/myservice/`, etc.).
+
 ## Overrides, Composition, and Precedence (important)
 
 To prevent regressions when an app re-generates its own nginx snippet, the proxy no longer includes `apps/*.conf` directly. Instead, it composes a single generated file `build/sites-enabled/apps.generated.conf` from two sources:

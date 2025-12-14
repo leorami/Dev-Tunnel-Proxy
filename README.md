@@ -15,6 +15,7 @@
 
 - [Key Features](#key-features)
 - [Quick Start](#quick-start)
+- [🔐 Security & Authentication](#-security--authentication)
 - [Configuration Management](#configuration-management)
 - [📊 Enhanced Status Dashboard](#-enhanced-status-dashboard)
 - [<img src="./status/assets/calliope_heart_stethoscope.svg" width="16" style="vertical-align: middle;" /> Calliope AI Assistant](#-calliope-ai-assistant)
@@ -46,15 +47,35 @@
 
 ### 1. Initial Setup
 
-First, configure your ngrok authentication:
+First, configure your environment variables in `.env`:
 
 ```bash
-# Create .env file with your ngrok token
-export NGROK_AUTHTOKEN=YOUR_TOKEN
+# Required: ngrok authentication
+NGROK_AUTHTOKEN=YOUR_TOKEN
 
-# (Optional) Use a reserved ngrok domain
-export NGROK_STATIC_DOMAIN=your-domain.ngrok.app
+# Optional: Use a reserved ngrok domain
+NGROK_STATIC_DOMAIN=your-domain.ngrok.app
+
+# Optional: OpenAI API key for Calliope AI assistant
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o
+OPENAI_EMBED_MODEL=text-embedding-3-small
+
+# IMPORTANT: Admin password for proxy dashboard access
+# Set this to a secure password (minimum 16 characters)
+# If not set, a random 64-character password will be auto-generated
+ADMIN_PASSWORD=your-secure-password-here
 ```
+
+**🔐 Security Note:** The `ADMIN_PASSWORD` protects your proxy's admin pages (`/status`, `/health`, `/reports`) from unauthorized access. This is **critical** when your proxy is exposed via ngrok.
+
+**Options:**
+1. **Set it yourself** (recommended): Choose a strong password (16+ characters) and add it to `.env`
+2. **Auto-generate**: Leave it blank and the proxy will generate a secure random password on first startup
+
+**To view your auto-generated password:**
+- From localhost: Visit `http://localhost:8080/admin/show-password`
+- Or check the `ADMIN_PASSWORD` variable in your `.env` file
 
 ### 2. One-Time Setup
 
@@ -140,7 +161,86 @@ services:
   ```bash
   ./smart-build.sh logs ngrok
   ```
-- **Status Dashboard**: Visit `http://localhost:8080/status` to see all routes and their health
+- **Status Dashboard**: Visit `http://localhost:8080/status` to see all routes and their health (requires login)
+
+---
+
+## 🔐 Security & Authentication
+
+### Admin Password Protection
+
+All admin pages (`/status`, `/health`, `/reports`, and API endpoints) are **password-protected** to prevent unauthorized access when your proxy is exposed via ngrok.
+
+### Setup Options
+
+#### Option 1: Set Your Own Password (Recommended)
+
+Add to your `.env` file:
+
+```bash
+ADMIN_PASSWORD=your-secure-password-here
+```
+
+**Requirements:**
+- Minimum 16 characters
+- Use a strong, unique password
+- Never commit `.env` to version control (it's gitignored)
+
+#### Option 2: Auto-Generate Password
+
+If you don't set `ADMIN_PASSWORD`, the proxy will automatically generate a secure 64-character random password on first startup.
+
+**To view your auto-generated password:**
+
+```bash
+# From localhost only (security restriction)
+curl http://localhost:8080/admin/show-password
+
+# Or visit in your browser
+open http://localhost:8080/admin/show-password
+
+# Or check your .env file
+grep ADMIN_PASSWORD .env
+```
+
+### Logging In
+
+1. Visit any admin page (e.g., `http://localhost:8080/status` or `https://your-domain.ngrok.app/status`)
+2. You'll be redirected to the login page
+3. Enter your admin password
+4. Session lasts 7 days
+
+### Changing Your Password
+
+1. Edit the `ADMIN_PASSWORD` in your `.env` file
+2. Restart the proxy:
+   ```bash
+   ./smart-build.sh restart
+   ```
+
+### Security Features
+
+- ✅ **Auto-generated passwords**: Prevents default password attacks
+- ✅ **Session-based auth**: 7-day sessions with HttpOnly cookies
+- ✅ **Localhost-only password display**: `/admin/show-password` only accessible from localhost
+- ✅ **Constant-time comparison**: Prevents timing attacks
+- ✅ **Rate limiting**: 1-second delay on failed login attempts
+- ✅ **No default passwords**: Each installation has a unique password
+
+### Public Access Considerations
+
+When using ngrok, your proxy is **publicly accessible**. The admin password ensures:
+- Unauthorized users cannot view your routes
+- Attackers cannot modify your proxy configuration
+- Your development environment remains secure
+
+**Best Practices:**
+- Use a strong password (or let the system generate one)
+- Never share your password or ngrok URL publicly
+- Regularly rotate your password
+- Monitor access logs for suspicious activity
+
+---
 
 ## Configuration Management
 
@@ -157,6 +257,21 @@ The proxy uses a **composition-based approach** to manage nginx configurations:
 - **Overrides win**: If both an app and override define the same location, the override is used
 - **Newest app wins**: Among apps, the most recently modified file takes precedence for conflicting routes
 - **Exact + prefix coexist**: `location = /myapp/` and `location ^~ /myapp/` can both exist
+
+### ⚠️ Reserved Path Restriction
+
+**Apps are FORBIDDEN from defining the root path (`location = /`).**
+
+The root path is **exclusively reserved** for the Dev Tunnel Proxy landing page. Any app configuration attempting to define `location = /` will be automatically blocked with a warning.
+
+**Why?** The root path serves as the proxy's professional landing page, providing system information, navigation to documentation, and links to GitHub.
+
+**What to use instead:** Apps must use their own namespaced paths:
+- ✅ `location ^~ /myapp/` - Correct
+- ✅ `location ^~ /api/` - Correct  
+- ❌ `location = /` - **FORBIDDEN**, automatically blocked
+
+See [CONFIG-MANAGEMENT-GUIDE.md](docs/CONFIG-MANAGEMENT-GUIDE.md#reserved-paths---root-path-restriction) for complete details on reserved paths.
 
 ### Key Benefits
 
