@@ -1,0 +1,48 @@
+# Cursor AI Rules for Dev Tunnel Proxy
+
+## Git Commands - STRICT POLICY
+
+**Git operations require EXPLICIT user approval:**
+
+1. **NEVER** run git commands (`git add`, `git commit`, `git push`, etc.) unless:
+   - The user explicitly requests it in their message (e.g., "commit these changes", "push to github")
+   - OR the user has approved the specific git operation
+
+2. **FORBIDDEN without explicit approval:**
+   - `git add` - staging changes
+   - `git commit` - committing changes
+   - `git push` - pushing to remote
+   - `git merge` - merging branches
+   - `git rebase` - rebasing branches
+   - `git reset --hard` - hard resets
+   - `git push --force` - force pushes
+   - `git checkout` - switching branches
+   - Any other git state-modifying commands
+
+3. **When completing a task:**
+   - Implement the requested changes
+   - Show the user what was done
+   - **WAIT** for the user to request git operations
+   - DO NOT proactively commit or push
+
+4. **Allowed without approval:**
+   - `git status` - checking status
+   - `git diff` - viewing diffs
+   - `git log` - viewing history
+   - `git branch` - listing branches
+   - Other read-only git commands
+
+## Documentation Standards
+
+- Keep documentation accurate and up-to-date
+- Cross-reference related documents
+- Use clear examples and code blocks
+- Maintain consistent formatting
+
+## Code Changes
+
+- Test changes before considering them complete
+- Follow existing code style
+- Add comments for complex logic
+- Update related documentation when changing functionality
+
