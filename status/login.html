@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - Dev Tunnel Proxy</title>
+  <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg">
+  <link rel="icon" type="image/png" href="/status/assets/favicon.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .login-container {
+      max-width: 450px;
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 1rem;
+      padding: 3rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      animation: fadeInUp 0.5s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 2rem;
+      display: block;
+      filter: drop-shadow(0 5px 15px rgba(79, 70, 229, 0.4));
+    }
+
+    h1 {
+      font-size: 2rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      font-size: 0.875rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    input[type="password"] {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 0.5rem;
+      color: #f8fafc;
+      font-size: 1rem;
+      font-family: 'Monaco', 'Courier New', monospace;
+      transition: all 0.2s;
+    }
+
+    input[type="password"]:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+      color: white;
+      border: none;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 1rem;
+    }
+
+    .btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border-left: 4px solid #ef4444;
+      padding: 1rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1.5rem;
+      color: #fca5a5;
+      display: none;
+    }
+
+    .error.show {
+      display: block;
+      animation: shake 0.5s ease-out;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .info {
+      background: rgba(139, 92, 246, 0.1);
+      border-left: 4px solid #8b5cf6;
+      padding: 1rem;
+      border-radius: 0.375rem;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+
+    .info strong {
+      color: #8b5cf6;
+    }
+
+    code {
+      background: #0f172a;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      font-family: 'Monaco', 'Courier New', monospace;
+      color: #06b6d4;
+      font-size: 0.875rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      color: #64748b;
+      font-size: 0.875rem;
+    }
+
+    .footer a {
+      color: #4f46e5;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer a:hover {
+      color: #06b6d4;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy" class="logo">
+    <h1>Admin Login</h1>
+    <p class="subtitle">Enter your admin password to continue</p>
+
+    <div id="error" class="error"></div>
+
+    <form id="loginForm">
+      <!-- Hidden username field for accessibility -->
+      <input 
+        type="text" 
+        name="username" 
+        autocomplete="username" 
+        value="admin" 
+        style="display: none;"
+        aria-hidden="true"
+      >
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          placeholder="Enter your admin password"
+          autocomplete="current-password"
+          required
+          autofocus
+        >
+      </div>
+
+      <button type="submit" class="btn" id="submitBtn">
+        <span id="btnText">Login</span>
+      </button>
+    </form>
+
+    <div class="info">
+      <strong>🔍 Where to find your password:</strong><br>
+      From localhost, visit <code>http://localhost:8080/admin/show-password</code><br>
+      Or check the <code>ADMIN_PASSWORD</code> variable in your <code>.env</code> file.
+    </div>
+
+    <div class="footer">
+      <a href="/">← Back to Home</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const errorDiv = document.getElementById('error');
+
+    // Get redirect URL from query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const redirectUrl = urlParams.get('redirect') || '/status';
+
+    // Check if already authenticated
+    fetch('/admin/check', {
+      credentials: 'same-origin'
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.authenticated) {
+        window.location.href = redirectUrl;
+      }
+    })
+    .catch(() => {
+      // Ignore errors, just show login form
+    });
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      errorDiv.classList.add('show');
+      setTimeout(() => {
+        errorDiv.classList.remove('show');
+      }, 5000);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const password = passwordInput.value;
+      if (!password) {
+        showError('Please enter your password');
+        return;
+      }
+
+      // Disable form
+      submitBtn.disabled = true;
+      btnText.innerHTML = '<span class="spinner"></span>Authenticating...';
+      errorDiv.classList.remove('show');
+
+      try {
+        const response = await fetch('/admin/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password }),
+          credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.ok) {
+          // Success! Redirect
+          btnText.textContent = 'Success! Redirecting...';
+          setTimeout(() => {
+            window.location.href = redirectUrl;
+          }, 500);
+        } else {
+          // Failed
+          showError(data.error || 'Invalid password. Please try again.');
+          submitBtn.disabled = false;
+          btnText.textContent = 'Login';
+          passwordInput.value = '';
+          passwordInput.focus();
+        }
+      } catch (error) {
+        showError('Connection error. Please try again.');
+        submitBtn.disabled = false;
+        btnText.textContent = 'Login';
+      }
+    });
+  </script>
+</body>
+</html>
+

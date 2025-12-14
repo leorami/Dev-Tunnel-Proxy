@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dev Tunnel Proxy - Intelligent Development Routing</title>
+  <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg">
+  <link rel="icon" type="image/png" href="/status/assets/favicon.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #4f46e5;
+      --primary-dark: #4338ca;
+      --secondary: #06b6d4;
+      --accent: #8b5cf6;
+      --success: #10b981;
+      --bg-dark: #0f172a;
+      --bg-darker: #020617;
+      --text-light: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --card-bg: #1e293b;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+      background: linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%);
+      color: var(--text-light);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background gradient */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(79, 70, 229, 0.1) 0%, transparent 50%);
+      animation: rotate 20s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 2rem 0 1.5rem;
+    }
+
+    .logo-container {
+      margin-bottom: 1rem;
+      animation: fadeInDown 1s ease-out;
+    }
+
+    .logo {
+      width: 140px;
+      height: 140px;
+      filter: drop-shadow(0 10px 30px rgba(79, 70, 229, 0.4));
+      animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+      animation: fadeInUp 1s ease-out 0.2s both;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .tagline {
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      animation: fadeInUp 1s ease-out 0.4s both;
+    }
+
+    .description {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 700px;
+      margin: 0 auto 1.5rem;
+      line-height: 1.8;
+      animation: fadeInUp 1s ease-out 0.6s both;
+    }
+
+    /* CTA Buttons */
+    .cta-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 2.5rem;
+      animation: fadeInUp 1s ease-out 0.8s both;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem 2rem;
+      font-size: 1.125rem;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 0.75rem;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      box-shadow: 0 10px 30px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(79, 70, 229, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--card-bg);
+      color: var(--text-light);
+      border: 2px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+
+    /* Feature Grid */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      animation: fadeInUp 1s ease-out both;
+    }
+
+    .feature-card:nth-child(1) { animation-delay: 0.9s; }
+    .feature-card:nth-child(2) { animation-delay: 1.0s; }
+    .feature-card:nth-child(3) { animation-delay: 1.1s; }
+    .feature-card:nth-child(4) { animation-delay: 1.2s; }
+    .feature-card:nth-child(5) { animation-delay: 1.3s; }
+    .feature-card:nth-child(6) { animation-delay: 1.4s; }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--primary);
+      box-shadow: 0 20px 40px rgba(79, 70, 229, 0.2);
+    }
+
+    .feature-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      display: block;
+    }
+
+    .feature-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-light);
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Calliope Showcase */
+    .calliope-showcase {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(79, 70, 229, 0.1) 100%);
+      border: 2px solid var(--accent);
+      border-radius: 1.5rem;
+      padding: 2rem;
+      margin-bottom: 2.5rem;
+      text-align: center;
+      animation: fadeInUp 1s ease-out 1.5s both;
+    }
+
+    .calliope-logo {
+      width: 80px;
+      height: 80px;
+      margin-bottom: 1.5rem;
+      filter: drop-shadow(0 5px 15px rgba(139, 92, 246, 0.5));
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .calliope-showcase h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .calliope-showcase p {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 800px;
+      margin: 0 auto 1.5rem;
+      line-height: 1.8;
+    }
+
+    .calliope-features {
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+
+    .calliope-feature {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      background: var(--card-bg);
+      border-radius: 0.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .calliope-feature:before {
+      content: '✨';
+      font-size: 1.25rem;
+    }
+
+    /* Stats */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 2rem;
+      text-align: center;
+      animation: fadeInUp 1s ease-out both;
+    }
+
+    .stat-card:nth-child(1) { animation-delay: 1.6s; }
+    .stat-card:nth-child(2) { animation-delay: 1.7s; }
+    .stat-card:nth-child(3) { animation-delay: 1.8s; }
+    .stat-card:nth-child(4) { animation-delay: 1.9s; }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--success) 0%, var(--secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+      margin-top: 2.5rem;
+      color: var(--text-muted);
+      animation: fadeInUp 1s ease-out 2s both;
+    }
+
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    footer a:hover {
+      color: var(--secondary);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      .tagline {
+        font-size: 1.25rem;
+      }
+
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      .calliope-showcase {
+        padding: 2rem;
+      }
+
+      .stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-container">
+        <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy Logo" class="logo">
+      </div>
+      <h1>Dev Tunnel Proxy</h1>
+      <p class="tagline">Intelligent Development Routing Made Simple</p>
+      <p class="description">
+        A standalone, reusable development proxy with ngrok tunneling for teams. Features intelligent routing, 
+        automatic conflict resolution, and AI-powered self-healing capabilities that keep your development 
+        environment running smoothly.
+      </p>
+      <div class="cta-buttons">
+        <a href="https://github.com/leorami/Dev-Tunnel-Proxy" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          View on GitHub
+        </a>
+        <a href="/status" class="btn btn-secondary">
+          📊 Status Dashboard
+        </a>
+        <a href="/health" class="btn btn-secondary">
+          🏥 System Health
+        </a>
+      </div>
+    </header>
+
+    <section class="features">
+      <div class="feature-card">
+        <span class="feature-icon">🔧</span>
+        <h3>Smart Configuration</h3>
+        <p>Tiny core Nginx config that dynamically composes app routes from organized directories. No more monolithic config files.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🌐</span>
+        <h3>Secure Tunneling</h3>
+        <p>Integrated ngrok container provides secure public HTTPS access to your local development environment instantly.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🐳</span>
+        <h3>Docker Native</h3>
+        <p>All apps join a shared Docker network for seamless connectivity. Works with any containerized application.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Hot Reload</h3>
+        <p>Update configurations and routes without downtime. Changes are applied instantly with automatic validation.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3>Visual Dashboard</h3>
+        <p>Enhanced status pages with route grouping, health monitoring, and a beautiful promotion system for managing routes.</p>
+      </div>
+
+      <div class="feature-card">
+        <span class="feature-icon">🔄</span>
+        <h3>RESTful API</h3>
+        <p>Programmatic control over configurations, conflict resolution, and diagnostics through comprehensive API endpoints.</p>
+      </div>
+    </section>
+
+    <section class="calliope-showcase">
+      <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope AI" class="calliope-logo">
+      <h2>Meet Calliope, Your AI Assistant</h2>
+      <p>
+        Calliope is your caring AI companion who proactively monitors your development environment, 
+        diagnoses routing issues, and even heals problems automatically. She learns from your 
+        project documentation through advanced RAG (Retrieval-Augmented Generation) technology 
+        and is always ready to help you troubleshoot, optimize, and understand your proxy configuration.
+      </p>
+      <div class="calliope-features">
+        <div class="calliope-feature">Proactive Health Monitoring</div>
+        <div class="calliope-feature">Automatic Issue Healing</div>
+        <div class="calliope-feature">Intelligent Diagnostics</div>
+        <div class="calliope-feature">Context-Aware Assistance</div>
+      </div>
+      <div style="margin-top: 2rem;">
+        <a href="/status" class="btn btn-primary">Chat with Calliope</a>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="stat-card">
+        <div class="stat-value">Zero</div>
+        <div class="stat-label">Downtime Updates</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">Auto</div>
+        <div class="stat-label">Conflict Resolution</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">Real-time</div>
+        <div class="stat-label">Health Monitoring</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">AI</div>
+        <div class="stat-label">Self-Healing</div>
+      </div>
+    </section>
+
+    <footer>
+      <p>
+        <strong>Dev Tunnel Proxy</strong> - Built with ❤️ for developers
+      </p>
+      <p style="margin-top: 1rem;">
+        <a href="https://github.com/leorami/Dev-Tunnel-Proxy" target="_blank" rel="noopener">GitHub</a> • 
+        <a href="/status">Status</a> • 
+        <a href="/health.json">Health API</a> • 
+        <a href="https://github.com/leorami/Dev-Tunnel-Proxy/blob/master/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </p>
+    </footer>
+  </div>
+</body>
+</html>
+
