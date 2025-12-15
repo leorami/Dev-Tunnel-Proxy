@@ -120,10 +120,39 @@ User Request
 - `./.certs/` → `/etc/nginx/certs/` (TLS certificates)
 
 **Key Features**:
-- Variable-based upstream resolution (runtime DNS lookup)
-- Graceful handling of unavailable services
-- WebSocket support for HMR
-- Custom entrypoint for initialization logic
+- **Variable-based upstream resolution** - All `proxy_pass` directives use nginx variables with DNS resolver, deferring hostname resolution until request time
+- **Graceful error handling** - Returns proper JSON error responses (503) when upstream services are unavailable instead of failing to start
+- **Emergency fallback** - Disables app bundle if it contains errors, keeping core proxy UI/API operational
+- **WebSocket support** - Full HMR and real-time connection support for dev servers
+- **Custom entrypoint** - Multi-stage validation with detailed error reporting
+
+**Resilience Strategy**:
+```nginx
+# Example: Variable-based resolution with error handling
+location /api/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $upstream api:8000;
+  
+  # Intercept upstream errors and return friendly message
+  proxy_intercept_errors on;
+  error_page 502 503 504 = @upstream_unavailable;
+  
+  proxy_pass http://$upstream/;
+}
+
+# Global error handler
+location @upstream_unavailable {
+  add_header Content-Type application/json;
+  return 503 '{"error":"Service Unavailable","message":"..."}';
+}
+```
+
+This approach ensures:
+- Nginx starts even if all app services are offline
+- DNS resolution happens at request time, not config load time
+- Users get helpful error messages instead of connection refused
+- Core proxy management UI remains accessible for debugging
 
 **Health Check**:
 ```bash

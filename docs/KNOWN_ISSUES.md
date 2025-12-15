@@ -340,9 +340,14 @@ upstream prematurely closed connection while reading response header
 
 ### R1: Nginx Won't Start If Upstream Is Down
 
-**Resolution**: Implemented variable-based upstream resolution (v0.9)
+**Resolution**: Implemented variable-based upstream resolution (v0.9) and graceful error handling (v1.1)
 
-**Fix**: All proxy_pass directives now use nginx variables with runtime DNS
+**Fix**: 
+- All proxy_pass directives now use nginx variables with runtime DNS resolution
+- Added `proxy_intercept_errors on` and error_page handlers for unavailable upstreams
+- Nginx now starts successfully even when configured services are offline
+- Returns proper JSON error messages (503) when services are unavailable
+- Emergency fallback disables app bundle if core config has issues
 
 ### R2: Mixed Content Errors on HTTPS Tunnel
 

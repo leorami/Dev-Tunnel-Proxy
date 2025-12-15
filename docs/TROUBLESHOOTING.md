@@ -76,7 +76,7 @@ docker network inspect devproxy --format='{{json .Containers}}' | jq
 - Container exits with code 1
 - Proxy works when all services are running, fails on restart
 
-**Solution**: Always use nginx variables for upstream resolution.
+**Solution**: Always use nginx variables for upstream resolution with error handling.
 
 ```nginx
 # ❌ Wrong: Hardcoded upstream (fails if service is down)
@@ -84,14 +84,34 @@ location /myapp/ {
   proxy_pass http://myapp-service:3000/;
 }
 
-# ✅ Correct: Variable resolution (defers DNS lookup)
+# ✅ Correct: Variable resolution with graceful error handling
 location /myapp/ {
   resolver 127.0.0.11 ipv6=off;
   resolver_timeout 5s;
   set $myapp_upstream myapp-service:3000;
+  
+  # Graceful error handling for unavailable upstream
+  proxy_intercept_errors on;
+  error_page 502 503 504 = @upstream_unavailable;
+  
   proxy_pass http://$myapp_upstream/;
 }
+
+# Global error handler (add once per config file)
+location @upstream_unavailable {
+  add_header Content-Type application/json;
+  add_header Cache-Control "no-cache, no-store, must-revalidate";
+  return 503 '{"error":"Service Unavailable","message":"The requested application is not currently running. Please start the service and try again.","status":503}';
+}
 ```
+
+**How It Works**:
+- **Without variables**: nginx resolves DNS at config load time → fails if service is down
+- **With variables**: nginx resolves DNS at request time → starts successfully even if service is down
+- **Error handling**: Returns friendly JSON error (503) instead of nginx error page when service is unavailable
+- **Docker DNS**: Uses Docker's internal DNS (127.0.0.11) for service discovery
+
+**Automatic Hardening**: The `generateAppsBundle.js` script automatically adds these directives to all app configs during bundle generation (v1.1+).
 
 ### 3. Next.js Redirect Loop Issues (Critical)
 

@@ -224,6 +224,7 @@ function extractRegexProtectedPrefixes(blocks) {
 
 // Rewrite proxy_pass http://host:port[/path] to variable-based form to defer DNS resolution
 // and ensure a resolver is present in the block. Avoid double-hardening if already variable-based.
+// Also adds graceful error handling for unavailable upstreams.
 function hardenLocationFullText(fullText) {
   // Find body range between the first '{' after 'location' and its matching '}'
   const locIdx = fullText.indexOf('location');
@@ -260,19 +261,30 @@ function hardenLocationFullText(fullText) {
     const hostPort = target.replace(/\/.*/, '');
     const pathPart = target.includes('/') ? target.slice(target.indexOf('/')) : '';
     localVars.set(v, { hostPort, path: pathPart });
-    // Normalize var to NOT include path; keep only host:port
+    // Normalize var to NOT include http:// or path; keep only host:port
     const indent = (lines[i].match(/^\s*/)||[''])[0];
     lines[i] = `${indent}set ${v} ${hostPort};`;
+  }
+  
+  // Also track variables without http:// prefix
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/\bset\s+\$([A-Za-z0-9_]+)\s+([a-zA-Z0-9_.-]+:[0-9]+)\s*;/);
+    if (!m) continue;
+    const v = `$${m[1]}`;
+    if (!localVars.has(v)) {
+      localVars.set(v, { hostPort: m[2], path: '' });
+    }
   }
 
   const proxyRegex = /(\s*)proxy_pass\s+http:\/\/([a-zA-Z0-9_.-]+:[0-9]+)([^;]*);/;
   for (let idx = 0; idx < lines.length; idx++) {
     const line = lines[idx];
     // Normalize variable-based proxy_pass to include scheme on directive (not inside var) and avoid URI replacement
-    const varPass = line.match(/^(\s*)proxy_pass\s+\$([A-Za-z0-9_]+)\s*;/);
+    const varPass = line.match(/^(\s*)proxy_pass\s+\$([A-Za-z0-9_]+)([^;]*);/);
     if (varPass) {
       const indent = varPass[1] || '';
       const v = `$${varPass[2]}`;
+      const suffix = varPass[3] || ''; // may include path like /admin/
       if (localVars.has(v)) {
         // Ensure a resolver exists for runtime DNS
         if (!hasResolver && !insertedResolver) {
@@ -281,8 +293,8 @@ function hardenLocationFullText(fullText) {
           insertedResolver = true;
           hasResolver = true;
         }
-        // Ensure scheme is present on directive; do NOT append any URI path here
-        lines[idx] = `${indent}proxy_pass http://${v};`;
+        // Ensure scheme is present on directive; preserve any path suffix
+        lines[idx] = `${indent}proxy_pass http://${v}${suffix};`;
         changed = true;
         continue;
       }
@@ -321,6 +333,27 @@ function hardenLocationFullText(fullText) {
     lines.splice(insertAt, 0, `${indent}resolver 127.0.0.11 ipv6=off;`, `${indent}resolver_timeout 5s;`);
     changed = true;
     hasResolver = true;
+  }
+
+  // Add graceful error handling for unavailable upstreams
+  // Only add if there's a proxy_pass and no existing error_page for 502/503/504
+  const hasProxyPass = lines.some(l => /\bproxy_pass\b/.test(l));
+  const hasErrorPage = lines.some(l => /\berror_page\s+(502|503|504)/.test(l));
+  const hasProxyIntercept = lines.some(l => /\bproxy_intercept_errors\s+on/.test(l));
+  
+  if (hasProxyPass && !hasErrorPage && !hasProxyIntercept) {
+    // Find a good place to insert (after resolver, before proxy_pass)
+    const proxyPassIdx = lines.findIndex(l => /\bproxy_pass\b/.test(l));
+    if (proxyPassIdx > 0) {
+      const indent = (lines[proxyPassIdx].match(/^\s*/)||[''])[0];
+      // Insert error handling before proxy_pass
+      lines.splice(proxyPassIdx, 0, 
+        `${indent}# Graceful error handling for unavailable upstream`,
+        `${indent}proxy_intercept_errors on;`,
+        `${indent}error_page 502 503 504 = @upstream_unavailable;`
+      );
+      changed = true;
+    }
   }
 
   // Dedupe noisy directives that can trigger nginx warnings when repeated across locations
@@ -422,6 +455,15 @@ function main() {
   if (appFiles.length > 0) {
     lines.push(`# Apps: ${appFiles.map((f) => path.relative(ROOT_DIR, f)).join(', ')}`);
   }
+  lines.push('');
+  
+  // Add global error handler for unavailable upstreams
+  lines.push('# Global error handler for unavailable app upstreams');
+  lines.push('location @upstream_unavailable {');
+  lines.push('  add_header Content-Type application/json;');
+  lines.push('  add_header Cache-Control "no-cache, no-store, must-revalidate";');
+  lines.push('  return 503 \'{"error":"Service Unavailable","message":"The requested application is not currently running. Please start the service and try again.","status":503}\';');
+  lines.push('}');
   lines.push('');
 
   // Build diagnostics payload
