@@ -765,7 +765,7 @@ node --test test/collect-docs.test.js test/calliope-embeddings-integration.test.
 
 #### Problem Symptoms
 
-When a Next.js app with NextAuth is proxied under a subpath (e.g., `/lyra`), API routes return:
+When a Next.js app with NextAuth is proxied under a subpath (e.g., `/myapp`), API routes return:
 - **308 Permanent Redirect** to the base path
 - Error: `Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
 - Console errors: `[next-auth][error][CLIENT_FETCH_ERROR]`
@@ -773,7 +773,7 @@ When a Next.js app with NextAuth is proxied under a subpath (e.g., `/lyra`), API
 #### Root Cause
 
 NextAuth validates that incoming requests match the configured `NEXTAUTH_URL`. When there's a mismatch between:
-1. The configured `NEXTAUTH_URL` (e.g., `http://localhost:4000/lyra/`)
+1. The configured `NEXTAUTH_URL` (e.g., `http://localhost:4000/myapp/`)
 2. The actual request protocol/host (e.g., `https://your-domain.ngrok.app`)
 
 NextAuth returns a 308 redirect.
@@ -785,30 +785,30 @@ NextAuth returns a 308 redirect.
 ```yaml
 # In docker-compose.yml
 environment:
-  - NEXTAUTH_URL=https://your-domain.ngrok.app/lyra
+  - NEXTAUTH_URL=https://your-domain.ngrok.app/myapp
   # Or for dynamic ngrok URLs:
-  - NEXTAUTH_URL=${NGROK_URL}/lyra
+  - NEXTAUTH_URL=${NGROK_URL}/myapp
 ```
 
 **Option 2: Use NEXTAUTH_URL_INTERNAL (NextAuth v4)**
 
 ```yaml
 environment:
-  - NEXTAUTH_URL=https://your-domain.ngrok.app/lyra  # External
-  - NEXTAUTH_URL_INTERNAL=http://localhost:4000/lyra # Internal
+  - NEXTAUTH_URL=https://your-domain.ngrok.app/myapp  # External
+  - NEXTAUTH_URL_INTERNAL=http://localhost:4000/myapp # Internal
 ```
 
 #### Verification
 
 ```bash
 # 1. Restart the container
-docker restart lyra-dev
+docker restart myapp-dev
 
 # 2. Wait for Next.js to start
 sleep 15
 
 # 3. Test the endpoint
-curl -s https://your-domain.ngrok.app/lyra/api/auth/session
+curl -s https://your-domain.ngrok.app/myapp/api/auth/session
 
 # Expected: {"user":null} or similar JSON (not a redirect!)
 ```
@@ -818,7 +818,7 @@ curl -s https://your-domain.ngrok.app/lyra/api/auth/session
 Ensure your nginx config includes:
 
 ```nginx
-location ^~ /lyra/ {
+location ^~ /myapp/ {
   proxy_set_header X-Forwarded-Proto "https";  # Critical!
   proxy_set_header X-Forwarded-Host $host;
   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -942,7 +942,7 @@ She's not just an AI—she's your proxy's voice, personality, and guardian. 💖
 ## See Also
 
 - **[User Guide](USER_GUIDE.md)** - How to use Calliope in daily workflow
-- **[API Endpoints](API-ENDPOINTS.md)** - Complete API reference
+- **[Configuration Guide](CONFIGURATION.md)** - API endpoint documentation
 - **[Architecture](ARCHITECTURE.md)** - Technical system design
-- **[Testing](TESTING.md)** - Test suites and validation
+- **[Operations Guide](OPERATIONS.md)** - Test suites and validation
 
