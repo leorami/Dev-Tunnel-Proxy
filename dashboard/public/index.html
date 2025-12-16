@@ -3,141 +3,787 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dev Tunnel Dashboard</title>
-    <link rel="stylesheet" href="/status/global.css" />
-    <link rel="stylesheet" href="/status/common.css" />
-    <script src="/status/common.js"></script>
+    <title>Calliope Tools - Dev Tunnel Proxy</title>
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <style>
-      *{box-sizing:border-box}
-      body{line-height:1.5;margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text)}
-      main{display:grid;grid-template-columns:320px 1fr;gap:16px;padding:18px}
-      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px)}
-      .card h3{font-size:14px;margin:0 0 8px 0;color:var(--heading)}
-      .side{padding:14px}
-      .row{display:flex;gap:8px;align-items:center;margin:10px 0}
-      input[type=text]{flex:1;min-width:280px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text)}
-      button{padding:8px 10px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600}
-      button:hover{background:var(--btnBgHover)}
-      .accent{background:var(--accent);color:#0a1116;border-color:transparent}
-      .routes{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-      .route{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--panel)}
-      .route small{color:var(--muted)}
-      .pill{display:inline-block;padding:2px 8px;border-radius:999px;border:1px solid var(--border);color:var(--muted);font-size:12px}
-      .content{padding:14px}
-      pre{white-space:pre-wrap;background:var(--codeBg);border:1px solid var(--codeBorder);padding:12px;border-radius:10px;max-width:100%}
-      .log{max-height:360px;overflow:auto}
+      /* Inline Global CSS */
+      :root {
+        --bg: #0b1220;
+        --bg2: #0e1627;
+        --panel: #111a2b;
+        --panelGlass: rgba(17, 26, 43, .92);
+        --muted: #5b6b8a;
+        --text: #d9e2f1;
+        --heading: #cfe0ff;
+        --accent: #6aa6ff;
+        --lnk: #7fb0ff;
+        --ok: #16c784;
+        --warn: #f59e0b;
+        --err: #ef4444;
+        --chip: #1b2640;
+        --btnBg: #132a4d;
+        --btnBgHover: #16345f;
+        --btnBorder: #24406e;
+        --btnText: #cfe0ff;
+        --border: #1f2a44;
+        --headerBg: rgba(10, 16, 30, .55);
+        --codeBg: #0a1223;
+        --codeBorder: #1b2a48;
+        --codeText: #d9e2f1;
+        --appBgGlass: rgba(17, 26, 43, .85);
+      }
+      
+      :root[data-theme="light"] {
+        --bg: #edf2fb;
+        --bg2: #f8fbff;
+        --panel: #ffffff;
+        --panelGlass: rgba(255, 255, 255, .88);
+        --text: #0b1220;
+        --heading: #0b1220;
+        --accent: #2d6cdf;
+        --lnk: #2d6cdf;
+        --ok: #0f9d6a;
+        --warn: #b7791f;
+        --err: #c24141;
+        --chip: #e8eefc;
+        --btnBg: #eef2ff;
+        --btnBgHover: #e2e8ff;
+        --btnBorder: #bfd1ff;
+        --btnText: #0b1220;
+        --border: #d6e0f5;
+        --headerBg: rgba(255, 255, 255, .78);
+        --codeBg: #f6f8ff;
+        --codeBorder: #d6e0f5;
+        --codeText: #0b1220;
+        --appBgGlass: rgba(255, 255, 255, .85);
+      }
+      
+      * { box-sizing: border-box; }
+      
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, var(--bg), var(--bg2));
+        min-height: 100vh;
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      
+      /* Header Styles */
+      header {
+        background: var(--headerBg);
+        backdrop-filter: saturate(160%) blur(8px);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+      }
+      
+      .header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+      
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--heading);
+        display: flex;
+        align-items: center;
+      }
+      
+      .brand { margin-left: 10px; }
+      
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .btn {
+        padding: 8px 14px;
+        border: 1px solid var(--btnBorder);
+        border-radius: 6px;
+        background: var(--btnBg);
+        color: var(--btnText);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all .2s;
+        text-decoration: none;
+        display: inline-block;
+      }
+      
+      .btn:hover {
+        background: var(--btnBgHover);
+        transform: translateY(-1px);
+      }
+      
+      .btn.active {
+        background: var(--lnk);
+        color: #fff;
+        border-color: var(--lnk);
+      }
+      
+      .divider {
+        width: 1px;
+        height: 20px;
+        background: var(--border);
+        margin: 0 4px;
+      }
+      
+      /* Container */
+      .container {
+        max-width: 1160px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      
+      /* Tool Cards */
+      .tools-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      
+      .tool-card {
+        background: var(--panelGlass);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 24px rgba(0,0,0,.25);
+        backdrop-filter: saturate(160%) blur(6px);
+        transition: all .2s;
+      }
+      
+      .tool-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 28px rgba(0,0,0,.30);
+      }
+      
+      .tool-card h2 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        color: var(--heading);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .tool-card p {
+        margin: 0 0 16px 0;
+        font-size: 13px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      
+      /* Input Groups */
+      .input-group {
+        margin-bottom: 16px;
+      }
+      
+      .input-group label {
+        display: block;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+      }
+      
+      input[type=text], select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--btnBg);
+        color: var(--text);
+        font-size: 14px;
+        transition: all .2s;
+        font-family: inherit;
+      }
+      
+      input[type=text]:focus, select:focus {
+        outline: none;
+        border-color: var(--lnk);
+        box-shadow: 0 0 0 3px rgba(127,176,255,.1);
+      }
+      
+      /* Buttons */
+      .btn-group {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      
+      button {
+        padding: 10px 16px;
+        border: 1px solid var(--btnBorder);
+        border-radius: 8px;
+        background: var(--btnBg);
+        color: var(--btnText);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all .2s;
+        font-family: inherit;
+      }
+      
+      button:hover:not(:disabled) {
+        background: var(--btnBgHover);
+        transform: translateY(-1px);
+      }
+      
+      button:active {
+        transform: translateY(0);
+      }
+      
+      button:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+      }
+      
+      button.primary {
+        background: linear-gradient(135deg,#3b82f6,#2563eb);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 4px 12px rgba(59,130,246,.3);
+      }
+      
+      button.primary:hover:not(:disabled) {
+        box-shadow: 0 6px 16px rgba(59,130,246,.4);
+      }
+      
+      button.success {
+        background: linear-gradient(135deg,#10b981,#059669);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 4px 12px rgba(16,185,129,.3);
+      }
+      
+      button.danger {
+        background: linear-gradient(135deg,#ef4444,#dc2626);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 4px 12px rgba(239,68,68,.3);
+      }
+      
+      /* Results Panel */
+      .results-panel {
+        background: var(--panelGlass);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 24px rgba(0,0,0,.25);
+        backdrop-filter: saturate(160%) blur(6px);
+      }
+      
+      .results-panel h2 {
+        margin: 0 0 16px 0;
+        font-size: 16px;
+        color: var(--heading);
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      .result-content {
+        background: var(--codeBg);
+        border: 1px solid var(--codeBorder);
+        border-radius: 10px;
+        padding: 16px;
+        max-height: 500px;
+        overflow: auto;
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      
+      .result-content.empty {
+        color: var(--muted);
+        font-style: italic;
+        text-align: center;
+        padding: 60px 20px;
+        font-family: inherit;
+      }
+      
+      .result-content.loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 60px 20px;
+        font-family: inherit;
+        color: var(--lnk);
+      }
+      
+      /* Status Badge */
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      
+      .status-badge.idle {
+        background: rgba(139,92,246,.15);
+        color: #8b5cf6;
+      }
+      
+      .status-badge.running {
+        background: rgba(59,130,246,.15);
+        color: #3b82f6;
+      }
+      
+      .status-badge.success {
+        background: rgba(16,185,129,.15);
+        color: #10b981;
+      }
+      
+      .status-badge.error {
+        background: rgba(239,68,68,.15);
+        color: #ef4444;
+      }
+      
+      /* Loading Spinner */
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* Route Selector */
+      select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237f8fa6' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+      }
+      
+      optgroup {
+        font-weight: 700;
+        font-size: 11px;
+        color: var(--lnk);
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        padding: 8px 0 4px 0;
+      }
+      
+      option {
+        font-weight: 400;
+        font-size: 13px;
+        color: var(--text);
+        padding: 8px 12px;
+      }
+      
+      /* Info Box */
+      .info-box {
+        background: rgba(59,130,246,.1);
+        border: 1px solid rgba(59,130,246,.3);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        font-size: 13px;
+        color: var(--text);
+        line-height: 1.6;
+      }
+      
+      .info-box strong {
+        color: var(--lnk);
+      }
     </style>
-  </head>
-  <body>
-    <script>window.DTP && DTP.attachHeader('dashboard'); window.DTP && DTP.attachCalliope && DTP.attachCalliope(); window.DTP && DTP.initTheme && DTP.initTheme();</script>
-    <header style="display:none">
-      <h1>Dev Tunnel Dashboard • Calliope Tools</h1>
-      <div class="row"><button id="btnThoughts">Updates</button></div>
-    </header>
-    <main class="content" style="max-width:1160px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:320px 1fr;gap:16px;">
-      <section class="card side" style="padding:14px">
-        <h3>Quick Audit</h3>
-        <div class="row"><input id="auditUrl" type="text" placeholder="https://your-ngrok-domain/mxtk" /></div>
-        <div class="row">
-          <button id="btnAudit" class="accent">Run Audit</button>
-          <button id="btnAuditHeal">Audit + Heal</button>
-          <button id="btnHeal">Advanced Heal</button>
-        </div>
-        <h3 style="margin-top:16px">Routes</h3>
-        <div id="routes" class="routes"></div>
-      </section>
-      <section class="card content" style="padding:14px">
-        <h3>Result</h3>
-        <pre id="out" class="log">No output yet.</pre>
-      </section>
-    </main>
     <script>
-      async function post(url, body){
-        const r = await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})});
+      // Inline config and theme management
+      (function() {
+        // Theme management
+        function initTheme() {
+          try {
+            const stored = localStorage.getItem('dtpTheme');
+            const theme = stored || 'dark';
+            document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            const t = document.getElementById('themeToggle');
+            if (t) { t.textContent = theme === 'light' ? '🌙' : '☀️'; }
+          } catch {}
+        }
+        
+        function toggleTheme() {
+          const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+          const next = cur === 'light' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', next);
+          localStorage.setItem('dtpTheme', next);
+          const t = document.getElementById('themeToggle');
+          if (t) { t.textContent = next === 'light' ? '🌙' : '☀️'; }
+        }
+        
+        // API config
+        const config = {
+          apiBasePath: '/devproxy/api',
+          version: '1.0.0'
+        };
+
+        async function fetchConfig() {
+          try {
+            const response = await fetch('/config');
+            if (response.ok) {
+              const data = await response.json();
+              Object.assign(config, data);
+              console.log('[Config] Loaded API configuration:', config);
+            }
+          } catch (e) {
+            console.error('[Config] Failed to fetch config:', e);
+          }
+        }
+
+        window.DTP = window.DTP || {};
+        window.DTP.config = {
+          get apiBasePath() { return config.apiBasePath; },
+          get version() { return config.version; },
+          apiPath: function(path) {
+            const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+            return `${config.apiBasePath}/${cleanPath}`;
+          }
+        };
+        
+        window.DTP.initTheme = initTheme;
+        window.DTP.toggleTheme = toggleTheme;
+
+        // Fetch config on load
+        fetchConfig();
+      })();
+    </script>
+  </head>
+  <body data-page="dashboard">
+    <header>
+      <div class="header-row">
+        <h1>
+          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;"/>
+          <span class="brand">Dev Tunnel Proxy</span>
+        </h1>
+        <div class="header-actions">
+          <a class="tab btn" href="/status">Status</a>
+          <a class="tab btn" href="/health">Health</a>
+          <a class="tab btn" href="/reports">Reports</a>
+          <a class="tab btn active" href="/dashboard/">Dashboard</a>
+          <span class="divider" aria-hidden="true"></span>
+          <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+        </div>
+      </div>
+    </header>
+    
+    <div class="container">
+      <div class="tools-grid">
+        <!-- Audit Tool -->
+        <div class="tool-card">
+          <h2>🔍 Audit Route</h2>
+          <p>Test a specific route and get a detailed report of any issues found.</p>
+          <div class="input-group">
+            <label for="auditRoute">Select Route</label>
+            <select id="auditRoute">
+              <option value="">Select a route...</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button id="btnAudit" class="primary">Run Audit</button>
+          </div>
+        </div>
+        
+        <!-- Audit + Heal Tool -->
+        <div class="tool-card">
+          <h2>🔧 Audit + Heal</h2>
+          <p>Audit a route and automatically attempt to fix any issues found.</p>
+          <div class="input-group">
+            <label for="healRoute">Select Route</label>
+            <select id="healRoute">
+              <option value="">Select a route...</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button id="btnAuditHeal" class="success">Audit + Heal</button>
+          </div>
+        </div>
+        
+        <!-- Advanced Heal Tool -->
+        <div class="tool-card">
+          <h2>⚡ Advanced Heal</h2>
+          <p>Deep healing for complex issues. Analyzes configuration and fixes problems.</p>
+          <div class="input-group">
+            <label for="advHealRoute">Select Route</label>
+            <select id="advHealRoute">
+              <option value="">Select a route...</option>
+            </select>
+          </div>
+          <div class="btn-group">
+            <button id="btnAdvHeal" class="success">Advanced Heal</button>
+          </div>
+        </div>
+        
+        <!-- Reindex Tool -->
+        <div class="tool-card">
+          <h2>📚 Reindex Knowledge</h2>
+          <p>Rebuild Calliope's knowledge base from documentation and configuration files.</p>
+          <div class="info-box">
+            <strong>When to use:</strong> After updating documentation or when Calliope seems out of sync.
+          </div>
+          <div class="btn-group">
+            <button id="btnReindex" class="primary">Reindex Now</button>
+          </div>
+        </div>
+        
+        <!-- Self-Check Tool -->
+        <div class="tool-card">
+          <h2>🩺 Self-Check</h2>
+          <p>Run Calliope's self-diagnostic to identify and fix system issues.</p>
+          <div class="info-box">
+            <strong>Tip:</strong> Run this if you're experiencing proxy or routing issues.
+          </div>
+          <div class="btn-group">
+            <button id="btnSelfCheck" class="success">Run Self-Check</button>
+          </div>
+        </div>
+        
+        <!-- Clear Thoughts Tool -->
+        <div class="tool-card">
+          <h2>🧹 Clear Thoughts</h2>
+          <p>Clear Calliope's thought stream and reset her working memory.</p>
+          <div class="info-box">
+            <strong>Note:</strong> This won't affect her knowledge base, only her active thought process.
+          </div>
+          <div class="btn-group">
+            <button id="btnClearThoughts" class="danger">Clear Thoughts</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Results Panel -->
+      <div class="results-panel">
+        <h2>
+          <span>📄 Results</span>
+          <span id="statusBadge" class="status-badge idle">Idle</span>
+        </h2>
+        <div id="output" class="result-content empty">
+          <div style="font-size:48px;margin-bottom:16px">🛠️</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px">Ready to use tools</div>
+          <div>Select a tool above to get started. Results will appear here.</div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      // Initialize theme
+      window.DTP.initTheme();
+      document.getElementById('themeToggle').addEventListener('click', window.DTP.toggleTheme);
+      
+      const output = document.getElementById('output');
+      const statusBadge = document.getElementById('statusBadge');
+      
+      function setStatus(text, type = 'idle') {
+        statusBadge.className = `status-badge ${type}`;
+        statusBadge.innerHTML = type === 'running' ? `<span class="spinner"></span><span>${text}</span>` : `<span>${text}</span>`;
+      }
+      
+      function showResult(data, type = 'success') {
+        output.className = 'result-content';
+        output.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        setStatus(type === 'success' ? 'Complete' : 'Error', type);
+      }
+      
+      function showLoading(message) {
+        output.className = 'result-content loading';
+        output.innerHTML = `<span class="spinner"></span><span>${message}</span>`;
+        setStatus('Running...', 'running');
+      }
+      
+      function showError(error) {
+        output.className = 'result-content';
+        output.style.color = 'var(--err)';
+        output.textContent = `Error: ${error.message || error}`;
+        setStatus('Error', 'error');
+      }
+      
+      async function post(path, body) {
+        const r = await fetch(window.DTP.config.apiPath(path), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json', 'ngrok-skip-browser-warning': 'true' },
+          body: JSON.stringify(body || {})
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
         return await r.json();
       }
-      const out = document.getElementById('out');
-      document.getElementById('btnAudit').onclick = async ()=>{
-        const url = document.getElementById('auditUrl').value.trim();
-        out.textContent = 'Running audit...';
-        const res = await post('/proxy/ai/audit',{ url, wait:2000, timeout:30000 });
-        out.textContent = JSON.stringify(res,null,2);
-      };
-      document.getElementById('btnHeal').onclick = async ()=>{
-        const url = document.getElementById('auditUrl').value.trim();
-        out.textContent = 'Starting advanced heal...';
-        const res = await post('/proxy/ai/advanced-heal',{ route: new URL(url).pathname.split('/')[1] ? `/${new URL(url).pathname.split('/')[1]}` : '' });
-        out.textContent = JSON.stringify(res,null,2);
-      };
-      document.getElementById('btnAuditHeal').onclick = async ()=>{
-        const url = document.getElementById('auditUrl').value.trim();
-        if (!url) { out.textContent = 'Enter URL first'; return; }
-        out.textContent = 'Audit + Heal running...';
-        const route = new URL(url).pathname.split('/')[1] ? `/${new URL(url).pathname.split('/')[1]}` : '/';
-        const res = await post('/proxy/ai/audit-and-heal',{ url, route, wait:2000, timeout:60000, maxPasses:4 });
-        out.textContent = JSON.stringify(res,null,2);
-      };
-      document.getElementById('btnThoughts').onclick = async ()=>{
-        const r = await fetch('/proxy/ai/thoughts');
-        const j = await r.json();
-        out.textContent = JSON.stringify(j,null,2);
-      };
-
-      // Load routes and render per-route audit/heal buttons
-      async function loadRoutes(){
-        try{
-          const r = await fetch('/routes');
-          const j = await r.json();
-          const keys = Object.keys(j.metadata||{});
-          const container = document.getElementById('routes');
-          container.innerHTML = '';
-          keys.slice(0,100).forEach(k => {
-            const div = document.createElement('div');
-            div.className = 'route';
-            const left = document.createElement('div');
-            left.innerHTML = `<span class="pill">route</span> <small>${k}</small>`;
-            const right = document.createElement('div');
-            const btnA = document.createElement('button');
-            btnA.textContent = 'Audit';
-            btnA.onclick = async ()=>{
-              const base = document.getElementById('auditUrl').value.trim();
-              if (!base) { out.textContent = 'Enter base URL above (e.g., https://.../mxtk)'; return; }
-              // Build absolute URL: base origin + route key
-              const u0 = new URL(base);
-              const abs = `${u0.origin}${k}`;
-              out.textContent = `Auditing ${abs} ...`;
-              const res = await post('/proxy/ai/audit',{ url: abs, wait:2000 });
-              out.textContent = JSON.stringify(res,null,2);
-            };
-            const btnH = document.createElement('button');
-            btnH.textContent = 'Heal';
-            btnH.onclick = async ()=>{
-              out.textContent = `Healing ${k} ...`;
-              const res = await post('/proxy/ai/advanced-heal',{ route: k.replace(/\/$/,'') });
-              out.textContent = JSON.stringify(res,null,2);
-            };
-            const btnAH = document.createElement('button');
-            btnAH.textContent = 'Audit+Heal';
-            btnAH.onclick = async ()=>{
-              const base = document.getElementById('auditUrl').value.trim();
-              if (!base) { out.textContent = 'Enter base URL above (e.g., https://.../mxtk)'; return; }
-              const u0 = new URL(base);
-              const abs = `${u0.origin}${k}`;
-              out.textContent = `Audit+Heal ${abs} ...`;
-              const res = await post('/proxy/ai/audit-and-heal',{ url: abs, route: k.replace(/\/$/,'') });
-              out.textContent = JSON.stringify(res,null,2);
-            };
-            right.appendChild(btnA); right.appendChild(btnH); right.appendChild(btnAH);
-            div.appendChild(left); div.appendChild(right);
-            container.appendChild(div);
+      
+      // Load routes organized by config file
+      async function loadRoutes() {
+        console.log('[Dashboard] loadRoutes() called');
+        try {
+          const r = await fetch('/routes.json', { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          console.log('[Dashboard] Fetch response status:', r.status);
+          const data = await r.json();
+          console.log('[Dashboard] Routes data:', data);
+          const meta = data.metadata || {};
+          
+          // Group routes by config file (using sourceFile from metadata)
+          const byConfig = {};
+          Object.keys(meta).forEach(route => {
+            // Skip system routes
+            if (route.match(/^\/(health|status|reports|devproxy|config)/)) return;
+            
+            // Get source file from metadata
+            const srcFull = (meta[route] && meta[route].sourceFile) || 'unknown.conf';
+            const src = srcFull.split('/').pop(); // Just the filename
+            
+            if (!byConfig[src]) byConfig[src] = [];
+            byConfig[src].push(route);
           });
-        }catch(e){
-          console.error(e);
+          
+          console.log('[Dashboard] Grouped by config:', byConfig);
+          
+          // Sort config files and routes
+          const sortedConfigs = Object.keys(byConfig).sort();
+          console.log('[Dashboard] Sorted configs:', sortedConfigs);
+          
+          // Populate all three selects
+          ['auditRoute', 'healRoute', 'advHealRoute'].forEach(selectId => {
+            const select = document.getElementById(selectId);
+            console.log(`[Dashboard] Populating ${selectId}, current options:`, select.options.length);
+            
+            // Clear existing options except the first one
+            while (select.options.length > 1) {
+              select.remove(1);
+            }
+            
+            sortedConfigs.forEach(configFile => {
+              const optgroup = document.createElement('optgroup');
+              // Remove .conf extension from label
+              optgroup.label = configFile.replace(/\.conf$/, '');
+              
+              byConfig[configFile].sort().forEach(route => {
+                const opt = document.createElement('option');
+                opt.value = route;
+                opt.textContent = route;
+                optgroup.appendChild(opt);
+              });
+              
+              console.log(`[Dashboard] Adding optgroup "${optgroup.label}" with ${byConfig[configFile].length} routes`);
+              select.appendChild(optgroup);
+            });
+            
+            console.log(`[Dashboard] ${selectId} now has ${select.options.length} options`);
+          });
+        } catch (e) {
+          console.error('[Dashboard] Failed to load routes:', e);
         }
       }
-      loadRoutes();
+      
+      // Audit
+      document.getElementById('btnAudit').onclick = async () => {
+        const route = document.getElementById('auditRoute').value;
+        if (!route) { showError(new Error('Please select a route')); return; }
+        try {
+          showLoading('Running audit...');
+          const url = `${window.location.origin}${route}`;
+          const res = await post('ai/audit', { url, wait: 2000, timeout: 30000 });
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Audit + Heal
+      document.getElementById('btnAuditHeal').onclick = async () => {
+        const route = document.getElementById('healRoute').value;
+        if (!route) { showError(new Error('Please select a route')); return; }
+        try {
+          showLoading('Running audit + heal...');
+          const url = `${window.location.origin}${route}`;
+          const res = await post('ai/audit-and-heal', { url, route, wait: 2000, timeout: 60000, maxPasses: 4 });
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Advanced Heal
+      document.getElementById('btnAdvHeal').onclick = async () => {
+        const route = document.getElementById('advHealRoute').value;
+        if (!route) { showError(new Error('Please select a route')); return; }
+        try {
+          showLoading('Running advanced heal...');
+          const res = await post('ai/advanced-heal', { route: route.replace(/\/$/, '') });
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Reindex
+      document.getElementById('btnReindex').onclick = async () => {
+        if (!confirm('Reindex knowledge base? This may take a minute.')) return;
+        try {
+          showLoading('Reindexing knowledge base...');
+          const res = await post('ai/reindex', {});
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Self-Check
+      document.getElementById('btnSelfCheck').onclick = async () => {
+        try {
+          showLoading('Running self-check...');
+          const res = await post('ai/self-check', { heal: true });
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Clear Thoughts
+      document.getElementById('btnClearThoughts').onclick = async () => {
+        if (!confirm('Clear all thoughts? This will reset Calliope\'s working memory.')) return;
+        try {
+          showLoading('Clearing thoughts...');
+          const res = await post('ai/thoughts/clear', {});
+          showResult(res, 'success');
+        } catch (e) {
+          showError(e);
+        }
+      };
+      
+      // Wait for DOM and config to be ready before loading routes
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+          console.log('[Dashboard] DOM loaded, calling loadRoutes()');
+          loadRoutes();
+        });
+      } else {
+        console.log('[Dashboard] DOM already loaded, calling loadRoutes()');
+        loadRoutes();
+      }
     </script>
   </body>
-  </html>
-
-
+</html>

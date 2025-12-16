@@ -3,7 +3,7 @@
  * Test: Site Auditor Functionality
  * 
  * Verifies that the site auditor can successfully audit pages through dev-proxy
- * Tests both simple routes (/) and complex routes (/lyra)
+ * Tests both simple routes (/) and complex routes (/myapp)
  */
 
 const { runSiteAuditor } = require('../utils/calliopeHealing');
@@ -59,10 +59,10 @@ async function testSimpleRoute() {
 }
 
 async function testComplexRoute() {
-  console.log('\n' + BOLD + 'Test 2: Audit Complex Route (/lyra)' + RESET);
+  console.log('\n' + BOLD + 'Test 2: Audit Complex Route (/myapp)' + RESET);
   
   try {
-    const result = await runSiteAuditor('http://dev-proxy/lyra', {
+    const result = await runSiteAuditor('http://dev-proxy/myapp', {
       timeout: 20000,
       wait: 1000
     });
@@ -83,9 +83,9 @@ async function testComplexRoute() {
     console.log('  Network Failures:', result.summary.networkFailures);
     console.log('  HTTP Issues:', result.summary.httpIssues);
     
-    // /lyra is expected to have some issues (Next.js auth config)
+    // /myapp is expected to have some issues (Next.js auth config)
     if (result.summary.consoleErrors > 0 || result.summary.httpIssues > 0) {
-      pass('Detected issues in /lyra route (expected due to Next.js auth config)');
+      pass('Detected issues in /myapp route (expected due to Next.js auth config)');
     }
     
     return true;

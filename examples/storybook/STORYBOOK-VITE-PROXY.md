@@ -92,7 +92,7 @@ Edit `.storybook/main.ts` (`viteFinal`) with:
     - `server.hmr = { path: '/sdk/@vite', clientPort, host: ngrokHost?, protocol: wss? }`
 
 - Server allowlist
-  - `allowedHosts: ['.ngrok.app', 'localhost', 'encast-sdk', 'proxy']`
+  - `allowedHosts: ['.ngrok.app', 'localhost', 'app2-sdk', 'proxy']`
 
 - Resolve and pre-bundle nudges
   - `resolve.mainFields = ['module','browser','main']`

@@ -192,19 +192,19 @@ export async function runAudit(opts: AuditOptions): Promise<AuditResult> {
         const location = headers['location'];
         result.network.responses.push({ url, status, method, resourceType, contentType });
 
-        // Heuristic: if the site is under /mxtk and a request to 
-        // "/icons/..." or "/art/..." returns 404 (or 3xx to /mxtk) without the prefix,
-        // suggest retrying with "/mxtk" prepended.
+        // Heuristic: if the site is under /app3 and a request to 
+        // "/icons/..." or "/art/..." returns 404 (or 3xx to /app3) without the prefix,
+        // suggest retrying with "/app3" prepended.
         try {
           const u = new URL(url);
           const path = u.pathname || "";
           const isAsset = /\.(png|jpg|jpeg|svg|webp|gif)(?:\?|$)/i.test(path);
-          const looksRedirectToPrefixed = status >= 300 && status < 400 && typeof location === 'string' && /\/mxtk\//.test(location) && !path.startsWith('/mxtk/');
-          const looksMissingPrefix = isAsset && (status >= 400 || looksRedirectToPrefixed) && !path.startsWith("/mxtk/");
+          const looksRedirectToPrefixed = status >= 300 && status < 400 && typeof location === 'string' && /\/app3\//.test(location) && !path.startsWith('/app3/');
+          const looksMissingPrefix = isAsset && (status >= 400 || looksRedirectToPrefixed) && !path.startsWith("/app3/");
           const expectedCt = expectedContentTypeForUrl(url);
           const ctMismatch = isAsset && expectedCt && contentType && !contentType.toLowerCase().includes(expectedCt);
-          if (looksMissingPrefix || (ctMismatch && !path.startsWith('/mxtk/'))) {
-            const suggestedUrl = `${u.origin}/mxtk${path}${u.search || ''}`;
+          if (looksMissingPrefix || (ctMismatch && !path.startsWith('/app3/'))) {
+            const suggestedUrl = `${u.origin}/app3${path}${u.search || ''}`;
             // Optionally verify the suggestion without blocking audit flow
             try {
               const verify = await fetch(suggestedUrl, { method: 'HEAD' });

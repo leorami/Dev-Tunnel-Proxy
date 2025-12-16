@@ -16,6 +16,23 @@
     const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
     if (t){ t.textContent = next==='light' ? '🌙' : '☀️'; }
   }
+  function initView(){
+    try{
+      const stored = localStorage.getItem('dtpView');
+      const view = stored || 'comfortable';
+      document.body.setAttribute('data-view', view);
+      const v = document.getElementById('viewToggle');
+      if (v){ v.textContent = view==='compact' ? '⊞' : '⊟'; v.title = view==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View'; }
+    }catch{}
+  }
+  function toggleView(){
+    const cur = document.body.getAttribute('data-view')==='compact'?'compact':'comfortable';
+    const next = cur==='compact'?'comfortable':'compact';
+    document.body.setAttribute('data-view', next);
+    localStorage.setItem('dtpView', next);
+    const v = document.getElementById('viewToggle');
+    if (v){ v.textContent = next==='compact' ? '⊞' : '⊟'; v.title = next==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View'; }
+  }
   function buildHeader(active){
     const header = document.createElement('header');
     header.innerHTML = (
@@ -31,6 +48,7 @@
       `    <a class="tab btn ${active==='dashboard'?'active':''}" href="/dashboard/">Dashboard</a>`+
       '    <span class="divider" aria-hidden="true"></span>'+
       '    <button class="action btn" id="reloadConfigs" title="Reload configurations">🔄</button>'+
+      '    <button class="action btn" id="viewToggle" title="Toggle view density" aria-label="Toggle view density">⊟</button>'+
       '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>'+
       '    <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
       '    <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
@@ -52,6 +70,8 @@
     try{ document.body.setAttribute('data-page', String(active||'')); }catch{}
     const themeBtn = h.querySelector('#themeToggle') || h.querySelector('#themeToggleFallback');
     if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+    const viewBtn = h.querySelector('#viewToggle');
+    if (viewBtn) viewBtn.addEventListener('click', toggleView);
     // Always wire Calliope header controls
     const calliopeBtn = h.querySelector('#calliopeOpen');
     if (calliopeBtn){ calliopeBtn.addEventListener('click', ()=> openCalliopeWithContext()); }
@@ -59,6 +79,7 @@
     const aiTab = h.querySelector('#aiTab');
     if (aiTab){ aiTab.addEventListener('click', ()=>{ try{ openCalliopeWithContext(); }catch{} }); }
     initTheme();
+    initView();
   }
 
   function attachCalliope(){
@@ -123,7 +144,7 @@
       if (progressPoller) return; // Already polling
       progressPoller = setInterval(async () => {
         try {
-          const r = await fetch('/api/ai/thoughts', { cache: 'no-cache' });
+          const r = await fetch('/devproxy/api/ai/thoughts', { cache: 'no-cache' });
           if (!r.ok) return;
           const data = await r.json();
           const events = (data && data.events) || [];
@@ -208,7 +229,7 @@
       const chatPollStartTime = Date.now();
       const chatPoller = setInterval(async () => {
         try {
-          const chatData = await fetch('/api/ai/chat-history', { cache: 'no-cache' }).then(r => r.json());
+          const chatData = await fetch('/devproxy/api/ai/chat-history', { cache: 'no-cache' }).then(r => r.json());
           const messages = (chatData && chatData.messages) || [];
           const lastMsg = messages[messages.length - 1];
           
@@ -241,7 +262,7 @@
       }, 1000);
       
       try{
-        const r = await fetch('/api/ai/ask', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ query: q }) });
+        const r = await fetch('/devproxy/api/ai/ask', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ query: q }) });
         const j = await r.json();
         const ans = j && (j.answer || j.message || '');
         
@@ -304,7 +325,7 @@
       stopBtn.addEventListener('click', async () => {
         try {
           // Request cancellation via API
-          await fetch('/api/ai/cancel', { method: 'POST' });
+          await fetch('/devproxy/api/ai/cancel', { method: 'POST' });
           
           // Stop polling
           stopProgressPolling();
@@ -337,7 +358,7 @@
     const copyBtn = drawer.querySelector('#aiCopyBtn');
     if (copyBtn){ copyBtn.addEventListener('click', ()=>{ try{ const c = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); navigator.clipboard.writeText(c.map(m=>`[${m.role}] ${m.content}`).join('\n')); copyBtn.textContent='Copied'; setTimeout(()=> copyBtn.textContent='Copy', 1200); }catch{} }); }
     const healBtn = drawer.querySelector('#aiHealBtn');
-    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running self-check…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/api/ai/self-check', { method:'POST' }); const j = await r.json(); const h2 = loadChat(); h2.push({ role:'assistant', content: String(j&&j.message||'Self-check complete'), ts:Date.now() }); saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
+    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running self-check…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/devproxy/api/ai/self-check', { method:'POST' }); const j = await r.json(); const h2 = loadChat(); h2.push({ role:'assistant', content: String(j&&j.message||'Self-check complete'), ts:Date.now() }); saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
     // Placeholder UX: show placeholder only; never prefill user box
     try{
       const textarea = document.getElementById('aiQuery');
@@ -474,6 +495,8 @@
   window.DTP.attachHeader = attachHeader;
   window.DTP.attachCalliope = attachCalliope;
   window.DTP.initTheme = initTheme;
+  window.DTP.initView = initView;
+  window.DTP.toggleView = toggleView;
   window.DTP.openCalliopeWithContext = openCalliopeWithContext;
 })();
 

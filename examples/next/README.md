@@ -2,7 +2,7 @@
 
 This example shows how to run a Next.js app behind a proxy path with proper basePath support, including handling of redirect loops and asset loading issues.
 
-## Key Improvements (Learned from MXTK Integration)
+## Key Improvements (Learned from Production Integration)
 
 ### ✅ Redirect Loop Prevention
 - **Uses regex `^/myapp/?$`** instead of rewrite rules to handle both `/myapp` and `/myapp/`

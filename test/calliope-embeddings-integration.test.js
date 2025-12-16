@@ -78,8 +78,8 @@ describe('Calliope Embeddings Integration', () => {
     const docs = proxyConfigAPI.collectDocs();
     const chunks = proxyConfigAPI.chunkDocs(docs);
     
-    const personalityChunks = chunks.filter(c => 
-      c.source.includes('PERSONALITY') && c.text.toLowerCase().includes('calliope')
+    const calliopeChunks = chunks.filter(c => 
+      c.source.includes('CALLIOPE') && c.text.toLowerCase().includes('calliope')
     );
     
     const healingChunks = chunks.filter(c => 
@@ -91,11 +91,11 @@ describe('Calliope Embeddings Integration', () => {
     );
     
     console.log(`\n  🔍 Content analysis:`);
-    console.log(`     Personality chunks: ${personalityChunks.length}`);
+    console.log(`     Calliope chunks: ${calliopeChunks.length}`);
     console.log(`     Healing-related chunks: ${healingChunks.length}`);
     console.log(`     API-related chunks: ${apiChunks.length}`);
     
-    assert.ok(personalityChunks.length > 0, 'Should have personality information');
+    assert.ok(calliopeChunks.length > 0, 'Should have Calliope information');
     assert.ok(healingChunks.length > 0, 'Should have healing information');
     assert.ok(apiChunks.length > 0, 'Should have API information');
   });

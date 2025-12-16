@@ -365,9 +365,9 @@ function hardenLocationFullText(fullText) {
       continue;
     }
     // Repair malformed rewrite lines that lost their capture substitution
-    // e.g., "rewrite ^/mxtk/(.*)$ /location ^~ /mxtk/ { break" → "rewrite ^/mxtk/(.*)$ /$1 break;"
-    if (/^\s*rewrite\s+\^\/mxtk\/\(\.\*\)\$\s+\/location\s+\^~\s+\/mxtk\//.test(ln)) {
-      ln = ln.replace(/\/location\s+\^~\s+\/mxtk\/\s*\{\s*break;?\s*$/, '/$1 break;');
+    // e.g., "rewrite ^/app3/(.*)$ /location ^~ /app3/ { break" → "rewrite ^/app3/(.*)$ /$1 break;"
+    if (/^\s*rewrite\s+\^\/app3\/\(\.\*\)\$\s+\/location\s+\^~\s+\/app3\//.test(ln)) {
+      ln = ln.replace(/\/location\s+\^~\s+\/app3\/\s*\{\s*break;?\s*$/, '/$1 break;');
       changed = true;
     }
     // Ensure rewrite lines are properly terminated with ';'

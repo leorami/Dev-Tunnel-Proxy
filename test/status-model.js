@@ -86,14 +86,14 @@ function main(){
   assert(multiBases.length>0, 'No upstream base groups with more than one route');
   console.log(`✅ Found ${multiBases.length} base groups with multiple routes`);
 
-  // 3) Test specific expected groupings from encast.conf
+  // 3) Test specific expected groupings from app2.conf
   const expectContains = (base, route)=>{
     const list = byBase.get(base);
     assert(list && list.includes(route), `Expected ${route} in base ${base}, got: ${JSON.stringify(list)}`);
   };
 
-  // API (Django) on encast-api:8000 - should have multiple routes
-  const apiBase = 'http://encast-api:8000';
+  // API (Django) on app2-api:8000 - should have multiple routes
+  const apiBase = 'http://app2-api:8000';
   if (Array.from(byBase.keys()).includes(apiBase)){
     expectContains(apiBase, '/api/');
     expectContains(apiBase, '/admin/');
@@ -106,7 +106,7 @@ function main(){
   }
 
   // Impact dev server - should have multiple routes
-  const impactBase = 'http://encast-impact:3000';
+  const impactBase = 'http://app2-impact:3000';
   if (Array.from(byBase.keys()).includes(impactBase)){
     expectContains(impactBase, '/impact/');
     // Impact should also have various asset routes
@@ -116,7 +116,7 @@ function main(){
   }
 
   // SDK storybook - this should be the big test case with many routes
-  const sdkBase = 'http://encast-sdk:6006';
+  const sdkBase = 'http://app2-sdk:6006';
   if (Array.from(byBase.keys()).includes(sdkBase)){
     expectContains(sdkBase, '/sdk/');
     

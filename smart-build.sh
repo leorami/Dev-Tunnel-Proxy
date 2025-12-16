@@ -4,12 +4,20 @@ set -euo pipefail
 # smart-build.sh
 # PURPOSE: Dev utility for build/status/test. Root-level, proxy-aware.
 # Commands: setup, up, down, restart, logs, reload, status, apply
-# Test helpers: test:thoughts, test:calliope, test:auditor, test:browser, test:all
+# Test helpers: test:unit, test:thoughts, test:calliope, test:auditor, test:browser, test:all
 
 # Project root
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE="docker compose"
 export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-dev-tunnel-proxy}"
+PROXY_API_BASE_PATH="${PROXY_API_BASE_PATH:-/devproxy/api}"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
 get_ngrok_url() {
   # Env overrides
@@ -80,7 +88,8 @@ check_and_reindex_calliope() {
   # Reindex if needed
   if [ $needs_reindex -eq 1 ]; then
     # Check if Calliope API is running
-    if curl -s http://localhost:3001/api/ai/health > /dev/null 2>&1; then
+    local api_base="${PROXY_API_BASE_PATH:-/devproxy/api}"
+    if curl -s "http://localhost:3001${api_base}/ai/health" > /dev/null 2>&1; then
       echo "🧠 Updating Calliope's knowledge base..."
       if "$reindex_script" 2>&1 | grep -v "^#" | tail -5; then
         # Save new hash
@@ -99,13 +108,19 @@ check_and_reindex_calliope() {
 show_access_info() {
   echo ""
   echo "🌐 ACCESS INFORMATION======================================"
+  
+  # Get API base path from env or use default
+  local api_base="${PROXY_API_BASE_PATH:-/devproxy/api}"
+  
   echo "Local:   http://localhost:80"
+  echo "API:     http://localhost:80${api_base}"
   
   local ngrok
   ngrok=$(get_ngrok_url)
   
   if [ -n "$ngrok" ]; then
     echo "Proxy:   ${ngrok}"
+    echo "API:     ${ngrok}${api_base}"
     echo ""
     
     # Health checks
@@ -113,7 +128,7 @@ show_access_info() {
     hc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "${ngrok}/health.json" 2>/dev/null || echo 000)
     sc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "${ngrok}/status.json" 2>/dev/null || echo 000)
     rc=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "${ngrok}/routes.json" 2>/dev/null || echo 000)
-    th=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:3001/api/ai/thoughts" 2>/dev/null || echo 000)
+    th=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 "http://localhost:3001${api_base}/ai/thoughts" 2>/dev/null || echo 000)
     
     if [ "$hc" = "200" ]; then echo "Health:  ✅ OK (200)"; else echo "Health:  ❌ FAIL (${hc})"; fi
     if [ "$sc" = "200" ]; then echo "Status:  ✅ OK (200)"; else echo "Status:  ❌ FAIL (${sc})"; fi
@@ -122,11 +137,9 @@ show_access_info() {
     
     # Show Calliope status
     if [ "$th" = "200" ]; then
-      local count
-      count=$(curl -s "http://localhost:3001/api/ai/thoughts" 2>/dev/null | grep -o '"events":\[' | wc -l || echo 0)
-      if [ "$count" -gt 0 ]; then
-        local event_count
-        event_count=$(curl -s "http://localhost:3001/api/ai/thoughts" 2>/dev/null | grep -o '"id":' | wc -l || echo 0)
+      local event_count
+      event_count=$(curl -s "http://localhost:3001${PROXY_API_BASE_PATH}/ai/thoughts" 2>/dev/null | jq -r '.events | length' 2>/dev/null || echo 0)
+      if [ "$event_count" -gt 0 ] 2>/dev/null; then
         echo "         (Calliope has ${event_count} thoughts in queue)"
       fi
     fi
@@ -306,13 +319,14 @@ cmd_list_apps() {
 cmd_reindex() {
   echo "🧠 Manually triggering Calliope knowledge base reindex..."
   local reindex_script="$ROOT_DIR/scripts/reindex-calliope.sh"
+  local api_base="${PROXY_API_BASE_PATH:-/devproxy/api}"
   
   if [ ! -f "$reindex_script" ]; then
     echo "❌ Reindex script not found: $reindex_script"
     exit 1
   fi
   
-  if ! curl -s http://localhost:3001/api/ai/health > /dev/null 2>&1; then
+  if ! curl -s "http://localhost:3001${api_base}/ai/health" > /dev/null 2>&1; then
     echo "❌ Calliope API is not running on port 3001"
     echo "   Start it with: ./smart-build.sh up"
     exit 1
@@ -337,112 +351,161 @@ cmd_reindex() {
 # Test runner helpers
 # -----------------
 
+# Test runner with progress indicator
+run_test_with_progress() {
+  local test_name="$1"
+  local test_cmd="$2"
+  local start_time end_time duration
+  
+  echo -e "\n${BLUE}════════════════════════════════════════════════════════════════${NC}"
+  echo -e "${BLUE}▶ ${test_name}${NC}"
+  echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+  
+  start_time=$(date +%s)
+  
+  # Run test and capture exit code
+  if eval "$test_cmd"; then
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    echo -e "\n${GREEN}✓ ${test_name} passed (${duration}s)${NC}"
+    return 0
+  else
+    end_time=$(date +%s)
+    duration=$((end_time - start_time))
+    echo -e "\n${RED}✗ ${test_name} FAILED (${duration}s)${NC}"
+    echo -e "${RED}════════════════════════════════════════════════════════════════${NC}"
+    return 1
+  fi
+}
+
 cmd_test_thoughts() {
-  echo "🧪 Testing real-time thoughts system..."
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run thought tests"
     return 0
   fi
   
-  echo ""
-  echo "1. Simple thoughts test..."
-  node "$ROOT_DIR/test/calliope-simple-test.js" || echo "⚠️  Simple test failed"
+  local test_result=0
+  run_test_with_progress "Real-time Thoughts System" \
+    "node '$ROOT_DIR/test/calliope-simple-test.js' && bash '$ROOT_DIR/test/test-incremental-thoughts.sh'" || test_result=1
   
-  echo ""
-  echo "2. Verifying thoughts are pushed..."
-  bash "$ROOT_DIR/test/test-incremental-thoughts.sh" || echo "⚠️  Incremental test failed"
-  
-  echo ""
-  echo "✅ Thoughts tests complete"
+  return $test_result
 }
 
 cmd_test_calliope() {
-  echo "🧪 Testing Calliope AI functionality..."
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run Calliope tests"
     return 0
   fi
   
-  echo ""
-  echo "1. Core functionality..."
-  node "$ROOT_DIR/test/calliope-simple-test.js" || { echo "❌ Calliope tests failed"; return 1; }
+  local test_result=0
+  run_test_with_progress "Calliope Core Functionality" \
+    "node '$ROOT_DIR/test/calliope-simple-test.js'" || test_result=1
   
-  echo ""
-  echo "2. Site auditor..."
-  node "$ROOT_DIR/test/site-auditor-test.js" || { echo "❌ Site auditor tests failed"; return 1; }
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Calliope Site Auditor" \
+      "node '$ROOT_DIR/test/site-auditor-test.js'" || test_result=1
+  fi
   
-  echo ""
-  echo "✅ Calliope tests complete"
+  return $test_result
 }
 
 cmd_test_auditor() {
-  echo "🧪 Testing site auditor..."
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run auditor tests"
     return 0
   fi
   
-  node "$ROOT_DIR/test/site-auditor-test.js" || { echo "❌ Auditor tests failed"; return 1; }
-  
-  echo ""
-  echo "✅ Auditor tests complete"
+  run_test_with_progress "Site Auditor" \
+    "node '$ROOT_DIR/test/site-auditor-test.js'"
 }
 
 cmd_test_browser() {
-  echo "🧪 Testing browser/console errors..."
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run browser tests"
     return 0
   fi
   
   if [ -f "$ROOT_DIR/test/browser-console-test.js" ]; then
-    echo ""
-    node "$ROOT_DIR/test/browser-console-test.js" || echo "⚠️  Browser test failed"
+    run_test_with_progress "Browser/Console Errors" \
+      "node '$ROOT_DIR/test/browser-console-test.js'"
   else
-    echo "⚠️  Browser test not found (test/browser-console-test.js)"
+    warn "Browser test not found (test/browser-console-test.js)"
+    return 1
   fi
-  
-  echo ""
-  echo "✅ Browser tests complete"
 }
 
 cmd_test_mixed_content() {
-  echo "🧪 Testing mixed content detection..."
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run mixed content test"
     return 0
   fi
   
   if [ -f "$ROOT_DIR/test/mixed-content-test.js" ]; then
-    echo ""
-    node "$ROOT_DIR/test/mixed-content-test.js" || echo "⚠️  Mixed content test failed"
+    run_test_with_progress "Mixed Content Detection" \
+      "node '$ROOT_DIR/test/mixed-content-test.js'"
   else
-    echo "⚠️  Mixed content test not found"
+    warn "Mixed content test not found"
+    return 1
+  fi
+}
+
+cmd_test_unit() {
+  if [ "${DRY_RUN:-}" = "1" ]; then
+    echo "DRY RUN: would run unit tests"
+    return 0
   fi
   
-  echo ""
-  echo "✅ Mixed content tests complete"
+  local test_result=0
+  run_test_with_progress "Unit Tests (collect-docs)" \
+    "node '$ROOT_DIR/test/collect-docs.test.js'" || test_result=1
+  
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Unit Tests (embeddings)" \
+      "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
+  fi
+  
+  return $test_result
 }
 
 cmd_test_all() {
-  echo "🧪 Running all tests..."
+  local start_time end_time total_duration
+  local failed=0
+  
+  echo -e "\n${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+  echo -e "${YELLOW}║                  RUNNING FULL TEST SUITE                       ║${NC}"
+  echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}\n"
+  
   if [ "${DRY_RUN:-}" = "1" ]; then
     echo "DRY RUN: would run all tests"
     return 0
   fi
   
-  local failed=0
+  start_time=$(date +%s)
   
-  cmd_test_thoughts || failed=1
-  cmd_test_calliope || failed=1
+  # Run unit tests first (fast)
+  cmd_test_unit || failed=1
+  
+  # Run Calliope tests
+  if [ $failed -eq 0 ]; then
+    cmd_test_thoughts || failed=1
+  fi
   
   if [ $failed -eq 0 ]; then
-    echo ""
-    echo "✅ ALL TESTS PASSED"
+    cmd_test_calliope || failed=1
+  fi
+  
+  end_time=$(date +%s)
+  total_duration=$((end_time - start_time))
+  
+  if [ $failed -eq 0 ]; then
+    echo -e "\n${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${GREEN}║              ✓ ALL TESTS PASSED (${total_duration}s)                    ║${NC}"
+    echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}\n"
     return 0
   else
-    echo ""
-    echo "❌ SOME TESTS FAILED"
+    echo -e "\n${RED}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${RED}║              ✗ TESTS FAILED (${total_duration}s)                       ║${NC}"
+    echo -e "${RED}╚════════════════════════════════════════════════════════════════╝${NC}\n"
     return 1
   fi
 }
@@ -470,12 +533,13 @@ Commands:
                    when documentation changes are detected)
   
   # Tests
+  test:unit            Run unit tests (collect-docs, embeddings)
   test:thoughts        Test real-time thoughts system
   test:calliope        Test Calliope AI functionality
   test:auditor         Test site auditor (Puppeteer-based)
   test:browser         Test browser/console error detection
   test:mixed-content   Test mixed content detection
-  test:all             Run all tests
+  test:all             Run all tests (unit + integration)
 
 Examples:
   ./smart-build.sh setup          # First-time setup
@@ -507,6 +571,7 @@ main() {
     reindex) cmd_reindex;;
     
     # Tests
+    test:unit) cmd_test_unit;;
     test:thoughts) cmd_test_thoughts;;
     test:calliope) cmd_test_calliope;;
     test:auditor) cmd_test_auditor;;

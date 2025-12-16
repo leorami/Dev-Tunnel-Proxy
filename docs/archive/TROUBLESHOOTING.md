@@ -136,7 +136,7 @@ location /myapp/_next/ {
 location = /myapp { rewrite ^ /myapp/ last; }
 ```
 
-**✅ Proven Solutions (from MXTK success)**:
+**✅ Proven Solutions (from production experience)**:
 
 **1. Use Regex for Route Variants**
 ```nginx

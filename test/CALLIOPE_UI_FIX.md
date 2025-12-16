@@ -263,7 +263,7 @@ Response sent to UI
 3. ✅ Assets loading correctly
 4. ✅ Mixed content errors fixed
 
-### For Lyra App (Needs Work)
+### For MyApp App (Needs Work)
 1. Fix `/api/auth/session` returning HTML instead of JSON
 2. Fix `/api/auth/_log` 500 errors
 3. Configure NEXTAUTH_URL and database connection

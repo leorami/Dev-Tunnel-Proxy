@@ -102,9 +102,9 @@ async function main() {
   log('╚════════════════════════════════════════════════════════════════════╝', 'cyan');
   
   try {
-    // Test /lyra
-    log('\n\n🧪 Testing /lyra for Mixed Content...', 'cyan');
-    const lyraResults = await testMixedContent(`${NGROK_URL}/lyra`);
+    // Test /myapp
+    log('\n\n🧪 Testing /myapp for Mixed Content...', 'cyan');
+    const myappResults = await testMixedContent(`${NGROK_URL}/myapp`);
     
     // Test /status
     log('\n\n🧪 Testing /status for Mixed Content...', 'cyan');
@@ -115,14 +115,14 @@ async function main() {
     log('SUMMARY', 'cyan');
     log('='.repeat(70), 'cyan');
     
-    log('\n/lyra Results:', 'cyan');
-    log(`  Mixed Content Errors: ${lyraResults.mixedContentErrors.length}`, 
-        lyraResults.mixedContentErrors.length > 0 ? 'red' : 'green');
-    log(`  Mixed Content Warnings: ${lyraResults.mixedContentWarnings.length}`, 
-        lyraResults.mixedContentWarnings.length > 0 ? 'yellow' : 'green');
-    log(`  HTTP Requests: ${lyraResults.httpRequests.length}`, 
-        lyraResults.httpRequests.length > 0 ? 'red' : 'green');
-    log(`  HTTPS Requests: ${lyraResults.httpsRequests.length}`, 'green');
+    log('\n/myapp Results:', 'cyan');
+    log(`  Mixed Content Errors: ${myappResults.mixedContentErrors.length}`, 
+        myappResults.mixedContentErrors.length > 0 ? 'red' : 'green');
+    log(`  Mixed Content Warnings: ${myappResults.mixedContentWarnings.length}`, 
+        myappResults.mixedContentWarnings.length > 0 ? 'yellow' : 'green');
+    log(`  HTTP Requests: ${myappResults.httpRequests.length}`, 
+        myappResults.httpRequests.length > 0 ? 'red' : 'green');
+    log(`  HTTPS Requests: ${myappResults.httpsRequests.length}`, 'green');
     
     log('\n/status Results:', 'cyan');
     log(`  Mixed Content Errors: ${statusResults.mixedContentErrors.length}`, 
@@ -133,9 +133,9 @@ async function main() {
         statusResults.httpRequests.length > 0 ? 'red' : 'green');
     log(`  HTTPS Requests: ${statusResults.httpsRequests.length}`, 'green');
     
-    const totalErrors = lyraResults.mixedContentErrors.length + 
+    const totalErrors = myappResults.mixedContentErrors.length + 
                        statusResults.mixedContentErrors.length +
-                       lyraResults.httpRequests.length +
+                       myappResults.httpRequests.length +
                        statusResults.httpRequests.length;
     
     log('\n');

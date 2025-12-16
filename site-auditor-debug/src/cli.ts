@@ -94,7 +94,7 @@ async function runSingle(url: string) {
   if (res.diagnostics && (res.diagnostics.missingBasePath?.length || res.diagnostics.contentTypeMismatches?.length)) {
     console.log("\nDiagnostics:");
     if (res.diagnostics.missingBasePath?.length) {
-      console.log(` - Missing '/mxtk' prefix suspected for ${res.diagnostics.missingBasePath.length} asset(s):`);
+      console.log(` - Missing '/app3' prefix suspected for ${res.diagnostics.missingBasePath.length} asset(s):`);
       for (const row of res.diagnostics.missingBasePath.slice(0, 10)) {
         console.log(`   • ${row.url} -> try ${row.suggestedUrl}`);
       }

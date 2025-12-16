@@ -48,15 +48,6 @@
       .apps{display:grid;grid-template-columns:repeat(2, 1fr);gap:12px;grid-auto-rows:min-content;align-items:start;width:100%;max-width:100%}
       .app{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease, box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02);position:relative;min-width:0;height:auto}
       .app .config-label{position:absolute;bottom:8px;right:8px;font-size:10px;color:var(--muted);opacity:0.6;font-weight:600;padding:2px 6px;background:var(--codeBg);border-radius:4px;border:1px solid var(--codeBorder)}
-      /* When grouped by config file, force single column layout */
-      .apps.grouped-layout{grid-template-columns:1fr !important}
-      .config-group-card{background:var(--panelGlass);border:2px solid var(--border);border-radius:12px;padding:16px;height:fit-content;box-sizing:border-box;margin-bottom:16px}
-      .config-group-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
-      .config-group-header h2{margin:0;font-size:15px;color:var(--heading);font-weight:700}
-      .config-route-count{font-size:12px;color:var(--muted);background:var(--chip);padding:4px 10px;border-radius:999px;font-weight:600}
-      .config-routes-container{display:flex;flex-direction:column;gap:12px}
-      .config-routes-container .app{background:var(--panel);box-shadow:0 2px 8px rgba(0,0,0,.15)}
-      .config-routes-container .app .config-label{display:none}
       
       /* Compact View Styles - More aggressive spacing reduction */
       body[data-view="compact"] .card{padding:10px;font-size:11px}
@@ -78,9 +69,9 @@
       .groupHead .chips{gap:6px}
       .groupHead .btn-small{font-size:12px;padding:6px 10px}
       .chip{display:inline-flex;gap:6px;align-items:center;padding:5px 8px;border-radius:999px;background:var(--chipBg);border:1px solid var(--chipBorder);color:var(--chipText);position:relative}
-      .chip.ok{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.35);color:#0f9d6a;font-weight:700}
-      .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#b7791f;font-weight:700}
-      .chip.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#c24141;font-weight:700}
+      .chip.ok{background:rgba(22,199,132,.12);border-color:rgba(22,199,132,.35);color:#8ef0c3}
+      .chip.warn{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#ffd38a}
+      .chip.err{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#ffb1b1}
       .chip[data-tip]:hover:after{content:attr(data-tip);position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% + 8px);white-space:pre-wrap;max-width:280px;background:#0a1223;color:#d9e2f1;border:1px solid #1b2a48;border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.45);z-index:30}
       .chip[data-tip]:hover:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:100%;border:6px solid transparent;border-top-color:#1b2a48}
       .chip a{color:var(--lnk);text-decoration:none}
@@ -90,7 +81,7 @@
       .hidden{display:none}
       .summaryChips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
       .chip strong{font-weight:700;margin-right:6px}
-      .overviewCard{margin-bottom:8px;padding:12px 16px}
+      .overviewCard{max-width:1100px;margin:16px 16px 8px;padding:12px 16px}
       /* Modal */
       .backdrop{position:fixed;inset:0;background:rgba(3,8,20,.55);backdrop-filter:saturate(160%) blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:3000;overflow:auto}
       .modal{max-width:860px;width:min(860px,96vw);background:rgba(16,24,39,.92);backdrop-filter:saturate(160%) blur(6px);border:1px solid #2a3a62;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.04);padding:16px;max-height:calc(100vh - 48px);overflow:auto;z-index:3002}
@@ -229,7 +220,7 @@
       /* AI Drawer */
       :root{--aiWidth:clamp(360px, 32vw, 512px)}
       .ai-drawer{position:fixed;right:0;height:calc(88vh - (var(--headerH, 64px) + var(--summaryH, 0px)));width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
-      .ai-drawer.collapsed{transform:translateX(calc(100% + 16px));border-left:none;box-shadow:none}
+      .ai-drawer.collapsed{transform:translateX(calc(100%));border-left:none;box-shadow:none}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
       /* Bottom-sheet mode for small screens */
       .ai-drawer.bottom-sheet{left:0;right:0;bottom:0;top:auto;width:auto;height:min(33vh, 420px);border-left:none;border-top:1px solid var(--border);border-radius:12px 12px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.35)}
@@ -344,7 +335,6 @@
       /* Remove page-specific header overrides; rely on shared common.css */
     </style>
     <link rel="stylesheet" href="/status/common.css" />
-    <script src="/status/config.js"></script>
     <script src="/status/common.js"></script>
   </head>
   <body data-page="status">
@@ -371,10 +361,10 @@
       
     </header>
     <div class="content">
+      <div class="card overviewCard">
+        <div class="summaryChips" id="summaryChips"></div>
+      </div>
       <div class="container">
-        <div class="card overviewCard">
-          <div class="summaryChips" id="summaryChips"></div>
-        </div>
         <div class="ai-drawer collapsed" id="aiDrawer">
           <!-- Healing History Panel -->
           <div class="healing-history" id="healingHistory">
@@ -431,13 +421,6 @@
             <div class="card appsHeader">
             <div class="toolbar">
               <div class="field">
-                <label class="label">Group By</label>
-                <select id="groupByMode">
-                  <option value="none">None</option>
-                  <option value="config">Config File</option>
-                </select>
-              </div>
-              <div class="field">
                 <label class="label">Sort</label>
                 <select id="sortMode">
                   <option value="alpha">A–Z</option>
@@ -460,21 +443,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script>
-      // Debug logging setup (must be defined before any function uses it)
-      const DEBUG = (function(){
-        try{
-          const qs = new URLSearchParams(location.search);
-          if ((qs.get('debug')||'').toString() === '1') return true;
-          const v = localStorage.getItem('calliope_debug');
-          return v === '1' || v === 'true';
-        }catch{}
-        return false;
-      })();
-      const logDebug = (...args)=>{ try{ if (DEBUG) console.debug(...args); }catch{} };
-      const logInfo = (...args)=>{ try{ console.info(...args); }catch{} };
-      const logWarn = (...args)=>{ try{ console.warn(...args); }catch{} };
-      const logError = (...args)=>{ try{ console.error(...args); }catch{} };
-
       function initTheme(){
         const stored = localStorage.getItem('dtpTheme');
         // Default to dark if nothing stored
@@ -577,26 +545,6 @@
         try{ return JSON.parse(localStorage.getItem('routePromotions')||'{}'); }catch{ return {}; }
       }
       function savePromotions(p){ localStorage.setItem('routePromotions', JSON.stringify(p||{})); }
-      
-      function togglePromotion(route, configFile) {
-        const promotions = loadPromotions();
-        if (!promotions[configFile]) promotions[configFile] = {};
-        
-        if (promotions[configFile][route]) {
-          // Demote: remove from promotions
-          delete promotions[configFile][route];
-          // Clean up empty config entries
-          if (Object.keys(promotions[configFile]).length === 0) {
-            delete promotions[configFile];
-          }
-        } else {
-          // Promote: add to promotions
-          promotions[configFile][route] = true;
-        }
-        
-        savePromotions(promotions);
-        rebuildApps(); // Refresh the UI
-      }
 
       function routeDepth(r){ return (r||'').split('/').filter(Boolean).length; }
       function normalizeBase(up){
@@ -717,154 +665,6 @@
         });
       }
 
-      function createRouteCard(item, targetsArr, routes, meta) {
-        const app = document.createElement('div');
-        app.className = 'app';
-        const route = item.route;
-        const source = item.source;
-
-        // Create header with route name
-        const header = document.createElement('div');
-        header.className = 'route-header';
-        
-        const titleSection = document.createElement('div');
-        titleSection.className = 'route-title';
-        titleSection.innerHTML = `<span class="route-name">${route}</span>`;
-        header.appendChild(titleSection);
-        
-        // Create action buttons container
-        const actionContainer = document.createElement('div');
-        actionContainer.className = 'action-buttons-container';
-        
-        function createActionButton(type, options = {}) {
-          const btn = document.createElement('button');
-          btn.className = 'circular-action-btn';
-          btn.type = 'button';
-          btn.title = options.title || '';
-          btn.setAttribute('aria-label', options.ariaLabel || options.title || '');
-          if (options.innerHTML) btn.innerHTML = options.innerHTML;
-          else btn.textContent = options.text || '';
-          if (options.dataset) {
-            Object.entries(options.dataset).forEach(([key, value]) => {
-              btn.dataset[key] = value;
-            });
-          }
-          return btn;
-        }
-        
-        // Open button
-        const openBtn = createActionButton('open', {
-          title: 'Open Route',
-          innerHTML: '🚀',
-          dataset: { route }
-        });
-        openBtn.addEventListener('click', (e) => {
-          e.preventDefault(); 
-          e.stopPropagation();
-          const url = chooseOpenUrl(routes, targetsArr, route);
-          if (url) window.open(url, '_blank', 'noopener');
-        });
-        actionContainer.appendChild(openBtn);
-        
-        // Promote/Demote button
-        const promotions = loadPromotions();
-        const isPromoted = promotions?.[source]?.[route] || false;
-        const promoteBtn = createActionButton('promote', {
-          title: isPromoted ? 'Demote (ungroup children)' : 'Promote (group children under this route)',
-          innerHTML: isPromoted ? '📍' : '📌',
-          dataset: { route, source }
-        });
-        promoteBtn.addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          togglePromotion(route, source);
-        });
-        actionContainer.appendChild(promoteBtn);
-        
-        // Dashboard button
-        const dashBtn = createActionButton('dashboard', {
-          title: 'Open Dashboard (route-focused)',
-          innerHTML: '📊',
-          dataset: { route }
-        });
-        dashBtn.addEventListener('click', (e) => {
-          e.preventDefault(); e.stopPropagation();
-          const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
-          const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
-          const qp = new URLSearchParams();
-          if (route) qp.set('route', route);
-          if (url) qp.set('url', url);
-          window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
-        });
-        actionContainer.appendChild(dashBtn);
-        
-        // Calliope button
-        const calliopeBtn = createActionButton('calliope', {
-          title: 'Diagnose with Calliope',
-          innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
-          dataset: { route }
-        });
-        calliopeBtn.onclick = function(e){
-          e.preventDefault(); e.stopPropagation();
-          try { runCalliopeHealth(route); } catch(_) {
-            const drawer = document.getElementById('aiDrawer');
-            if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
-          }
-        };
-        actionContainer.appendChild(calliopeBtn);
-        
-        header.appendChild(actionContainer);
-        
-        // Create chips section
-        const chipsSection = document.createElement('div');
-        chipsSection.className = 'route-chips-section';
-        
-        // Config file chip and upstream on same row (config first)
-        const baseContainer = document.createElement('div');
-        baseContainer.className = 'chips';
-        baseContainer.style.display = 'flex';
-        baseContainer.style.alignItems = 'center';
-        baseContainer.style.gap = '8px';
-        
-        // Add config file chip first
-        const configChip = document.createElement('span');
-        configChip.className = 'chip';
-        configChip.style.fontSize = '10px';
-        configChip.style.opacity = '0.7';
-        configChip.textContent = source.replace(/\.conf$/, '');
-        configChip.title = `From ${source}`;
-        baseContainer.appendChild(configChip);
-        
-        // Then upstream chip
-        const baseChip = chip(normalizeBase(meta[route]?.upstream || ''), 'upstream-base');
-        baseContainer.appendChild(baseChip);
-        
-        chipsSection.appendChild(baseContainer);
-        
-        // Status chips
-        const statusContainer = document.createElement('div');
-        statusContainer.className = 'chips route-status';
-        addStatusChips(statusContainer, route, targetsArr, routes);
-        chipsSection.appendChild(statusContainer);
-        
-        // Append elements
-        app.appendChild(header);
-        app.appendChild(chipsSection);
-        
-        // Add a dedicated row for the children badge (will be populated if this is a promoted parent)
-        const badgeRow = document.createElement('div');
-        badgeRow.className = 'badge-row';
-        badgeRow.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;min-height:32px;margin-top:8px;';
-        app.appendChild(badgeRow);
-        
-        // Store reference to badge row for promoted parents
-        app._badgeRow = badgeRow;
-        
-        // Apply severity styling
-        applySeverityToApp(app, route, targetsArr, routes);
-        
-        return app;
-      }
-
       function rebuildApps(){
         const routes = routesData;
         const appsEl = document.getElementById('apps');
@@ -877,48 +677,95 @@
           const src = srcFull.split('/').pop();
           (bySource[src] = bySource[src] || []).push(r);
         });
-        // Responsive columns are handled by CSS media queries
-        function buildGroupsByBase(routesInSource, meta, configFile){
-          const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/',window.DTP.config.apiPath('resolve-conflict'),window.DTP.config.apiPath('rename-route')]);
+        // Responsive masonry layout with proper column counts
+        if (appsEl) {
+          const vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+          if (vw < 900) {
+            // Mobile: 1 column
+            appsEl.style.gridTemplateColumns = '1fr';
+          } else if (vw < 1400) {
+            // Tablet/Desktop: 2 columns
+            appsEl.style.gridTemplateColumns = 'repeat(2, 1fr)';
+          } else {
+            // Large Desktop: 3 columns
+            appsEl.style.gridTemplateColumns = 'repeat(3, 1fr)';
+          }
+        }
+        function buildGroupsByBase(routesInSource, meta){
+          const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
           const routesList = routesInSource.filter(r=>!systemRoutes.has(r));
-          
-          // SIMPLIFIED: No auto-promotion, only manual promotions within same config file
+          const byBase = new Map();
+          routesList.forEach(r=>{
+            const up = (meta[r]||{}).upstream||'';
+            const baseKey = normalizeBase(up);
+            if (!byBase.has(baseKey)) byBase.set(baseKey, []);
+            byBase.get(baseKey).push(r);
+          });
+
           promotedRoots = loadPromotions();
           const groups = [];
+          byBase.forEach((list, baseKey)=>{
+            const unique = Array.from(new Set(list)).sort((a,b)=> a.localeCompare(b));
+            const promoted = promotedRoots?.[baseKey] || null;
+            if (promoted && unique.includes(promoted)){
+              const children = unique.filter(r=> r!==promoted);
+              groups.push({ route: promoted, children, baseKey });
+              return;
+            }
+            const depths = unique.map(r=>({ r, d:(r||'').split('/').filter(Boolean).length }));
+            const minD = Math.min.apply(null, depths.map(x=>x.d));
+            const shallow = depths.filter(x=>x.d===minD).map(x=>x.r);
+            if (shallow.length === 1){
+              const parent = shallow[0];
+              const children = unique.filter(r=> r!==parent);
+              groups.push({ route: parent, children, baseKey });
+            } else {
+              unique.forEach(r=> groups.push({ route:r, children:[], baseKey }));
+            }
+          });
+          
+          // Second pass: Handle path-based grouping for cross-upstream route relationships
+          const finalGroups = [];
           const processedRoutes = new Set();
           
-          // Sort routes by path for consistent processing
-          const sortedRoutes = Array.from(new Set(routesList)).sort((a,b)=> a.localeCompare(b));
+          // Sort groups by route length to process parents before children
+          groups.sort((a, b) => a.route.length - b.route.length);
           
-          // Check for manually promoted routes in this config file
-          const promotedInConfig = promotedRoots?.[configFile] || {};
-          
-          sortedRoutes.forEach(route => {
-            if (processedRoutes.has(route)) return;
+          groups.forEach(group => {
+            if (processedRoutes.has(group.route)) return;
             
-            // Check if this route is manually promoted as a parent
-            if (promotedInConfig[route]) {
-              // Find all routes that start with this route (children)
-              const children = sortedRoutes.filter(r => 
-                r !== route && 
-                r.startsWith(route) && 
-                (r[route.length] === '/' || route.endsWith('/'))
-              );
-              
-              groups.push({ route, children, baseKey: configFile });
-              processedRoutes.add(route);
-              children.forEach(child => processedRoutes.add(child));
+            // Check if this route should be a child of an existing group
+            let foundParent = false;
+            for (let existingGroup of finalGroups) {
+              if (group.route !== existingGroup.route && 
+                  group.route.startsWith(existingGroup.route) && 
+                  group.route.length > existingGroup.route.length &&
+                  (group.route[existingGroup.route.length] === '/' || existingGroup.route.endsWith('/'))) {
+                // This route is a child of an existing group by path prefix
+                if (!existingGroup.children.includes(group.route)) {
+                  existingGroup.children.push(group.route);
+                }
+                // Add any children this group had to the parent as well
+                group.children.forEach(child => {
+                  if (!existingGroup.children.includes(child)) {
+                    existingGroup.children.push(child);
+                  }
+                });
+                processedRoutes.add(group.route);
+                group.children.forEach(child => processedRoutes.add(child));
+                foundParent = true;
+                break;
+              }
+            }
+            
+            if (!foundParent) {
+              finalGroups.push({ ...group });
+              processedRoutes.add(group.route);
+              group.children.forEach(child => processedRoutes.add(child));
             }
           });
           
-          // Add remaining routes as standalone (no grouping)
-          sortedRoutes.forEach(route => {
-            if (!processedRoutes.has(route)) {
-              groups.push({ route, children: [], baseKey: configFile });
-            }
-          });
-          
-          return groups;
+          return finalGroups;
         }
 
         // NEW APPROACH: Flatten all routes into individual cards
@@ -940,7 +787,6 @@
         // Apply filtering
         const targetsArr = Object.keys(routes.summary||{});
         const sortEl = document.getElementById('sortMode');
-        const groupByEl = document.getElementById('groupByMode');
         const filterEl = document.getElementById('routeFilter');
         let sortMode = (preferences?.sortMode) || (sortEl && sortEl.value) || 'status';
         if (sortMode==='manual') { sortMode='status'; preferences.sortMode='status'; savePrefs(preferences); if (sortEl) sortEl.value='status'; }
@@ -980,161 +826,587 @@
           });
         }
 
-        // Check grouping preference
-        const groupByMode = (preferences?.groupByMode) || (groupByEl && groupByEl.value) || 'none';
-        
-        // Toggle grouped layout class on apps container
-        if (groupByMode === 'config') {
-          appsEl.classList.add('grouped-layout');
-        } else {
-          appsEl.classList.remove('grouped-layout');
-        }
-        
         // Apply sorting
-        const sortFunction = (a, b) => {
-          if (sortMode === 'alpha') {
-            return a.route.localeCompare(b.route);
-          } else if (sortMode === 'status') {
-            const rank = {err: 0, warn: 1, ok: 2};
+        if (sortMode === 'alpha') {
+          filteredRoutes.sort((a, b) => a.route.localeCompare(b.route));
+        } else if (sortMode === 'status') {
+          const rank = {err: 0, warn: 1, ok: 2};
+          filteredRoutes.sort((a, b) => {
             const sevA = severityOf(a.route, targetsArr, routes);
             const sevB = severityOf(b.route, targetsArr, routes);
             return (rank[sevA] - rank[sevB]) || a.route.localeCompare(b.route);
-          } else if (sortMode === 'depth') {
+          });
+        } else if (sortMode === 'depth') {
+          filteredRoutes.sort((a, b) => {
             const depthA = (a.route||'').split('/').filter(Boolean).length;
             const depthB = (b.route||'').split('/').filter(Boolean).length;
             return (depthA - depthB) || a.route.localeCompare(b.route);
-          }
-          return 0;
-        };
-
-        // Render based on grouping mode
-        if (groupByMode === 'config') {
-          // Group by config file
-          const grouped = {};
-          filteredRoutes.forEach(item => {
-            if (!grouped[item.source]) grouped[item.source] = [];
-            grouped[item.source].push(item);
-          });
-          
-          // Sort config files alphabetically
-          const sortedSources = Object.keys(grouped).sort();
-          
-          // For each config file
-          sortedSources.forEach(source => {
-            // Sort routes within this group
-            grouped[source].sort(sortFunction);
-            
-            // Create config file container card
-            const configCard = document.createElement('div');
-            configCard.className = 'card config-group-card';
-            
-            // Config file header
-            const configHeader = document.createElement('div');
-            configHeader.className = 'config-group-header';
-            configHeader.innerHTML = `<h2>${source.replace(/\.conf$/, '')}</h2><span class="config-route-count">${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}</span>`;
-            configCard.appendChild(configHeader);
-            
-            // Routes container within this config
-            const routesContainer = document.createElement('div');
-            routesContainer.className = 'config-routes-container';
-            
-            grouped[source].forEach(item => {
-              const app = createRouteCard(item, targetsArr, routes, meta);
-              routesContainer.appendChild(app);
-            });
-            
-            configCard.appendChild(routesContainer);
-            appsEl.appendChild(configCard);
-          });
-        } else {
-          // Flat view with optional manual promotions
-          filteredRoutes.sort(sortFunction);
-          
-          // Check for promoted routes and group their children
-          const promotions = loadPromotions();
-          const processedRoutes = new Set();
-          
-          filteredRoutes.forEach(item => {
-            if (processedRoutes.has(item.route)) return;
-            
-            const configFile = item.source;
-            const isPromoted = promotions?.[configFile]?.[item.route] || false;
-            
-            if (isPromoted) {
-              // Find children of this promoted route
-              const children = filteredRoutes.filter(child => 
-                child.route !== item.route &&
-                child.source === configFile &&
-                child.route.startsWith(item.route) &&
-                (child.route[item.route.length] === '/' || item.route.endsWith('/'))
-              );
-              
-              // Create parent card
-              const parentCard = createRouteCard(item, targetsArr, routes, meta);
-              parentCard.classList.add('promoted-parent');
-              parentCard.style.position = 'relative';
-              
-              // Add visual indicator that this is a parent with children
-              if (children.length > 0) {
-                parentCard.style.borderLeft = '4px solid var(--ok)';
-                parentCard.style.boxShadow = '0 0 0 1px rgba(22,199,132,0.2), 0 6px 24px rgba(0,0,0,.25)';
-                
-                // Add collapsible badge to the dedicated badge row
-                const badge = document.createElement('div');
-                badge.className = 'children-toggle-badge';
-                badge.style.cssText = 'background:rgba(22,199,132,0.8);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.2s, transform 0.2s;';
-                badge.innerHTML = `<span>${children.length} child${children.length > 1 ? 'ren' : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
-                
-                // Add badge to the badge row (row 5)
-                parentCard._badgeRow.appendChild(badge);
-                
-                // Create children container INSIDE parent card (new rows below row 5)
-                const childrenContainer = document.createElement('div');
-                childrenContainer.className = 'promoted-children';
-                childrenContainer.style.cssText = 'display:none;padding-top:16px;border-top:1px solid var(--border);flex-direction:column;gap:8px;';
-                
-                children.forEach(child => {
-                  const childCard = createRouteCard(child, targetsArr, routes, meta);
-                  childCard.classList.add('promoted-child');
-                  childCard.style.opacity = '0.9';
-                  childCard.style.background = 'var(--panel)';
-                  childCard.style.border = '1px solid var(--border)';
-                  childrenContainer.appendChild(childCard);
-                  processedRoutes.add(child.route);
-                });
-                
-                parentCard.appendChild(childrenContainer);
-                
-                // Set up badge click handler
-                badge.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const isExpanded = childrenContainer.style.display === 'flex';
-                  childrenContainer.style.display = isExpanded ? 'none' : 'flex';
-                  badge.querySelector('.chevron').style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
-                  badge.style.background = isExpanded ? 'rgba(22,199,132,0.8)' : 'rgba(127,176,255,0.8)';
-                });
-                
-                badge.addEventListener('mouseenter', () => {
-                  badge.style.transform = 'scale(1.05)';
-                });
-                
-                badge.addEventListener('mouseleave', () => {
-                  badge.style.transform = 'scale(1)';
-                });
-              }
-              
-              appsEl.appendChild(parentCard);
-              processedRoutes.add(item.route);
-            } else {
-              // Regular route card
-              const app = createRouteCard(item, targetsArr, routes, meta);
-              appsEl.appendChild(app);
-              processedRoutes.add(item.route);
-            }
           });
         }
 
+        // Render individual route cards
+        const routeGroups = filteredRoutes;
+
+          filteredRoutes.forEach(item => {
+            const app = document.createElement('div');
+            app.className = 'app';
+            const route = item.route;
+            const source = item.source;
+
+            // Create header with route name
+            const header = document.createElement('div');
+            header.className = 'route-header';
+            
+            const titleSection = document.createElement('div');
+            titleSection.className = 'route-title';
+            titleSection.innerHTML = `<span class="route-name">${route}</span>`;
+            header.appendChild(titleSection);
+            
+            // Create action buttons container
+            const actionContainer = document.createElement('div');
+            actionContainer.className = 'action-buttons-container';
+            
+            function createActionButton(type, options = {}) {
+              const btn = document.createElement('button');
+              btn.className = 'circular-action-btn';
+              btn.type = 'button';
+              btn.title = options.title || '';
+              btn.setAttribute('aria-label', options.ariaLabel || options.title || '');
+              if (options.innerHTML) btn.innerHTML = options.innerHTML;
+              else btn.textContent = options.text || '';
+              if (options.dataset) {
+                Object.entries(options.dataset).forEach(([key, value]) => {
+                  btn.dataset[key] = value;
+                });
+              }
+              return btn;
+            }
+            
+            // Open button
+            const openBtn = createActionButton('open', {
+              title: 'Open Route',
+              innerHTML: '🚀',
+              dataset: { route }
+            });
+            openBtn.addEventListener('click', (e) => {
+              e.preventDefault(); 
+              e.stopPropagation();
+              const url = chooseOpenUrl(routes, targetsArr, route);
+              if (url) window.open(url, '_blank', 'noopener');
+            });
+            actionContainer.appendChild(openBtn);
+            
+            // Dashboard button
+            const dashBtn = createActionButton('dashboard', {
+              title: 'Open Dashboard (route-focused)',
+              innerHTML: '📊',
+              dataset: { route }
+            });
+            dashBtn.addEventListener('click', (e) => {
+              e.preventDefault(); e.stopPropagation();
+              const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+              const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+              const qp = new URLSearchParams();
+              if (route) qp.set('route', route);
+              if (url) qp.set('url', url);
+              window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+            });
+            actionContainer.appendChild(dashBtn);
+            
+            // Calliope button
+            const calliopeBtn = createActionButton('calliope', {
+              title: 'Diagnose with Calliope',
+              innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+              dataset: { route }
+            });
+            calliopeBtn.onclick = function(e){
+              e.preventDefault(); e.stopPropagation();
+              try { runCalliopeHealth(route); } catch(_) {
+                const drawer = document.getElementById('aiDrawer');
+                if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+              }
+            };
+            actionContainer.appendChild(calliopeBtn);
+            
+            header.appendChild(actionContainer);
+            
+            // Create chips section
+            const chipsSection = document.createElement('div');
+            chipsSection.className = 'route-chips-section';
+            
+            // Upstream chip
+            const baseChip = chip(normalizeBase(meta[route]?.upstream || ''), 'upstream-base');
+            const baseContainer = document.createElement('div');
+            baseContainer.className = 'chips';
+            baseContainer.appendChild(baseChip);
+            chipsSection.appendChild(baseContainer);
+            
+            // Status chips
+            const statusContainer = document.createElement('div');
+            statusContainer.className = 'chips route-status';
+            addStatusChips(statusContainer, route, targetsArr, routes);
+            chipsSection.appendChild(statusContainer);
+            
+            // Config file label (lower right)
+            const configLabel = document.createElement('div');
+            configLabel.className = 'config-label';
+            configLabel.textContent = source;
+            configLabel.title = `From ${source}`;
+            
+            // Append elements
+            app.appendChild(header);
+            app.appendChild(chipsSection);
+            app.appendChild(configLabel);
+            
+            // Apply severity styling
+            applySeverityToApp(app, route, targetsArr, routes);
+            
+            // Add to grid
+            appsEl.appendChild(app);
+          });
+
+          // Removed old grouped rendering code
+              
+              // Add title directly to header (left side)
+              const titleSection = document.createElement('div');
+              titleSection.className = 'route-title';
+              titleSection.innerHTML = `
+                <span class="expand-icon">▶</span>
+                <span class="route-name">${group.route}</span>
+                <span class="child-count">(${group.children.length} sub-routes)</span>
+              `;
+              header.appendChild(titleSection);
+              
+              // Add action buttons directly to header (right side)
+              header.appendChild(actionContainer);
+              
+              // Ensure action order: Open, Dashboard, Promote, Calliope
+              // Add Open button
+              const openBtn = createActionButton('open', {
+                title: 'Open Route',
+                innerHTML: '🚀',
+                dataset: { route: group.route }
+              });
+              openBtn.addEventListener('click', (e) => {
+                e.preventDefault(); 
+                e.stopPropagation();
+                const url = chooseOpenUrl(routes, targets, group.route);
+                if (url) window.open(url, '_blank', 'noopener');
+              });
+              actionContainer.appendChild(openBtn);
+              
+              // Add Dashboard button
+              const dashBtn = createActionButton('dashboard', {
+                title: 'Open Dashboard (route-focused)',
+                innerHTML: '📊',
+                dataset: { route: group.route }
+              });
+              dashBtn.addEventListener('click', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const route = group.route;
+                const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                const qp = new URLSearchParams();
+                if (route) qp.set('route', route);
+                if (url) qp.set('url', url);
+                window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+              });
+              actionContainer.appendChild(dashBtn);
+              
+              // Add Promote button (make this expandable group's route the root)
+              const promoteGroupBtn = createActionButton('promote', {
+                title: 'Make Root Route',
+                innerHTML: '🎓',
+                dataset: { route: group.route }
+              });
+              promoteGroupBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const base = group.baseKey || normalizeBase(meta[group.route]?.upstream || '');
+                if (!promotedRoots) promotedRoots = loadPromotions();
+                promotedRoots[base] = group.route;
+                savePromotions(promotedRoots);
+                rebuildApps();
+              });
+              actionContainer.appendChild(promoteGroupBtn);
+
+              // Add Calliope button last
+              const calliopeBtn = createActionButton('calliope', {
+                title: 'Diagnose with Calliope',
+                innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                dataset: { route: group.route }
+              });
+              calliopeBtn.onclick = function(e){
+                e.preventDefault(); e.stopPropagation();
+                try { runCalliopeHealth(group.route); } catch(_) {
+                  const drawer = document.getElementById('aiDrawer');
+                  if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                }
+              };
+              actionContainer.appendChild(calliopeBtn);
+              
+              // Create chips section (below header)
+              const chipsSection = document.createElement('div');
+              chipsSection.className = 'route-chips-section';
+              
+              const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+              const baseChipContainer = document.createElement('div');
+              baseChipContainer.className = 'chips';
+              baseChipContainer.appendChild(baseChip);
+              chipsSection.appendChild(baseChipContainer);
+              
+              const parentStatusContainer = document.createElement('div');
+              parentStatusContainer.className = 'chips parent-status';
+              addStatusChips(parentStatusContainer, group.route, targets, routes);
+              chipsSection.appendChild(parentStatusContainer);
+              
+              const summaryChips = document.createElement('div');
+              summaryChips.className = 'chips child-summary';
+              (group.children||[]).forEach(childRoute=>{
+                const sev = severityOf(childRoute, targets, routes);
+                const pref = ['ngrok','local-proxy'];
+                let code = null;
+                for (const t of pref){ const info=(routes.summary?.[t]||{})[childRoute]; if (info && typeof info.status==='number'){ code=info.status; break; } }
+                const label = `${childRoute} ${code??''}`.trim();
+                const sc = chip(label, `small ${sev}`);
+                summaryChips.appendChild(sc);
+              });
+              chipsSection.appendChild(summaryChips);
+              
+              const childrenContainer = document.createElement('div');
+              childrenContainer.className = 'route-children hidden';
+              group.children.forEach(child => {
+                const childApp = document.createElement('div');
+                childApp.className = 'child-route';
+                const childTitle = document.createElement('div');
+                childTitle.className = 'route child-route-name';
+                childTitle.textContent = child;
+                
+                // Create child route action container
+                const childActionContainer = document.createElement('div');
+                childActionContainer.className = 'action-buttons-container';
+                
+                // Add Open button to child action container
+                const childOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: child }
+                });
+                childOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, child);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                childActionContainer.appendChild(childOpenBtn);
+                
+                // Add Dashboard button (child)
+                const childDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: child }
+                });
+                childDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = child;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                childActionContainer.appendChild(childDashBtn);
+                
+                const childHeader = document.createElement('div');
+                childHeader.className = 'child-route-header';
+                childHeader.appendChild(childTitle);
+                childHeader.appendChild(childActionContainer);
+                childApp.appendChild(childHeader);
+                
+                // Create chips section for child routes
+                const childChipsSection = document.createElement('div');
+                childChipsSection.className = 'route-chips-section';
+                
+                const childBaseChip = chip(normalizeBase(meta[child]?.upstream || ''), 'upstream-base');
+                const childBaseContainer = document.createElement('div');
+                childBaseContainer.className = 'chips';
+                childBaseContainer.appendChild(childBaseChip);
+                childChipsSection.appendChild(childBaseContainer);
+                
+                const childStatusContainer = document.createElement('div');
+                childStatusContainer.className = 'chips route-status';
+                addStatusChips(childStatusContainer, child, targets, routes);
+                childChipsSection.appendChild(childStatusContainer);
+                
+                childApp.appendChild(childChipsSection);
+                
+                // Add Promote button (for children only)
+                const promoteBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: child }
+                });
+                promoteBtn.addEventListener('click',(e)=>{
+                  e.preventDefault();
+                  e.stopPropagation(); // Prevent card expansion
+                  const base = group.baseKey;
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = child;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                childActionContainer.appendChild(promoteBtn);
+                
+                // Add Calliope button (child)
+                const childCalliopeBtn = createActionButton('calliope', {
+                  title: 'Diagnose with Calliope',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: child }
+                });
+                childCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(child); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                childActionContainer.appendChild(childCalliopeBtn);
+                childrenContainer.appendChild(childApp);
+              });
+              header.addEventListener('click', () => {
+                const isExpanded = !childrenContainer.classList.contains('hidden');
+                childrenContainer.classList.toggle('hidden', isExpanded);
+                header.querySelector('.expand-icon').textContent = isExpanded ? '▶' : '▼';
+              });
+
+              const filterVal = (preferences?.filter)||'';
+              if (filterVal){
+                const q=(filterVal||'').trim().toLowerCase();
+                const anyMatch = (group.children||[]).some(c=>{
+                  const name=(c||'').toLowerCase();
+                  if (name.includes(q)) return true;
+                  if (q==='ok'||q==='warn'||q==='err') return severityOf(c, targets, routes)===q;
+                  const up = (routes.metadata?.[c]?.upstream || '').toLowerCase();
+                  if (up && up.includes(q)) return true;
+                  return false;
+                });
+                if (anyMatch){
+                  childrenContainer.classList.remove('hidden');
+                  header.querySelector('.expand-icon').textContent = '▼';
+                }
+              }
+              app.appendChild(header);
+              app.appendChild(chipsSection);
+              app.appendChild(childrenContainer);
+              applySeverityToApp(app, group.route, targets, routes);
+            } else {
+              const isPromoted = promotedRoots && promotedRoots[group.baseKey] === group.route;
+              if (isPromoted) {
+                app.classList.add('expandable-route');
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                
+                // Add title directly to header (left side, no chevron for promoted routes)
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                titleSection.innerHTML = `
+                  <span class="route-name">${group.route}</span>
+                  <span class="child-count">(root)</span>
+                `;
+                header.appendChild(titleSection);
+                
+                // Add action buttons directly to header (right side)
+                header.appendChild(actionContainer);
+                
+                // Create chips section for promoted routes
+                const promotedChipsSection = document.createElement('div');
+                promotedChipsSection.className = 'route-chips-section';
+                
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseChipContainer = document.createElement('div');
+                baseChipContainer.className = 'chips';
+                baseChipContainer.appendChild(baseChip);
+                promotedChipsSection.appendChild(baseChipContainer);
+                
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips parent-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                promotedChipsSection.appendChild(statusContainer);
+                
+                const summaryChips = document.createElement('div');
+                summaryChips.className = 'chips child-summary';
+                promotedChipsSection.appendChild(summaryChips);
+                
+                // Add Open button for promoted routes
+                const promotedOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: group.route }
+                });
+                promotedOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                actionContainer.appendChild(promotedOpenBtn);
+                
+                // Add Dashboard button for promoted routes
+                const promotedDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: group.route }
+                });
+                promotedDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = group.route;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                actionContainer.appendChild(promotedDashBtn);
+                
+                // Add Promote button for promoted routes (idempotent)
+                const promotedPromoteBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: group.route }
+                });
+                promotedPromoteBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const base = normalizeBase(meta[group.route]?.upstream || '');
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = group.route;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                actionContainer.appendChild(promotedPromoteBtn);
+
+                // Ensure order: Open, Dashboard, Promote, Calliope
+                // Add Calliope button for promoted routes
+                const promotedCalliopeBtn = createActionButton('calliope', {
+                  title: 'Diagnose with Calliope',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: group.route }
+                });
+                promotedCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(group.route); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                actionContainer.appendChild(promotedCalliopeBtn);
+                app.appendChild(header);
+                app.appendChild(promotedChipsSection);
+              } else {
+                // Create header for standalone routes
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                
+                // Add title directly to header (left side, no chevron for standalone routes)
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                titleSection.innerHTML = `<span class="route-name">${group.route}</span>`;
+                header.appendChild(titleSection);
+                
+                // Add action buttons directly to header (right side)
+                header.appendChild(actionContainer);
+                
+                // Create chips section for standalone routes
+                const standaloneChipsSection = document.createElement('div');
+                standaloneChipsSection.className = 'route-chips-section';
+                
+                const baseChip = chip(normalizeBase(meta[group.route]?.upstream || ''), 'upstream-base');
+                const baseContainer = document.createElement('div');
+                baseContainer.className = 'chips';
+                baseContainer.appendChild(baseChip);
+                standaloneChipsSection.appendChild(baseContainer);
+                
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'chips route-status';
+                addStatusChips(statusContainer, group.route, targets, routes);
+                standaloneChipsSection.appendChild(statusContainer);
+                
+                // Add Open button for standalone routes
+                const standaloneOpenBtn = createActionButton('open', {
+                  title: 'Open Route',
+                  innerHTML: '🚀',
+                  dataset: { route: group.route }
+                });
+                standaloneOpenBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); 
+                  e.stopPropagation();
+                  const url = chooseOpenUrl(routes, targets, group.route);
+                  if (url) window.open(url, '_blank', 'noopener');
+                });
+                actionContainer.appendChild(standaloneOpenBtn);
+                
+                // Add Dashboard button for standalone routes
+                const standaloneDashBtn = createActionButton('dashboard', {
+                  title: 'Open Dashboard (route-focused)',
+                  innerHTML: '📊',
+                  dataset: { route: group.route }
+                });
+                standaloneDashBtn.addEventListener('click', (e) => {
+                  e.preventDefault(); e.stopPropagation();
+                  const route = group.route;
+                  const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
+                  const url = base ? `${base}${route.startsWith('/')?route:'/'+route}` : '';
+                  const qp = new URLSearchParams();
+                  if (route) qp.set('route', route);
+                  if (url) qp.set('url', url);
+                  window.open(`/dashboard/?${qp.toString()}`,'_blank','noopener');
+                });
+                actionContainer.appendChild(standaloneDashBtn);
+                
+                // Add Make Root button for standalone routes
+                const makeRootBtn = createActionButton('promote', {
+                  title: 'Make Root Route',
+                  innerHTML: '🎓',
+                  dataset: { route: group.route }
+                });
+                makeRootBtn.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const base = normalizeBase(meta[group.route]?.upstream || '');
+                  if (!promotedRoots) promotedRoots = loadPromotions();
+                  promotedRoots[base] = group.route;
+                  savePromotions(promotedRoots);
+                  rebuildApps();
+                });
+                actionContainer.appendChild(makeRootBtn);
+                
+                // Add Calliope button for standalone routes
+                const standaloneCalliopeBtn = createActionButton('calliope', {
+                  title: 'Diagnose with Calliope',
+                  innerHTML: '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;">',
+                  dataset: { route: group.route }
+                });
+                standaloneCalliopeBtn.onclick = function(e){
+                  e.preventDefault(); e.stopPropagation();
+                  try { runCalliopeHealth(group.route); } catch(_) {
+                    const drawer = document.getElementById('aiDrawer');
+                    if (drawer){ drawer.classList.remove('collapsed'); document.body.classList.add('ai-open'); }
+                  }
+                };
+                actionContainer.appendChild(standaloneCalliopeBtn);
+                
+                // Append header and chips to standalone routes
+                app.appendChild(header);
+                app.appendChild(standaloneChipsSection);
+              }
+              applySeverityToApp(app, group.route, targets, routes);
+            }
+            list.appendChild(app);
+          });
+          groupCard.appendChild(list);
+          appsEl.appendChild(groupCard);
+        });
       }
       function sortRoutes(routeGroups, sortMode, targets, routes){
         if (sortMode==='alpha') return routeGroups.slice().sort((a,b)=> a.route.localeCompare(b.route));
@@ -1150,7 +1422,7 @@
       // Bootstrap Calliope enabled flag ASAP so global handlers have a value
       (async function bootstrapCalliopeEnabled(){
         try{
-          const resp = await fetch(window.DTP.config.apiPath('ai/health'), { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          const resp = await fetch('/api/ai/health', { headers: { 'ngrok-skip-browser-warning': 'true' } });
           if (resp.ok){
             const j = await resp.json();
             window.__calliopeEnabled = !!j.enabled;
@@ -1205,7 +1477,7 @@
         // Strategy 4: Last resort - look for static domain hint in a minimal API call
         if (ngrokTxt === 'not discovered') {
           try {
-            const staticDomainResp = await fetch(window.DTP.config.apiPath('ai/health'), { 
+            const staticDomainResp = await fetch('/api/ai/health', { 
               method: 'GET',
               headers: { 'ngrok-skip-browser-warning': 'true' }
             });
@@ -1242,14 +1514,14 @@
         // Fetch override conflicts and mark sources that can be resolved
         let conflicts = [];
         try{
-          const c = await fetch(window.DTP.config.apiPath('overrides/conflicts'), { headers: { 'ngrok-skip-browser-warning': 'true' } });
+          const c = await fetch('/api/overrides/conflicts', { headers: { 'ngrok-skip-browser-warning': 'true' } });
           if (c.ok){ const j = await c.json(); conflicts = Array.isArray(j.conflicts) ? j.conflicts : []; }
         }catch{}
         const conflictByName = new Set(conflicts.map(x=> x && x.filename).filter(Boolean));
         window.conflictByName = conflictByName;
 
         // Build hierarchical route structure (no hardcoded roots)
-        const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/',window.DTP.config.apiPath('resolve-conflict'),window.DTP.config.apiPath('rename-route')]);
+        const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/','/api/resolve-conflict','/api/rename-route']);
         const isSystem = (r)=> systemRoutes.has(r);
         const isTechnical = (r)=> r.startsWith('/static/') || r.startsWith('/sockjs-node') || r.startsWith('/node_modules/') || r.startsWith('/@') || r.startsWith('/_next/') || r.startsWith('/src/') || r.startsWith('/.storybook/') || r.startsWith('/sb-') || r==='/' || r==='/favicon.ico' || r==='/asset-manifest.json';
         function normalizeBase(up){
@@ -1261,7 +1533,41 @@
           }
           try{ const u=new URL(up.startsWith('http')?up:`http://${up}`); return `${u.protocol}//${u.hostname}${u.port?`:${u.port}`:''}`; }catch{ return up.replace(/\/$/,''); }
         }
-        // buildGroupsByBase function removed - duplicate definition, now defined inside rebuildApps()
+        function buildGroupsByBase(routesInSource, meta){
+          const routes = routesInSource.filter(r=>!isSystem(r));
+          const byBase = new Map();
+          routes.forEach(r=>{
+            const up = (meta[r]||{}).upstream||'';
+            const baseKey = normalizeBase(up);
+            if (!byBase.has(baseKey)) byBase.set(baseKey, []);
+            byBase.get(baseKey).push(r);
+          });
+
+          promotedRoots = loadPromotions();
+          const groups = [];
+          byBase.forEach((list, baseKey)=>{
+            const unique = Array.from(new Set(list)).sort((a,b)=> a.localeCompare(b));
+            const promoted = promotedRoots?.[baseKey] || null;
+            if (promoted && unique.includes(promoted)){
+              const children = unique.filter(r=> r!==promoted);
+              groups.push({ route: promoted, children, baseKey });
+              return;
+            }
+            // Auto-parent ONLY if there is a single shallowest route
+            const depths = unique.map(r=>({ r, d:(r||'').split('/').filter(Boolean).length }));
+            const minD = Math.min.apply(null, depths.map(x=>x.d));
+            const shallow = depths.filter(x=>x.d===minD).map(x=>x.r);
+            if (shallow.length === 1){
+              const parent = shallow[0];
+              const children = unique.filter(r=> r!==parent);
+              groups.push({ route: parent, children, baseKey });
+            } else {
+              // No auto parent; present as standalone with baseKey so user can promote
+              unique.forEach(r=> groups.push({ route:r, children:[], baseKey }));
+            }
+          });
+          return groups;
+        }
         // Distribute routes by their source file (single pass)
         // Note: avoid duplicating entries across sources
         // meta is keyed by route; each value contains its sourceFile
@@ -1347,23 +1653,17 @@
       // Controls wiring
       (function initControls(){
         const sortEl=document.getElementById('sortMode');
-        const groupByEl=document.getElementById('groupByMode');
         const filterEl=document.getElementById('routeFilter');
         const selfCheckBtn=document.getElementById('aiSelfCheckGlobal');
         preferences = loadPrefs();
-        if (groupByEl){
-          const groupPref = preferences.groupByMode || 'none';
-          groupByEl.value = groupPref;
-          groupByEl.addEventListener('change',(e)=>{ preferences.groupByMode=e.target.value; savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(true); } catch(e) {} }, 100); });
-        }
         if (sortEl){
           const pref = (preferences.sortMode==='manual') ? 'status' : (preferences.sortMode||'status');
           sortEl.value = pref;
-          sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(true); } catch(e) {} }, 100); });
+          sortEl.addEventListener('change',(e)=>{ preferences.sortMode=e.target.value; savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); toggleCalliopeAffordances(true); }, 100); });
         }
         if (filterEl){
           if (preferences.filter) filterEl.value=preferences.filter;
-          const debounced = debounce(()=>{ savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(true); } catch(e) {} }, 100); }, 250);
+          const debounced = debounce(()=>{ savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); toggleCalliopeAffordances(true); }, 100); }, 250);
           filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; debounced(); });
         }
         
@@ -1562,7 +1862,7 @@ Or check if config files have syntax errors.
                 ${conflict.configs.map(config => `
                   <label class="config-option ${config === conflict.winner ? 'active' : ''}">
                     <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''}>
-                    <span class="config-name">${config.replace(/\.conf$/, '')}</span>
+                    <span class="config-name">${config}</span>
                     <div class="config-actions">
                       <button class="btn-small" onclick="viewConfig('${config}')">View</button>
                       <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')">Rename Route</button>
@@ -1609,9 +1909,8 @@ Or check if config files have syntax errors.
         const newWinner = selectedRadio.value;
         
         try {
-          const response = await fetch(window.DTP.config.apiPath('resolve-conflict'), {
+          const response = await fetch('/api/resolve-conflict', {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ route, winner: newWinner })
           });
@@ -1734,9 +2033,8 @@ Or check if config files have syntax errors.
 
       async function renameRouteInConfig(oldRoute, newRoute, configFile) {
         try {
-          const response = await fetch(window.DTP.config.apiPath('rename-route'), {
+          const response = await fetch('/api/rename-route', {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ oldRoute, newRoute, configFile })
           });
@@ -1783,7 +2081,7 @@ Or check if config files have syntax errors.
 
       async function loadConfigContent(configFile) {
         try {
-          const response = await fetch(`/devproxy/api/config/${configFile}`);
+          const response = await fetch(`/api/config/${configFile}`);
           const content = await response.text();
           
           if (response.ok) {
@@ -1815,7 +2113,7 @@ Or check if config files have syntax errors.
         const content = document.getElementById('config-editor').value;
         
         try {
-          const response = await fetch(`/devproxy/api/config/${configFile}`, {
+          const response = await fetch(`/api/config/${configFile}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: content
@@ -2180,9 +2478,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           const thinking = appendThinking();
           
           // Call the advanced healing API
-          const response = await fetch(window.DTP.config.apiPath('ai/advanced-heal'), {
+          const response = await fetch('/api/ai/advanced-heal', {
             method: 'POST',
-            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({})
           });
@@ -2263,7 +2560,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         // Persisted chat history loader
         async function loadChatHistory(){
           try{
-            const resp = await fetch(window.DTP.config.apiPath('ai/chat-history'), { credentials: 'include' });
+            const resp = await fetch('/api/ai/chat-history');
             if (!resp.ok) return;
             const data = await resp.json().catch(()=>null);
             const messages = (data && data.messages) || [];
@@ -2319,7 +2616,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           if (thoughtsTimer) return;
           thoughtsTimer = setInterval(async ()=>{
             try{
-              const r = await fetch(window.DTP.config.apiPath('ai/thoughts'), { credentials: 'include', headers: { 'ngrok-skip-browser-warning': 'true' }, cache: 'no-cache' });
+              const r = await fetch('/api/ai/thoughts', { headers: { 'ngrok-skip-browser-warning': 'true' }, cache: 'no-cache' });
               if (!r.ok) return;
               const d = await r.json().catch(()=>null);
               const evs = (d && d.events) || [];
@@ -2348,12 +2645,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               const labelEl = document.getElementById('aiHealingStatusLabel');
               const lower = msg.toLowerCase();
               const setState = (cls, text)=>{
-                  if (statusChip) {
-                    statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
-                    statusChip.classList.add(cls);
-                  }
-                  if (labelEl) labelEl.textContent = text;
-              };
+                  statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
+                  statusChip.classList.add(cls);
+                  labelEl.textContent = text;
+                };
               // If backend emits a dedicated status event with a chip hint, honor it
               if (msg === 'status' && det && det.chip){
                 const chip = String(det.chip||'').toLowerCase();
@@ -2390,7 +2685,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
 
         async function refreshHealth(){
           try {
-            const health = await fetch(window.DTP.config.apiPath('ai/health'));
+            const health = await fetch('/api/ai/health');
             if (!health.ok) throw new Error('disabled');
             const healthJson = await health.json();
             if (statusEl) statusEl.textContent = healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Disabled (no key)';
@@ -2398,18 +2693,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const calliopeEnabled = healthJson.enabled; // Only enable Calliope when API key is present
             window.__calliopeEnabled = calliopeEnabled;
             document.body.classList.toggle('calliope-enabled', calliopeEnabled);
-            if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(calliopeEnabled);
+            toggleCalliopeAffordances(calliopeEnabled);
 
             // Update Calliope status chip color and label
             const statusChip = document.getElementById('aiHealingStatus');
             const labelEl = document.getElementById('aiHealingStatusLabel');
             
             const setState = (cls, text)=>{
-              if (statusChip) {
-                statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
-                statusChip.classList.add(cls);
-              }
-              if (labelEl) labelEl.textContent = text;
+              statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
+              statusChip.classList.add(cls);
+              labelEl.textContent = text;
             };
 
             if (!healthJson.enabled || healthJson.healthy===false){
@@ -2426,23 +2719,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (statusEl) statusEl.textContent = 'Unavailable';
             // Fallback: disable Calliope UI affordances when API health check fails (no API key)
             document.body.classList.remove('calliope-enabled');
-            try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(false); } catch(e) {}
+            try { toggleCalliopeAffordances(false); } catch(e) {}
             const statusChip = document.getElementById('aiHealingStatus');
-            if (statusChip) {
-              statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding');
-              statusChip.classList.add('status-offline');
-              const chipLabel = statusChip.querySelector('.ai-healing-label');
-              if (chipLabel) chipLabel.textContent = 'Offline';
-            }
+            statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding');
+            statusChip.classList.add('status-offline');
+            statusChip.querySelector('.ai-healing-label').textContent = 'Offline';
           }
           try {
-            const s = await fetch(window.DTP.config.apiPath('ai/stats'));
+            const s = await fetch('/api/ai/stats');
             if (s.ok){ const sj = await s.json(); if(indexEl) indexEl.textContent = sj.exists ? `${sj.chunks} chunks • ${sj.model||''}`.trim() : 'No index'; }
             else if(indexEl) indexEl.textContent = '—';
           } catch { if(indexEl) indexEl.textContent = '—'; }
         }
 
-        window.toggleCalliopeAffordances = function(enabled){
+        function toggleCalliopeAffordances(enabled){
           logDebug('🔧 toggleCalliopeAffordances called with enabled:', enabled);
           
           // Hide Recommend buttons
@@ -2552,7 +2842,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           
           try{
             const [resp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/ask'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
+              fetch('/api/ai/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
               minThinkingTime
             ]);
             
@@ -2572,7 +2862,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         async function onReindex(){
           reindexBtn.disabled = true; reindexBtn.textContent = 'Indexing…';
           try{
-            const resp = await fetch(window.DTP.config.apiPath('ai/reindex'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: '{}' });
+            const resp = await fetch('/api/ai/reindex', { method:'POST', headers:{'Content-Type':'application/json'}, body: '{}' });
             const data = await resp.json().catch(()=>null);
             if (!resp.ok){ alert(`Reindex failed: ${(data&&data.error)||('HTTP '+resp.status)}`); }
             else { appendBubble('assistant', 'Knowledge index rebuilt ✅'); }
@@ -2585,13 +2875,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           const b = document.createElement('div');
           b.className = `bubble ${who}`;
           
-          // Add chat bubble titles with consistent avatar styling
+          // Add chat bubble titles
           const titleEl = document.createElement('div');
           titleEl.className = 'bubble-title';
           if (who === 'user') {
-            titleEl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;background:var(--chip);border-radius:50%;font-size:12px;">🧑</span> You</span>';
+            titleEl.innerHTML = '🧑 You';
           } else {
-            titleEl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;background:var(--chip);border-radius:50%;padding:2px;"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:100%;height:100%;"></span> Calliope</span>';
+            titleEl.innerHTML = '<img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"> Calliope';
           }
           b.appendChild(titleEl);
           
@@ -2721,7 +3011,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           if (!alreadyThinking) appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
           const thinking = alreadyThinking ? document.querySelector('#aiChat .bubble.assistant.thinking') : appendThinking();
           try{
-            await fetch(window.DTP.config.apiPath('ai/self-check'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
+            await fetch('/api/ai/self-check', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
           }catch{} finally{
             // Keep the thinking bubble visible until next assistant message arrives; do not auto-remove here
           }
@@ -2763,18 +3053,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const urlToAudit = (baseForAudit.replace(/\/$/, '')) + cleanRoute;
             const selfCheck = (async ()=>{
               try{
-                await fetch(window.DTP.config.apiPath('ai/self-check'), {
+                await fetch('/api/ai/self-check', {
                   method: 'POST',
-                  credentials: 'include',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ heal: true, route: routeKey, hint: `Focus on route ${routeKey} and its children.` })
                 });
               }catch{}
             })();
             const [resp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/audit-and-heal'), {
+              fetch('/api/ai/audit-and-heal', {
                 method: 'POST',
-                credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: urlToAudit, route: routeKey, maxPasses: 3, wait: 1500, timeout: 45000 })
               }),
@@ -2991,7 +3279,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             statusChip.className = 'ai-healing-status ' + m[0];
             labelEl.textContent = m[1];
           },
-          pingThought:(m)=>fetch(window.DTP.config.apiPath('ai/thoughts/clear'), {method:'POST', credentials: 'include'}).then(()=>appendBubble('assistant', m||'debug thought'))
+          pingThought:(m)=>fetch('/api/ai/thoughts/clear',{method:'POST'}).then(()=>appendBubble('assistant', m||'debug thought'))
         };
 
         // Load persisted chat first, then current health, then begin thoughts polling
@@ -3008,7 +3296,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const statusChip = document.getElementById('aiHealingStatus');
         statusChip.addEventListener('click', async ()=>{
           try{
-            const r = await fetch(window.DTP.config.apiPath('ai/cancel'), { method:'POST' });
+            const r = await fetch('/api/ai/cancel', { method:'POST' });
             if (r.ok){
               appendBubble('assistant', "Oops, I\'ll pause now — my hyper‑focus ran away with me! 💫 I\'ve stopped and I\'m ready to help however you like next.");
             }
@@ -3029,6 +3317,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         // legacy buttons removed
       }
 
+      // Global debug flag (enable via ?debug=1 or localStorage.calliope_debug)
+      const DEBUG = (()=>{
+        try{
+          const qs = new URLSearchParams(location.search);
+          if ((qs.get('debug')||'').toString() === '1') return true;
+          const v = localStorage.getItem('calliope_debug');
+          return v === '1' || v === 'true';
+        }catch{}
+        return false;
+      })();
+      const logDebug = (...args)=>{ try{ if (DEBUG) console.debug(...args); }catch{} };
+      const logInfo = (...args)=>{ try{ console.info(...args); }catch{} };
+      const logWarn = (...args)=>{ try{ console.warn(...args); }catch{} };
+      const logError = (...args)=>{ try{ console.error(...args); }catch{} };
     </script>
   </body>
   </html>

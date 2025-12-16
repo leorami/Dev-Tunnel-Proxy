@@ -71,7 +71,7 @@ async function testCalliopeUI() {
     
     // Type message to Calliope about mixed content errors
     log('\n💬 Step 3: Asking Calliope to fix mixed content errors...', 'cyan');
-    const message = "I'm getting mixed content errors in my app. Please fix: Mixed Content: The page at 'https://ramileo.ngrok.app/lyra' was loaded over HTTPS, but requested an insecure stylesheet. This request has been blocked; the content must be served over HTTPS.";
+    const message = "I'm getting mixed content errors in my app. Please fix: Mixed Content: The page at 'https://ramileo.ngrok.app/myapp' was loaded over HTTPS, but requested an insecure stylesheet. This request has been blocked; the content must be served over HTTPS.";
     
     await page.type('#aiQuery', message);
     log(`  ✓ Typed message: "${message.slice(0, 80)}..."`, 'green');
@@ -122,8 +122,8 @@ async function testCalliopeUI() {
     
     log('\n✅ Step 7: Verifying the fix...', 'cyan');
     
-    // Navigate to /lyra to check if mixed content is fixed
-    await page.goto(`${BASE_URL}/lyra`, {
+    // Navigate to /myapp to check if mixed content is fixed
+    await page.goto(`${BASE_URL}/myapp`, {
       waitUntil: 'networkidle2',
       timeout: 30000
     });
@@ -139,8 +139,8 @@ async function testCalliopeUI() {
     }
     
     // Take final screenshot
-    await page.screenshot({ path: '/tmp/calliope-lyra-after-fix.png', fullPage: true });
-    log('\n  📸 Screenshot saved: /tmp/calliope-lyra-after-fix.png', 'yellow');
+    await page.screenshot({ path: '/tmp/calliope-myapp-after-fix.png', fullPage: true });
+    log('\n  📸 Screenshot saved: /tmp/calliope-myapp-after-fix.png', 'yellow');
     
     // Summary
     log('\n' + '='.repeat(70), 'cyan');

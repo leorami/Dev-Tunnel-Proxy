@@ -67,8 +67,8 @@ async function test1_AuditAndHealShowsRealTimeThoughts() {
   
   // Start audit-and-heal in background (with 60s timeout)
   const auditPromise = makeRequest('POST', '/api/ai/audit-and-heal', {
-    url: 'http://dev-proxy/lyra',
-    route: '/lyra',
+    url: 'http://dev-proxy/myapp',
+    route: '/myapp',
     maxPasses: 1,
     timeout: 10000
   }, 60000);
@@ -132,8 +132,8 @@ async function test2_StatusChipUpdates() {
   
   // Start audit-and-heal
   const auditPromise = makeRequest('POST', '/api/ai/audit-and-heal', {
-    url: 'http://dev-proxy/lyra',
-    route: '/lyra',
+    url: 'http://dev-proxy/myapp',
+    route: '/myapp',
     maxPasses: 1,
     timeout: 10000
   });
@@ -185,7 +185,7 @@ async function test3_AppLevelDiagnosisDetection() {
   
   // Simulate asking about auth errors
   const query = `
-/lyra has errors. Here's what I see:
+/myapp has errors. Here's what I see:
 
 [next-auth][error][CLIENT_FETCH_ERROR]
 Unexpected token '<', "<!DOCTYPE "... is not valid JSON

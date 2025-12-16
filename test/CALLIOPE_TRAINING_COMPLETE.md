@@ -133,7 +133,7 @@ Before applying any healing, Calliope now:
    - Added `absolute_redirect off;`
    - Added `port_in_redirect off;`
 
-2. **apps/lyra.conf** - Lyra app config
+2. **apps/lyra.conf** - MyApp app config
    - Fixed `proxy_pass` for `/_next/` location
    - Set `X-Forwarded-Proto` to `"https"`
 

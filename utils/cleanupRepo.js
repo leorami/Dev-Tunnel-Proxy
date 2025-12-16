@@ -21,8 +21,8 @@ function pruneBackups(dir){
 
 function main(){
   // Remove legacy .bak files
-  rmSafe(path.join(ROOT, 'overrides', 'encast.bak'));
-  rmSafe(path.join(ROOT, 'overrides', 'encast_20250923.bak'));
+  rmSafe(path.join(ROOT, 'overrides', 'app2.bak'));
+  rmSafe(path.join(ROOT, 'overrides', 'app2_20250923.bak'));
   // Prune backups in apps/ and overrides/
   pruneBackups(path.join(ROOT, 'apps'));
   pruneBackups(path.join(ROOT, 'overrides'));

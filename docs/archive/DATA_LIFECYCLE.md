@@ -480,9 +480,9 @@ POST /api/ai/advanced-heal
 
 **Example**:
 ```
-apps/lyra.conf
-apps/lyra.conf.backup.1734567890123
-apps/lyra.conf.backup.1734568000456
+apps/myapp.conf
+apps/myapp.conf.backup.1734567890123
+apps/myapp.conf.backup.1734568000456
 ```
 
 ### Test Artifacts

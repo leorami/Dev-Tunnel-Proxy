@@ -105,12 +105,30 @@ This starts all services in detached mode:
 
 ### 4. Install App Routes
 
-Use the programmatic API to install your app's nginx configuration:
+Use the programmatic API to install your app's nginx configuration.
+
+**Important:** The proxy uses two endpoint namespaces:
+- **Authentication:** `/admin/*` (fixed paths)
+- **Management API:** `/devproxy/api/*` (configurable via `PROXY_API_BASE_PATH`)
+
+**Recommended approach (discovers API path automatically):**
 
 ```javascript
-// Using fetch API from within your app container
-fetch('http://dev-proxy:8080/api/apps/install', {
+// Step 1: Authenticate
+const loginRes = await fetch('http://dev-proxy:8080/admin/login', {
   method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ password: process.env.ADMIN_PASSWORD }),
+  credentials: 'include'
+});
+
+// Step 2: Discover API base path
+const config = await fetch('http://dev-proxy:8080/config').then(r => r.json());
+
+// Step 3: Install configuration
+await fetch(`http://dev-proxy:8080${config.apiBasePath}/apps/install`, {
+  method: 'POST',
+  credentials: 'include',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
     name: 'myapp',
@@ -131,10 +149,10 @@ location ^~ /myapp/ {
 });
 ```
 
-Or use the helper script:
+**Or use the helper script (handles authentication automatically):**
 
 ```bash
-node examples/api-upload-config.js myapp path/to/myapp.conf
+ADMIN_PASSWORD=your-password node examples/api-upload-config.js myapp path/to/myapp.conf
 ```
 
 ### 5. Connect Your App
@@ -169,7 +187,46 @@ services:
 
 ### Admin Password Protection
 
-All admin pages (`/status`, `/health`, `/reports`, and API endpoints) are **password-protected** to prevent unauthorized access when your proxy is exposed via ngrok.
+All admin pages (`/status`, `/health`, `/reports`) and management API endpoints are **password-protected** to prevent unauthorized access when your proxy is exposed via ngrok.
+
+### Endpoint Structure
+
+The proxy uses **two separate endpoint namespaces**:
+
+#### 1. Authentication Endpoints (Fixed Paths)
+These are NOT affected by `PROXY_API_BASE_PATH`:
+- `POST /admin/login` - Authenticate and get session cookie
+- `POST /admin/logout` - Destroy session
+- `GET /admin/show-password` - View auto-generated password (localhost only)
+- `GET /config` - Discover API base path (public)
+
+#### 2. Management API (Configurable Namespace)
+Controlled by `PROXY_API_BASE_PATH` environment variable:
+
+```bash
+# In .env - customize the API namespace
+# Default: /devproxy/api (if not set)
+PROXY_API_BASE_PATH=/devproxy/api
+```
+
+**Default Behavior:** If you don't set `PROXY_API_BASE_PATH`, it automatically defaults to `/devproxy/api` to avoid conflicts with your app's `/api/` routes.
+
+**All management API endpoints** use this prefix:
+- `POST /devproxy/api/apps/install` - Install app config
+- `GET /devproxy/api/ai/health` - Check Calliope status
+- `POST /devproxy/api/overrides/promote` - Promote to override
+- ...and more (see `docs/ENDPOINT-STRUCTURE.md`)
+
+**Why two namespaces?**
+- **Authentication** is infrastructure (used by nginx `auth_request`)
+- **Management API** prevents conflicts with your app's APIs
+
+**To use legacy `/api/` path** (not recommended due to conflicts):
+```bash
+PROXY_API_BASE_PATH=/api
+```
+
+**Note:** If you change this, you must also update `config/default.conf` location blocks to match. See `docs/API-MIGRATION-V1.md` and `docs/ENDPOINT-STRUCTURE.md` for details.
 
 ### Setup Options
 
@@ -1000,25 +1057,60 @@ dev-tunnel-proxy/
 
 ## 📚 Documentation
 
-### Getting Started
-- **[User Guide](docs/USER_GUIDE.md)** - Complete guide including initial setup, integration, and daily usage
-- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+Our documentation has been consolidated for easier navigation. Here are the core guides:
 
-### Technical Documentation
-- **[Architecture](docs/ARCHITECTURE.md)** - System design, container architecture, and design decisions
-- **[Configuration Management Guide](docs/CONFIG-MANAGEMENT-GUIDE.md)** - How the generator works, migration notes, overrides
-- **[API Endpoints](docs/API-ENDPOINTS.md)** - Complete API reference and examples
-- **[Testing Guide](docs/TESTING.md)** - Test suites, running tests, and quality assurance
-- **[Data Lifecycle](docs/DATA_LIFECYCLE.md)** - How data flows through the system
+### 📖 Core Documentation
 
-### Calliope AI Assistant
-- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope Complete Guide](docs/CALLIOPE.md)** - Comprehensive guide covering personality, capabilities, RAG system, healing, and API endpoints
+1. **[User Guide](docs/USER_GUIDE.md)** - Complete getting started guide
+   - Initial setup and configuration
+   - Adding your app to the proxy
+   - Using the status dashboard
+   - Working with Calliope AI
 
-### Project Information
-- **[Product Overview](docs/PRODUCT.md)** - Vision, features, and use cases
-- **[Roadmap](docs/ROADMAP.md)** - Planned features and future development
-- **[Security](docs/SECURITY.md)** - Security considerations and best practices
-- **[Known Issues](docs/KNOWN_ISSUES.md)** - Current limitations and workarounds
+2. **[Endpoint Structure](docs/ENDPOINT-STRUCTURE.md)** - ⭐ NEW: Understanding endpoint namespaces
+   - Authentication endpoints (`/admin/*`)
+   - Management API endpoints (`/devproxy/api/*`)
+   - Best practices for client applications
+   - Complete endpoint reference
+   - Common workflows and troubleshooting
+
+2. **[Architecture](docs/ARCHITECTURE.md)** - Technical system design
+   - Container topology and responsibilities
+   - Data flow and request lifecycle
+   - Configuration system
+   - Resilience and error handling
+   - Performance characteristics
+
+3. **[Configuration](docs/CONFIGURATION.md)** - Managing proxy configuration
+   - Reserved paths and restrictions
+   - Route conflicts and resolution
+   - Overrides and precedence
+   - API endpoints reference
+   - Best practices and common scenarios
+
+4. **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope AI Assistant](docs/CALLIOPE.md)** - Your caring AI companion
+   - Personality and capabilities
+   - Self-healing system
+   - RAG knowledge base
+   - API endpoints
+   - Testing and validation
+
+5. **[Product & Roadmap](docs/PRODUCT.md)** - Vision and future plans
+   - Product overview and value propositions
+   - Use cases and target audience
+   - Competitive landscape
+   - Feature roadmap (v1.1 through v1.4)
+   - Success metrics and community
+
+6. **[Operations](docs/OPERATIONS.md)** - Testing, security, and quality
+   - Testing strategies and suites
+   - Security model and best practices
+   - Known issues and limitations
+   - Operational best practices
+
+### 📦 Archive
+
+Previous documentation has been preserved in `docs/archive/` for reference.
 
 ## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Inspiration: Calliope
 

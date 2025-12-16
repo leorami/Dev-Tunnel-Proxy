@@ -18,7 +18,8 @@ Welcome! This guide will help you get started with Dev Tunnel Proxy, from initia
 7. [Working with Calliope](#working-with-calliope)
 8. [Common Workflows](#common-workflows)
 9. [Troubleshooting](#troubleshooting)
-10. [Next Steps](#next-steps)
+10. [Advanced Integration](#advanced-integration)
+11. [Quick Reference](#quick-reference)
 
 ---
 
@@ -230,7 +231,7 @@ Expected response:
 #### Why This Exists
 
 1. The root path serves as the proxy's landing page and brand identity
-2. It provides visitors with system information and documentation links
+2. It provides visitors with comprehensive information about the system
 3. It prevents conflicts between multiple apps competing for the root
 4. It ensures consistent navigation and user experience
 
@@ -280,7 +281,7 @@ location ^~ /service/ {
 }
 ```
 
-**See [CONFIG-MANAGEMENT-GUIDE.md](./CONFIG-MANAGEMENT-GUIDE.md#reserved-paths---root-path-restriction) for complete details.**
+**See [CONFIGURATION.md](./CONFIGURATION.md#reserved-paths) for complete details.**
 
 ---
 
@@ -377,345 +378,6 @@ curl http://localhost:8080/myapp/
 # Tunnel access (replace with your ngrok URL)
 curl https://abc123.ngrok.app/myapp/
 ```
-
----
-
-## Advanced Integration Guide
-
-This section covers detailed integration patterns, framework-specific configurations, and best practices for connecting your apps to the proxy.
-
-### Planning Your Routes
-
-**Before creating your nginx config**, check existing routes using the status interface:
-
-1. **Visit `/status`** on the running proxy to see current routes organized by upstream
-2. **Review route groups**: Routes are automatically grouped by base upstream URL
-3. **Choose unique prefixes**: Use app-specific routes (e.g., `/myapp/api/` vs `/api/`)
-4. **Follow team conventions**: Establish consistent naming patterns
-
-**Enhanced Status Interface Features**:
-- **Route Grouping**: See how routes are organized by upstream service
-- **Promotion System**: Designate parent routes within each upstream group
-- **Live Reload**: Refresh configurations without leaving the interface
-- **Per-Config Views**: Filter routes by specific config files
-
-Common conflict patterns to avoid:
-```nginx
-# ❌ Likely to conflict with other apps
-location /api/ { ... }
-location /admin/ { ... }  
-location /health/ { ... }
-
-# ✅ App-specific routes (recommended)
-location /myapp/api/ { ... }
-location /myapp/admin/ { ... }
-location /myapp/ { ... }
-```
-
-**Conflict Detection**: When conflicts occur, they're automatically detected and highlighted in the status interface with one-click resolution options.
-
-### Configuration Best Practices
-
-**Critical: Use Variables for Upstream Resolution**
-
-Always use nginx variables for upstream resolution to ensure reliable startup:
-
-```nginx
-# ❌ Wrong: Hardcoded upstream (fails if service is down at startup)
-location /myapp/ {
-  proxy_pass http://myapp:3000/;
-}
-
-# ✅ Correct: Variable resolution (defers DNS lookup to runtime)
-location /myapp/ {
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $myapp_upstream myapp:3000;
-  proxy_pass http://$myapp_upstream/;
-}
-```
-
-**Why?** Nginx performs DNS resolution at startup for hardcoded upstreams. If the service isn't running, nginx fails to start. Variables defer DNS lookups until runtime, allowing graceful handling of unavailable services.
-
-### Framework-Specific Configuration
-
-#### React/Create React App
-
-**Environment Variables:**
-```bash
-# .env
-PUBLIC_URL=/myapp
-REACT_APP_API_URL=/myapp/api
-```
-
-**Code Configuration:**
-```javascript
-// ❌ Wrong: Hardcoded absolute URLs
-const API_BASE = 'http://localhost:8000';
-
-// ✅ Correct: Environment-aware configuration
-const API_BASE = process.env.REACT_APP_API_URL || '/api';
-
-// ✅ Alternative: Always use relative paths
-const API_BASE = '/api';
-```
-
-**API Calls:**
-```javascript
-// Use relative paths for API calls
-const response = await fetch('/myapp/api/data'); // ✅ Works through proxy
-const badResponse = await fetch('http://localhost:3000/api/data'); // ❌ Fails
-```
-
-#### Next.js with basePath
-
-**Nginx Configuration:**
-```nginx
-# Handle both /myapp and /myapp/ variants
-location ~ ^/myapp/?$ {
-  proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  proxy_set_header X-Forwarded-Host $host;
-  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header X-Forwarded-Prefix /myapp;
-  
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $nextjs_upstream nextjs-service:3000;
-  proxy_pass http://$nextjs_upstream/myapp;
-}
-
-# Handle Next.js HMR and assets
-location /myapp/_next/ {
-  proxy_http_version 1.1;
-  proxy_set_header Upgrade $http_upgrade;
-  proxy_set_header Connection "upgrade";
-  
-  resolver 127.0.0.11 ipv6=off;
-  resolver_timeout 5s;
-  set $nextjs_upstream nextjs-service:3000;
-  proxy_pass http://$nextjs_upstream/myapp/_next/;
-}
-```
-
-**Next.js Config:**
-```javascript
-// next.config.js
-module.exports = {
-  basePath: process.env.BEHIND_PROXY ? '/myapp' : '',
-  assetPrefix: process.env.BEHIND_PROXY ? '/myapp' : '',
-};
-```
-
-**Environment Variables:**
-```bash
-BEHIND_PROXY=true
-```
-
-#### Storybook + Vite
-
-**For subpath deployment** (e.g., `/storybook`):
-
-```javascript
-// .storybook/main.js
-module.exports = {
-  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)'],
-  
-  viteFinal: async (config) => {
-    // Configure for subpath deployment
-    if (process.env.STORYBOOK_BASE_PATH) {
-      config.base = process.env.STORYBOOK_BASE_PATH;
-    }
-    
-    // Handle WebSocket connections through proxy
-    if (process.env.PROXY_MODE) {
-      config.server = config.server || {};
-      config.server.hmr = {
-        port: 443,
-        clientPort: 443
-      };
-    }
-    
-    return config;
-  },
-};
-```
-
-**Environment Variables:**
-```bash
-STORYBOOK_BASE_PATH=/storybook
-PROXY_MODE=true
-```
-
-**Root Dev Helpers** (use sparingly):
-
-Some frameworks (Storybook/Vite, certain Next.js dev flows) reference helper paths at the proxy root. These are now allowed globally to unblock development. Strongly recommend designing apps to be proxy-route-agnostic and serving from a non-root prefix; use root helpers only when a framework forces it.
-
-```nginx
-# Root helpers for Storybook
-location ^~ /sb-manager/       { proxy_pass http://storybook:6006/sb-manager/; }
-location ^~ /sb-addons/        { proxy_pass http://storybook:6006/sb-addons/; }
-location ^~ /sb-common-assets/ { proxy_pass http://storybook:6006/sb-common-assets/; }
-location = /index.json         { proxy_pass http://storybook:6006/index.json; }
-
-# WebSocket for HMR
-location ^~ /storybook-server-channel {
-  proxy_set_header Upgrade $http_upgrade;
-  proxy_set_header Connection "upgrade";
-  proxy_pass http://storybook:6006/storybook-server-channel;
-}
-```
-
-#### React/Vue SPA
-
-For single-page applications with client-side routing:
-
-```nginx
-location /myapp/ {
-  # Standard headers
-  proxy_http_version 1.1;
-  proxy_set_header Host $host;
-  proxy_set_header X-Forwarded-Proto $scheme;
-  
-  # Handle client-side routing
-  try_files $uri $uri/ @myapp_fallback;
-  
-  resolver 127.0.0.11 ipv6=off;
-  set $spa_upstream spa-service:3000;
-  proxy_pass http://$spa_upstream/;
-}
-
-location @myapp_fallback {
-  set $spa_upstream spa-service:3000;
-  proxy_pass http://$spa_upstream/;
-}
-```
-
-### Testing Your Integration
-
-#### API-Based Verification
-
-After installing your configuration, use the control-plane APIs to verify:
-
-```bash
-# List installed app files (sorted by mtime)
-curl -s http://localhost:3001/api/apps/list | jq
-
-# Show final active locations (order + source)
-curl -s http://localhost:3001/api/apps/active | jq
-
-# View bundle diagnostics (included vs skipped + reasons)
-curl -s http://localhost:3001/api/apps/diagnostics | jq
-
-# Force regenerate + nginx reload
-curl -s -X POST http://localhost:3001/api/apps/regenerate \
-  -H 'content-type: application/json' -d '{"reload":true}' | jq
-
-# Rescan routes and refresh routes.json
-curl -s -X POST http://localhost:3001/api/apps/scan \
-  -H 'content-type: application/json' \
-  -d '{"base":"http://dev-proxy"}' | jq
-```
-
-#### Quick Smoke Checks
-
-Recommended gates before running your app tests:
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/myapp/
-curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/myapp/api/health
-```
-
-#### Status Dashboard Verification
-
-**Visit `/status`** to verify visually:
-
-1. **Route Grouping**: Your routes should appear grouped by upstream service
-2. **Status Indicators**: Check HTTP status codes and overall health
-3. **Open Button**: Test accessing your app via ngrok
-4. **Promotion System**: If multiple routes share an upstream, promote a parent route
-5. **Live Reload**: Use the reload button to refresh configurations
-
-**Key Checks**:
-- ✅ Routes appear in the correct upstream group  
-- ✅ Status indicators show green (2xx responses)
-- ✅ "Open" button uses ngrok URL correctly
-- ✅ No conflict warnings displayed
-
-#### Basic Connectivity Tests
-
-```bash
-# Test direct container access
-docker exec dev-proxy wget -qO- http://your-service:3000/
-
-# Test through proxy
-curl http://localhost:8080/myapp/
-
-# Test through tunnel
-curl https://your-ngrok-domain.ngrok.app/myapp/
-```
-
-### Common Integration Mistakes
-
-❌ **Don't hardcode upstream hosts**
-```nginx
-proxy_pass http://myapp:3000/;  # Will fail if container is down
-```
-
-✅ **Always use variables**
-```nginx
-set $myapp_upstream myapp:3000;
-proxy_pass http://$myapp_upstream/;
-```
-
-❌ **Don't forget the resolver**
-```nginx
-set $myapp_upstream myapp:3000;  # Won't work without resolver
-proxy_pass http://$myapp_upstream/;
-```
-
-✅ **Include Docker DNS resolver**
-```nginx
-resolver 127.0.0.11 ipv6=off;
-resolver_timeout 5s;
-set $myapp_upstream myapp:3000;
-proxy_pass http://$myapp_upstream/;
-```
-
-❌ **Don't use absolute paths in assets**
-```html
-<img src="/images/logo.png">  <!-- Breaks under subpath -->
-```
-
-✅ **Use relative paths**
-```html
-<img src="./images/logo.png">  <!-- Works correctly -->
-```
-
-### Configuration Composition
-
-**Understanding the Build Process**:
-
-- The proxy composes `apps/*.conf` with optional `overrides/*.conf` into `build/sites-enabled/apps.generated.conf`
-- App precedence within the same route prefers the newest file (mtime) so API re-installs supersede prior app snippets
-- Emitted blocks are annotated with `# source: <relative-path>` and diagnostics are written to `.artifacts/bundle-diagnostics.json`
-- Nginx includes only generated files. Your `apps/*.conf` remain the source inputs
-- To force proxy-owned behavior, place minimal snippets in `overrides/` (no app names required)
-
-**Manual bundle regeneration**:
-```bash
-node utils/generateAppsBundle.js
-```
-
-### Template Files
-
-Save these templates for quick setup:
-
-- **Basic app**: `examples/sample-prefix-app.conf`
-- **API with prefix stripping**: `examples/sample-root-api-strip.conf`
-- **Next.js with basePath**: `examples/next/myapp.conf`
-- **Storybook + Vite**: `examples/storybook-vite.conf`
 
 ---
 
@@ -923,7 +585,217 @@ apps/staging/
 
 ## Troubleshooting
 
-### Issue: Proxy Won't Start
+This section covers common issues and their solutions. For more details, see [CONFIGURATION.md](./CONFIGURATION.md) and [OPERATIONS.md](./OPERATIONS.md).
+
+### Critical: proxy_pass Trailing Slash Behavior
+
+**Problem**: Adding a trailing slash to `proxy_pass` directives can break apps that expect their URL prefix preserved.
+
+**Wrong Configuration:**
+```nginx
+location /myapp/ {
+    proxy_pass http://upstream:3000/;  # ❌ Strips /myapp/ prefix
+}
+```
+
+**Correct Configuration:**
+```nginx
+location /myapp/ {
+    proxy_pass http://upstream:3000;   # ✅ Preserves /myapp/ prefix
+}
+```
+
+**Why This Matters:**
+- With trailing slash: Request to `/myapp/api/data` becomes `/api/data` to upstream
+- Without trailing slash: Request to `/myapp/api/data` stays `/myapp/api/data` to upstream
+- Apps expecting their prefix (like React apps with `PUBLIC_URL` or Next.js with `basePath`) break when prefix is stripped
+- JavaScript bundles return HTML fallback instead of JS, causing `Uncaught SyntaxError: Unexpected token '<'`
+
+**Common Symptoms:**
+- App loads but JavaScript fails with syntax errors
+- Assets return HTML instead of expected content (JS/CSS)
+- API calls fail with 404 because paths don't match
+- Bundle size unexpectedly small (~2KB instead of ~MB)
+
+### Container Name Mismatches
+
+**Problem**: Nginx config references wrong container names, causing connection failures.
+
+**Symptoms**:
+- `proxy_pass` returns 502 Bad Gateway
+- DNS resolution errors in nginx logs
+- Container exists but proxy can't connect
+
+**Solution**: Verify actual container names match nginx configuration.
+
+```bash
+# Check actual container names on the devproxy network
+docker network inspect devproxy --format='{{json .Containers}}' | jq
+
+# Common mistake: using generic names instead of actual container names
+# ❌ Wrong:  proxy_pass http://myapp:3000;
+# ✅ Correct: proxy_pass http://myapp-site-dev-myapp:3000;
+```
+
+### Missing Variable Resolution for Upstreams
+
+**Problem**: Nginx fails to start when upstream services aren't available at startup.
+
+**Symptoms**:
+- `nginx: [emerg] host not found in upstream "service-name"`
+- Container exits with code 1
+- Proxy works when all services are running, fails on restart
+
+**Solution**: Always use nginx variables for upstream resolution with error handling.
+
+```nginx
+# ❌ Wrong: Hardcoded upstream (fails if service is down)
+location /myapp/ {
+  proxy_pass http://myapp-service:3000/;
+}
+
+# ✅ Correct: Variable resolution with graceful error handling
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp-service:3000;
+  
+  # Graceful error handling for unavailable upstream
+  proxy_intercept_errors on;
+  error_page 502 503 504 = @upstream_unavailable;
+  
+  proxy_pass http://$myapp_upstream/;
+}
+
+# Global error handler (add once per config file)
+location @upstream_unavailable {
+  add_header Content-Type application/json;
+  add_header Cache-Control "no-cache, no-store, must-revalidate";
+  return 503 '{"error":"Service Unavailable","message":"The requested application is not currently running. Please start the service and try again.","status":503}';
+}
+```
+
+**How It Works**:
+- **Without variables**: nginx resolves DNS at config load time → fails if service is down
+- **With variables**: nginx resolves DNS at request time → starts successfully even if service is down
+- **Error handling**: Returns friendly JSON error (503) instead of nginx error page when service is unavailable
+- **Docker DNS**: Uses Docker's internal DNS (127.0.0.11) for service discovery
+
+### Next.js Redirect Loop Issues
+
+**Problem**: Next.js apps with `basePath` can cause redirect loops, especially with `/_next/` assets.
+
+**Common Symptoms**:
+- **308 Permanent Redirects** on `/_next/` directory requests
+- Infinite redirect loops between `/myapp` and `/myapp/`  
+- Assets fail to load with redirect errors
+- HMR connections fail
+
+**Root Cause**: Competing nginx rules and improper trailing slash handling.
+
+**❌ Problematic Patterns**:
+```nginx
+# This causes 308 redirects
+location /myapp/_next/ {
+  proxy_pass http://upstream/myapp/_next/;  # trailing slash problematic
+}
+
+# This can cause redirect loops
+location = /myapp { rewrite ^ /myapp/ last; }
+```
+
+**✅ Proven Solutions**:
+
+**1. Use Regex for Route Variants**
+```nginx
+# Handles both /myapp and /myapp/ without redirects
+location ~ ^/myapp/?$ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/myapp;  # no trailing slash
+}
+```
+
+**2. Split _next/ Handling**
+```nginx
+# Handle bare directory (prevents 308)
+location = /myapp/_next/ {
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/myapp/_next;  # no trailing slash!
+}
+
+# Handle specific files
+location ~ ^/myapp/_next/(.+)$ {
+  set $myapp_upstream myapp-service:2000;
+  proxy_pass http://$myapp_upstream/myapp/_next/$1;
+}
+```
+
+### Essential Proxy Headers
+
+**Problem**: Missing headers cause issues with WebSocket connections, HTTPS redirects, etc.
+
+**Required Headers**:
+
+```nginx
+location /myapp/ {
+  # Basic forwarding
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  
+  # WebSocket support (for HMR)
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  
+  # Development helpers
+  proxy_set_header ngrok-skip-browser-warning "true";
+  
+  # Timeouts for development
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+}
+```
+
+### Docker Network Connectivity
+
+**Problem**: Containers can't communicate even when on the same network.
+
+**Verification Steps**:
+
+```bash
+# 1. Check if container is on devproxy network
+docker network inspect devproxy
+
+# 2. Test DNS resolution from proxy container
+docker exec dev-proxy nslookup myapp-service
+
+# 3. Test direct connectivity
+docker exec dev-proxy wget -qO- --timeout=5 http://myapp-service:3000/
+
+# 4. Check what ports the service is actually listening on
+docker exec myapp-service netstat -tlnp
+```
+
+### Configuration Validation
+
+Before deploying nginx changes:
+
+```bash
+# Test nginx syntax
+docker exec dev-proxy nginx -t
+
+# Reload safely (won't fail if upstreams are down)
+./scripts/reload.sh
+
+# Check proxy logs
+docker-compose logs proxy --tail=20
+```
+
+### Proxy Won't Start
 
 **Symptoms**: `./smart-build.sh up` fails
 
@@ -947,7 +819,7 @@ apps/staging/
    cat .env | grep NGROK
    ```
 
-### Issue: Route Returns 502 Bad Gateway
+### Route Returns 502 Bad Gateway
 
 **Symptoms**: Status dashboard shows 502 for your route
 
@@ -975,7 +847,7 @@ apps/staging/
 Click stethoscope icon → Calliope will diagnose and suggest fixes
 ```
 
-### Issue: Route Returns 404
+### Route Returns 404
 
 **Symptoms**: Can't find page or assets
 
@@ -999,7 +871,7 @@ Click stethoscope icon → Calliope will diagnose and suggest fixes
    # Check app documentation
    ```
 
-### Issue: Calliope Doesn't Respond
+### Calliope Doesn't Respond
 
 **Symptoms**: Chat messages don't get responses
 
@@ -1020,7 +892,7 @@ Click stethoscope icon → Calliope will diagnose and suggest fixes
    curl http://localhost:3001/api/ai/health
    ```
 
-### Issue: Tunnel URL Changes
+### Tunnel URL Changes
 
 **Symptoms**: ngrok URL different after restart
 
@@ -1032,43 +904,272 @@ Click stethoscope icon → Calliope will diagnose and suggest fixes
 NGROK_STATIC_DOMAIN=your-subdomain.ngrok.app
 ```
 
+### Enhanced Status Dashboard Issues
+
+#### Route Grouping Problems
+
+**Problem**: Routes not appearing in expected upstream groups or missing from status dashboard.
+
+**Routes appear ungrouped or in wrong groups**:
+```bash
+# Check actual upstream values in your config
+grep -r "proxy_pass" apps/*.conf
+
+# Ensure consistent upstream naming
+# ❌ Wrong: Mixed upstream formats
+# apps/myapp.conf: proxy_pass http://myapp-service:3000/;
+# apps/myapp2.conf: proxy_pass http://myapp-service:3000;
+
+# ✅ Correct: Consistent upstream format  
+# Both configs should use identical upstream strings
+
+# Tip: If you use nginx variables for upstreams, grouping uses the variable name
+# as the base key (e.g., `$myapp_upstream`). Ensure related routes reference the same variable.
+```
+
+**Routes missing from status entirely**:
+- **Check config syntax**: Invalid nginx configs are ignored
+- **Verify file names**: Only `*.conf` files in `apps/` are scanned
+- **Run manual scan**: `node test/scanApps.js` to see parsing errors
+
+#### Open Button URL Problems  
+
+**Problem**: "Open" buttons not using correct ngrok URLs or opening wrong pages.
+
+**Solutions**:
+```bash
+# 1. Check ngrok URL detection
+curl http://localhost:8080/status.json | jq '.ngrok'
+
+# 2. Verify route paths match expectations
+# Open button constructs: ngrok_url + route_path
+# For route "/api/", URL becomes "https://xyz.ngrok.app/api/"
+
+# 3. Check for trailing slash consistency
+# Your app should handle both /api and /api/ correctly
+```
+
+#### Route Promotion Issues
+
+**Problem**: Cannot promote routes or promotion state not persisting.
+
+**Debugging Steps**:
+```bash
+# Check localStorage persistence
+# In browser console on /status page:
+localStorage.getItem('routePromotions')
+
+# Should show: {"http://upstream:port":"/promoted/route"}
+
+# Clear corrupted promotion data if needed:
+localStorage.removeItem('routePromotions')
+```
+
+### Emergency Recovery
+
+If the proxy is completely broken:
+
+```bash
+# 1. Check what went wrong
+docker-compose ps
+docker-compose logs proxy
+
+# 2. Restore default configuration (if corrupted)
+git checkout HEAD -- config/default.conf
+
+# 3. Restart proxy
+docker-compose restart proxy
+
+# 4. Verify basic health
+curl http://localhost:8080/health.json
+```
+
+### Project Integration Checklist
+
+When adding a new app to the dev tunnel proxy:
+
+- [ ] **Verify container name**: Check actual running container name vs nginx config
+- [ ] **Use variable resolution**: Never hardcode upstream hosts
+- [ ] **Include essential headers**: Host, forwarding, WebSocket support  
+- [ ] **Join devproxy network**: Ensure container is connected to shared network
+- [ ] **Handle trailing slashes**: Especially for Next.js apps with basePath
+- [ ] **Test both endpoints**: Verify both localhost:8080 and ngrok URL work
+- [ ] **Check HMR/WebSocket**: Ensure development features work through proxy
+
+### When to Contact Dev Tunnel Proxy Maintainer
+
+Contact the proxy maintainer if you encounter:
+- Core health endpoints (`/health.json`, `/status`) returning 404
+- `default.conf` missing essential proxy infrastructure
+- Docker network `devproxy` not existing or misconfigured
+- `hardenUpstreams.js` utility causing configuration corruption
+
+These indicate proxy infrastructure problems, not app configuration issues.
+
 ---
 
-## Next Steps
+## Advanced Integration
 
-### Learn More
+This section covers detailed integration patterns, framework-specific configurations, and best practices.
 
-Once you're comfortable with basics:
+### Planning Your Routes
 
-1. **[Architecture](ARCHITECTURE.md)** - Understand how it works
-2. **[API Endpoints](API-ENDPOINTS.md)** - Programmatic control
-3. **[Configuration Guide](CONFIG-MANAGEMENT-GUIDE.md)** - Advanced config patterns
-4. **[Calliope Capabilities](CALLIOPE-AI-ASSISTANT.md)** - Full AI features
+**Before creating your nginx config**, check existing routes using the status interface:
 
-### Advanced Topics
+1. **Visit `/status`** on the running proxy to see current routes organized by upstream
+2. **Review route groups**: Routes are automatically grouped by base upstream URL
+3. **Choose unique prefixes**: Use app-specific routes (e.g., `/myapp/api/` vs `/api/`)
+4. **Follow team conventions**: Establish consistent naming patterns
 
-**Custom nginx patterns**:
-- Regex location blocks
-- Conditional routing
-- Header manipulation
-- Caching strategies
+**Enhanced Status Interface Features**:
+- **Route Grouping**: See how routes are organized by upstream service
+- **Promotion System**: Designate parent routes within each upstream group
+- **Live Reload**: Refresh configurations without leaving the interface
+- **Per-Config Views**: Filter routes by specific config files
 
-**Production-like setup**:
-- Multiple environments
-- Secrets management
-- Authentication
-- High availability
+Common conflict patterns to avoid:
+```nginx
+# ❌ Likely to conflict with other apps
+location /api/ { ... }
+location /admin/ { ... }  
+location /health/ { ... }
 
-**Extending the proxy**:
-- Custom healing patterns
-- Plugin development
-- API integrations
+# ✅ App-specific routes (recommended)
+location /myapp/api/ { ... }
+location /myapp/admin/ { ... }
+location /myapp/ { ... }
+```
 
-### Join the Community
+### Framework-Specific Configuration
 
-- **GitHub Discussions** - Ask questions, share tips
-- **Issues** - Report bugs, request features
-- **Contributions** - Submit PRs, improve docs
+#### React/Create React App
+
+**Environment Variables:**
+```bash
+# .env
+PUBLIC_URL=/myapp
+REACT_APP_API_URL=/myapp/api
+```
+
+**Code Configuration:**
+```javascript
+// ❌ Wrong: Hardcoded absolute URLs
+const API_BASE = 'http://localhost:8000';
+
+// ✅ Correct: Environment-aware configuration
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
+
+// ✅ Alternative: Always use relative paths
+const API_BASE = '/api';
+```
+
+**API Calls:**
+```javascript
+// Use relative paths for API calls
+const response = await fetch('/myapp/api/data'); // ✅ Works through proxy
+const badResponse = await fetch('http://localhost:3000/api/data'); // ❌ Fails
+```
+
+#### Next.js with basePath
+
+**Nginx Configuration:**
+```nginx
+# Handle both /myapp and /myapp/ variants
+location ~ ^/myapp/?$ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Prefix /myapp;
+  
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $nextjs_upstream nextjs-service:3000;
+  proxy_pass http://$nextjs_upstream/myapp;
+}
+
+# Handle Next.js HMR and assets
+location /myapp/_next/ {
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $nextjs_upstream nextjs-service:3000;
+  proxy_pass http://$nextjs_upstream/myapp/_next/;
+}
+```
+
+**Next.js Config:**
+```javascript
+// next.config.js
+module.exports = {
+  basePath: process.env.BEHIND_PROXY ? '/myapp' : '',
+  assetPrefix: process.env.BEHIND_PROXY ? '/myapp' : '',
+};
+```
+
+#### Storybook + Vite
+
+**For subpath deployment** (e.g., `/storybook`):
+
+```javascript
+// .storybook/main.js
+module.exports = {
+  stories: ['../src/**/*.stories.@(js|jsx|ts|tsx)'],
+  
+  viteFinal: async (config) => {
+    // Configure for subpath deployment
+    if (process.env.STORYBOOK_BASE_PATH) {
+      config.base = process.env.STORYBOOK_BASE_PATH;
+    }
+    
+    // Handle WebSocket connections through proxy
+    if (process.env.PROXY_MODE) {
+      config.server = config.server || {};
+      config.server.hmr = {
+        port: 443,
+        clientPort: 443
+      };
+    }
+    
+    return config;
+  },
+};
+```
+
+### Testing Your Integration
+
+#### API-Based Verification
+
+```bash
+# List installed app files (sorted by mtime)
+curl -s http://localhost:3001/api/apps/list | jq
+
+# Show final active locations (order + source)
+curl -s http://localhost:3001/api/apps/active | jq
+
+# View bundle diagnostics (included vs skipped + reasons)
+curl -s http://localhost:3001/api/apps/diagnostics | jq
+
+# Force regenerate + nginx reload
+curl -s -X POST http://localhost:3001/api/apps/regenerate \
+  -H 'content-type: application/json' -d '{"reload":true}' | jq
+
+# Rescan routes and refresh routes.json
+curl -s -X POST http://localhost:3001/api/apps/scan \
+  -H 'content-type: application/json' \
+  -d '{"base":"http://dev-proxy"}' | jq
+```
+
+#### Quick Smoke Checks
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/myapp/
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/myapp/api/health
+```
 
 ---
 
@@ -1121,10 +1222,13 @@ Test artifacts:      .artifacts/ui/
 
 1. **Check Status Dashboard** - Visual health indicators
 2. **Ask Calliope** - AI assistant in the dashboard
-3. **Read Troubleshooting** - [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+3. **Read Documentation**:
+   - [CONFIGURATION.md](./CONFIGURATION.md) - Advanced configuration
+   - [CALLIOPE.md](./CALLIOPE.md) - AI assistant capabilities
+   - [ARCHITECTURE.md](./ARCHITECTURE.md) - System design
+   - [OPERATIONS.md](./OPERATIONS.md) - Testing & security
 4. **Check Logs** - `./smart-build.sh logs`
-5. **Search Docs** - Check docs/ directory
-6. **Ask Community** - GitHub Discussions
+5. **Ask Community** - GitHub Discussions
 
 ---
 
@@ -1137,7 +1241,7 @@ Test artifacts:      .artifacts/ui/
 location /app1/ { ... }
 
 # ✅ Descriptive
-location /lyra-impact/ { ... }
+location /myapp-dashboard/ { ... }
 ```
 
 ### Tip 2: Test Locally First
@@ -1208,4 +1312,3 @@ You're ready to start proxying. If you get stuck, remember:
 - The community is friendly
 
 Happy coding! 💖
-

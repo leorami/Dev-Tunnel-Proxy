@@ -1,0 +1,95 @@
+{
+  "name": "Status Page Layout Audit",
+  "description": "Comprehensive audit of responsive layout and view density features",
+  "url": "http://localhost:8080/status",
+  "viewports": [
+    {
+      "name": "mobile",
+      "width": 400,
+      "height": 800,
+      "description": "Mobile portrait - should show 1 column"
+    },
+    {
+      "name": "tablet",
+      "width": 1024,
+      "height": 768,
+      "description": "Tablet landscape - should show 2 columns"
+    },
+    {
+      "name": "desktop",
+      "width": 1400,
+      "height": 900,
+      "description": "Desktop - should show 3 columns"
+    },
+    {
+      "name": "large-desktop",
+      "width": 1920,
+      "height": 1080,
+      "description": "Large desktop - should show 3 columns"
+    }
+  ],
+  "checks": [
+    {
+      "id": "view-toggle-button",
+      "name": "View Density Toggle Button Exists",
+      "selector": "#viewToggle",
+      "type": "element-exists"
+    },
+    {
+      "id": "apps-grid",
+      "name": "Apps Grid Container",
+      "selector": "#apps",
+      "type": "element-exists"
+    },
+    {
+      "id": "no-horizontal-scroll",
+      "name": "No Horizontal Overflow",
+      "type": "custom",
+      "check": "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
+    },
+    {
+      "id": "cards-present",
+      "name": "App Cards Rendered",
+      "selector": ".card",
+      "type": "element-exists",
+      "minCount": 1
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Toggle to Compact View",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "#viewToggle"
+        },
+        {
+          "action": "wait",
+          "duration": 500
+        },
+        {
+          "action": "screenshot",
+          "name": "compact-view"
+        }
+      ]
+    },
+    {
+      "name": "Toggle Back to Comfortable",
+      "steps": [
+        {
+          "action": "click",
+          "selector": "#viewToggle"
+        },
+        {
+          "action": "wait",
+          "duration": 500
+        },
+        {
+          "action": "screenshot",
+          "name": "comfortable-view"
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,11 +1,29 @@
 # Dev Tunnel Proxy Architecture
 
 **Last Updated**: December 2025  
-**Version**: 1.0
+**Version**: 1.1
 
 ## Overview
 
 Dev Tunnel Proxy is a multi-container development infrastructure system designed to provide intelligent reverse proxying, secure tunneling, and AI-powered self-healing capabilities for distributed development environments.
+
+---
+
+## Table of Contents
+
+1. [Design Philosophy](#design-philosophy)
+2. [System Architecture](#system-architecture)
+3. [Container Details](#container-details)
+4. [Networking](#networking)
+5. [Configuration System](#configuration-system)
+6. [Data Flow & Lifecycle](#data-flow--lifecycle)
+7. [Resilience & Error Handling](#resilience--error-handling)
+8. [Calliope AI System](#calliope-ai-system)
+9. [UI Architecture](#ui-architecture)
+10. [Performance Characteristics](#performance-characteristics)
+11. [Design Decisions](#design-decisions)
+
+---
 
 ## Design Philosophy
 
@@ -26,6 +44,8 @@ The system deliberately uses separate containers for:
 - **Fault Isolation** - Service failures don't cascade
 - **Technology Specialization** - Use best tool for each job
 - **Scalability** - Independent scaling of different components
+
+---
 
 ## System Architecture
 
@@ -64,7 +84,7 @@ The system deliberately uses separate containers for:
          │                                       │
     ┌────▼─────┐    ┌──────────┐    ┌──────────▼────┐
     │  App 1   │    │  App 2   │    │    App N      │
-    │ (lyra)   │    │ (encast) │    │  (your-app)   │
+    │ (myapp)  │    │ (app2)   │    │  (another)    │
     │          │    │          │    │               │
     │ Port:    │    │ Port:    │    │  Port:        │
     │  4000    │    │  8000    │    │   3000        │
@@ -93,10 +113,12 @@ User Request
      │
      └─► [App Routes] → [Dynamic Upstreams]
               │
-              ├─► lyra-dev:4000 (Next.js app)
-              ├─► encast:8000 (React app)
+              ├─► myapp-dev:4000 (Next.js app)
+              ├─► app2:8000 (React app)
               └─► your-app:3000 (any framework)
 ```
+
+---
 
 ## Container Details
 
@@ -236,6 +258,8 @@ curl http://localhost:4040/api/tunnels
 docker logs dev-ngrok | grep "https://"
 ```
 
+---
+
 ## Networking
 
 ### devproxy Network
@@ -252,13 +276,13 @@ docker logs dev-ngrok | grep "https://"
 - dev-ngrok
 - dev-proxy-config-api
 - dev-auto-scan
-- All connected app containers (lyra-dev, encast, etc.)
+- All connected app containers (myapp-dev, app2, etc.)
 
 **Resolution**:
 ```bash
 # From any container on devproxy network
 ping dev-proxy          # → nginx container
-ping lyra-dev           # → app container
+ping myapp-dev          # → app container
 ping dev-proxy-config-api  # → API container
 ```
 
@@ -266,6 +290,8 @@ ping dev-proxy-config-api  # → API container
 ```bash
 docker network create devproxy
 ```
+
+---
 
 ## Configuration System
 
@@ -359,6 +385,474 @@ function isRootLevelDevHelper(pathSpec) {
 9. Test configuration (nginx -t)
 10. Reload if valid
 ```
+
+---
+
+## Data Flow & Lifecycle
+
+### Request Lifecycle
+
+#### 1. Incoming HTTP Request
+
+```
+Client Request
+  URL: https://example.ngrok.app/myapp/api/users
+  Headers: {
+    Host: example.ngrok.app
+    User-Agent: Mozilla/5.0
+    ...
+  }
+```
+
+**Stage 1: Tunnel Entry**
+- Request arrives at ngrok edge server
+- ngrok validates domain/authtoken
+- Establishes connection to dev-ngrok container
+- Forwards to dev-proxy on internal network
+
+**Stage 2: Nginx Processing**
+```
+dev-proxy receives:
+  GET /myapp/api/users HTTP/1.1
+  Host: example.ngrok.app
+  X-Forwarded-Proto: https
+  X-Forwarded-For: client-ip
+```
+
+**Stage 3: Location Matching**
+```
+nginx evaluates in priority order:
+1. Exact match:   location = /myapp/api/users  (not found)
+2. Prefix match:  location ^~ /myapp/api/      (found!)
+3. (stops here, doesn't check regex or generic)
+```
+
+**Stage 4: Variable Resolution**
+```nginx
+location ^~ /myapp/api/ {
+  resolver 127.0.0.11;           # Docker DNS
+  set $up myapp-backend:3000;    # Runtime DNS lookup
+  proxy_pass http://$up/api/;    # Strips /myapp prefix
+}
+```
+
+**Stage 5: Proxying**
+```
+nginx → myapp-backend:3000
+  GET /api/users HTTP/1.1
+  Host: example.ngrok.app
+  X-Forwarded-Proto: https
+  X-Forwarded-Host: example.ngrok.app
+  X-Forwarded-For: client-ip
+  X-Forwarded-Prefix: /myapp
+```
+
+**Stage 6: Response**
+```
+myapp-backend → nginx → ngrok → Client
+  200 OK
+  Content-Type: application/json
+  { "users": [...] }
+```
+
+**Timing**:
+- ngrok overhead: ~100-300ms
+- nginx proxy: ~2-5ms
+- app processing: varies
+- Total: ~150-400ms + app time
+
+### Configuration Lifecycle
+
+#### Creation
+
+```
+1. Developer creates myapp.conf
+   └─► Nginx snippet with location blocks
+
+2. Upload via API or file system
+   POST /api/apps/install { name, content }
+   or
+   Copy to apps/myapp.conf manually
+
+3. proxyConfigAPI receives request
+   ├─► Validates nginx syntax (basic check)
+   ├─► Writes to apps/myapp.conf
+   └─► Returns success
+
+4. Triggers automatic bundle generation
+   (or manual: POST /api/apps/regenerate)
+```
+
+#### Transformation
+
+```
+apps/myapp.conf (raw)
+         │
+         ▼
+hardenUpstreams.js
+  - Finds hardcoded proxy_pass
+  - Converts to variables
+  - Adds resolver directives
+         │
+         ▼
+apps/myapp.conf (hardened)
+         │
+         ▼
+generateAppsBundle.js
+  - Parses location blocks
+  - Detects conflicts
+  - Applies precedence
+  - Merges with overrides
+         │
+         ▼
+build/sites-enabled/apps.generated.conf
+  - Single composed file
+  - Source comments preserved
+  - Ready for nginx
+```
+
+#### Activation
+
+```
+Bundle Generated
+      │
+      ▼
+nginx -t (test)
+      │
+      ├─► Valid
+      │   └─► nginx -s reload
+      │       └─► New config active
+      │
+      └─► Invalid
+          └─► Error logged
+              └─► Old config remains
+```
+
+#### Persistence
+
+**State**: Configuration files
+**Location**: `apps/*.conf`, `overrides/*.conf`
+**Lifetime**: Permanent (user-managed)
+**Backup**: `.conf.backup.*` files on modification
+
+**Metadata**: Bundle diagnostics
+**Location**: `build/bundle-diagnostics.json`
+**Format**:
+```json
+{
+  "timestamp": "2025-01-15T...",
+  "sources": ["apps/myapp.conf", "overrides/critical.conf"],
+  "locations": {
+    "/myapp/": {
+      "source": "apps/myapp.conf",
+      "type": "prefix",
+      "upstream": "myapp:3000"
+    }
+  },
+  "conflicts": [],
+  "skipped": []
+}
+```
+
+### Health Monitoring Lifecycle
+
+#### Continuous Scanning
+
+```
+dev-auto-scan container (15-second loop)
+         │
+         ▼
+1. Load current routes from /routes.json
+         │
+         ▼
+2. For each route:
+   ├─► HTTP probe (local + tunnel targets)
+   ├─► Record status code, timing
+   ├─► Check content-type
+   └─► Detect errors
+         │
+         ▼
+3. Generate reports
+   ├─► health-latest.json (consolidated health)
+   ├─► scan-apps-latest.json (detailed per-route)
+   └─► Timestamped copies
+         │
+         ▼
+4. Write to .artifacts/reports/
+         │
+         ▼
+5. sleep 15 seconds
+         │
+         └─► Repeat
+```
+
+#### Report Structure
+
+**health-latest.json**:
+```json
+{
+  "timestamp": "2025-01-15T12:34:56.789Z",
+  "overall": "healthy",
+  "routes": {
+    "/myapp/": {
+      "status": "ok",
+      "httpCode": 200,
+      "targets": {
+        "local": { "status": "ok", "code": 200 },
+        "tunnel": { "status": "ok", "code": 200 }
+      }
+    }
+  },
+  "summary": {
+    "total": 10,
+    "ok": 9,
+    "warn": 1,
+    "err": 0
+  }
+}
+```
+
+#### Report Consumption
+
+**Status Dashboard**:
+```javascript
+// Periodic fetch
+setInterval(async () => {
+  const data = await fetch('/routes.json').then(r => r.json());
+  updateRouteCards(data.routes);
+}, 30000);
+```
+
+**Calliope Self-Check**:
+```javascript
+// On-demand probe
+const report = await fetch('/health.json').then(r => r.json());
+analyzeIssues(report.routes);
+```
+
+### Data Storage
+
+#### File System Layout
+
+```
+dev-tunnel-proxy/
+├── .artifacts/              # Generated data (gitignored)
+│   ├── calliope/
+│   │   ├── healing-kb.json  # Pattern knowledge base
+│   │   ├── healing-log.json # Historical fixes
+│   │   ├── chat-history.json # Calliope conversation history
+│   │   ├── docs-hash.txt    # Documentation fingerprint
+│   │   └── resources/       # Audit resources
+│   ├── reports/
+│   │   ├── health-latest.json      # Latest health report
+│   │   ├── scan-apps-latest.json   # Latest route scan
+│   │   └── *.json           # Historical timestamped reports
+│   ├── audits/              # Site auditor outputs
+│   ├── ui/                  # Playwright test artifacts
+│   ├── ai-embeddings.json   # RAG vector index
+│   ├── route-resolutions.json # Conflict resolution decisions
+│   └── override-conflicts.json # Override vs app conflicts
+│
+├── apps/                    # App configs (gitignored)
+│   └── *.conf               # Per-app nginx snippets
+│
+├── overrides/               # Proxy-owned configs (gitignored)
+│   └── *.conf               # Override snippets
+│
+├── build/                   # Compiled artifacts (gitignored)
+│   └── sites-enabled/
+│       ├── apps.generated.conf    # Composed bundle
+│       └── bundle-diagnostics.json # Generation report
+│
+└── .certs/                  # TLS certificates (gitignored)
+    ├── dev.crt              # Self-signed certificate
+    └── dev.key              # Private key
+```
+
+#### State Management
+
+**Persistent State** (survives restarts):
+- Configuration files (apps/, overrides/)
+- Healing knowledge base
+- Chat history
+- Route resolution decisions
+- Historical reports
+
+**Ephemeral State** (regenerated):
+- Generated nginx bundle
+- Latest health/scan reports
+- Thinking events queue
+- Calliope activity status
+
+**Browser State** (localStorage):
+- Theme preference (`dtpTheme`)
+- Calliope open/closed (`dtpCalliopeOpen`)
+- Chat conversation (`dtpCalliopeChat`)
+- UI preferences (filters, sort order)
+
+---
+
+## Resilience & Error Handling
+
+### Problem Statement
+
+In development environments, services frequently start and stop. Without proper resilience:
+
+- **Nginx won't start** if any configured upstream is unavailable
+- **Hard failures** with cryptic error messages confuse developers
+- **Cascading failures** where one service being down breaks the entire proxy
+- **Manual intervention** required to restart proxy after fixing upstream issues
+
+### Solution Architecture
+
+#### 1. Variable-Based Upstream Resolution
+
+**What**: All `proxy_pass` directives use nginx variables instead of hardcoded hostnames.
+
+**Why**: Defers DNS resolution from config-load time to request time.
+
+**Example**:
+```nginx
+# Before (fails at startup if service is down)
+location /myapp/ {
+  proxy_pass http://myapp:3000/;
+}
+
+# After (starts successfully, resolves at request time)
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp:3000;
+  proxy_pass http://$myapp_upstream/;
+}
+```
+
+**Benefits**:
+- Nginx starts even if all app services are offline
+- Services can be started in any order
+- DNS resolution happens per-request using Docker's internal DNS
+- Failed DNS lookups don't prevent proxy startup
+
+#### 2. Graceful Error Handling
+
+**What**: Intercept upstream errors and return friendly JSON responses.
+
+**Why**: Users get helpful error messages instead of nginx error pages.
+
+**Example**:
+```nginx
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp:3000;
+  
+  # Intercept errors from upstream
+  proxy_intercept_errors on;
+  error_page 502 503 504 = @upstream_unavailable;
+  
+  proxy_pass http://$myapp_upstream/;
+}
+
+# Global error handler
+location @upstream_unavailable {
+  add_header Content-Type application/json;
+  add_header Cache-Control "no-cache, no-store, must-revalidate";
+  return 503 '{"error":"Service Unavailable","message":"The requested application is not currently running. Please start the service and try again.","status":503}';
+}
+```
+
+**Error Codes Handled**:
+- **502 Bad Gateway** - Service exists but returned invalid response
+- **503 Service Unavailable** - Service is temporarily down
+- **504 Gateway Timeout** - Service didn't respond in time
+
+**Response Format**:
+```json
+{
+  "error": "Service Unavailable",
+  "message": "The requested application is not currently running. Please start the service and try again.",
+  "status": 503
+}
+```
+
+#### 3. Emergency Fallback System
+
+**What**: Multi-stage validation in nginx entrypoint script.
+
+**How**:
+1. **First attempt**: Validate full config including app bundle
+2. **Fallback**: Disable app bundle if validation fails
+3. **Final check**: If still failing, show detailed troubleshooting steps
+
+**Implementation** (`scripts/nginx-entrypoint.sh`):
+```bash
+# First try: validate current config
+if nginx -t; then
+  exec nginx -g 'daemon off;'
+fi
+
+# Emergency fallback: disable app bundle
+if [ -f "/etc/nginx/conf.d/sites-enabled/apps.generated.conf" ]; then
+  mv /etc/nginx/conf.d/sites-enabled/apps.generated.conf \
+     /etc/nginx/conf.d/sites-enabled/apps.generated.conf.disabled
+fi
+
+# Retry with bundle disabled
+if nginx -t; then
+  echo "⚠ WARNING: App routes are disabled. Check app configs for errors."
+  exec nginx -g 'daemon off;'
+fi
+
+# Final failure with troubleshooting steps
+echo "✗ Fallback still failing; nginx cannot start"
+echo "Troubleshooting steps: ..."
+exit 1
+```
+
+**Benefits**:
+- Core proxy UI and API remain accessible even if app configs have errors
+- Administrators can diagnose and fix issues via web interface
+- Clear error messages guide troubleshooting
+
+#### 4. Automatic Hardening
+
+**What**: The `generateAppsBundle.js` script automatically adds resilience directives.
+
+**Process**:
+1. Reads app configs from `apps/` and `overrides/`
+2. Parses each `location` block
+3. Detects `proxy_pass` directives
+4. Adds resolver and error handling if missing
+5. Normalizes variable usage
+6. Generates hardened bundle
+
+**Example Transformation**:
+```nginx
+# Input (apps/myapp.conf)
+location /myapp/ {
+  proxy_pass http://myapp:3000/;
+}
+
+# Output (build/sites-enabled/apps.generated.conf)
+location /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $up_myapp_3000_1 myapp:3000;
+  # Graceful error handling for unavailable upstream
+  proxy_intercept_errors on;
+  error_page 502 503 504 = @upstream_unavailable;
+  proxy_pass http://$up_myapp_3000_1/;
+}
+```
+
+**Automatic Features**:
+- Unique variable names per location block
+- Resolver configuration
+- Error page directives
+- Global error handler injection
+- Variable normalization (removes `http://` from variable definitions)
+
+---
 
 ## Calliope AI System
 
@@ -476,159 +970,7 @@ function isRootLevelDevHelper(pathSpec) {
 - `storybook_vite_subpath` - Dev server helpers
 - `nginx_location_priority` - API route matching
 
-## Data Storage
-
-### File System Layout
-
-```
-dev-tunnel-proxy/
-├── .artifacts/              # Generated data (gitignored)
-│   ├── calliope/
-│   │   ├── healing-kb.json  # Pattern knowledge base
-│   │   ├── healing-log.json # Historical fixes
-│   │   ├── chat-history.json # Calliope conversation history
-│   │   ├── docs-hash.txt    # Documentation fingerprint
-│   │   └── resources/       # Audit resources
-│   ├── reports/
-│   │   ├── health-latest.json      # Latest health report
-│   │   ├── scan-apps-latest.json   # Latest route scan
-│   │   └── *.json           # Historical timestamped reports
-│   ├── audits/              # Site auditor outputs
-│   ├── ui/                  # Playwright test artifacts
-│   ├── ai-embeddings.json   # RAG vector index
-│   ├── route-resolutions.json # Conflict resolution decisions
-│   └── override-conflicts.json # Override vs app conflicts
-│
-├── apps/                    # App configs (gitignored)
-│   └── *.conf               # Per-app nginx snippets
-│
-├── overrides/               # Proxy-owned configs (gitignored)
-│   └── *.conf               # Override snippets
-│
-├── build/                   # Compiled artifacts (gitignored)
-│   └── sites-enabled/
-│       ├── apps.generated.conf    # Composed bundle
-│       └── bundle-diagnostics.json # Generation report
-│
-└── .certs/                  # TLS certificates (gitignored)
-    ├── dev.crt              # Self-signed certificate
-    └── dev.key              # Private key
-```
-
-### State Management
-
-**Persistent State** (survives restarts):
-- Configuration files (apps/, overrides/)
-- Healing knowledge base
-- Chat history
-- Route resolution decisions
-- Historical reports
-
-**Ephemeral State** (regenerated):
-- Generated nginx bundle
-- Latest health/scan reports
-- Thinking events queue
-- Calliope activity status
-
-**Browser State** (localStorage):
-- Theme preference (`dtpTheme`)
-- Calliope open/closed (`dtpCalliopeOpen`)
-- Chat conversation (`dtpCalliopeChat`)
-- UI preferences (filters, sort order)
-
-## Request Flow
-
-### HTTP Request Path
-
-```
-1. Client → https://example.ngrok.app/myapp/api/data
-                              │
-2. ngrok Tunnel → dev-proxy:80 (HTTP internally)
-                              │
-3. nginx evaluates locations in priority order:
-   a. Exact matches (location = /myapp/)
-   b. Prefix matches (location ^~ /myapp/)
-   c. Regex matches (location ~ ^/myapp/)
-   d. Generic fallback (location /)
-                              │
-4. Selected location block:
-   - Sets upstream variable: $myapp_upstream = myapp-dev:3000
-   - Performs runtime DNS lookup via Docker resolver
-   - Sets proxy headers (Host, X-Forwarded-*, etc.)
-   - Proxies request: proxy_pass http://$myapp_upstream/api/data
-                              │
-5. App container receives request
-   - Processes request
-   - Returns response
-                              │
-6. nginx forwards response → ngrok → Client
-```
-
-### Configuration Update Flow
-
-```
-1. API Request: POST /api/apps/install
-                 │
-2. proxyConfigAPI.js validates content
-                 │
-3. Writes to apps/myapp.conf
-                 │
-4. Calls hardenUpstreams.js
-   - Converts hardcoded upstreams to variables
-   - Adds resolver directives
-                 │
-5. Calls generateAppsBundle.js
-   - Scans apps/ and overrides/
-   - Parses nginx blocks
-   - Detects conflicts
-   - Applies precedence rules
-   - Writes bundle + diagnostics
-                 │
-6. Tests configuration: nginx -t
-                 │
-7. If valid: nginx -s reload
-   If invalid: Error response, no changes applied
-                 │
-8. Returns success + diagnostics to API caller
-```
-
-### Healing Flow
-
-```
-User clicks stethoscope icon on /myapp/ route
-                 │
-                 ▼
-1. Frontend → POST /api/ai/self-check { route: "/myapp/" }
-                 │
-2. Calliope probes route and analyzes response
-   - HTTP status code
-   - Content-type headers
-   - Response body
-   - Network timing
-                 │
-3. Detects issues (e.g., 404 for bundle.js)
-                 │
-4. Pattern Matching:
-   - Checks healing-kb.json for known patterns
-   - Matches signals against detection rules
-                 │
-5. If pattern found → Automated Fix:
-   a. Runs fix function (e.g., addContentTypeOverride)
-   b. Modifies nginx configuration
-   c. Tests configuration
-   d. Reloads nginx
-   e. Verifies fix worked
-                 │
-6. If no pattern → OpenAI Analysis:
-   a. Prepares diagnostic context
-   b. Calls OpenAI API with system prompt
-   c. Gets suggested fix steps
-   d. Optionally applies automated fixes
-                 │
-7. Records outcome to healing-log.json
-                 │
-8. Returns results + explanation to frontend
-```
+---
 
 ## UI Architecture
 
@@ -703,87 +1045,7 @@ POST /api/ai/ask { query: "..." }
                  └─► Render assistant response
 ```
 
-## Deployment Modes
-
-### Development (Default)
-
-```yaml
-# All services running
-services:
-  - dev-proxy
-  - dev-ngrok
-  - dev-proxy-config-api
-  - dev-auto-scan
-```
-
-**Features Enabled**:
-- Hot reload
-- API configuration changes
-- AI assistant
-- Continuous monitoring
-- Docker socket access
-
-### Production-Like (Limited)
-
-```yaml
-# Only essential services
-services:
-  - dev-proxy
-  - dev-ngrok
-```
-
-**Features Disabled**:
-- No API config changes
-- No AI assistant
-- No automatic monitoring
-- Static configuration only
-
-## Security Model
-
-### Container Isolation
-
-**dev-proxy**:
-- Read-only volumes for configs
-- No Docker socket access
-- Minimal alpine base
-- No shell access needed
-
-**dev-proxy-config-api**:
-- Read-write access to project directory
-- Docker socket mounted (high privilege)
-- Can exec into containers
-- Requires OPENAI_API_KEY for AI features
-
-**dev-auto-scan**:
-- Read-only project access
-- No Docker socket
-- Limited network probing only
-
-### Network Boundaries
-
-```
-External Network (Internet)
-         │
-         │ (HTTPS tunnel)
-         ▼
-    dev-ngrok
-         │
-         │ (internal HTTP)
-         ▼
-    dev-proxy (nginx)
-         │
-         ├─► devproxy network (isolated)
-         │   └─► App containers
-         │
-         └─► host.docker.internal (config API)
-```
-
-### Secret Management
-
-- NGROK_AUTHTOKEN in .env (never committed)
-- OPENAI_API_KEY in .env (never committed)
-- TLS certs in .certs/ (gitignored)
-- App configs in apps/ (gitignored)
+---
 
 ## Performance Characteristics
 
@@ -816,32 +1078,7 @@ External Network (Internet)
 - auto-scan probe time (serial probing)
 - UI rendering (DOM size)
 
-## Extension Points
-
-### Adding New Features
-
-**New Calliope Healing Pattern**:
-1. Add pattern to `ensureGenericPatterns()` in `calliopeHealing.js`
-2. Implement fix function
-3. Add detection signals
-4. Test with actual failure case
-
-**New API Endpoint**:
-1. Add handler in `utils/proxyConfigAPI.js`
-2. Update `docs/API-ENDPOINTS.md`
-3. Add tests in `test/`
-
-**New UI Page**:
-1. Create HTML file in `status/`
-2. Use common.css, common.js for consistency
-3. Add navigation link in header
-4. Mount volume in docker-compose.yml
-
-**New Framework Example**:
-1. Create `examples/myframework/`
-2. Add nginx configuration pattern
-3. Document framework-specific setup
-4. Test with real app
+---
 
 ## Design Decisions
 
@@ -908,6 +1145,8 @@ proxy_pass http://$upstream/;
 - Can add features without touching nginx
 - Clear separation of concerns
 
+---
+
 ## Future Architecture Evolution
 
 ### Planned Improvements
@@ -958,8 +1197,8 @@ services:
 
 ## See Also
 
-- **[Data Lifecycle](DATA_LIFECYCLE.md)** - How data flows through the system
-- **[Testing Guide](TESTING.md)** - Test architecture and strategies
-- **[Security](SECURITY.md)** - Security considerations and threat model
-- **[Product Overview](PRODUCT.md)** - High-level product vision
-
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started and daily usage
+- **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management details
+- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities
+- **[OPERATIONS.md](OPERATIONS.md)** - Testing, security, and quality assurance
+- **[PRODUCT.md](PRODUCT.md)** - Product vision and roadmap

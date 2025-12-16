@@ -137,7 +137,7 @@ function normalizeLocationPath(pathSpec) {
   // - = / (exact)
   // - ~* ^/myapp(?<rest>/.*)?$  
   // - ^~ /_next/
-  // - ~ ^/mxtk/?$
+  // - ~ ^/app3/?$
   // We want a testable public route prefix.
 
   const trimmed = pathSpec.trim();
@@ -148,13 +148,13 @@ function normalizeLocationPath(pathSpec) {
   if (noMod.startsWith('^/')) {
     // Common patterns: 
     // ^/myapp(?<rest>/.*)?$ -> /myapp/
-    // ^/mxtk/?$ -> /mxtk/
-    // ^/mxtk/_next/(.+)$ -> /mxtk/_next/
-    // ^/mxtk/.+ -> ignore (too broad)
+    // ^/app3/?$ -> /app3/
+    // ^/app3/_next/(.+)$ -> /app3/_next/
+    // ^/app3/.+ -> ignore (too broad)
     
     // First, handle patterns that should be ignored
     if (noMod.match(/\^\/.+\.\+/)) {
-      // Patterns like ^/mxtk/.+ are too broad - ignore them
+      // Patterns like ^/app3/.+ are too broad - ignore them
       return null;
     }
     

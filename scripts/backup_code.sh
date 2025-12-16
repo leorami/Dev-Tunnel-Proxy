@@ -27,7 +27,7 @@ EXCLUDE_DIRS=(
 # ─── Specific large files to exclude ───────────────────────
 EXCLUDE_PATHS=(
   "./seed/seed.json"
-  "./encast-api/scripts/docker/seed/fixed_seed.json"
+  "./app2-api/scripts/docker/seed/fixed_seed.json"
   "./seed/archive/clean_legacy_data.sql"
 )
 

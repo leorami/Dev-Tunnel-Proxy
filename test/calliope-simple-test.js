@@ -45,7 +45,7 @@ function makeRequest(method, path, body = null, timeout = 10000) {
 async function test1_ThoughtsEndpointExists() {
   console.log('\n=== TEST 1: Thoughts Endpoint Exists ===');
   
-  const res = await makeRequest('GET', '/api/ai/thoughts');
+  const res = await makeRequest('GET', '/devproxy/api/ai/thoughts');
   
   console.log(`Status: ${res.status}`);
   console.log(`Response: ${JSON.stringify(res.data)}`);
@@ -75,7 +75,7 @@ Unexpected token '<', "<!DOCTYPE "... is not valid JSON
 POST /api/auth/_log 500
   `;
   
-  const res = await makeRequest('POST', '/api/ai/ask', { query }, 30000);
+  const res = await makeRequest('POST', '/devproxy/api/ai/ask', { query }, 30000);
   
   if (res.status === 0) {
     console.log(`⚠️  Request timed out (OpenAI may be slow)`);
@@ -109,7 +109,7 @@ POST /api/auth/_log 500
 async function test3_HealthEndpoint() {
   console.log('\n=== TEST 3: Health Endpoint ===');
   
-  const res = await makeRequest('GET', '/api/ai/health');
+  const res = await makeRequest('GET', '/devproxy/api/ai/health');
   
   if (res.status !== 200) {
     console.log(`❌ FAIL: Health endpoint returned ${res.status}`);

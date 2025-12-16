@@ -108,8 +108,8 @@ Result: Added absolute_redirect off and port_in_redirect off to default.conf
         to prevent HTTP URLs in redirects
 
 Step 2: Fixing X-Forwarded-Proto headers...
-Result: Fixed X-Forwarded-Proto in 3 config(s): apps/encast.conf, apps/lyra.conf, 
-        overrides/mxtk.conf
+Result: Fixed X-Forwarded-Proto in 3 config(s): apps/app2.conf, apps/lyra.conf, 
+        overrides/app3.conf
 
 ✅ All fixes applied!
 ```

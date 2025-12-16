@@ -1,21 +1,42 @@
 # Configuration Management Guide
 
-The Dev Tunnel Proxy includes advanced conflict detection and resolution capabilities to handle scenarios where multiple apps declare the same nginx routes. Config serving now uses a generated bundle that composes inputs from `apps/` and `overrides/` so proxy-owned decisions always take precedence.
+**Last Updated**: December 2025  
+**Version**: 1.0
 
-## Reserved Paths - ROOT PATH RESTRICTION
+This guide covers configuration management, API endpoints, conflict resolution, and best practices for the Dev Tunnel Proxy.
+
+---
+
+## Table of Contents
+
+1. [Reserved Paths](#reserved-paths)
+2. [Configuration System](#configuration-system)
+3. [API Endpoints](#api-endpoints)
+4. [Route Conflicts](#route-conflicts)
+5. [Route Promotion System](#route-promotion-system)
+6. [Best Practices](#best-practices)
+7. [Common Scenarios](#common-scenarios)
+8. [Troubleshooting](#troubleshooting)
+9. [Advanced Usage](#advanced-usage)
+
+---
+
+## Reserved Paths
+
+### ROOT PATH RESTRICTION
 
 **IMPORTANT: Apps are FORBIDDEN from defining the root path (`location = /`).**
 
 The root path is **exclusively reserved** for the Dev Tunnel Proxy's landing page and cannot be overridden by any application configuration.
 
-### Why This Restriction Exists
+#### Why This Restriction Exists
 
 1. **Brand Identity**: The root path serves as the professional face of Dev Tunnel Proxy
 2. **Documentation Hub**: Provides visitors with comprehensive information about the system
 3. **Navigation**: Central point for accessing status dashboards, health endpoints, and GitHub
 4. **Conflict Prevention**: Eliminates conflicts between apps trying to claim the root
 
-### What Happens If Apps Try to Define Root
+#### What Happens If Apps Try to Define Root
 
 If any app configuration file (`apps/*.conf` or `overrides/*.conf`) attempts to define `location = /`:
 
@@ -28,7 +49,7 @@ If any app configuration file (`apps/*.conf` or `overrides/*.conf`) attempts to 
   ```
 - 🚫 **No Override Possible**: Even `overrides/` cannot override this restriction
 
-### Correct App Configuration
+#### Correct App Configuration
 
 Apps must use their own base path prefix:
 
@@ -48,7 +69,7 @@ location ^~ /myapp/ {
 }
 ```
 
-### Reserved Proxy Paths
+#### Reserved Proxy Paths
 
 The following paths are reserved for proxy functionality:
 
@@ -69,29 +90,34 @@ The following paths are reserved for proxy functionality:
 
 Apps should avoid these paths and use their own namespaced paths (e.g., `/myapp/`, `/myservice/`, etc.).
 
-## Overrides, Composition, and Precedence (important)
+---
+
+## Configuration System
+
+### Overrides, Composition, and Precedence
 
 To prevent regressions when an app re-generates its own nginx snippet, the proxy no longer includes `apps/*.conf` directly. Instead, it composes a single generated file `build/sites-enabled/apps.generated.conf` from two sources:
 
 - `apps/*.conf` — per-app, local, gitignored snippets managed by each app
 - `overrides/*.conf` — proxy-owned, canonical snippets that must win when a route needs to be enforced
 
-Precedence rules:
+#### Precedence Rules
+
 - **Overrides win**: If both an app file and an override define the same `location` (exact or normalized prefix), the override's block is emitted and the app is skipped for that route.
 - **No hardcoding of app names**: Overrides should be minimal and generic when possible; only target the necessary `location` blocks.
 - **Exact plus prefix can co-exist**: An exact match like `location = /myapp/` can live alongside a `location ^~ /myapp/` prefix. The composer keeps both.
 
-Lifecycle and safety rails:
+#### Lifecycle and Safety Rails
+
 - The generator runs on start/restart/reload (`scripts/smart-build.sh`, `scripts/reload.sh`).
 - Nginx only loads the generated file, so app writes to `apps/` cannot overwrite canonical proxy behavior.
 - Inspect the provenance header at the top of `apps.generated.conf` for the list of included app files and overrides.
 
-When should you add an override?
+#### When Should You Add an Override?
+
 - A proxy-side fix must take precedence regardless of app changes.
 - You need to neutralize an app-generated snippet that conflicts with proxy policy.
 - You want a temporary shim while coordinating a fix in the app codebase.
-
-Additional details and examples are consolidated here; the older `CONFIG-COMPOSITION.md` has been merged into this guide.
 
 ### Recommended Workflow: Iterate → Promote
 
@@ -99,23 +125,169 @@ Additional details and examples are consolidated here; the older `CONFIG-COMPOSI
 - Promote to `overrides/` once stable. Copy the finalized app snippet to `overrides/` so it becomes proxy-owned and always wins.
 - Reload using `./scripts/reload.sh` (the generator runs automatically).
 
-Commands:
+#### Commands
 
 ```bash
 # Use app version during iteration
-rm -f overrides/encast.conf
+rm -f overrides/myapp.conf
 ./scripts/reload.sh
 
 # When ready, promote to overrides (proxy-owned precedence)
-cp -f apps/encast.conf overrides/encast.conf
+cp -f apps/myapp.conf overrides/myapp.conf
 ./scripts/reload.sh
 
 # Or use the API to promote without shell copy
-curl -s -X POST http://localhost:3001/api/overrides/promote \
-  -H 'Content-Type: application/json' -d '{"filename":"encast.conf"}' | jq
+curl -s -X POST http://localhost:3001/devproxy/api/overrides/promote \
+  -H 'Content-Type: application/json' -d '{"filename":"myapp.conf"}' | jq
 ```
 
-## What Are Route Conflicts?
+---
+
+## API Endpoints
+
+All API endpoints are served by the `dev-proxy-config-api` container on port 3001.
+
+### Configuration Management
+
+#### Install App Configuration
+
+Allows apps to programmatically upload their Nginx configuration files to the proxy.
+
+**Endpoint:** `POST /devproxy/api/apps/install`
+
+**Request Body:**
+```json
+{
+  "name": "app-name",
+  "content": "# Nginx configuration content\nlocation ^~ /app-name/ {\n  proxy_pass http://app-container:3000/;\n}"
+}
+```
+
+**Parameters:**
+- `name`: (Required) The name of the app without the `.conf` extension. Must be alphanumeric with hyphens and underscores only.
+- `content`: (Required) The Nginx configuration content as a string.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "installed": "app-name.conf"
+}
+```
+
+**Error Responses:**
+- `400 Bad Request`: If name or content is missing or invalid
+- `422 Unprocessable Entity`: If the Nginx configuration fails validation
+- `500 Internal Server Error`: For other errors
+
+**Processing:**
+1. The configuration is saved to the `apps/` directory as `{name}.conf`
+2. The `hardenUpstreams.js` script is run to transform proxy_pass directives for resilience
+3. The bundle is regenerated with `generateAppsBundle.js`
+4. Nginx configuration is tested and reloaded
+
+#### Promote App Configuration to Override
+
+Promotes an existing app configuration to an override.
+
+**Endpoint:** `POST /devproxy/api/overrides/promote`
+
+**Request Body:**
+```json
+{
+  "filename": "app-name.conf"
+}
+```
+
+**Parameters:**
+- `filename`: (Required) The filename of the app configuration to promote.
+
+**Response:**
+```json
+{
+  "ok": true,
+  "promoted": "app-name.conf"
+}
+```
+
+#### Get Configuration File
+
+Retrieves the content of a configuration file.
+
+**Endpoint:** `GET /devproxy/api/config/:file`
+
+**Response:**
+```json
+{
+  "file": "apps/app-name.conf",
+  "content": "# Configuration content..."
+}
+```
+
+#### Update Configuration File
+
+Updates the content of an existing configuration file.
+
+**Endpoint:** `POST /devproxy/api/config/:file`
+
+**Request Body:**
+```json
+{
+  "content": "# Updated configuration content..."
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "file": "apps/app-name.conf"
+}
+```
+
+### Client Usage Example
+
+Here's an example of how to use the API to programmatically install a configuration:
+
+```javascript
+async function installAppConfig(name, content) {
+  const response = await fetch('http://dev-proxy:8080/api/apps/install', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ name, content })
+  });
+  
+  const result = await response.json();
+  if (!result.ok) {
+    throw new Error(`Failed to install config: ${result.error}`);
+  }
+  
+  return result;
+}
+
+// Example usage
+const nginxConfig = `
+# My app configuration
+location ^~ /myapp/ {
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_pass http://my-app-container:3000/;
+}
+`;
+
+installAppConfig('myapp', nginxConfig)
+  .then(result => console.log('Config installed:', result))
+  .catch(err => console.error('Installation failed:', err));
+```
+
+---
+
+## Route Conflicts
+
+### What Are Route Conflicts?
 
 Route conflicts occur when multiple nginx configuration files (`*.conf` files in the `apps/` directory) declare the same `location` block:
 
@@ -133,7 +305,7 @@ location /api/ {
 
 In this example, both apps want to handle `/api/` requests, creating a conflict.
 
-## Automatic Detection
+### Automatic Detection
 
 The proxy scans `apps/*.conf` and detects conflicts:
 
@@ -147,44 +319,44 @@ Conflicts are detected during:
 - Configuration rescans (`node test/scanApps.js`)
 - Manual conflict resolution operations
 
-## Resolution Strategies
+### Resolution Strategies
 
-### 1. Default Resolution (First Config Wins)
+#### 1. Default Resolution (First Config Wins)
 
 By default, the proxy uses a **"first config wins"** strategy when scanning app inputs:
 - The first configuration file processed gets to keep the route
 - Other files declaring the same route are ignored for that specific location
 - The decision is logged and persisted for consistency
 
-### 2. Enhanced Visual Interface (🆕)
+#### 2. Enhanced Visual Interface
 
 The `/status` provides the following conflict management features:
 
-#### Smart Route Organization
-- **Route Grouping**: All routes automatically grouped by base upstream URL (nginx variables group by variable name, e.g., `$myapp_upstream`) (🆕)
+**Smart Route Organization**
+- **Route Grouping**: All routes automatically grouped by base upstream URL (nginx variables group by variable name, e.g., `$myapp_upstream`)
 - **Visual Hierarchy**: Parent-child relationships clearly displayed
 - **Promotion System**: Designate parent routes within each upstream group
 - **Collapsible Groups**: Expand/collapse route groups for better organization
 
-#### Advanced Conflict Resolution
+**Advanced Conflict Resolution**
 - **One-Click Winners**: Choose conflict winners with immediate visual feedback
 - **Live Conflict Indicators**: Real-time highlighting of conflicted routes
 - **Route Renaming**: Rename conflicted routes directly in the enhanced interface
 - **Persistent Decisions**: All conflict resolutions saved and persist across restarts
 
-#### Config Management
+**Config Management**
 - **Per-Config Views**: Filter and view routes by specific config files
 - **JSON Export**: Export filtered route data for each config file  
 - **Live Reload**: Refresh configurations without leaving the interface
 - **Enhanced Editor**: View and edit nginx configs with better UX
-- **Sticky summary & header + per-card collapse (🆕)**: Faster navigation with persistent controls
+- **Sticky summary & header + per-card collapse**: Faster navigation with persistent controls
 
-#### Quick Actions
+**Quick Actions**
 - **Open in Tunnel**: Direct links to access routes via ngrok URL
 - **Diagnose Issues**: Detailed route information and troubleshooting
 - **Status Indicators**: Color-coded health status for each route
 
-### 3. API-Based Resolution
+#### 3. API-Based Resolution
 
 For programmatic workflows, use the REST API:
 
@@ -216,7 +388,7 @@ Content-Type: text/plain
 [nginx config content]
 ```
 
-## Persistence
+### Persistence
 
 All conflict resolution decisions are stored in `.artifacts/route-resolutions.json`:
 
@@ -236,7 +408,9 @@ This ensures:
 - Team members see the same resolution decisions  
 - Audit trail of conflict resolution history
 
-## Route Promotion System (🆕)
+---
+
+## Route Promotion System
 
 The enhanced Status Dashboard introduces a powerful **route promotion system** for managing complex route hierarchies:
 
@@ -262,7 +436,7 @@ http://myapp-api:8000 group:
 2. **Reduced Clutter**: Child routes collapsed by default, expand when needed
 3. **Quick Navigation**: Parent route actions (Open, Diagnose) work for the entire group
 4. **Persistent State**: Promotion choices saved in localStorage and persist across sessions
-5. **Compact Views (🆕)**: Collapse individual cards to show only the parent label and status
+5. **Compact Views**: Collapse individual cards to show only the parent label and status
 
 ### Managing Promotions
 
@@ -286,29 +460,37 @@ localStorage.setItem('routePromotions', JSON.stringify(promotions));
 - **Consider user workflow**: Promote the route users access first
 - **Maintain consistency**: Use similar promotion patterns across different upstream groups
 
+---
+
 ## Best Practices
 
 ### Prevention
+
 1. **Use unique prefixes**: `/myapp/api/` instead of `/api/`
 2. **Check existing routes**: Visit `/status` before adding new routes
 3. **Team coordination**: Establish naming conventions
 4. **Route planning**: Document route ownership in your team
 
 ### Resolution
-5. When a proxy-side fix must win regardless of app snippets, add a minimal snippet under `overrides/` with the desired `location` block.
-1. **Prefer renaming**: Better than arbitrary winner selection
-2. **Document decisions**: Use descriptive route names
-3. **Test after changes**: Verify apps work after conflict resolution
-4. **Backup configs**: The system creates backups, but keep your own too
+
+1. When a proxy-side fix must win regardless of app snippets, add a minimal snippet under `overrides/` with the desired `location` block.
+2. **Prefer renaming**: Better than arbitrary winner selection
+3. **Document decisions**: Use descriptive route names
+4. **Test after changes**: Verify apps work after conflict resolution
+5. **Backup configs**: The system creates backups, but keep your own too
 
 ### Monitoring
+
 1. **Check `/status` regularly**: Stay aware of conflicts
 2. **Monitor logs**: Watch for new conflict warnings
 3. **Review resolutions**: Ensure decisions still make sense over time
 
+---
+
 ## Common Scenarios
 
 ### Shared API Service
+
 ```nginx
 # Problem: Multiple apps want /api/
 # Solution: One app owns /api/, others use prefixed paths
@@ -326,6 +508,7 @@ location /webapp/ {
 ```
 
 ### Admin Interfaces
+
 ```nginx
 # Problem: Multiple apps have admin interfaces
 # Solution: App-specific admin paths
@@ -342,6 +525,7 @@ location /app2/admin/ {
 ```
 
 ### Development vs Production
+
 ```nginx
 # Development: Multiple teams working on API
 # Use team-specific prefixes during development
@@ -358,6 +542,8 @@ location /team2-api/ {
 
 # Later merge to shared /api/ for production
 ```
+
+---
 
 ## Troubleshooting
 
@@ -405,9 +591,12 @@ location /team2-api/ {
 - **JSON format issues**: POST requests need correct `Content-Type`
 - **Permission errors**: Config editing requires filesystem write access
 
+---
+
 ## Advanced Usage
 
 ### Custom Resolution Scripts
+
 ```javascript
 // automated-resolution.js
 const { resolveConflicts } = require('./utils/conflictResolver');
@@ -423,6 +612,7 @@ resolution.resolved.forEach((winner, route) => {
 ```
 
 ### Bulk Route Renaming
+
 ```bash
 # Rename all routes in a config file
 for route in $(grep -o 'location [^{]*' apps/myapp.conf); do
@@ -435,6 +625,7 @@ done
 ```
 
 ### Monitoring Integration
+
 ```bash
 # Check for conflicts in monitoring systems
 conflicts=$(curl -s /routes.json | jq '.nginxWarnings | length')
@@ -443,4 +634,14 @@ if [ "$conflicts" -gt 0 ]; then
 fi
 ```
 
+---
+
+## See Also
+
+- **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started and daily workflows
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and data flow
+- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities
+- **[OPERATIONS.md](OPERATIONS.md)** - Testing, security, and quality assurance
+
 This comprehensive configuration management system ensures your development proxy remains robust and manageable even as your application ecosystem grows in complexity.
+

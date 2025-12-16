@@ -1807,7 +1807,7 @@ Please analyze this issue and suggest a fix.`;
  * - Fixes sb-common-assets to preserve URI and correct Host
  */
 async function fixStorybookViteProxyConfig() {
-  const confPath = path.join(ROOT, 'apps', 'encast.conf');
+  const confPath = path.join(ROOT, 'apps', 'app2.conf');
   try {
     if (!fs.existsSync(confPath)) {
       return { success: false, message: 'No specific app config available in generic mode' };
@@ -1834,7 +1834,7 @@ async function fixReactStaticAssetRouting(routePrefix = '/') {
 }
 
 /**
- * Fix mxtk API absolute-path routing and Next dev helper endpoints
+ * Fix app3 API absolute-path routing and Next dev helper endpoints
  */
 async function fixMxtkApiRouting() { return { success:false, message:'Generic mode: app-specific API fix is disabled' }; }
 
@@ -2404,7 +2404,7 @@ async function runMixedContentTest(url) {
 
 async function fixRedirectLoop(route) {
   try {
-    const routeKey = route || '/lyra';
+    const routeKey = route || '/myapp';
     const appName = routeKey.replace(/^\//, '');
     const confPath = path.join(ROOT, 'apps', `${appName}.conf`);
     

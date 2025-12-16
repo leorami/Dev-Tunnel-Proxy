@@ -33,47 +33,47 @@ describe('Calliope Documentation Collection', () => {
       assert.ok(readme.content.length > 0, 'README.md content should not be empty');
     });
     
-    test('should include CALLIOPE-PERSONALITY.md from docs/', () => {
+    test('should include CALLIOPE.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const personality = docs.find(d => d.relPath === 'docs/CALLIOPE-PERSONALITY.md');
-      assert.ok(personality, 'Should include CALLIOPE-PERSONALITY.md');
-      assert.ok(personality.content.includes('Calliope'), 'Content should mention Calliope');
+      const calliope = docs.find(d => d.relPath === 'docs/CALLIOPE.md');
+      assert.ok(calliope, 'Should include CALLIOPE.md');
+      assert.ok(calliope.content.includes('Calliope'), 'Content should mention Calliope');
     });
     
-    test('should include CALLIOPE-AI-ASSISTANT.md from docs/', () => {
+    test('should include ARCHITECTURE.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const assistant = docs.find(d => d.relPath === 'docs/CALLIOPE-AI-ASSISTANT.md');
-      assert.ok(assistant, 'Should include CALLIOPE-AI-ASSISTANT.md');
+      const architecture = docs.find(d => d.relPath === 'docs/ARCHITECTURE.md');
+      assert.ok(architecture, 'Should include ARCHITECTURE.md');
     });
     
-    test('should include TROUBLESHOOTING.md from docs/', () => {
+    test('should include USER_GUIDE.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const troubleshooting = docs.find(d => d.relPath === 'docs/TROUBLESHOOTING.md');
-      assert.ok(troubleshooting, 'Should include TROUBLESHOOTING.md');
+      const userGuide = docs.find(d => d.relPath === 'docs/USER_GUIDE.md');
+      assert.ok(userGuide, 'Should include USER_GUIDE.md');
     });
     
-    test('should include CONFIG-MANAGEMENT-GUIDE.md from docs/', () => {
+    test('should include CONFIGURATION.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const configGuide = docs.find(d => d.relPath === 'docs/CONFIG-MANAGEMENT-GUIDE.md');
-      assert.ok(configGuide, 'Should include CONFIG-MANAGEMENT-GUIDE.md');
+      const config = docs.find(d => d.relPath === 'docs/CONFIGURATION.md');
+      assert.ok(config, 'Should include CONFIGURATION.md');
     });
     
-    test('should include API-ENDPOINTS.md from docs/', () => {
+    test('should include OPERATIONS.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const apiDocs = docs.find(d => d.relPath === 'docs/API-ENDPOINTS.md');
-      assert.ok(apiDocs, 'Should include API-ENDPOINTS.md');
+      const operations = docs.find(d => d.relPath === 'docs/OPERATIONS.md');
+      assert.ok(operations, 'Should include OPERATIONS.md');
     });
     
-    test('should include PROJECT-INTEGRATION.md from docs/', () => {
+    test('should include PRODUCT.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const integration = docs.find(d => d.relPath === 'docs/PROJECT-INTEGRATION.md');
-      assert.ok(integration, 'Should include PROJECT-INTEGRATION.md');
+      const product = docs.find(d => d.relPath === 'docs/PRODUCT.md');
+      assert.ok(product, 'Should include PRODUCT.md');
     });
     
     test('should include examples/README.md for example configurations', () => {
@@ -153,27 +153,27 @@ describe('Calliope Documentation Collection', () => {
     test('should document Calliope\'s personality and capabilities', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const personalityDoc = docs.find(d => d.relPath.includes('PERSONALITY'));
-      assert.ok(personalityDoc, 'Should have personality documentation');
+      const calliopeDoc = docs.find(d => d.relPath.includes('CALLIOPE'));
+      assert.ok(calliopeDoc, 'Should have Calliope documentation');
       assert.ok(
-        personalityDoc.content.includes('youthful') || 
-        personalityDoc.content.includes('caring'),
-        'Personality doc should describe her traits'
+        calliopeDoc.content.includes('Calliope') || 
+        calliopeDoc.content.includes('AI'),
+        'Calliope doc should describe the assistant'
       );
     });
     
     test('should document available API endpoints', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const apiDoc = docs.find(d => d.relPath.includes('API-ENDPOINTS') || d.relPath.includes('CALLIOPE-AI-ASSISTANT'));
-      assert.ok(apiDoc, 'Should have API documentation');
+      const apiDoc = docs.find(d => d.relPath.includes('CONFIGURATION') || d.relPath.includes('ENDPOINT'));
+      assert.ok(apiDoc, 'Should have API/configuration documentation');
     });
     
     test('should document troubleshooting procedures', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const troubleshootDoc = docs.find(d => d.relPath.includes('TROUBLESHOOTING'));
-      assert.ok(troubleshootDoc, 'Should have troubleshooting documentation');
+      const troubleshootDoc = docs.find(d => d.relPath.includes('USER_GUIDE') || d.relPath.includes('OPERATIONS'));
+      assert.ok(troubleshootDoc, 'Should have user guide or operations documentation');
     });
   });
   

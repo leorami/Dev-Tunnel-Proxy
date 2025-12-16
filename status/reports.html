@@ -6,66 +6,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="stylesheet" href="/status/global.css" />
-    <style>
-      body{margin:0}
-      header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
-      .header-row{display:flex;align-items:center;justify-content:space-between}
-      .container{max-width:1160px;margin:24px auto;padding:0 16px}
-      .header-actions{display:flex;align-items:center;gap:8px}
-      .header-actions .tab{background:#132a4d}
-      .header-actions .tab.active{background:#d9e2ff;color:#0b1220;border-color:#bfd1ff}
-      [data-theme="dark"] .header-actions .tab.active{background:#1a2a4b;color:#cfe0ff;border-color:#36568c}
-      .header-actions .action{background:#0f2242;border-color:#2a4a7e}
-      :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
-      .header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
-      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
-      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none}
-      .grid{display:grid;grid-template-columns: 1fr;gap:12px}
-      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px}
-      table{width:100%;border-collapse:collapse}
-      th,td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
-      th{color:var(--text)}
-      .tag{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);color:var(--text);font-weight:600}
-    </style>
     <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/config.js"></script>
     <script src="/status/common.js"></script>
+    <style>
+      .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);margin-bottom:16px}
+      .card h2{margin:0 0 16px 0;font-size:15px;color:var(--heading);font-weight:700}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+      button{padding:10px 16px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600;font-size:13px;transition:all .2s}
+      button:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+      button.danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:transparent}
+      button.warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:transparent}
+      table{width:100%;border-collapse:collapse}
+      thead{background:var(--btnBg);border-radius:8px}
+      th{padding:12px;text-align:left;font-weight:700;color:var(--heading);font-size:13px;border-bottom:2px solid var(--border)}
+      td{padding:12px;border-bottom:1px solid var(--border);font-size:13px}
+      tr:hover{background:var(--btnBg)}
+      .tag{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--chipText);font-weight:600;font-size:11px;border:1px solid var(--chipBorder)}
+      .tag.health-json{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
+      .tag.health-md{background:rgba(16,185,129,.15);color:#10b981;border-color:rgba(16,185,129,.3)}
+      .tag.scan-apps{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.3)}
+      .pagination{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:16px}
+      .pagination button{padding:8px 12px}
+      .pagination button.active{background:var(--lnk);color:#fff;border-color:var(--lnk)}
+      .pagination-info{color:var(--muted);font-size:13px;margin-bottom:12px}
+      .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+      .empty-state svg{width:64px;height:64px;margin-bottom:16px;opacity:0.5}
+    </style>
   </head>
   <body data-page="reports">
     <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
-    <header style="display:none">
-      <div class="header-row">
-        <h1 style="font-size:16px;margin:0;display:flex;gap:10px;align-items:center">
-          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px"/>
-          <span class="tag">Dev Tunnel Proxy</span>
-        </h1>
-        <div class="header-actions">
-          <a class="btn tab" href="/status">Status</a>
-          <a class="btn tab" href="/health">Health</a>
-          <a class="btn tab active" href="/reports">Reports</a>
-          <a class="btn tab" href="/dashboard/">Dashboard</a>
-          <span class="divider" aria-hidden="true"></span>
-          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
-        </div>
-      </div>
-    </header>
+    <header style="display:none"></header>
+    
     <div class="container">
       <div class="card">
-        <div class="toolbar" style="margin-bottom:12px">
-          <button id="refresh">Refresh</button>
-          <button id="prune7">Prune > 7 days</button>
-          <button id="prune30">Prune > 30 days</button>
-          <button id="pruneAllButLatest">Prune all but latest</button>
+        <h2>📊 Reports Management</h2>
+        <div class="toolbar">
+          <button id="refresh">🔄 Refresh</button>
+          <button id="prune7" class="warning">🗑️ Prune > 7 days</button>
+          <button id="prune30" class="warning">🗑️ Prune > 30 days</button>
+          <button id="pruneAllButLatest" class="danger">🗑️ Keep Latest Only</button>
         </div>
-        <div id="pagination-info" style="margin-bottom:12px;color:var(--muted);font-size:14px"></div>
+        <div id="pagination-info" class="pagination-info"></div>
         <table>
           <thead>
-            <tr><th>Name</th><th>Kind</th><th>Size</th><th>Last Modified</th></tr>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Size</th>
+              <th>Last Modified</th>
+            </tr>
           </thead>
-          <tbody id="rows"><tr><td colspan="4">Loading…</td></tr></tbody>
+          <tbody id="rows">
+            <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--muted)">Loading reports...</td></tr>
+          </tbody>
         </table>
-        <div class="toolbar" style="margin-top:12px;justify-content:center" id="pagination-controls"></div>
+        <div class="pagination" id="pagination-controls"></div>
       </div>
     </div>
 
@@ -74,11 +71,21 @@
       const itemsPerPage = 10;
       
       async function api(path, opts){
-        const r = await fetch(path, { headers:{'ngrok-skip-browser-warning':'true','content-type':'application/json'}, ...opts });
+        const r = await fetch(path, { 
+          credentials: 'include',
+          headers:{'ngrok-skip-browser-warning':'true','content-type':'application/json'}, 
+          ...opts 
+        });
         if(!r.ok) throw new Error(await r.text());
         return r.json();
       }
-      function fmtSize(n){ if(!n && n!==0) return '—'; const kb = n/1024; return kb<1024?`${kb.toFixed(1)} KB`:`${(kb/1024).toFixed(2)} MB`; }
+      
+      function fmtSize(n){ 
+        if(!n && n!==0) return '—'; 
+        const kb = n/1024; 
+        return kb<1024?`${kb.toFixed(1)} KB`:`${(kb/1024).toFixed(2)} MB`; 
+      }
+      
       function kindOf(name){
         if (/health-.*\.json$/.test(name)) return 'health-json';
         if (/health-.*\.md$/.test(name)) return 'health-md';
@@ -90,169 +97,125 @@
       async function load(page = 1){
         try {
           currentPage = page;
-          const data = await api(`/api/reports/list?page=${page}&limit=${itemsPerPage}`);
+          const data = await api(`${window.DTP.config.apiPath('reports/list')}?page=${page}&limit=${itemsPerPage}`);
           const tbody = document.getElementById('rows');
           tbody.innerHTML = '';
           
-          if (data.items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">No reports found</td></tr>';
-          } else {
-            data.items.forEach(it=>{
-              const tr = document.createElement('tr');
-              const link = `/.artifacts/reports/${encodeURIComponent(it.name)}`;
-              tr.innerHTML = `<td><a href="${link}" target="_blank">${it.name}</a></td>`+
-                             `<td>${kindOf(it.name)}</td>`+
-                             `<td>${fmtSize(it.size)}</td>`+
-                             `<td>${new Date(it.mtimeMs).toLocaleString()}</td>`;
-              tbody.appendChild(tr);
-            });
+          if (!data.reports || data.reports.length === 0) {
+            tbody.innerHTML = `
+              <tr><td colspan="4">
+                <div class="empty-state">
+                  <div style="font-size:48px">📭</div>
+                  <div style="font-size:16px;font-weight:600;margin-bottom:8px">No reports found</div>
+                  <div>Reports will appear here as they are generated</div>
+                </div>
+              </td></tr>
+            `;
+            document.getElementById('pagination-info').textContent = '';
+            document.getElementById('pagination-controls').innerHTML = '';
+            return;
           }
           
-          // Update pagination info
-          const paginationInfo = document.getElementById('pagination-info');
+          data.reports.forEach(r => {
+            const row = document.createElement('tr');
+            const kind = kindOf(r.name);
+            row.innerHTML = `
+              <td style="font-family:monospace;font-size:12px">${r.name}</td>
+              <td><span class="tag ${kind}">${kind}</span></td>
+              <td>${fmtSize(r.size)}</td>
+              <td style="color:var(--muted)">${new Date(r.lastModified).toLocaleString()}</td>
+            `;
+            tbody.appendChild(row);
+          });
+          
+          // Pagination info
           const start = (page - 1) * itemsPerPage + 1;
-          const end = Math.min(start + data.items.length - 1, data.pagination.total);
-          paginationInfo.textContent = `Showing ${start}-${end} of ${data.pagination.total} reports`;
+          const end = Math.min(page * itemsPerPage, data.total);
+          document.getElementById('pagination-info').textContent = 
+            `Showing ${start}-${end} of ${data.total} reports`;
           
-          // Update pagination controls
-          const paginationControls = document.getElementById('pagination-controls');
-          paginationControls.innerHTML = '';
+          // Pagination controls
+          const totalPages = Math.ceil(data.total / itemsPerPage);
+          const controls = document.getElementById('pagination-controls');
+          controls.innerHTML = '';
           
-          if (data.pagination.totalPages > 1) {
-            // Previous button
-            const prevBtn = document.createElement('button');
-            prevBtn.textContent = '← Previous';
-            prevBtn.disabled = page === 1;
-            prevBtn.addEventListener('click', () => load(page - 1));
-            paginationControls.appendChild(prevBtn);
+          if (totalPages > 1) {
+            const prev = document.createElement('button');
+            prev.textContent = '← Previous';
+            prev.disabled = page === 1;
+            prev.onclick = () => load(page - 1);
+            controls.appendChild(prev);
             
-            // Page numbers
-            const maxPageButtons = 7;
-            let startPage = Math.max(1, page - Math.floor(maxPageButtons / 2));
-            let endPage = Math.min(data.pagination.totalPages, startPage + maxPageButtons - 1);
-            
-            // Adjust if we're near the end
-            if (endPage - startPage < maxPageButtons - 1) {
-              startPage = Math.max(1, endPage - maxPageButtons + 1);
+            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+              const btn = document.createElement('button');
+              btn.textContent = i;
+              btn.className = i === page ? 'active' : '';
+              btn.onclick = () => load(i);
+              controls.appendChild(btn);
             }
             
-            // First page + ellipsis
-            if (startPage > 1) {
-              const firstBtn = document.createElement('button');
-              firstBtn.textContent = '1';
-              firstBtn.addEventListener('click', () => load(1));
-              paginationControls.appendChild(firstBtn);
+            if (totalPages > 5) {
+              const dots = document.createElement('span');
+              dots.textContent = '...';
+              dots.style.padding = '0 8px';
+              controls.appendChild(dots);
               
-              if (startPage > 2) {
-                const ellipsis = document.createElement('span');
-                ellipsis.textContent = '...';
-                ellipsis.style.padding = '0 8px';
-                ellipsis.style.color = 'var(--muted)';
-                paginationControls.appendChild(ellipsis);
-              }
+              const last = document.createElement('button');
+              last.textContent = totalPages;
+              last.className = totalPages === page ? 'active' : '';
+              last.onclick = () => load(totalPages);
+              controls.appendChild(last);
             }
             
-            // Page buttons
-            for (let i = startPage; i <= endPage; i++) {
-              const pageBtn = document.createElement('button');
-              pageBtn.textContent = i;
-              if (i === page) {
-                pageBtn.style.background = 'var(--primary)';
-                pageBtn.style.borderColor = 'var(--primary)';
-                pageBtn.style.fontWeight = 'bold';
-              }
-              pageBtn.addEventListener('click', () => load(i));
-              paginationControls.appendChild(pageBtn);
-            }
-            
-            // Ellipsis + last page
-            if (endPage < data.pagination.totalPages) {
-              if (endPage < data.pagination.totalPages - 1) {
-                const ellipsis = document.createElement('span');
-                ellipsis.textContent = '...';
-                ellipsis.style.padding = '0 8px';
-                ellipsis.style.color = 'var(--muted)';
-                paginationControls.appendChild(ellipsis);
-              }
-              
-              const lastBtn = document.createElement('button');
-              lastBtn.textContent = data.pagination.totalPages;
-              lastBtn.addEventListener('click', () => load(data.pagination.totalPages));
-              paginationControls.appendChild(lastBtn);
-            }
-            
-            // Next button
-            const nextBtn = document.createElement('button');
-            nextBtn.textContent = 'Next →';
-            nextBtn.disabled = !data.pagination.hasMore;
-            nextBtn.addEventListener('click', () => load(page + 1));
-            paginationControls.appendChild(nextBtn);
+            const next = document.createElement('button');
+            next.textContent = 'Next →';
+            next.disabled = page === totalPages;
+            next.onclick = () => load(page + 1);
+            controls.appendChild(next);
           }
-        } catch (error) {
-          console.error('Failed to load reports:', error);
-          const tbody = document.getElementById('rows');
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--err)">Error loading reports: ${error.message}</td></tr>`;
+        } catch (e) {
+          console.error('Failed to load reports:', e);
+          document.getElementById('rows').innerHTML = `
+            <tr><td colspan="4" style="color:var(--err);text-align:center;padding:40px">
+              Failed to load reports: ${e.message}
+            </td></tr>
+          `;
         }
       }
       
-      async function prune(days){
-        const btn = event.target;
-        const originalText = btn.textContent;
+      document.getElementById('refresh').onclick = () => load(currentPage);
+      
+      document.getElementById('prune7').onclick = async () => {
+        if (!confirm('Delete all reports older than 7 days?')) return;
         try {
-          btn.textContent = 'Pruning...';
-          btn.disabled = true;
-          await api('/api/reports/prune', { method:'POST', body: JSON.stringify({ olderThanDays: days }) });
-          btn.textContent = '✅ Done!';
-          setTimeout(() => {
-            btn.textContent = originalText;
-            btn.disabled = false;
-          }, 2000);
-          await load(currentPage);
-        } catch (error) {
-          btn.textContent = '❌ Failed';
-          btn.disabled = false;
-          alert('Prune failed: ' + error.message);
-          setTimeout(() => {
-            btn.textContent = originalText;
-          }, 3000);
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 7 }) });
+          load(1);
+        } catch(e) {
+          alert('Prune failed: ' + e.message);
         }
-      }
+      };
       
-      async function pruneAllButLatest(){
-        const btn = event.target;
-        const originalText = btn.textContent;
+      document.getElementById('prune30').onclick = async () => {
+        if (!confirm('Delete all reports older than 30 days?')) return;
         try {
-          btn.textContent = 'Pruning...';
-          btn.disabled = true;
-          await api('/api/reports/prune', { method:'POST', body: JSON.stringify({ keepLatestPerKind: true }) });
-          btn.textContent = '✅ Done!';
-          setTimeout(() => {
-            btn.textContent = originalText;
-            btn.disabled = false;
-          }, 2000);
-          await load(1); // Go back to first page after pruning
-        } catch (error) {
-          btn.textContent = '❌ Failed';
-          btn.disabled = false;
-          alert('Prune failed: ' + error.message);
-          setTimeout(() => {
-            btn.textContent = originalText;
-          }, 3000);
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 30 }) });
+          load(1);
+        } catch(e) {
+          alert('Prune failed: ' + e.message);
         }
-      }
+      };
       
-      document.getElementById('refresh').addEventListener('click', () => load(currentPage));
-      document.getElementById('prune7').addEventListener('click', ()=>prune(7));
-      document.getElementById('prune30').addEventListener('click', ()=>prune(30));
-      document.getElementById('pruneAllButLatest').addEventListener('click', pruneAllButLatest);
-      // Align Directory button right over the table by moving it beside the actions
-      try { document.getElementById('directoryBtn').style.marginLeft = 'auto'; } catch {}
-      // Use shared Calliope + theme
-      try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}
-      try{ if (window.DTP && DTP.initTheme) DTP.initTheme(); }catch{}
-      load();
+      document.getElementById('pruneAllButLatest').onclick = async () => {
+        if (!confirm('Delete all reports except the latest of each kind? This cannot be undone!')) return;
+        try {
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ keepLatestPerKind: true }) });
+          load(1);
+        } catch(e) {
+          alert('Prune failed: ' + e.message);
+        }
+      };
+      
+      load(1);
     </script>
   </body>
 </html>
-
-
