@@ -12,8 +12,8 @@
       window.__calliopeEnabled = false;
     </script>
     <style>
-      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px}
-      :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14}
+      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px}
+      :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
       *{box-sizing:border-box}
       body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
       header{padding:16px 20px 12px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
@@ -30,13 +30,13 @@
       .btn:active{transform:translateY(1px)}
       .btn.copied{background:#16402b;border-color:#2a7f54;color:#a6f3cc}
       .content{width: 100%}
-      .container{max-width:1100px;margin:16px auto;padding:0 16px}
+      .container{max-width:1100px;margin:var(--cardGap) auto;padding:0 16px}
       .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
       .content{padding:0 16px}
       .summaryRow{position:sticky;top:calc(var(--headerH, 64px) + var(--summaryGap, 12px));z-index:2004;background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);border-radius: 12px;}
       .appsHeader{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;background:var(--headerBg);border:1px solid var(--border);border-radius:10px;padding:8px 12px}
       .appsHeader .toolbar{padding-top:0}
-      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease; font-size: 12px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:box-shadow .12s ease; font-size: 12px;margin-bottom:var(--cardGap)}
       .card:hover{box-shadow:0 10px 28px rgba(0,0,0,.30)}
       .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px; padding: 0 0 8px 0}
       .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
@@ -90,7 +90,23 @@
       .hidden{display:none}
       .summaryChips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
       .chip strong{font-weight:700;margin-right:6px}
-      .overviewCard{margin-bottom:8px;padding:12px 16px}
+      .overviewCard{padding:12px 16px}
+      /* Settings sub-cards */
+      .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:12px}
+      .settings-subcard{background:var(--appBgGlass);border:1px solid var(--border);border-radius:10px;padding:12px;transition:transform .12s ease,box-shadow .12s ease;box-shadow:inset 0 1px 0 rgba(255,255,255,.02)}
+      .settings-subcard:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.25)}
+      .settings-subcard h3{margin:0 0 10px 0;font-size:13px;color:var(--heading);font-weight:700;display:flex;align-items:center;gap:8px}
+      .settings-row{display:flex;align-items:center;gap:10px;margin:8px 0;flex-wrap:wrap}
+      .settings-row label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px}
+      .settings-actions{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+      /* Custom checkbox */
+      input[type="checkbox"].toggle-checkbox{appearance:none;width:40px;height:22px;background:var(--border);border-radius:11px;position:relative;cursor:pointer;transition:background .2s;border:1px solid var(--border)}
+      input[type="checkbox"].toggle-checkbox:checked{background:var(--ok);border-color:var(--ok)}
+      input[type="checkbox"].toggle-checkbox::before{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:2px;left:2px;transition:transform .2s;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+      input[type="checkbox"].toggle-checkbox:checked::before{transform:translateX(18px)}
+      /* Compact input */
+      .compact-input{padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);font-size:12px;width:70px;text-align:center}
+      .compact-input:focus{outline:none;border-color:var(--lnk);box-shadow:0 0 0 2px rgba(127,176,255,.2)}
       /* Modal */
       .backdrop,.overlay{position:fixed;inset:0;background:rgba(3,8,20,.55);backdrop-filter:saturate(160%) blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:3000;overflow:auto}
       .modal{max-width:860px;width:min(860px,96vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.65);padding:20px;max-height:calc(100vh - 48px);overflow:auto;z-index:3002}
@@ -417,20 +433,58 @@
           <div class="summaryChips" id="summaryChips"></div>
         </div>
         
-        <!-- Notifications Service Card (macOS only) -->
-        <div class="card" id="notificationsCard" style="display: none;">
-          <h2 style="margin:0">Notifications Service</h2>
-          <div style="margin-top: 12px;">
-            <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <span id="notificationsServiceText" style="flex: 1; min-width: 200px;">Checking...</span>
-              <div style="display: flex; gap: 8px;">
-                <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none;">
-                  <span>Loading...</span>
-                </div>
-                <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none;">
-                  <span>📋 Logs</span>
+        <!-- Settings Card -->
+        <div class="card" id="settingsCard">
+          <h2 style="margin:0">⚙️ Settings</h2>
+          
+          <div class="settings-grid">
+            <!-- Notifications Service Sub-card (macOS only) -->
+            <div class="settings-subcard" id="notificationsSubcard" style="display: none;">
+              <h3>
+                <span title="Desktop notifications for route health changes">🔔 Notifications</span>
+              </h3>
+              <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span id="notificationsServiceText" style="flex: 1; font-size: 12px; color: var(--muted);">Checking...</span>
+                <div style="display: flex; gap: 6px;">
+                  <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 11px;">
+                    <span>Loading...</span>
+                  </div>
+                  <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none; font-size: 11px;" title="View notification logs">
+                    <span>📋 Logs</span>
+                  </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Auto-Scan Settings Sub-card -->
+            <div class="settings-subcard" id="autoScanSubcard">
+              <h3>
+                <span title="Automatically scan routes for health issues">🔍 Auto-Scan</span>
+              </h3>
+              
+              <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px;">
+                <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0;">
+                  <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
+                  <span style="font-weight: 600; font-size: 12px;">On</span>
+                </label>
+                
+                <div class="chip" style="font-size: 11px; flex-shrink: 0;" title="Scan interval in seconds">
+                  <span>⏱️</span>
+                  <input type="number" id="autoScanInterval" min="5" max="300" step="5" class="compact-input" title="Scan interval (5-300 seconds)">
+                  <span style="color: var(--muted);">s</span>
+                </div>
+                
+                <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0;">
+                  <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600;" title="Save changes">
+                    💾
+                  </button>
+                  <button class="chip" id="autoScanReset" style="cursor: pointer; opacity: 0.7;" title="Reset to defaults (enabled, 15s)">
+                    ↺
+                  </button>
+                </div>
+              </div>
+              
+              <div id="autoScanStatus" style="display: none; padding: 8px; border-radius: 6px; font-size: 11px; margin-top: 8px;"></div>
             </div>
           </div>
         </div>
@@ -881,18 +935,18 @@
       }
 
       async function initNotificationsServiceCard() {
-        const card = document.getElementById('notificationsCard');
+        const subcard = document.getElementById('notificationsSubcard');
         const statusText = document.getElementById('notificationsServiceText');
         const serviceChip = document.getElementById('notificationsServiceChip');
         const logsChip = document.getElementById('notificationsLogsChip');
 
         // Only show on macOS
         if (!isMacOS()) {
-          card.style.display = 'none';
+          subcard.style.display = 'none';
           return;
         }
 
-        card.style.display = 'block';
+        subcard.style.display = 'block';
 
         // Check service status
         const status = await checkServiceStatus();
@@ -905,7 +959,11 @@
         }
 
         // Update UI based on status
-        if (status.installed && status.running) {
+        // Check if engine is installed and running (bridge is optional)
+        const isInstalled = status.engine?.installed || false;
+        const isRunning = status.engine?.running || false;
+        
+        if (isInstalled && isRunning) {
           statusText.innerHTML = '✅ <strong>Running</strong> as background service';
           serviceChip.innerHTML = '<span>Uninstall</span>';
           serviceChip.className = 'chip warn';
@@ -930,6 +988,8 @@
                 title: '✅ Service Uninstalled',
                 message: 'Background service uninstalled successfully.'
               });
+              // Wait a moment for the service to fully stop before refreshing
+              await new Promise(resolve => setTimeout(resolve, 1000));
               initNotificationsServiceCard(); // Refresh
             } catch (e) {
               await showDialog({
@@ -965,6 +1025,8 @@
                 title: '✅ Service Installed',
                 message: 'Background service installed and started successfully!\n\nLogs: ./.artifacts/notifications-engine.log'
               });
+              // Wait a moment for the service to fully start before refreshing
+              await new Promise(resolve => setTimeout(resolve, 1000));
               initNotificationsServiceCard(); // Refresh
             } catch (e) {
               await showDialog({
@@ -1935,7 +1997,7 @@
         const isPromoted = promotions?.[source]?.[route] || false;
         const promoteBtn = createActionButton('promote', {
           title: isPromoted ? 'Demote (ungroup children)' : 'Promote (group children under this route)',
-          innerHTML: isPromoted ? '📍' : '📌',
+          innerHTML: isPromoted ? '⬇️' : '🎓',
           dataset: { route, source }
         });
         promoteBtn.addEventListener('click', (e) => {
@@ -4193,6 +4255,164 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         };
         // legacy buttons removed
       }
+
+      // ========================================
+      // AUTO-SCAN SETTINGS MANAGEMENT
+      // ========================================
+      
+      // Track original settings to detect changes
+      let originalAutoScanSettings = { enabled: true, intervalSeconds: 15 };
+      
+      function checkAutoScanChanges() {
+        const enabledCheckbox = document.getElementById('autoScanEnabled');
+        const intervalInput = document.getElementById('autoScanInterval');
+        const saveBtn = document.getElementById('autoScanSave');
+        
+        if (!enabledCheckbox || !intervalInput || !saveBtn) return;
+        
+        const currentEnabled = enabledCheckbox.checked;
+        const currentInterval = parseInt(intervalInput.value, 10);
+        
+        const hasChanges = currentEnabled !== originalAutoScanSettings.enabled || 
+                          currentInterval !== originalAutoScanSettings.intervalSeconds;
+        
+        if (hasChanges) {
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = '1';
+          saveBtn.style.pointerEvents = 'auto';
+        } else {
+          saveBtn.disabled = true;
+          saveBtn.style.opacity = '0.5';
+          saveBtn.style.pointerEvents = 'none';
+        }
+      }
+      
+      async function loadAutoScanSettings() {
+        try {
+          const response = await fetch(window.DTP.config.apiPath('settings/auto-scan'));
+          if (response.ok) {
+            const data = await response.json();
+            if (data.ok && data.settings) {
+              const enabledCheckbox = document.getElementById('autoScanEnabled');
+              const intervalInput = document.getElementById('autoScanInterval');
+              
+              originalAutoScanSettings = { ...data.settings };
+              
+              if (enabledCheckbox) enabledCheckbox.checked = data.settings.enabled;
+              if (intervalInput) intervalInput.value = data.settings.intervalSeconds;
+              
+              checkAutoScanChanges();
+              return data.settings;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to load auto-scan settings:', e);
+        }
+        // Return defaults on error
+        return { enabled: true, intervalSeconds: 15 };
+      }
+      
+      async function saveAutoScanSettings() {
+        const enabledCheckbox = document.getElementById('autoScanEnabled');
+        const intervalInput = document.getElementById('autoScanInterval');
+        const statusDiv = document.getElementById('autoScanStatus');
+        const saveBtn = document.getElementById('autoScanSave');
+        
+        if (!enabledCheckbox || !intervalInput || !statusDiv || !saveBtn) return;
+        
+        const settings = {
+          enabled: enabledCheckbox.checked,
+          intervalSeconds: parseInt(intervalInput.value, 10)
+        };
+        
+        // Validate interval
+        if (settings.intervalSeconds < 5 || settings.intervalSeconds > 300) {
+          statusDiv.style.display = 'block';
+          statusDiv.style.background = 'rgba(239, 68, 68, 0.15)';
+          statusDiv.style.color = 'var(--err)';
+          statusDiv.textContent = '❌ Interval must be between 5 and 300 seconds';
+          return;
+        }
+        
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.5';
+        saveBtn.innerHTML = '⏳';
+        
+        try {
+          const response = await fetch(window.DTP.config.apiPath('settings/auto-scan'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.ok) {
+            originalAutoScanSettings = { ...settings };
+            saveBtn.innerHTML = '💾';
+            checkAutoScanChanges();
+            
+            statusDiv.style.display = 'block';
+            statusDiv.style.background = 'rgba(22, 199, 132, 0.15)';
+            statusDiv.style.color = 'var(--ok)';
+            statusDiv.innerHTML = `✅ Saved! Restart: <code style="padding: 2px 6px; background: var(--codeBg); border-radius: 4px; font-size: 10px;">./smart-build.sh restart</code>`;
+            
+            setTimeout(() => {
+              statusDiv.style.display = 'none';
+            }, 8000);
+          } else {
+            throw new Error(data.error || 'Failed to save settings');
+          }
+        } catch (e) {
+          statusDiv.style.display = 'block';
+          statusDiv.style.background = 'rgba(239, 68, 68, 0.15)';
+          statusDiv.style.color = 'var(--err)';
+          statusDiv.textContent = `❌ ${e.message}`;
+          saveBtn.innerHTML = '💾';
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = '1';
+        }
+      }
+      
+      function resetAutoScanSettings() {
+        const enabledCheckbox = document.getElementById('autoScanEnabled');
+        const intervalInput = document.getElementById('autoScanInterval');
+        
+        if (enabledCheckbox) enabledCheckbox.checked = true;
+        if (intervalInput) intervalInput.value = 15;
+        
+        checkAutoScanChanges();
+      }
+      
+      // Initialize auto-scan settings on page load
+      (async function initAutoScanSettings() {
+        try {
+          await loadAutoScanSettings();
+          
+          const saveBtn = document.getElementById('autoScanSave');
+          const resetBtn = document.getElementById('autoScanReset');
+          const enabledCheckbox = document.getElementById('autoScanEnabled');
+          const intervalInput = document.getElementById('autoScanInterval');
+          
+          if (saveBtn) {
+            saveBtn.addEventListener('click', saveAutoScanSettings);
+          }
+          
+          if (resetBtn) {
+            resetBtn.addEventListener('click', resetAutoScanSettings);
+          }
+          
+          if (enabledCheckbox) {
+            enabledCheckbox.addEventListener('change', checkAutoScanChanges);
+          }
+          
+          if (intervalInput) {
+            intervalInput.addEventListener('input', checkAutoScanChanges);
+          }
+        } catch (e) {
+          console.error('Failed to initialize auto-scan settings:', e);
+        }
+      })();
 
     </script>
   </body>
