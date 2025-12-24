@@ -58,7 +58,23 @@ services:
     # Ensure Docker CLI is available so Calliope can self‑heal by reloading nginx, regenerating bundles, etc.
     # Also mount the host Docker socket for docker exec/run calls.
     user: root
-    command: ["sh", "-c", "apk add --no-cache docker-cli >/dev/null 2>&1 || true; node utils/proxyConfigAPI.js"]
+    command:
+      - sh
+      - -c
+      - |
+          apk add --no-cache docker-cli >/dev/null 2>&1 || true
+
+          # Lightweight sidecars, co-located in this container to reduce the overall container count
+          node utils/notificationsAPI.js &
+
+          if [ "${AUTO_SCAN_ENABLED:-1}" = "1" ]; then
+            (while true; do
+              node test/scanApps.js || true
+              sleep "${AUTO_SCAN_INTERVAL_SECONDS:-15}"
+            done) &
+          fi
+
+          exec node utils/proxyConfigAPI.js
     volumes:
       - .:/app
       - /var/run/docker.sock:/var/run/docker.sock
@@ -69,43 +85,15 @@ services:
       - OPENAI_EMBED_MODEL=${OPENAI_EMBED_MODEL}
       - CALLIOPE_PUPPETEER_IMAGE=ghcr.io/puppeteer/puppeteer:latest
       - CALLIOPE_PUPPETEER_PLATFORM=linux/amd64
+      - NOTIFICATIONS_API_PORT=3002
+      - LOCAL_PROXY_BASE=http://dev-proxy
+      - AUTO_SCAN_ENABLED=${AUTO_SCAN_ENABLED:-1}
+      - AUTO_SCAN_INTERVAL_SECONDS=${AUTO_SCAN_INTERVAL_SECONDS:-15}
     networks:
       - devproxy
     ports:
       - "3001:3001"
-    depends_on:
-      - proxy
-
-  notifications-api:
-    image: node:18-alpine
-    container_name: dev-proxy-notifications-api
-    working_dir: /app
-    command: ["node", "utils/notificationsAPI.js"]
-    volumes:
-      - .:/app
-    environment:
-      - NODE_ENV=development
-      - NOTIFICATIONS_API_PORT=3002
-    networks:
-      - devproxy
-    ports:
       - "3002:3002"
-    depends_on:
-      - proxy
-
-  auto-scan:
-    image: node:18-alpine
-    container_name: dev-auto-scan
-    working_dir: /app
-    volumes:
-      - .:/app
-    environment:
-      - NODE_ENV=development
-      - LOCAL_PROXY_BASE=http://dev-proxy
-    entrypoint: ["sh", "-c"]
-    command: ["while true; do node test/scanApps.js; sleep 15; done"]
-    networks:
-      - devproxy
     depends_on:
       - proxy
 

@@ -115,8 +115,7 @@ This command:
 This starts all services in detached mode:
 - **dev-proxy**: Nginx reverse proxy (port 8080)
 - **dev-ngrok**: Secure tunnel to external networks
-- **dev-proxy-config-api**: Configuration and AI management API (port 3001)
-- **dev-auto-scan**: Periodic route health monitoring
+- **dev-proxy-config-api**: Configuration + AI management API (port 3001), plus built-in notifications storage (port 3002) and route health monitoring
 
 ### 4. Install App Routes
 
@@ -728,7 +727,7 @@ The `smart-build.sh` script provides convenient commands for managing the proxy:
 
 ### Automated Health Monitoring
 
-The `dev-auto-scan` service continuously monitors route health:
+Route health is continuously monitored by a lightweight worker that runs inside `dev-proxy-config-api` (enabled by default):
 
 ```bash
 # Manual scan
