@@ -92,7 +92,7 @@
       .chip strong{font-weight:700;margin-right:6px}
       .overviewCard{margin-bottom:8px;padding:12px 16px}
       /* Modal */
-      .backdrop{position:fixed;inset:0;background:rgba(3,8,20,.55);backdrop-filter:saturate(160%) blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:3000;overflow:auto}
+      .backdrop,.overlay{position:fixed;inset:0;background:rgba(3,8,20,.55);backdrop-filter:saturate(160%) blur(10px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:3000;overflow:auto}
       .modal{max-width:860px;width:min(860px,96vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.65);padding:20px;max-height:calc(100vh - 48px);overflow:auto;z-index:3002}
       .modal h2{margin:0 0 8px 0;color:var(--heading);font-size:16px}
       .modal .section{margin:10px 0;padding:10px;border:1px dashed var(--border);border-radius:8px;background:var(--codeBg)}
@@ -156,6 +156,7 @@
       .conflict-actions{display:flex;gap:10px;justify-content:flex-end}
       .btn-small{padding:6px 12px;font-size:12px;border:1px solid var(--border);background:var(--btnBg);color:var(--btnText);border-radius:6px;cursor:pointer;transition:all 0.2s}
       .btn-small:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+      .btn-small:disabled{opacity:.45;cursor:not-allowed;transform:none}
 
       /* Config Modal Styles */
       .modal.large{max-width:1200px;width:min(1200px,96vw)}
@@ -415,6 +416,25 @@
         <div class="card overviewCard">
           <div class="summaryChips" id="summaryChips"></div>
         </div>
+        
+        <!-- Notifications Service Card (macOS only) -->
+        <div class="card" id="notificationsCard" style="display: none;">
+          <h2 style="margin:0">Notifications Service</h2>
+          <div style="margin-top: 12px;">
+            <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <span id="notificationsServiceText" style="flex: 1; min-width: 200px;">Checking...</span>
+              <div style="display: flex; gap: 8px;">
+                <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none;">
+                  <span>Loading...</span>
+                </div>
+                <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none;">
+                  <span>📋 Logs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="ai-drawer collapsed" id="aiDrawer">
           <!-- Healing History Panel -->
           <div class="healing-history" id="healingHistory">
@@ -642,7 +662,77 @@
       // Notifications (per-route)
       // -------------------------------
       const NOTIF_STORE_LOCAL_KEY = 'routeNotificationsV1';
+      const NOTIF_BRIDGE_BASE = 'http://127.0.0.1:17888';
+      const NOTIF_TEST_ENDPOINT = `${NOTIF_BRIDGE_BASE}/test`;
+      const NOTIF_SERVICE_STATUS_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/status`;
+      const NOTIF_SERVICE_INSTALL_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/install`;
+      const NOTIF_SERVICE_UNINSTALL_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/uninstall`;
       const NOTIF_STORE_API_PATH = 'notifications'; // GET/POST (best-effort; UI falls back to localStorage)
+
+      // Modal Dialog System (replaces browser alert/confirm)
+      function showDialog(options) {
+        return new Promise((resolve) => {
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          overlay.style.zIndex = '9999';
+          
+          const dialog = document.createElement('div');
+          dialog.className = 'modal';
+          dialog.style.cssText = 'max-width: 500px; z-index: 10000;';
+          
+          const title = document.createElement('h2');
+          title.textContent = options.title || 'Notification';
+          title.style.marginBottom = '16px';
+          dialog.appendChild(title);
+          
+          const message = document.createElement('div');
+          message.style.cssText = 'margin-bottom: 20px; line-height: 1.5; white-space: pre-wrap;';
+          message.textContent = options.message || '';
+          dialog.appendChild(message);
+          
+          const toolbar = document.createElement('div');
+          toolbar.className = 'toolbar';
+          toolbar.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
+          
+          if (options.type === 'confirm') {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'btn';
+            cancelBtn.textContent = options.cancelText || 'Cancel';
+            cancelBtn.style.background = 'var(--btnBg)';
+            cancelBtn.onclick = () => {
+              overlay.remove();
+              resolve(false);
+            };
+            toolbar.appendChild(cancelBtn);
+          }
+          
+          const okBtn = document.createElement('button');
+          okBtn.className = 'btn';
+          okBtn.textContent = options.okText || 'OK';
+          okBtn.onclick = () => {
+            overlay.remove();
+            resolve(true);
+          };
+          toolbar.appendChild(okBtn);
+          
+          dialog.appendChild(toolbar);
+          overlay.appendChild(dialog);
+          document.body.appendChild(overlay);
+          
+          // Focus OK button
+          okBtn.focus();
+          
+          // ESC to close
+          const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+              overlay.remove();
+              resolve(false);
+              document.removeEventListener('keydown', handleEsc);
+            }
+          };
+          document.addEventListener('keydown', handleEsc);
+        });
+      }
 
       function notifKeyForRoute(route, source) {
         return `${source || 'unknown'}::${route || ''}`;
@@ -733,6 +823,229 @@
         return { subject, body };
       }
 
+      // -------------------------------
+      // Notifications Service Card (Main Page)
+      // -------------------------------
+      async function checkServiceStatus() {
+        try {
+          const resp = await fetch(NOTIF_SERVICE_STATUS_ENDPOINT);
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          return data;
+        } catch {
+          return null;
+        }
+      }
+
+      async function installService() {
+        try {
+          const resp = await fetch(NOTIF_SERVICE_INSTALL_ENDPOINT, { method: 'POST' });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error(data?.error || `HTTP ${resp.status}`);
+          }
+          return data;
+        } catch (e) {
+          throw new Error(`Failed to install service: ${e?.message || e}`);
+        }
+      }
+
+      async function uninstallService() {
+        try {
+          const resp = await fetch(NOTIF_SERVICE_UNINSTALL_ENDPOINT, { method: 'POST' });
+          const data = await resp.json();
+          if (!resp.ok) {
+            throw new Error(data?.error || `HTTP ${resp.status}`);
+          }
+          return data;
+        } catch (e) {
+          throw new Error(`Failed to uninstall service: ${e?.message || e}`);
+        }
+      }
+
+      function isMacOS() {
+        return navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      }
+
+      async function initNotificationsServiceCard() {
+        const card = document.getElementById('notificationsCard');
+        const statusText = document.getElementById('notificationsServiceText');
+        const serviceChip = document.getElementById('notificationsServiceChip');
+        const logsChip = document.getElementById('notificationsLogsChip');
+
+        // Only show on macOS
+        if (!isMacOS()) {
+          card.style.display = 'none';
+          return;
+        }
+
+        card.style.display = 'block';
+
+        // Check service status
+        const status = await checkServiceStatus();
+        
+        if (!status) {
+          statusText.innerHTML = '⚠️ Bridge not running. Start: <code style="background: var(--codeBg, #f5f5f5); padding: 2px 6px; border-radius: 4px; font-size: 11px;">node macos/notifications-bridge.js</code>';
+          serviceChip.style.display = 'none';
+          logsChip.style.display = 'none';
+          return;
+        }
+
+        // Update UI based on status
+        if (status.installed && status.running) {
+          statusText.innerHTML = '✅ <strong>Running</strong> as background service';
+          serviceChip.innerHTML = '<span>Uninstall</span>';
+          serviceChip.className = 'chip warn';
+          logsChip.style.display = 'flex';
+          
+          serviceChip.onclick = async () => {
+            const confirmed = await showDialog({
+              type: 'confirm',
+              title: 'Uninstall Background Service',
+              message: 'Stop and uninstall the notifications engine background service?',
+              okText: 'Uninstall',
+              cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
+            
+            serviceChip.innerHTML = '<span>Uninstalling...</span>';
+            serviceChip.style.pointerEvents = 'none';
+            
+            try {
+              await uninstallService();
+              await showDialog({
+                title: '✅ Service Uninstalled',
+                message: 'Background service uninstalled successfully.'
+              });
+              initNotificationsServiceCard(); // Refresh
+            } catch (e) {
+              await showDialog({
+                title: '❌ Uninstall Failed',
+                message: e.message
+              });
+              serviceChip.innerHTML = '<span>Uninstall</span>';
+              serviceChip.style.pointerEvents = 'auto';
+            }
+          };
+        } else {
+          statusText.innerHTML = '⭕ Not installed as background service';
+          serviceChip.innerHTML = '<span>Install</span>';
+          serviceChip.className = 'chip ok';
+          logsChip.style.display = 'none';
+          
+          serviceChip.onclick = async () => {
+            const confirmed = await showDialog({
+              type: 'confirm',
+              title: 'Install Background Service',
+              message: 'Install the notifications engine as a background service (LaunchAgent)?\n\nIt will automatically start on login and monitor your notification rules.',
+              okText: 'Install',
+              cancelText: 'Cancel'
+            });
+            if (!confirmed) return;
+            
+            serviceChip.innerHTML = '<span>Installing...</span>';
+            serviceChip.style.pointerEvents = 'none';
+            
+            try {
+              await installService();
+              await showDialog({
+                title: '✅ Service Installed',
+                message: 'Background service installed and started successfully!\n\nLogs: ./.artifacts/notifications-engine.log'
+              });
+              initNotificationsServiceCard(); // Refresh
+            } catch (e) {
+              await showDialog({
+                title: '❌ Install Failed',
+                message: e.message
+              });
+              serviceChip.innerHTML = '<span>Install</span>';
+              serviceChip.style.pointerEvents = 'auto';
+            }
+          };
+        }
+
+        // Logs chip handler
+        if (status.logPath) {
+          logsChip.onclick = async () => {
+            await showLogsModal(status.logPath, status.errPath);
+          };
+        }
+      }
+
+      async function showLogsModal(logPath, errPath) {
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.style.zIndex = '9999';
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal large';
+        modal.style.cssText = 'max-width: min(900px, 90vw); max-height: 85vh; display: flex; flex-direction: column;';
+        
+        const title = document.createElement('h2');
+        title.textContent = '📋 Notifications Engine Logs';
+        title.style.marginBottom = '16px';
+        modal.appendChild(title);
+        
+        const info = document.createElement('div');
+        info.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--codeBg); border-radius: 8px; line-height: 1.6;';
+        info.innerHTML = `
+          <div style="margin-bottom: 12px;"><strong>Log Files:</strong></div>
+          <div style="margin-bottom: 8px;">
+            <strong>Output:</strong><br>
+            <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${logPath}</code>
+          </div>
+          <div>
+            <strong>Errors:</strong><br>
+            <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${errPath}</code>
+          </div>
+        `;
+        modal.appendChild(info);
+        
+        const commands = document.createElement('div');
+        commands.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--cardBg); border-radius: 8px;';
+        commands.innerHTML = `
+          <div style="margin-bottom: 12px;"><strong>View in Terminal:</strong></div>
+          <div style="margin-bottom: 8px;">
+            <div style="font-size: 12px; margin-bottom: 4px;">Follow output log:</div>
+            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${logPath}</code>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <div style="font-size: 12px; margin-bottom: 4px;">Follow error log:</div>
+            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${errPath}</code>
+          </div>
+          <div>
+            <div style="font-size: 12px; margin-bottom: 4px;">View last 50 lines:</div>
+            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -50 ${logPath}</code>
+          </div>
+        `;
+        modal.appendChild(commands);
+        
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        toolbar.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end; margin-top: auto;';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.onclick = () => overlay.remove();
+        toolbar.appendChild(closeBtn);
+        
+        modal.appendChild(toolbar);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        // ESC to close
+        const handleEsc = (e) => {
+          if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', handleEsc);
+          }
+        };
+        document.addEventListener('keydown', handleEsc);
+        
+        closeBtn.focus();
+      }
+
       async function openNotificationsModal(ctx){
         const route = ctx?.route;
         const source = ctx?.source || ctx?.meta?.sourceFile || 'unknown';
@@ -790,6 +1103,83 @@
             line1: `Status: ${s}`,
             line2: `${p} • ${act.toUpperCase()} → ${recStr || 'recipient(s)'}`
           };
+        }
+
+        async function sendTestNotification(n){
+          const actType = (n?.action?.type || 'text').toLowerCase();
+          if (actType !== 'text') {
+            await showDialog({
+              title: 'Test Not Available',
+              message: 'Only Text notifications can be tested right now.'
+            });
+            return;
+          }
+
+          const rec = n?.action?.recipients || [];
+          const recipients = Array.isArray(rec)
+            ? rec.map(r => String(r).trim()).filter(Boolean)
+            : String(rec).split(',').map(r => r.trim()).filter(Boolean);
+
+          if (!recipients.length) {
+            await showDialog({
+              title: 'No Recipients',
+              message: 'Add at least one recipient before sending a test.'
+            });
+            return;
+          }
+
+          const subj = (n?.message?.subject || 'Dev Tunnel Proxy notification').toString();
+          const body = (n?.message?.body || '').toString();
+
+          const testSubject = `TEST: ${subj}`;
+          const testBody = body
+            ? `This is a test notification for ${route}.\n\n${body}`
+            : `This is a test notification for ${route}.`;
+
+          const ok = await showDialog({
+            type: 'confirm',
+            title: 'Send Test Notification',
+            message: `Send a test to:\n\n${recipients.join(', ')}\n\nRoute: ${route}`,
+            okText: 'Send Test',
+            cancelText: 'Cancel'
+          });
+          if (!ok) return;
+
+          try {
+            const resp = await fetch(NOTIF_TEST_ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                recipients,
+                subject: testSubject,
+                message: testBody
+              })
+            });
+
+            let payload = null;
+            try { payload = await resp.json(); } catch {}
+
+            if (resp.ok) {
+              await showDialog({
+                title: '✅ Test Sent',
+                message: `Test notification sent to ${recipients.join(', ')}!\n\nIf this is your first time, macOS may have prompted for automation permission.\n\nTo grant permission:\n1. Open System Settings → Privacy & Security → Automation\n2. Look for "node" in the list\n3. Check the box next to "Messages"`
+              });
+            } else {
+              const detail = payload?.error || JSON.stringify(payload || {}) || `HTTP ${resp.status}`;
+              const helpText = detail.includes('not authorized') || detail.includes('permission')
+                ? '\n\n🔐 Permission Issue:\n1. Open System Settings → Privacy & Security → Automation\n2. Look for "node" and enable "Messages"\n\nOr run: open "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"'
+                : '\n\nIs the macOS notifications bridge running?\nRun: node macos/notifications-bridge.js';
+              await showDialog({
+                title: '❌ Test Failed',
+                message: `${detail}${helpText}`
+              });
+            }
+          } catch (e) {
+            await showDialog({
+              title: '❌ Test Failed',
+              message: `${e?.message || e}\n\nIs the macOS notifications bridge running?\nRun: node macos/notifications-bridge.js`
+            });
+          }
         }
 
         function render(){
@@ -911,6 +1301,17 @@
             startWizard(n);
           });
           controls.appendChild(editBtn);
+
+          const testBtn = document.createElement('button');
+          testBtn.className = 'btn-small';
+          testBtn.textContent = '🧪';
+          testBtn.title = 'Send test';
+          testBtn.disabled = !!n.recycledAt || ((n?.action?.type || 'text').toLowerCase() !== 'text');
+          testBtn.addEventListener('click', async (e) => {
+            e.preventDefault(); e.stopPropagation();
+            await sendTestNotification(n);
+          });
+          controls.appendChild(testBtn);
 
           const recycleBtn = document.createElement('button');
           recycleBtn.className = 'btn-small';
@@ -1037,18 +1438,18 @@
             f1.appendChild(hint('Trigger only when the proxy is externally accessible (e.g., ngrok) or local-only.'));
             grid.appendChild(f1);
 
-            // Status radio (formerly "Container state")
+            // Endpoint Status
             const f3 = document.createElement('div');
             f3.className = 'notif-field';
-            f3.innerHTML = `<label>Status</label>`;
+            f3.innerHTML = `<label>Endpoint Status</label>`;
             const rr2 = document.createElement('div');
             rr2.className = 'notif-radioRow';
-            ['running','paused','stopped'].forEach((s) => {
+            ['running','stopped'].forEach((s) => {
               const chip = radioChip('containerState', s[0].toUpperCase()+s.slice(1), (draft.conditions.containerState||'running') === s);
               rr2.appendChild(chip.wrap);
             });
             f3.appendChild(rr2);
-            f3.appendChild(hint('Trigger when the route status changes to this state.'));
+            f3.appendChild(hint('Trigger when the upstream endpoint is running (responding) or stopped (not responding).'));
             grid.appendChild(f3);
 
             w.appendChild(grid);
@@ -1162,7 +1563,13 @@
           next.textContent = view.step === 2 ? 'Save' : 'Next';
           next.addEventListener('click', async () => {
             const err = validateStep(view.step, view.draft);
-            if (err) { alert(err); return; }
+            if (err) { 
+              await showDialog({
+                title: 'Validation Error',
+                message: err
+              });
+              return;
+            }
             if (view.step < 2) { view.step++; render(); return; }
             // Save
             const n = view.draft;
@@ -3701,6 +4108,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           else { chatEl.innerHTML = ''; }
         }catch{ /* default: no persisted chat during normal/status tests */ }
         await refreshHealth();
+        initNotificationsServiceCard(); // Initialize notifications service card
         startThoughtsPolling();
         startHealthPolling();
 
