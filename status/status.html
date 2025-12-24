@@ -812,14 +812,27 @@
         return Array.from(names).sort((a,b)=>a.localeCompare(b));
       }
       function defaultMessageFor({ route, proxyExternallyAccessible, containerState }){
-        const proxyLabel = proxyExternallyAccessible ? 'externally accessible' : 'local-only';
         const st = (containerState || 'running').toLowerCase();
-        const subject = `Dev Tunnel Proxy: ${route} is ${st} (${proxyLabel})`;
-        const body = [
-          `Route: ${route}`,
-          `Proxy: ${proxyLabel}`,
-          `Status: ${st}`,
-        ].join('\n');
+        const isExternal = proxyExternallyAccessible;
+        
+        // Simplified, user-friendly messages
+        let subject, body;
+        
+        if (isExternal && st === 'running') {
+          subject = `✅ ${route} is live`;
+          body = `Your ${route} app is now accessible online.`;
+        } else if (isExternal && st === 'stopped') {
+          subject = `⚠️ ${route} went down`;
+          body = `Your ${route} app stopped responding and is no longer accessible.`;
+        } else if (!isExternal && st === 'stopped') {
+          subject = `🔌 Dev proxy is offline`;
+          body = `Your development proxy stopped running.`;
+        } else {
+          // Fallback for other combinations
+          subject = `${route} status: ${st}`;
+          body = `Status changed for ${route}`;
+        }
+        
         return { subject, body };
       }
 
@@ -965,14 +978,14 @@
         }
 
         // Logs chip handler
-        if (status.logPath) {
+        if (status.engine?.logPath || status.bridge?.logPath) {
           logsChip.onclick = async () => {
-            await showLogsModal(status.logPath, status.errPath);
+            await showLogsModal(status);
           };
         }
       }
 
-      async function showLogsModal(logPath, errPath) {
+      async function showLogsModal(status) {
         const overlay = document.createElement('div');
         overlay.className = 'overlay';
         overlay.style.zIndex = '9999';
@@ -982,42 +995,71 @@
         modal.style.cssText = 'max-width: min(900px, 90vw); max-height: 85vh; display: flex; flex-direction: column;';
         
         const title = document.createElement('h2');
-        title.textContent = '📋 Notifications Engine Logs';
+        title.textContent = '📋 Notifications System Logs';
         title.style.marginBottom = '16px';
         modal.appendChild(title);
         
-        const info = document.createElement('div');
-        info.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--codeBg); border-radius: 8px; line-height: 1.6;';
-        info.innerHTML = `
-          <div style="margin-bottom: 12px;"><strong>Log Files:</strong></div>
-          <div style="margin-bottom: 8px;">
-            <strong>Output:</strong><br>
-            <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${logPath}</code>
-          </div>
-          <div>
-            <strong>Errors:</strong><br>
-            <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${errPath}</code>
-          </div>
-        `;
-        modal.appendChild(info);
+        // Engine logs
+        if (status.engine?.logPath) {
+          const engineSection = document.createElement('div');
+          engineSection.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--codeBg); border-radius: 8px; line-height: 1.6;';
+          engineSection.innerHTML = `
+            <div style="margin-bottom: 12px;"><strong>🤖 Notifications Engine</strong></div>
+            <div style="margin-bottom: 8px;">
+              <strong>Output:</strong><br>
+              <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${status.engine.logPath}</code>
+            </div>
+            <div>
+              <strong>Errors:</strong><br>
+              <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${status.engine.errPath}</code>
+            </div>
+          `;
+          modal.appendChild(engineSection);
+        }
+        
+        // Bridge logs
+        if (status.bridge?.logPath) {
+          const bridgeSection = document.createElement('div');
+          bridgeSection.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--codeBg); border-radius: 8px; line-height: 1.6;';
+          bridgeSection.innerHTML = `
+            <div style="margin-bottom: 12px;"><strong>🌉 Notifications Bridge</strong></div>
+            <div style="margin-bottom: 8px;">
+              <strong>Output:</strong><br>
+              <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${status.bridge.logPath}</code>
+            </div>
+            <div>
+              <strong>Errors:</strong><br>
+              <code style="background: var(--cardBg); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-size: 11px;">${status.bridge.errPath}</code>
+            </div>
+          `;
+          modal.appendChild(bridgeSection);
+        }
         
         const commands = document.createElement('div');
         commands.style.cssText = 'margin-bottom: 16px; padding: 16px; background: var(--cardBg); border-radius: 8px;';
-        commands.innerHTML = `
-          <div style="margin-bottom: 12px;"><strong>View in Terminal:</strong></div>
-          <div style="margin-bottom: 8px;">
-            <div style="font-size: 12px; margin-bottom: 4px;">Follow output log:</div>
-            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${logPath}</code>
-          </div>
-          <div style="margin-bottom: 8px;">
-            <div style="font-size: 12px; margin-bottom: 4px;">Follow error log:</div>
-            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${errPath}</code>
-          </div>
-          <div>
-            <div style="font-size: 12px; margin-bottom: 4px;">View last 50 lines:</div>
-            <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -50 ${logPath}</code>
-          </div>
-        `;
+        let commandsHTML = '<div style="margin-bottom: 12px;"><strong>View in Terminal:</strong></div>';
+        
+        if (status.engine?.logPath) {
+          commandsHTML += `
+            <div style="margin-bottom: 12px;">
+              <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600;">Engine logs:</div>
+              <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto; margin-bottom: 4px;">tail -f ${status.engine.logPath}</code>
+              <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${status.engine.errPath}</code>
+            </div>
+          `;
+        }
+        
+        if (status.bridge?.logPath) {
+          commandsHTML += `
+            <div>
+              <div style="font-size: 12px; margin-bottom: 4px; font-weight: 600;">Bridge logs:</div>
+              <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto; margin-bottom: 4px;">tail -f ${status.bridge.logPath}</code>
+              <code style="background: var(--codeBg); padding: 8px; border-radius: 4px; display: block; font-size: 11px; overflow-x: auto;">tail -f ${status.bridge.errPath}</code>
+            </div>
+          `;
+        }
+        
+        commands.innerHTML = commandsHTML;
         modal.appendChild(commands);
         
         const toolbar = document.createElement('div');
@@ -1131,10 +1173,8 @@
           const subj = (n?.message?.subject || 'Dev Tunnel Proxy notification').toString();
           const body = (n?.message?.body || '').toString();
 
-          const testSubject = `TEST: ${subj}`;
-          const testBody = body
-            ? `This is a test notification for ${route}.\n\n${body}`
-            : `This is a test notification for ${route}.`;
+          const testSubject = `🧪 TEST: ${subj}`;
+          const testBody = `Test notification for ${route}\n\n${body}`;
 
           const ok = await showDialog({
             type: 'confirm',
@@ -1435,12 +1475,13 @@
             const no = radioChip('proxyExternal', 'No', draft.conditions.proxyExternallyAccessible === false);
             rr.appendChild(yes.wrap); rr.appendChild(no.wrap);
             f1.appendChild(rr);
-            f1.appendChild(hint('Trigger only when the proxy is externally accessible (e.g., ngrok) or local-only.'));
+            f1.appendChild(hint('If "Yes": trigger when proxy is external AND endpoint status changes. If "No": trigger only when proxy goes down (endpoint status is ignored).'));
             grid.appendChild(f1);
 
             // Endpoint Status
             const f3 = document.createElement('div');
             f3.className = 'notif-field';
+            f3.id = 'endpointStatusField';
             f3.innerHTML = `<label>Endpoint Status</label>`;
             const rr2 = document.createElement('div');
             rr2.className = 'notif-radioRow';
@@ -1454,13 +1495,25 @@
 
             w.appendChild(grid);
 
+            // Function to toggle endpoint status visibility
+            function updateEndpointStatusVisibility() {
+              const showEndpointStatus = draft.conditions.proxyExternallyAccessible === true;
+              f3.style.display = showEndpointStatus ? 'block' : 'none';
+              // When proxy is not external (No), we only care about proxy down, so set a default
+              if (!showEndpointStatus) {
+                draft.conditions.containerState = 'stopped';
+              }
+            }
+
             // Wire radios
             yes.input.addEventListener('change', () => {
               draft.conditions.proxyExternallyAccessible = true;
+              updateEndpointStatusVisibility();
               maybeUpdateDefaults();
             });
             no.input.addEventListener('change', () => {
               draft.conditions.proxyExternallyAccessible = false;
+              updateEndpointStatusVisibility();
               maybeUpdateDefaults();
             });
             rr2.querySelectorAll('input[name="containerState"]').forEach((inp) => {
@@ -1469,6 +1522,9 @@
                 maybeUpdateDefaults();
               });
             });
+
+            // Set initial visibility
+            updateEndpointStatusVisibility();
           }
 
           if (view.step === 1) {
@@ -1611,7 +1667,8 @@
         function validateStep(step, d){
           if (step === 0) {
             if (d.conditions.proxyExternallyAccessible !== true && d.conditions.proxyExternallyAccessible !== false) return 'Select whether the proxy must be externally accessible.';
-            if (!d.conditions.containerState) return 'Pick a status.';
+            // Only require containerState if proxy is external (Yes)
+            if (d.conditions.proxyExternallyAccessible === true && !d.conditions.containerState) return 'Pick a status.';
           }
           if (step === 1) {
             const rec = d.action.recipients || [];
