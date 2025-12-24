@@ -32,13 +32,14 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { spawnSync, execSync } = require('child_process');
 
 const PORT = parseInt(process.env.NOTIF_BRIDGE_PORT || '17888', 10);
 const HOST = '127.0.0.1';
 const ROOT_DIR = path.resolve(__dirname, '..');
 const LABEL = 'com.leorami.devtunnelproxy.notifications';
-const PLIST_PATH = path.join(require('os').homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
+const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
 
 function json(res, statusCode, obj) {
   const body = JSON.stringify(obj);
@@ -71,15 +72,18 @@ function normalizeRecipients(recipients) {
 }
 
 function sendViaMessages(recipient, text) {
-  // Uses iMessage service; for SMS, macOS will use SMS relay if available/enabled.
+  // Use a more natural approach that doesn't trigger Contact Key Verification
+  // This creates a new message in Messages.app as if the user typed it
   const script = `
 on run argv
   set theBuddy to item 1 of argv
   set theMessage to item 2 of argv
   tell application "Messages"
-    set targetService to 1st service whose service type = iMessage
-    set targetBuddy to buddy theBuddy of targetService
-    send theMessage to targetBuddy
+    set targetService to first service
+    set newMessage to make new outgoing message with properties {content:theMessage}
+    tell newMessage
+      send to participant theBuddy of targetService
+    end tell
   end tell
 end run
 `.trim();
@@ -112,23 +116,49 @@ function isLaunchAgentRunning() {
 }
 
 function getLaunchAgentStatus() {
-  const installed = isLaunchAgentInstalled();
-  const running = installed && isLaunchAgentRunning();
+  const engineInstalled = isLaunchAgentInstalled();
+  const engineRunning = engineInstalled && isLaunchAgentRunning();
+  
+  // Check bridge status (self)
+  const BRIDGE_LABEL = 'com.leorami.devtunnelproxy.notifications.bridge';
+  const BRIDGE_PLIST = path.join(os.homedir(), 'Library', 'LaunchAgents', `${BRIDGE_LABEL}.plist`);
+  const bridgeInstalled = fs.existsSync(BRIDGE_PLIST);
+  const bridgeRunning = bridgeInstalled; // If we're responding, we're running
   
   let logPath = null;
   let errPath = null;
-  if (installed) {
+  let bridgeLogPath = null;
+  let bridgeErrPath = null;
+  
+  if (engineInstalled) {
     logPath = path.join(ROOT_DIR, '.artifacts', 'notifications-engine.log');
     errPath = path.join(ROOT_DIR, '.artifacts', 'notifications-engine.err');
   }
+  
+  if (bridgeInstalled) {
+    bridgeLogPath = path.join(ROOT_DIR, '.artifacts', 'notifications-bridge.log');
+    bridgeErrPath = path.join(ROOT_DIR, '.artifacts', 'notifications-bridge.err');
+  }
 
   return {
-    installed,
-    running,
-    label: LABEL,
-    plistPath: PLIST_PATH,
-    logPath,
-    errPath
+    installed: engineInstalled && bridgeInstalled,
+    running: engineRunning && bridgeRunning,
+    engine: {
+      installed: engineInstalled,
+      running: engineRunning,
+      label: LABEL,
+      plistPath: PLIST_PATH,
+      logPath,
+      errPath
+    },
+    bridge: {
+      installed: bridgeInstalled,
+      running: bridgeRunning,
+      label: BRIDGE_LABEL,
+      plistPath: BRIDGE_PLIST,
+      logPath: bridgeLogPath,
+      errPath: bridgeErrPath
+    }
   };
 }
 
