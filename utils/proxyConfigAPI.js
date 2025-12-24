@@ -39,6 +39,7 @@ const OVERRIDES_DIR = path.join(ROOT, 'overrides');
 const CONFLICTS_FILE = path.join(ROOT, '.artifacts', 'override-conflicts.json');
 const ENV_FILE = path.join(ROOT, '.env');
 const SESSION_FILE = path.join(ARTIFACTS_DIR, 'admin-session.json');
+const AUTO_SCAN_SETTINGS_FILE = path.join(ARTIFACTS_DIR, 'auto-scan-settings.json');
 
 // ========================================
 // API BASE PATH CONFIGURATION
@@ -204,6 +205,41 @@ function requireAuth(req, res, u) {
 
 // Load sessions on startup
 loadSessions();
+
+// ========================================
+// AUTO-SCAN SETTINGS MANAGEMENT
+// ========================================
+
+function loadAutoScanSettings() {
+  try {
+    if (fs.existsSync(AUTO_SCAN_SETTINGS_FILE)) {
+      const content = fs.readFileSync(AUTO_SCAN_SETTINGS_FILE, 'utf8');
+      return JSON.parse(content);
+    }
+  } catch (e) {
+    console.error('[AUTO-SCAN] Failed to load settings:', e.message);
+  }
+  // Return defaults
+  return {
+    enabled: true,
+    intervalSeconds: 15
+  };
+}
+
+function saveAutoScanSettings(settings) {
+  try {
+    fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+    const data = {
+      ...settings,
+      updatedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(AUTO_SCAN_SETTINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('[AUTO-SCAN] Failed to save settings:', e.message);
+    return false;
+  }
+}
 
 // In-memory thinking events queue for UI thinking bubble
 // Keep thoughts for 10 seconds so multiple polls can see them
@@ -670,7 +706,8 @@ async function handle(req, res){
       apiPath('ai/health'),
       apiPath('ai/stats'),
       apiPath('ai/thoughts'),
-      apiPath('overrides/conflicts')
+      apiPath('overrides/conflicts'),
+      apiPath('settings/auto-scan')
     ];
     
     const isPublicEndpoint = publicEndpoints.some(path => u.pathname === path);
@@ -795,6 +832,46 @@ async function handle(req, res){
         return send(res, 200, { ok:true, deletedCount: deleted.length, deleted });
       }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
     }
+    
+    // ===== Auto-Scan Settings Management =====
+    // GET /api/settings/auto-scan → get current auto-scan settings
+    if (req.method === 'GET' && u.pathname === apiPath('settings/auto-scan')){
+      try{
+        const settings = loadAutoScanSettings();
+        return send(res, 200, { ok: true, settings });
+      }catch(e){ return send(res, 500, { ok: false, error: e.message }); }
+    }
+    
+    // POST /api/settings/auto-scan → update auto-scan settings
+    // Body: { enabled: boolean, intervalSeconds: number }
+    if (req.method === 'POST' && u.pathname === apiPath('settings/auto-scan')){
+      try{
+        const body = await parseBody(req);
+        const currentSettings = loadAutoScanSettings();
+        
+        // Validate and merge settings
+        const newSettings = {
+          enabled: typeof body.enabled === 'boolean' ? body.enabled : currentSettings.enabled,
+          intervalSeconds: typeof body.intervalSeconds === 'number' && body.intervalSeconds >= 5 && body.intervalSeconds <= 300 
+            ? body.intervalSeconds 
+            : currentSettings.intervalSeconds
+        };
+        
+        const saved = saveAutoScanSettings(newSettings);
+        if (saved) {
+          console.log('[AUTO-SCAN] Settings updated:', newSettings);
+          return send(res, 200, { 
+            ok: true, 
+            settings: newSettings,
+            message: 'Settings saved. Restart containers to apply changes.',
+            restartCommand: './smart-build.sh restart'
+          });
+        } else {
+          return send(res, 500, { ok: false, error: 'Failed to save settings' });
+        }
+      }catch(e){ return send(res, 500, { ok: false, error: e.message }); }
+    }
+    
     // GET /api/apps/list → list installed app configs with mtime/size
     if (req.method === 'GET' && u.pathname === apiPath('apps/list')){
       try{
