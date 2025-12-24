@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Dev Tunnel Proxy - Notifications Engine Wrapper
+# This wrapper provides a better process name for macOS automation permissions
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# LaunchAgents don't inherit full PATH, so check explicit paths first
+if [[ -x "/opt/homebrew/bin/node" ]]; then
+  NODE_BIN="/opt/homebrew/bin/node"
+elif [[ -x "/usr/local/bin/node" ]]; then
+  NODE_BIN="/usr/local/bin/node"
+elif [[ -x "$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | tail -1)/bin/node" ]]; then
+  NODE_BIN="$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" | tail -1)/bin/node"
+elif command -v node &>/dev/null; then
+  NODE_BIN="$(command -v node)"
+else
+  echo "Error: node not found in PATH or common locations" >&2
+  echo "Searched: /opt/homebrew/bin, /usr/local/bin, ~/.nvm, PATH" >&2
+  exit 1
+fi
+
+exec "$NODE_BIN" "$SCRIPT_DIR/notifications-engine.js" "$@"
+
