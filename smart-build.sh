@@ -19,6 +19,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Load auto-scan settings from .artifacts/auto-scan-settings.json
+load_auto_scan_settings() {
+  local settings_file="$ROOT_DIR/.artifacts/auto-scan-settings.json"
+  
+  # If settings file exists, load it
+  if [ -f "$settings_file" ]; then
+    # Use jq if available, otherwise use grep/sed
+    if command -v jq >/dev/null 2>&1; then
+      export AUTO_SCAN_ENABLED=$(jq -r '.enabled // true' "$settings_file" | sed 's/true/1/;s/false/0/')
+      export AUTO_SCAN_INTERVAL_SECONDS=$(jq -r '.intervalSeconds // 15' "$settings_file")
+    else
+      # Fallback to grep/sed parsing
+      local enabled=$(grep -o '"enabled"[[:space:]]*:[[:space:]]*[a-z]*' "$settings_file" 2>/dev/null | sed 's/.*:[[:space:]]*//;s/true/1/;s/false/0/')
+      local interval=$(grep -o '"intervalSeconds"[[:space:]]*:[[:space:]]*[0-9]*' "$settings_file" 2>/dev/null | sed 's/.*:[[:space:]]*//')
+      export AUTO_SCAN_ENABLED="${enabled:-1}"
+      export AUTO_SCAN_INTERVAL_SECONDS="${interval:-15}"
+    fi
+  else
+    # Use defaults if file doesn't exist
+    export AUTO_SCAN_ENABLED="${AUTO_SCAN_ENABLED:-1}"
+    export AUTO_SCAN_INTERVAL_SECONDS="${AUTO_SCAN_INTERVAL_SECONDS:-15}"
+  fi
+}
+
 get_ngrok_url() {
   # Env overrides
   if [ -n "${NGROK_STATIC_DOMAIN:-}" ]; then echo "https://${NGROK_STATIC_DOMAIN}"; return; fi
@@ -202,6 +226,7 @@ cmd_setup() {
 
 cmd_up() {
   ensure_network
+  load_auto_scan_settings
   echo "==> Regenerating app bundle..."
   if command -v node >/dev/null 2>&1; then
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
@@ -210,8 +235,8 @@ cmd_up() {
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
   fi
-  echo "==> Starting containers..."
-  (cd "$ROOT_DIR" && $COMPOSE up -d)
+  echo "==> Starting containers (auto-scan: ${AUTO_SCAN_ENABLED}, interval: ${AUTO_SCAN_INTERVAL_SECONDS}s)..."
+  (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans)
   sleep 2
   check_and_reindex_calliope
   show_access_info
@@ -219,13 +244,16 @@ cmd_up() {
 
 cmd_down() {
   echo "==> Stopping containers..."
-  (cd "$ROOT_DIR" && $COMPOSE down)
+  (cd "$ROOT_DIR" && $COMPOSE stop)
 }
 
 cmd_restart() {
-  echo "==> Restarting containers..."
-  (cd "$ROOT_DIR" && $COMPOSE down --remove-orphans)
+  echo "==> Restarting containers (without removing them)..."
+  # Stop services cleanly so we preserve container IDs and logs (including dev-ngrok)
+  (cd "$ROOT_DIR" && $COMPOSE stop)
+
   ensure_network
+  load_auto_scan_settings
   if command -v node >/dev/null 2>&1; then
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
@@ -233,7 +261,10 @@ cmd_restart() {
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
   fi
-  (cd "$ROOT_DIR" && $COMPOSE up -d)
+
+  # Bring everything back up, and remove any containers that no longer exist in the compose file
+  echo "==> Starting containers (auto-scan: ${AUTO_SCAN_ENABLED}, interval: ${AUTO_SCAN_INTERVAL_SECONDS}s)..."
+  (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans)
   sleep 2
   check_and_reindex_calliope
   show_access_info
@@ -273,7 +304,8 @@ cmd_apply() {
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
     docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
   fi
-  (cd "$ROOT_DIR" && $COMPOSE up -d --force-recreate)
+  (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans --force-recreate proxy proxy-config-api)
+  (cd "$ROOT_DIR" && $COMPOSE up -d ngrok)
   sleep 2
   check_and_reindex_calliope
   show_access_info
