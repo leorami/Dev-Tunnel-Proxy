@@ -1242,3 +1242,34 @@ However, the **multi-container approach provides superior flexibility** without 
 - **Documentation**: See `docs/` directory
 - **Examples**: See `examples/` directory
 - **Troubleshooting**: Check `docs/TROUBLESHOOTING.md`
+
+
+
+
+## macOS Notifications Bridge
+
+The notifications UI includes a **🧪 test** button for Text notifications and can install/manage the background notifications engine. Because sending texts is **macOS-only**, run the local bridge on your Mac:
+
+```bash
+node macos/notifications-bridge.js
+```
+
+The bridge provides:
+- **Test notifications** - Send test messages via Messages.app from the UI
+- **Service management** - Install/uninstall the background notifications engine directly from the UI
+- **Service status** - Check if the background engine is running
+
+The Status UI connects to `http://127.0.0.1:17888` to access these features.
+
+### Installing the Background Service
+
+Once the bridge is running, open any route's Notifications panel in the Status UI. You'll see a **⚙️ Background Service** section where you can:
+- Check if the service is installed and running
+- Install the service with one click
+- Uninstall the service when no longer needed
+- View log file locations
+
+Notes:
+- The first time, macOS will prompt you to allow automation access for the process that runs the bridge.
+- This is intended for iMessage and SMS relay (when enabled on your Mac).
+- See `docs/NOTIFICATIONS_EXECUTION_MACOS.md` for more details.
