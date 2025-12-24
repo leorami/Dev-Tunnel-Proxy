@@ -43,6 +43,21 @@
 - **⚡ Hot Reload**: Safe configuration updates without downtime
 - **🧪 Automated Testing**: Built-in health checks, route scanning, and UI testing with Playwright
 
+## Recent Updates (December 2025)
+
+### macOS Notifications System
+- **Text Notifications**: Route status changes can now send text messages via Messages.app (macOS only)
+- **Notifications Bridge**: Local HTTP server for UI integration and service management
+- **Background Service**: Install/uninstall notifications engine directly from the UI
+- **Deployment-Agnostic**: Checks endpoint availability via HTTP instead of Docker-specific state
+- **Smart Architecture**: Engine → Bridge → Messages.app for proper macOS permissions
+
+### Documentation Consolidation
+- **New API.md**: Comprehensive API reference consolidating endpoint structure and migration guides
+- **Renamed Files**: CALLIOPE.md → CALLIOPE_ASSISTANT.md, OPERATIONS.md → TESTING_SECURITY_AND_QUALITY.md
+- **Cleaner Structure**: All docs are now final-version references without "new features" or "recent changes" language
+- **Better Navigation**: Updated cross-references across all documentation files
+
 ## Quick Start
 
 ### 1. Initial Setup
@@ -1066,47 +1081,48 @@ Our documentation has been consolidated for easier navigation. Here are the core
    - Adding your app to the proxy
    - Using the status dashboard
    - Working with Calliope AI
-
-2. **[Endpoint Structure](docs/ENDPOINT-STRUCTURE.md)** - ⭐ NEW: Understanding endpoint namespaces
-   - Authentication endpoints (`/admin/*`)
-   - Management API endpoints (`/devproxy/api/*`)
-   - Best practices for client applications
-   - Complete endpoint reference
    - Common workflows and troubleshooting
 
-2. **[Architecture](docs/ARCHITECTURE.md)** - Technical system design
+2. **[API Reference](docs/API.md)** - Complete API documentation
+   - Endpoint structure and namespaces
+   - Authentication and session management
+   - Configuration management APIs
+   - Calliope AI endpoints
+   - Client integration examples
+   - Migration guide
+
+3. **[Architecture](docs/ARCHITECTURE.md)** - Technical system design
    - Container topology and responsibilities
    - Data flow and request lifecycle
    - Configuration system
    - Resilience and error handling
    - Performance characteristics
 
-3. **[Configuration](docs/CONFIGURATION.md)** - Managing proxy configuration
+4. **[Configuration](docs/CONFIGURATION.md)** - Managing proxy configuration
    - Reserved paths and restrictions
    - Route conflicts and resolution
    - Overrides and precedence
-   - API endpoints reference
    - Best practices and common scenarios
 
-4. **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope AI Assistant](docs/CALLIOPE.md)** - Your caring AI companion
+5. **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> [Calliope AI Assistant](docs/CALLIOPE_ASSISTANT.md)** - Your caring AI companion
    - Personality and capabilities
    - Self-healing system
    - RAG knowledge base
    - API endpoints
    - Testing and validation
 
-5. **[Product & Roadmap](docs/PRODUCT.md)** - Vision and future plans
+6. **[Testing, Security & Quality](docs/TESTING_SECURITY_AND_QUALITY.md)** - Operational excellence
+   - Testing strategies and suites
+   - Security model and best practices
+   - Known issues and limitations
+   - Operational best practices
+
+7. **[Product & Roadmap](docs/PRODUCT.md)** - Vision and future plans
    - Product overview and value propositions
    - Use cases and target audience
    - Competitive landscape
    - Feature roadmap (v1.1 through v1.4)
    - Success metrics and community
-
-6. **[Operations](docs/OPERATIONS.md)** - Testing, security, and quality
-   - Testing strategies and suites
-   - Security model and best practices
-   - Known issues and limitations
-   - Operational best practices
 
 ### 📦 Archive
 
@@ -1241,7 +1257,7 @@ However, the **multi-container approach provides superior flexibility** without 
 - <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="16" style="vertical-align: middle;" /> **Ask Calliope**: Click the stethoscope icon in the status dashboard
 - **Documentation**: See `docs/` directory
 - **Examples**: See `examples/` directory
-- **Troubleshooting**: Check `docs/TROUBLESHOOTING.md`
+- **Troubleshooting**: Check `docs/USER_GUIDE.md#troubleshooting`
 
 
 
