@@ -443,9 +443,9 @@
               <h3>
                 <span title="Desktop notifications for route health changes">🔔 Notifications</span>
               </h3>
-              <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px;">
                 <span id="notificationsServiceText" style="flex: 1; font-size: 12px; color: var(--muted);">Checking...</span>
-                <div style="display: flex; gap: 6px;">
+                <div style="display: flex; gap: 6px; align-items: center;">
                   <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 11px;">
                     <span>Loading...</span>
                   </div>
@@ -462,19 +462,19 @@
                 <span title="Automatically scan routes for health issues">🔍 Auto-Scan</span>
               </h3>
               
-              <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px;">
-                <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0;">
+              <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
+                <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
                   <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
                   <span style="font-weight: 600; font-size: 12px;">On</span>
                 </label>
                 
-                <div class="chip" style="font-size: 11px; flex-shrink: 0;" title="Scan interval in seconds">
+                <div class="chip" style="font-size: 11px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
                   <span>⏱️</span>
                   <input type="number" id="autoScanInterval" min="5" max="300" step="5" class="compact-input" title="Scan interval (5-300 seconds)">
                   <span style="color: var(--muted);">s</span>
                 </div>
                 
-                <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0;">
+                <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; align-items: center;">
                   <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600;" title="Save changes">
                     💾
                   </button>
@@ -1293,7 +1293,7 @@
 
           const title = document.createElement('div');
           title.className = 'title';
-          title.innerHTML = `<h2 style="margin:0">Notifications</h2><small>${source} • <span style="font-family:var(--mono, monospace)">${route}</span></small>`;
+          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${source} • <span style="font-family:var(--mono, monospace)">${route}</span></small>`;
           header.appendChild(title);
 
           const actions = document.createElement('div');
@@ -1667,15 +1667,6 @@
           const toolbar = document.createElement('div');
           toolbar.className = 'toolbar';
 
-          const cancel = document.createElement('button');
-          cancel.className = 'btn';
-          cancel.textContent = 'Cancel';
-          cancel.addEventListener('click', () => {
-            view.mode = 'list';
-            view.draft = null;
-            render();
-          });
-
           const next = document.createElement('button');
           next.className = 'btn';
           next.textContent = view.step === 2 ? 'Save' : 'Next';
@@ -1718,7 +1709,6 @@
             render();
           });
 
-          toolbar.appendChild(cancel);
           if (view.step === 2) toolbar.appendChild(resetDefaults);
           toolbar.appendChild(next);
           w.appendChild(toolbar);
