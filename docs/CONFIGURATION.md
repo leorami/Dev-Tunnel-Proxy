@@ -640,8 +640,9 @@ fi
 
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started and daily workflows
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and data flow
-- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities
-- **[OPERATIONS.md](OPERATIONS.md)** - Testing, security, and quality assurance
+- **[CALLIOPE_ASSISTANT.md](CALLIOPE_ASSISTANT.md)** - AI assistant capabilities
+- **[API.md](API.md)** - Complete API reference
+- **[TESTING_SECURITY_AND_QUALITY.md](TESTING_SECURITY_AND_QUALITY.md)** - Testing, security, and quality assurance
 
 This comprehensive configuration management system ensures your development proxy remains robust and manageable even as your application ecosystem grows in complexity.
 

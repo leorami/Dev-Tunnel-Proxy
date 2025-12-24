@@ -821,5 +821,6 @@ If this project inspires you, consider supporting families affected by TSC throu
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started with Dev Tunnel Proxy
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical design and decisions
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management
-- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities and personality
-- **[OPERATIONS.md](OPERATIONS.md)** - Testing, security, and quality assurance
+- **[CALLIOPE_ASSISTANT.md](CALLIOPE_ASSISTANT.md)** - AI assistant capabilities and personality
+- **[API.md](API.md)** - Complete API reference
+- **[TESTING_SECURITY_AND_QUALITY.md](TESTING_SECURITY_AND_QUALITY.md)** - Testing, security, and quality assurance

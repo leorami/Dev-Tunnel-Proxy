@@ -1199,6 +1199,7 @@ services:
 
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started and daily usage
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management details
-- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities
-- **[OPERATIONS.md](OPERATIONS.md)** - Testing, security, and quality assurance
+- **[CALLIOPE_ASSISTANT.md](CALLIOPE_ASSISTANT.md)** - AI assistant capabilities
+- **[API.md](API.md)** - Complete API reference
+- **[TESTING_SECURITY_AND_QUALITY.md](TESTING_SECURITY_AND_QUALITY.md)** - Testing, security, and quality assurance
 - **[PRODUCT.md](PRODUCT.md)** - Product vision and roadmap

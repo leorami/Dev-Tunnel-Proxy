@@ -585,7 +585,7 @@ apps/staging/
 
 ## Troubleshooting
 
-This section covers common issues and their solutions. For more details, see [CONFIGURATION.md](./CONFIGURATION.md) and [OPERATIONS.md](./OPERATIONS.md).
+This section covers common issues and their solutions. For more details, see [CONFIGURATION.md](./CONFIGURATION.md) and [TESTING_SECURITY_AND_QUALITY.md](./TESTING_SECURITY_AND_QUALITY.md).
 
 ### Critical: proxy_pass Trailing Slash Behavior
 
@@ -1224,9 +1224,10 @@ Test artifacts:      .artifacts/ui/
 2. **Ask Calliope** - AI assistant in the dashboard
 3. **Read Documentation**:
    - [CONFIGURATION.md](./CONFIGURATION.md) - Advanced configuration
-   - [CALLIOPE.md](./CALLIOPE.md) - AI assistant capabilities
+   - [CALLIOPE_ASSISTANT.md](./CALLIOPE_ASSISTANT.md) - AI assistant capabilities
    - [ARCHITECTURE.md](./ARCHITECTURE.md) - System design
-   - [OPERATIONS.md](./OPERATIONS.md) - Testing & security
+   - [API.md](./API.md) - Complete API reference
+   - [TESTING_SECURITY_AND_QUALITY.md](./TESTING_SECURITY_AND_QUALITY.md) - Testing & security
 4. **Check Logs** - `./smart-build.sh logs`
 5. **Ask Community** - GitHub Discussions
 

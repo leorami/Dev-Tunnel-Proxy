@@ -1,4 +1,4 @@
-# Operations Guide: Testing, Security & Quality Assurance
+# Testing, Security & Quality Assurance
 
 **Last Updated**: December 2025  
 **Version**: 1.0
@@ -1393,6 +1393,7 @@ curl http://localhost:4040/api/tunnels | jq
 - **[USER_GUIDE.md](USER_GUIDE.md)** - Getting started and daily workflows
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and data flow
 - **[CONFIGURATION.md](CONFIGURATION.md)** - Configuration management
-- **[CALLIOPE.md](CALLIOPE.md)** - AI assistant capabilities
+- **[CALLIOPE_ASSISTANT.md](CALLIOPE_ASSISTANT.md)** - AI assistant capabilities
+- **[API.md](API.md)** - Complete API reference
 - **[PRODUCT.md](PRODUCT.md)** - Product vision and roadmap
 

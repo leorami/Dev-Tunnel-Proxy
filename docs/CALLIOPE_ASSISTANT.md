@@ -942,7 +942,8 @@ She's not just an AI—she's your proxy's voice, personality, and guardian. 💖
 ## See Also
 
 - **[User Guide](USER_GUIDE.md)** - How to use Calliope in daily workflow
-- **[Configuration Guide](CONFIGURATION.md)** - API endpoint documentation
+- **[API Reference](API.md)** - Complete API endpoint documentation
+- **[Configuration Guide](CONFIGURATION.md)** - Configuration management
 - **[Architecture](ARCHITECTURE.md)** - Technical system design
-- **[Operations Guide](OPERATIONS.md)** - Test suites and validation
+- **[Testing, Security & Quality](TESTING_SECURITY_AND_QUALITY.md)** - Test suites and validation
 
