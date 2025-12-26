@@ -737,7 +737,7 @@
         }
       }
       
-      async function togglePromotion(route, configFile) {
+      async function togglePromotion(route, configFile, mode = null) {
         const promotions = await loadPromotions();
         if (!promotions[configFile]) promotions[configFile] = {};
         
@@ -749,12 +749,80 @@
             delete promotions[configFile];
           }
         } else {
-          // Promote: add to promotions
-          promotions[configFile][route] = true;
+          // Promote: add to promotions with mode
+          // If mode is not specified, show a dialog to choose
+          if (!mode) {
+            mode = await showPromotionModeDialog(route, configFile);
+            if (!mode) return; // User cancelled
+          }
+          promotions[configFile][route] = { mode: mode };
         }
         
         await savePromotions(promotions);
         rebuildApps(); // Refresh the UI
+      }
+      
+      async function showPromotionModeDialog(route, configFile) {
+        return new Promise((resolve) => {
+          const overlay = document.createElement('div');
+          overlay.className = 'overlay';
+          overlay.style.zIndex = '4000';
+          
+          const modal = document.createElement('div');
+          modal.className = 'modal';
+          modal.style.maxWidth = '500px';
+          modal.innerHTML = `
+            <h2>🎓 Promote Route</h2>
+            <p style="margin: 12px 0; color: var(--text); opacity: 0.9;">
+              Choose how to group routes for <strong style="color: var(--lnk);">${route}</strong> from <strong>${configFile}</strong>:
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin: 20px 0;">
+              <button class="mode-btn" data-mode="children" style="padding: 16px; text-align: left; background: var(--panel); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="font-weight: 600; margin-bottom: 4px;">📁 Group Child Routes</div>
+                <div style="font-size: 13px; opacity: 0.8;">Groups routes whose paths start with this route (e.g., ${route}admin/, ${route}api/)</div>
+              </button>
+              <button class="mode-btn" data-mode="config" style="padding: 16px; text-align: left; background: var(--panel); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                <div style="font-weight: 600; margin-bottom: 4px;">📄 Group Entire Config File</div>
+                <div style="font-size: 13px; opacity: 0.8;">Groups all routes from ${configFile} under the config file name</div>
+              </button>
+            </div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;">
+              <button class="cancel-btn" style="padding: 8px 16px; background: transparent; border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">Cancel</button>
+            </div>
+          `;
+          
+          overlay.appendChild(modal);
+          document.body.appendChild(overlay);
+          
+          // Add hover effects
+          modal.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+              btn.style.borderColor = 'var(--lnk)';
+              btn.style.background = 'rgba(127, 176, 255, 0.1)';
+            });
+            btn.addEventListener('mouseleave', () => {
+              btn.style.borderColor = 'var(--border)';
+              btn.style.background = 'var(--panel)';
+            });
+            btn.addEventListener('click', () => {
+              const mode = btn.dataset.mode;
+              document.body.removeChild(overlay);
+              resolve(mode);
+            });
+          });
+          
+          modal.querySelector('.cancel-btn').addEventListener('click', () => {
+            document.body.removeChild(overlay);
+            resolve(null);
+          });
+          
+          overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+              document.body.removeChild(overlay);
+              resolve(null);
+            }
+          });
+        });
       }
 
       // -------------------------------
@@ -2028,9 +2096,21 @@
         actionContainer.appendChild(openBtn);
         
         // Promote/Demote button (promotions passed as parameter)
-        const isPromoted = promotions?.[source]?.[route] || false;
+        const promotionData = promotions?.[source]?.[route];
+        const isPromoted = !!promotionData;
+        const promotionMode = isPromoted && typeof promotionData === 'object' ? promotionData.mode : null;
+        
+        let promoteTitle = 'Promote (group routes)';
+        if (isPromoted) {
+          if (promotionMode === 'config') {
+            promoteTitle = 'Demote (ungroup config file)';
+          } else {
+            promoteTitle = 'Demote (ungroup children)';
+          }
+        }
+        
         const promoteBtn = createActionButton('promote', {
-          title: isPromoted ? 'Demote (ungroup children)' : 'Promote (group children under this route)',
+          title: promoteTitle,
           innerHTML: isPromoted ? '⬇️' : '🎓',
           dataset: { route, source }
         });
@@ -2320,21 +2400,52 @@
             if (processedRoutes.has(item.route)) return;
             
             const configFile = item.source;
-            const isPromoted = promotions?.[configFile]?.[item.route] || false;
+            const promotionData = promotions?.[configFile]?.[item.route];
+            const isPromoted = !!promotionData;
             
             if (isPromoted) {
-              // Find children of this promoted route
-              const children = filteredRoutes.filter(child => 
-                child.route !== item.route &&
-                child.source === configFile &&
-                child.route.startsWith(item.route) &&
-                (child.route[item.route.length] === '/' || item.route.endsWith('/'))
-              );
+              // Get promotion mode (default to 'children' for backward compatibility)
+              const mode = typeof promotionData === 'object' ? promotionData.mode : 'children';
+              
+              let children = [];
+              let displayName = item.route;
+              
+              if (mode === 'config') {
+                // Group all routes from the same config file
+                children = filteredRoutes.filter(child => 
+                  child.route !== item.route &&
+                  child.source === configFile
+                );
+                // Display config file name instead of route
+                displayName = configFile.replace(/\.conf$/, '');
+              } else {
+                // Group child routes (default behavior)
+                children = filteredRoutes.filter(child => 
+                  child.route !== item.route &&
+                  child.source === configFile &&
+                  child.route.startsWith(item.route) &&
+                  (child.route[item.route.length] === '/' || item.route.endsWith('/'))
+                );
+              }
               
               // Create parent card
               const parentCard = createRouteCard(item, targetsArr, routes, meta, promotions);
               parentCard.classList.add('promoted-parent');
               parentCard.style.position = 'relative';
+              
+              // If config mode, replace the route display with config file name
+              if (mode === 'config') {
+                const routeLabel = parentCard.querySelector('.route-label');
+                if (routeLabel) {
+                  routeLabel.textContent = displayName;
+                  routeLabel.style.fontSize = '16px';
+                  routeLabel.style.fontWeight = '600';
+                  // Add file icon
+                  const fileIcon = document.createElement('span');
+                  fileIcon.textContent = '📄 ';
+                  routeLabel.insertBefore(fileIcon, routeLabel.firstChild);
+                }
+              }
               
               // Add visual indicator that this is a parent with children
               if (children.length > 0) {
@@ -2345,7 +2456,8 @@
                 const badge = document.createElement('div');
                 badge.className = 'children-toggle-badge';
                 badge.style.cssText = 'background:rgba(22,199,132,0.8);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.2s, transform 0.2s;';
-                badge.innerHTML = `<span>${children.length} child${children.length > 1 ? 'ren' : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
+                const childLabel = mode === 'config' ? 'route' : 'child';
+                badge.innerHTML = `<span>${children.length} ${childLabel}${children.length > 1 ? (mode === 'config' ? 's' : 'ren') : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
                 
                 // Add badge to the badge row (row 5)
                 parentCard._badgeRow.appendChild(badge);
