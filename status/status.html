@@ -687,13 +687,58 @@
         try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
       }
       function savePrefs(p){ localStorage.setItem('statusPrefs', JSON.stringify(p||{})); }
-      function loadPromotions(){
+      
+      // Route Promotions - with server sync
+      function loadPromotionsLocal(){
         try{ return JSON.parse(localStorage.getItem('routePromotions')||'{}'); }catch{ return {}; }
       }
-      function savePromotions(p){ localStorage.setItem('routePromotions', JSON.stringify(p||{})); }
+      function savePromotionsLocal(p){ localStorage.setItem('routePromotions', JSON.stringify(p||{})); }
       
-      function togglePromotion(route, configFile) {
-        const promotions = loadPromotions();
+      async function loadPromotions(){
+        // Try to load from server first, fall back to localStorage
+        try {
+          const url = window.DTP?.config?.apiPath('promotions') || '/devproxy/api/promotions';
+          const response = await fetch(url, { credentials: 'same-origin' });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.ok && data.promotions) {
+              // Sync to localStorage for offline access
+              savePromotionsLocal(data.promotions);
+              return data.promotions;
+            }
+          }
+        } catch (e) {
+          console.warn('[PROMOTIONS] Failed to load from server, using localStorage:', e.message);
+        }
+        // Fall back to localStorage
+        return loadPromotionsLocal();
+      }
+      
+      async function savePromotions(p){
+        // Save to localStorage immediately for instant UI update
+        savePromotionsLocal(p);
+        
+        // Sync to server in background (best-effort)
+        try {
+          const url = window.DTP?.config?.apiPath('promotions') || '/devproxy/api/promotions';
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ promotions: p })
+          });
+          if (response.ok) {
+            console.log('[PROMOTIONS] Synced to server successfully');
+          } else {
+            console.warn('[PROMOTIONS] Failed to sync to server, saved locally only');
+          }
+        } catch (e) {
+          console.warn('[PROMOTIONS] Server sync failed, saved locally only:', e.message);
+        }
+      }
+      
+      async function togglePromotion(route, configFile) {
+        const promotions = await loadPromotions();
         if (!promotions[configFile]) promotions[configFile] = {};
         
         if (promotions[configFile][route]) {
@@ -708,7 +753,7 @@
           promotions[configFile][route] = true;
         }
         
-        savePromotions(promotions);
+        await savePromotions(promotions);
         rebuildApps(); // Refresh the UI
       }
 
@@ -1921,7 +1966,7 @@
         });
       }
 
-      function createRouteCard(item, targetsArr, routes, meta) {
+      function createRouteCard(item, targetsArr, routes, meta, promotions = {}) {
         const app = document.createElement('div');
         app.className = 'app';
         const route = item.route;
@@ -1982,8 +2027,7 @@
         });
         actionContainer.appendChild(openBtn);
         
-        // Promote/Demote button
-        const promotions = loadPromotions();
+        // Promote/Demote button (promotions passed as parameter)
         const isPromoted = promotions?.[source]?.[route] || false;
         const promoteBtn = createActionButton('promote', {
           title: isPromoted ? 'Demote (ungroup children)' : 'Promote (group children under this route)',
@@ -2081,12 +2125,15 @@
         return app;
       }
 
-      function rebuildApps(){
+      async function rebuildApps(){
         const routes = routesData;
         const appsEl = document.getElementById('apps');
         appsEl.innerHTML = '';
         const targets = Object.keys(routes.summary||{});
         const meta = routes.metadata || {};
+        
+        // Load promotions once at the start
+        const promotions = await loadPromotions();
         const bySource = {};
         Object.keys(meta).forEach(r => {
           const srcFull = (meta[r] && meta[r].sourceFile) || 'unknown.conf';
@@ -2094,12 +2141,12 @@
           (bySource[src] = bySource[src] || []).push(r);
         });
         // Responsive columns are handled by CSS media queries
-        function buildGroupsByBase(routesInSource, meta, configFile){
+        async function buildGroupsByBase(routesInSource, meta, configFile){
           const systemRoutes = new Set(['/health/','/status/','/reports/','/api/config/',window.DTP.config.apiPath('resolve-conflict'),window.DTP.config.apiPath('rename-route')]);
           const routesList = routesInSource.filter(r=>!systemRoutes.has(r));
           
           // SIMPLIFIED: No auto-promotion, only manual promotions within same config file
-          promotedRoots = loadPromotions();
+          promotedRoots = await loadPromotions();
           const groups = [];
           const processedRoutes = new Set();
           
@@ -2255,7 +2302,7 @@
             routesContainer.className = 'config-routes-container';
             
             grouped[source].forEach(item => {
-              const app = createRouteCard(item, targetsArr, routes, meta);
+              const app = createRouteCard(item, targetsArr, routes, meta, promotions);
               routesContainer.appendChild(app);
             });
             
@@ -2266,8 +2313,7 @@
           // Flat view with optional manual promotions
           filteredRoutes.sort(sortFunction);
           
-          // Check for promoted routes and group their children
-          const promotions = loadPromotions();
+          // Check for promoted routes and group their children (promotions loaded at function start)
           const processedRoutes = new Set();
           
           filteredRoutes.forEach(item => {
@@ -2286,7 +2332,7 @@
               );
               
               // Create parent card
-              const parentCard = createRouteCard(item, targetsArr, routes, meta);
+              const parentCard = createRouteCard(item, targetsArr, routes, meta, promotions);
               parentCard.classList.add('promoted-parent');
               parentCard.style.position = 'relative';
               
@@ -2310,7 +2356,7 @@
                 childrenContainer.style.cssText = 'display:none;padding-top:16px;border-top:1px solid var(--border);flex-direction:column;gap:8px;';
                 
                 children.forEach(child => {
-                  const childCard = createRouteCard(child, targetsArr, routes, meta);
+                  const childCard = createRouteCard(child, targetsArr, routes, meta, promotions);
                   childCard.classList.add('promoted-child');
                   childCard.style.opacity = '0.9';
                   childCard.style.background = 'var(--panel)';
@@ -2344,7 +2390,7 @@
               processedRoutes.add(item.route);
             } else {
               // Regular route card
-              const app = createRouteCard(item, targetsArr, routes, meta);
+              const app = createRouteCard(item, targetsArr, routes, meta, promotions);
               appsEl.appendChild(app);
               processedRoutes.add(item.route);
             }

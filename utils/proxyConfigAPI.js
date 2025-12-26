@@ -40,6 +40,7 @@ const CONFLICTS_FILE = path.join(ROOT, '.artifacts', 'override-conflicts.json');
 const ENV_FILE = path.join(ROOT, '.env');
 const SESSION_FILE = path.join(ARTIFACTS_DIR, 'admin-session.json');
 const AUTO_SCAN_SETTINGS_FILE = path.join(ARTIFACTS_DIR, 'auto-scan-settings.json');
+const ROUTE_PROMOTIONS_FILE = path.join(ARTIFACTS_DIR, 'route-promotions.json');
 
 // ========================================
 // API BASE PATH CONFIGURATION
@@ -237,6 +238,38 @@ function saveAutoScanSettings(settings) {
     return true;
   } catch (e) {
     console.error('[AUTO-SCAN] Failed to save settings:', e.message);
+    return false;
+  }
+}
+
+// ========================================
+// ROUTE PROMOTIONS MANAGEMENT
+// ========================================
+
+function loadRoutePromotions() {
+  try {
+    if (fs.existsSync(ROUTE_PROMOTIONS_FILE)) {
+      const content = fs.readFileSync(ROUTE_PROMOTIONS_FILE, 'utf8');
+      return JSON.parse(content);
+    }
+  } catch (e) {
+    console.error('[PROMOTIONS] Failed to load promotions:', e.message);
+  }
+  // Return empty object as default
+  return {};
+}
+
+function saveRoutePromotions(promotions) {
+  try {
+    fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+    const data = {
+      ...promotions,
+      updatedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(ROUTE_PROMOTIONS_FILE, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (e) {
+    console.error('[PROMOTIONS] Failed to save promotions:', e.message);
     return false;
   }
 }
@@ -868,6 +901,41 @@ async function handle(req, res){
           });
         } else {
           return send(res, 500, { ok: false, error: 'Failed to save settings' });
+        }
+      }catch(e){ return send(res, 500, { ok: false, error: e.message }); }
+    }
+    
+    // ===== Route Promotions Management =====
+    // GET /api/promotions → get all route promotions
+    if (req.method === 'GET' && u.pathname === apiPath('promotions')){
+      try{
+        const promotions = loadRoutePromotions();
+        // Remove the updatedAt metadata field before sending to client
+        const { updatedAt, ...clientPromotions } = promotions;
+        return send(res, 200, { ok: true, promotions: clientPromotions });
+      }catch(e){ return send(res, 500, { ok: false, error: e.message }); }
+    }
+    
+    // POST /api/promotions → update route promotions
+    // Body: { promotions: { [configFile]: { [route]: true } } }
+    if (req.method === 'POST' && u.pathname === apiPath('promotions')){
+      try{
+        const body = await parseBody(req);
+        
+        if (!body.promotions || typeof body.promotions !== 'object') {
+          return send(res, 400, { ok: false, error: 'Invalid promotions data' });
+        }
+        
+        const saved = saveRoutePromotions(body.promotions);
+        if (saved) {
+          console.log('[PROMOTIONS] Promotions updated');
+          return send(res, 200, { 
+            ok: true, 
+            promotions: body.promotions,
+            message: 'Route promotions saved successfully'
+          });
+        } else {
+          return send(res, 500, { ok: false, error: 'Failed to save promotions' });
         }
       }catch(e){ return send(res, 500, { ok: false, error: e.message }); }
     }
