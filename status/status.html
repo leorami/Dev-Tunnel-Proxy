@@ -2409,13 +2409,12 @@
               
               let children = [];
               let displayName = item.route;
+              let allRoutes = []; // For config mode summary
               
               if (mode === 'config') {
-                // Group all routes from the same config file
-                children = filteredRoutes.filter(child => 
-                  child.route !== item.route &&
-                  child.source === configFile
-                );
+                // Group all routes from the same config file (INCLUDING the promoted route)
+                allRoutes = filteredRoutes.filter(child => child.source === configFile);
+                children = allRoutes.filter(child => child.route !== item.route);
                 // Display config file name instead of route
                 displayName = configFile.replace(/\.conf$/, '');
               } else {
@@ -2426,6 +2425,7 @@
                   child.route.startsWith(item.route) &&
                   (child.route[item.route.length] === '/' || item.route.endsWith('/'))
                 );
+                allRoutes = [item, ...children]; // For summary
               }
               
               // Create parent card
@@ -2445,10 +2445,14 @@
                   fileIcon.textContent = '📄 ';
                   routeLabel.insertBefore(fileIcon, routeLabel.firstChild);
                 }
+                
+                // Hide the status badges for config mode (they don't make sense for a file grouping)
+                const statusRow = parentCard.querySelector('.status-row');
+                if (statusRow) statusRow.style.display = 'none';
               }
               
               // Add visual indicator that this is a parent with children
-              if (children.length > 0) {
+              if (allRoutes.length > 0) {
                 parentCard.style.borderLeft = '4px solid var(--ok)';
                 parentCard.style.boxShadow = '0 0 0 1px rgba(22,199,132,0.2), 0 6px 24px rgba(0,0,0,.25)';
                 
@@ -2457,17 +2461,34 @@
                 badge.className = 'children-toggle-badge';
                 badge.style.cssText = 'background:rgba(22,199,132,0.8);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.2s, transform 0.2s;';
                 const childLabel = mode === 'config' ? 'route' : 'child';
-                badge.innerHTML = `<span>${children.length} ${childLabel}${children.length > 1 ? (mode === 'config' ? 's' : 'ren') : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
+                const count = mode === 'config' ? allRoutes.length : children.length;
+                badge.innerHTML = `<span>${count} ${childLabel}${count > 1 ? (mode === 'config' ? 's' : 'ren') : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
                 
                 // Add badge to the badge row (row 5)
                 parentCard._badgeRow.appendChild(badge);
+                
+                // Add summary chips showing all routes (collapsed state)
+                const summaryRow = document.createElement('div');
+                summaryRow.className = 'route-summary-chips';
+                summaryRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);';
+                
+                allRoutes.forEach(routeItem => {
+                  const chip = document.createElement('span');
+                  chip.style.cssText = 'background:var(--codeBg);color:var(--text);padding:4px 8px;border-radius:4px;font-size:11px;border:1px solid var(--border);opacity:0.8;';
+                  chip.textContent = routeItem.route;
+                  summaryRow.appendChild(chip);
+                });
+                
+                parentCard._badgeRow.appendChild(summaryRow);
                 
                 // Create children container INSIDE parent card (new rows below row 5)
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'promoted-children';
                 childrenContainer.style.cssText = 'display:none;padding-top:16px;border-top:1px solid var(--border);flex-direction:column;gap:8px;';
                 
-                children.forEach(child => {
+                // In config mode, show ALL routes (including the promoted one)
+                const routesToShow = mode === 'config' ? allRoutes : children;
+                routesToShow.forEach(child => {
                   const childCard = createRouteCard(child, targetsArr, routes, meta, promotions);
                   childCard.classList.add('promoted-child');
                   childCard.style.opacity = '0.9';
@@ -2485,6 +2506,7 @@
                   e.stopPropagation();
                   const isExpanded = childrenContainer.style.display === 'flex';
                   childrenContainer.style.display = isExpanded ? 'none' : 'flex';
+                  summaryRow.style.display = isExpanded ? 'flex' : 'none'; // Toggle summary chips
                   badge.querySelector('.chevron').style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
                   badge.style.background = isExpanded ? 'rgba(22,199,132,0.8)' : 'rgba(127,176,255,0.8)';
                 });
