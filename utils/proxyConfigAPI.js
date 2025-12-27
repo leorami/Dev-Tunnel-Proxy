@@ -8,6 +8,7 @@
 
    AI Assistant (optional via OPENAI_API_KEY):
    - GET  /api/ai/health
+   - POST /api/ai/reindex      (rebuild knowledge base embeddings)
    - POST /api/ai/ask          { query, maxDocs?, systemHint? }
    - POST /api/ai/self-check   { heal?: boolean, hint?: string }
    - POST /api/ai/audit        { url, wait?, timeout? }
@@ -737,6 +738,7 @@ async function handle(req, res){
     // Public endpoints that don't require authentication
     const publicEndpoints = [
       apiPath('ai/health'),
+      apiPath('ai/reindex'),
       apiPath('ai/stats'),
       apiPath('ai/thoughts'),
       apiPath('overrides/conflicts'),
@@ -1122,11 +1124,13 @@ async function handle(req, res){
     }
     
     // Install a new app config file
-     // POST /api/apps/install { name, content }
-     if (req.method === 'POST' && u.pathname === apiPath('apps/install')){
+    // POST /api/apps/install { name, content }
+    if (req.method === 'POST' && u.pathname === apiPath('apps/install')){
+      console.log('[APPS/INSTALL] Endpoint hit!', { method: req.method, pathname: u.pathname, expected: apiPath('apps/install') });
       try{
         const body = await parseBody(req);
         const { name, content } = body || {};
+        console.log('[APPS/INSTALL] Parsed body:', { name, contentLength: content?.length });
         
         if (!name || typeof name !== 'string' || !content || typeof content !== 'string'){
           return send(res, 400, { ok: false, error: 'name and content are required' });
@@ -1307,6 +1311,52 @@ async function handle(req, res){
         const latestTimestamp = events.length > 0 ? Math.max(...events.map(e => e.addedAt)) : Date.now();
         console.log(`[THOUGHT API] since=${since}, returning ${newEvents.length}/${events.length} events, latest=${latestTimestamp}`);
         return send(res, 200, { ok: true, events: newEvents, latestTimestamp });
+      }
+
+      // POST /api/ai/reindex - Rebuild Calliope's knowledge base embeddings
+      if (req.method === 'POST' && u.pathname === apiPath('ai/reindex')){
+        if (!process.env.OPENAI_API_KEY) {
+          return send(res, 503, { ok: false, error: 'OPENAI_API_KEY not configured' });
+        }
+        
+        try {
+          const embedModel = process.env.OPENAI_EMBED_MODEL || 'text-embedding-3-small';
+          console.log('🧠 Rebuilding knowledge index...');
+          
+          // Collect documentation
+          const docs = collectDocs();
+          console.log(`📚 Collected ${docs.length} documentation files`);
+          
+          // Chunk documents
+          const chunks = chunkDocs(docs);
+          console.log(`✂️  Created ${chunks.length} chunks`);
+          
+          // Generate embeddings
+          const vectors = await embedChunks(chunks, embedModel);
+          console.log(`🎯 Generated ${vectors.length} embeddings`);
+          
+          // Build and save index
+          const index = {
+            model: embedModel,
+            createdAt: new Date().toISOString(),
+            dim: (vectors[0] && vectors[0].vector && vectors[0].vector.length) || 0,
+            chunks: vectors
+          };
+          saveEmbeddings(index);
+          
+          console.log(`✅ Knowledge index saved to ${EMBED_FILE}`);
+          
+          return send(res, 200, {
+            ok: true,
+            chunks: index.chunks.length,
+            model: index.model,
+            dim: index.dim,
+            createdAt: index.createdAt
+          });
+        } catch (e) {
+          console.error('❌ Reindex failed:', e.message);
+          return send(res, 500, { ok: false, error: e.message });
+        }
       }
 
       // POST /api/ai/restart-containers { names?: string[], self?: boolean }

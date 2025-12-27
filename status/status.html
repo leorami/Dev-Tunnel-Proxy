@@ -11,6 +11,8 @@
       // Default the global flag early so handlers never see undefined
       window.__calliopeEnabled = false;
     </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
       :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px}
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
@@ -267,11 +269,48 @@
       /* Action buttons container */
       .action-buttons-container{display:flex;gap:6px;align-items:center;z-index:10}
       
-      /* Universal circular button style */
-      .circular-action-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid var(--btnBorder);background:white;color:var(--btnText);border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.05);transition:background 0.2s ease}
-      .circular-action-btn:hover{background:#f0f0f0}
+      /* Universal circular button style with colored backgrounds */
+      .circular-action-btn{width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid;border-radius:999px;font-size:14px;line-height:1;cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.1);transition:all 0.2s ease}
       .circular-action-btn svg{width:18px;height:18px;display:block}
       .circular-action-btn img{width:16px;height:16px;display:block}
+      
+      /* Individual button colors - Dark Mode */
+      .circular-action-btn[title*="Notifications"]{background:rgba(127,176,255,0.15);border-color:rgba(127,176,255,0.4);color:#7fb0ff}
+      .circular-action-btn[title*="Notifications"]:hover{background:rgba(127,176,255,0.25);border-color:rgba(127,176,255,0.6)}
+      
+      .circular-action-btn[title*="Open Route"]{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:#a78bfa}
+      .circular-action-btn[title*="Open Route"]:hover{background:rgba(139,92,246,0.25);border-color:rgba(139,92,246,0.6)}
+      
+      .circular-action-btn[title*="Promote"]{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:#4ade80}
+      .circular-action-btn[title*="Promote"]:hover{background:rgba(34,197,94,0.25);border-color:rgba(34,197,94,0.6)}
+      
+      .circular-action-btn[title*="Demote"]{background:rgba(251,146,60,0.15);border-color:rgba(251,146,60,0.4);color:#fb923c}
+      .circular-action-btn[title*="Demote"]:hover{background:rgba(251,146,60,0.25);border-color:rgba(251,146,60,0.6)}
+      
+      .circular-action-btn[title*="Dashboard"]{background:rgba(236,72,153,0.15);border-color:rgba(236,72,153,0.4);color:#ec4899}
+      .circular-action-btn[title*="Dashboard"]:hover{background:rgba(236,72,153,0.25);border-color:rgba(236,72,153,0.6)}
+      
+      .circular-action-btn[title*="Calliope"]{background:#2a2a2a;border:2px solid rgba(239,68,68,0.4);color:#ef4444}
+      .circular-action-btn[title*="Calliope"]:hover{background:#3a3a3a;border-color:rgba(239,68,68,0.6)}
+      
+      /* Light Mode overrides */
+      :root[data-theme="light"] .circular-action-btn[title*="Notifications"]{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#2563eb}
+      :root[data-theme="light"] .circular-action-btn[title*="Notifications"]:hover{background:rgba(59,130,246,0.2);border-color:rgba(59,130,246,0.5)}
+      
+      :root[data-theme="light"] .circular-action-btn[title*="Open Route"]{background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3);color:#7c3aed}
+      :root[data-theme="light"] .circular-action-btn[title*="Open Route"]:hover{background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.5)}
+      
+      :root[data-theme="light"] .circular-action-btn[title*="Promote"]{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#16a34a}
+      :root[data-theme="light"] .circular-action-btn[title*="Promote"]:hover{background:rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.5)}
+      
+      :root[data-theme="light"] .circular-action-btn[title*="Demote"]{background:rgba(249,115,22,0.12);border-color:rgba(249,115,22,0.3);color:#ea580c}
+      :root[data-theme="light"] .circular-action-btn[title*="Demote"]:hover{background:rgba(249,115,22,0.2);border-color:rgba(249,115,22,0.5)}
+      
+      :root[data-theme="light"] .circular-action-btn[title*="Dashboard"]{background:rgba(236,72,153,0.12);border-color:rgba(236,72,153,0.3);color:#db2777}
+      :root[data-theme="light"] .circular-action-btn[title*="Dashboard"]:hover{background:rgba(236,72,153,0.2);border-color:rgba(236,72,153,0.5)}
+      
+      :root[data-theme="light"] .circular-action-btn[title*="Calliope"]{background:#ffffff;border:2px solid rgba(239,68,68,0.3);color:#dc2626}
+      :root[data-theme="light"] .circular-action-btn[title*="Calliope"]:hover{background:#f5f5f5;border-color:rgba(239,68,68,0.5)}
       
       /* Legacy styles for compatibility */
       .icon-actions{position:absolute;top:8px;right:42px;display:flex;gap:8px;align-items:center}
@@ -392,13 +431,40 @@
       .header-actions{display:flex;align-items:center;gap:8px}
       .header-actions .tab{background:var(--btnBg);}
       .header-actions .tab.active{background:#1a2a4b;border-color:#36568c}
-      .header-actions .action{background:#0f2242;border-color:#2a4a7e}
-      :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
       .header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
       header h1 .brand{font-weight:700;color:var(--heading);background:transparent;padding:0;border-radius:0}
       :root[data-theme="light"] .header-actions .tab.active{background:#d9e2ff;border-color:#bfd1ff;color:#0b1220}
       :root:not([data-theme="light"]) .header-actions .tab.active{background:#1a2a4b;border-color:#36568c;color:#cfe0ff}
+      
+      /* Colored action buttons in header - Dark Mode */
+      .header-actions .action{border:1.5px solid;transition:all 0.2s ease}
+      
+      #reloadConfigs{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:#4ade80}
+      #reloadConfigs:hover{background:rgba(34,197,94,0.25);border-color:rgba(34,197,94,0.6)}
+      
+      #viewToggle{background:rgba(127,176,255,0.15);border-color:rgba(127,176,255,0.4);color:#7fb0ff}
+      #viewToggle:hover{background:rgba(127,176,255,0.25);border-color:rgba(127,176,255,0.6)}
+      
+      #themeToggle{background:rgba(251,191,36,0.15);border-color:rgba(251,191,36,0.4);color:#fbbf24}
+      #themeToggle:hover{background:rgba(251,191,36,0.25);border-color:rgba(251,191,36,0.6)}
+      
+      /* Light Mode overrides for header actions */
+      :root[data-theme="light"] #reloadConfigs{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#16a34a}
+      :root[data-theme="light"] #reloadConfigs:hover{background:rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.5)}
+      
+      :root[data-theme="light"] #viewToggle{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#2563eb}
+      :root[data-theme="light"] #viewToggle:hover{background:rgba(59,130,246,0.2);border-color:rgba(59,130,246,0.5)}
+      
+      :root[data-theme="light"] #themeToggle{background:rgba(251,191,36,0.12);border-color:rgba(251,191,36,0.3);color:#d97706}
+      :root[data-theme="light"] #themeToggle:hover{background:rgba(251,191,36,0.2);border-color:rgba(251,191,36,0.5)}
+      
       /* Remove page-specific header overrides; rely on shared common.css */
+      
+      /* Lucide icon animations */
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
     </style>
     <link rel="stylesheet" href="/status/common.css" />
     <script src="/status/config.js"></script>
@@ -418,10 +484,10 @@
           <a class="btn tab" href="/reports">Reports</a>
           <a class="btn tab" href="/dashboard/">Dashboard</a>
           <span class="divider" aria-hidden="true"></span>
-          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
-          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false">
-            <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;">
+          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>
+          <button class="btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false" style="background:transparent;border:none;padding:0;cursor:pointer;">
+            <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;">
           </button>
         </div>
       </div>
@@ -435,22 +501,22 @@
         
         <!-- Settings Card -->
         <div class="card" id="settingsCard">
-          <h2 style="margin:0">⚙️ Settings</h2>
+          <h2 style="margin:0"><i data-lucide="settings" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Settings</h2>
           
           <div class="settings-grid">
             <!-- Notifications Service Sub-card (macOS only) -->
             <div class="settings-subcard" id="notificationsSubcard" style="display: none;">
               <h3>
-                <span title="Desktop notifications for route health changes">🔔 Notifications</span>
+                <span title="Desktop notifications for route health changes"><i data-lucide="bell" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Notifications</span>
               </h3>
               <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px;">
-                <span id="notificationsServiceText" style="flex: 1; font-size: 12px; color: var(--muted);">Checking...</span>
+                <span id="notificationsServiceText" style="flex: 1; font-size: 13px; color: var(--muted);">Checking...</span>
                 <div style="display: flex; gap: 6px; align-items: center;">
-                  <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 11px;">
+                  <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 13px; padding: 8px 14px;">
                     <span>Loading...</span>
                   </div>
-                  <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none; font-size: 11px;" title="View notification logs">
-                    <span>📋 Logs</span>
+                  <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none; font-size: 13px; padding: 8px 14px;" title="View notification logs">
+                    <span><i data-lucide="file-text" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>Logs</span>
                   </div>
                 </div>
               </div>
@@ -459,27 +525,27 @@
             <!-- Auto-Scan Settings Sub-card -->
             <div class="settings-subcard" id="autoScanSubcard">
               <h3>
-                <span title="Automatically scan routes for health issues">🔍 Auto-Scan</span>
+                <span title="Automatically scan routes for health issues"><i data-lucide="scan" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Auto-Scan</span>
               </h3>
               
               <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
                 <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
                   <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
-                  <span style="font-weight: 600; font-size: 12px;">On</span>
+                  <span style="font-weight: 600; font-size: 13px;">On</span>
                 </label>
                 
-                <div class="chip" style="font-size: 11px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
-                  <span>⏱️</span>
+                <div class="chip" style="font-size: 13px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
+                  <i data-lucide="clock" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>
                   <input type="number" id="autoScanInterval" min="5" max="300" step="5" class="compact-input" title="Scan interval (5-300 seconds)">
                   <span style="color: var(--muted);">s</span>
                 </div>
                 
                 <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; align-items: center;">
-                  <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600;" title="Save changes">
-                    💾
+                  <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600; font-size: 13px; padding: 8px 14px;" title="Save changes">
+                    <i data-lucide="save" stroke-width="2.5" style="width:16px;height:16px"></i>
                   </button>
-                  <button class="chip" id="autoScanReset" style="cursor: pointer; opacity: 0.7;" title="Reset to defaults (enabled, 15s)">
-                    ↺
+                  <button class="chip" id="autoScanReset" style="cursor: pointer; opacity: 0.7; font-size: 13px; padding: 8px 14px;" title="Reset to defaults (enabled, 15s)">
+                    <i data-lucide="rotate-ccw" stroke-width="2.5" style="width:16px;height:16px"></i>
                   </button>
                 </div>
               </div>
@@ -534,7 +600,7 @@
         </div>
 
         <div class="card" id="appsCard">
-          <h2 style="margin:0">Configured Apps</h2>
+          <h2 style="margin:0"><i data-lucide="boxes" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Configured Apps</h2>
 
           <div class="card hidden" id="conflictCard" data-dismissible="true">
             <h2>⚠️ Route Conflicts</h2>
@@ -589,14 +655,36 @@
       const logWarn = (...args)=>{ try{ console.warn(...args); }catch{} };
       const logError = (...args)=>{ try{ console.error(...args); }catch{} };
 
+      // Lucide icon helper
+      function createIcon(name, size = 16, className = '', strokeWidth = 2.5) {
+        const i = document.createElement('i');
+        i.setAttribute('data-lucide', name);
+        i.setAttribute('stroke-width', strokeWidth);
+        i.style.width = `${size}px`;
+        i.style.height = `${size}px`;
+        i.style.display = 'inline-block';
+        i.style.verticalAlign = 'middle';
+        if (className) i.className = className;
+        return i;
+      }
+
+      // Initialize Lucide icons after DOM changes
+      function refreshIcons() {
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      }
+
       function initTheme(){
         const stored = localStorage.getItem('dtpTheme');
         // Default to dark if nothing stored
         const theme = stored || 'dark';
         document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
         const tbtn = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
-        tbtn.textContent = theme==='light' ? '🌙' : '☀️';
+        tbtn.innerHTML = '';
+        tbtn.appendChild(createIcon(theme==='light' ? 'moon' : 'sun', 18));
         tbtn.setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
+        refreshIcons();
       }
       function measureStickyHeights(){
         const headerEl = document.querySelector('header');
@@ -612,15 +700,20 @@
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('dtpTheme', next);
         const tbtn = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
-        tbtn.textContent = next==='light' ? '🌙' : '☀️';
+        tbtn.innerHTML = '';
+        tbtn.appendChild(createIcon(next==='light' ? 'moon' : 'sun', 18));
         tbtn.setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
+        refreshIcons();
       }
       // Make logo/title clickable for branding
       (function enableHomeClicks(){
         const brand=document.querySelector('header h1');
         if (brand){ brand.style.cursor='pointer'; brand.addEventListener('click',()=>{ location.reload(); }); }
       })();
-      window.addEventListener('load', measureStickyHeights);
+      window.addEventListener('load', () => {
+        measureStickyHeights();
+        refreshIcons();
+      });
       window.addEventListener('resize', measureStickyHeights);
 
       function chip(label, cls, tip){
@@ -1170,9 +1263,15 @@
         modal.style.cssText = 'max-width: min(900px, 90vw); max-height: 85vh; display: flex; flex-direction: column;';
         
         const title = document.createElement('h2');
-        title.textContent = '📋 Notifications System Logs';
         title.style.marginBottom = '16px';
+        title.style.display = 'flex';
+        title.style.alignItems = 'center';
+        title.style.gap = '8px';
+        const titleIcon = createIcon('file-text', 18);
+        title.appendChild(titleIcon);
+        title.appendChild(document.createTextNode('Notifications System Logs'));
         modal.appendChild(title);
+        refreshIcons();
         
         // Engine logs
         if (status.engine?.logPath) {
@@ -2046,7 +2145,16 @@
         
         const titleSection = document.createElement('div');
         titleSection.className = 'route-title';
-        titleSection.innerHTML = `<span class="route-name">${route}</span>`;
+        // Remove leading and trailing slashes for readability
+        const displayRoute = route.replace(/^\/+|\/+$/g, '');
+        const routeName = document.createElement('span');
+        routeName.className = 'route-name';
+        const routeIcon = createIcon('route', 14);
+        routeIcon.style.marginRight = '6px';
+        routeIcon.style.opacity = '0.7';
+        routeName.appendChild(routeIcon);
+        routeName.appendChild(document.createTextNode(displayRoute));
+        titleSection.appendChild(routeName);
         header.appendChild(titleSection);
         
         // Create action buttons container
@@ -2072,9 +2180,10 @@
         // Notifications button (left of existing actions)
         const notifyBtn = createActionButton('notifications', {
           title: 'Notifications',
-          innerHTML: '🔔',
+          innerHTML: '',
           dataset: { route, source }
         });
+        notifyBtn.appendChild(createIcon('bell', 16));
         notifyBtn.addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           openNotificationsModal({ route, source, meta: routes?.metadata?.[route] || null });
@@ -2084,9 +2193,10 @@
         // Open button
         const openBtn = createActionButton('open', {
           title: 'Open Route',
-          innerHTML: '🚀',
+          innerHTML: '',
           dataset: { route }
         });
+        openBtn.appendChild(createIcon('external-link', 16));
         openBtn.addEventListener('click', (e) => {
           e.preventDefault(); 
           e.stopPropagation();
@@ -2111,9 +2221,10 @@
         
         const promoteBtn = createActionButton('promote', {
           title: promoteTitle,
-          innerHTML: isPromoted ? '⬇️' : '🎓',
+          innerHTML: '',
           dataset: { route, source }
         });
+        promoteBtn.appendChild(createIcon(isPromoted ? 'chevron-down' : 'graduation-cap', 16));
         promoteBtn.addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           togglePromotion(route, source);
@@ -2123,9 +2234,10 @@
         // Dashboard button
         const dashBtn = createActionButton('dashboard', {
           title: 'Open Dashboard (route-focused)',
-          innerHTML: '📊',
+          innerHTML: '',
           dataset: { route }
         });
+        dashBtn.appendChild(createIcon('bar-chart-3', 16));
         dashBtn.addEventListener('click', (e) => {
           e.preventDefault(); e.stopPropagation();
           const base = (globalNgrokUrl && globalNgrokUrl !== 'not discovered') ? globalNgrokUrl.replace(/\/$/, '') : '';
@@ -2190,14 +2302,8 @@
         app.appendChild(header);
         app.appendChild(chipsSection);
         
-        // Add a dedicated row for the children badge (will be populated if this is a promoted parent)
-        const badgeRow = document.createElement('div');
-        badgeRow.className = 'badge-row';
-        badgeRow.style.cssText = 'display:flex;justify-content:flex-end;align-items:center;min-height:32px;margin-top:8px;';
-        app.appendChild(badgeRow);
-        
-        // Store reference to badge row for promoted parents
-        app._badgeRow = badgeRow;
+        // Store reference to the app element for adding badge row later
+        // Badge row will be added AFTER children container
         
         // Apply severity styling
         applySeverityToApp(app, route, targetsArr, routes);
@@ -2428,27 +2534,56 @@
                 allRoutes = [item, ...children]; // For summary
               }
               
-              // Create parent card
-              const parentCard = createRouteCard(item, targetsArr, routes, meta, promotions);
-              parentCard.classList.add('promoted-parent');
-              parentCard.style.position = 'relative';
+              // Create parent card differently based on mode
+              let parentCard;
               
-              // If config mode, replace the route display with config file name
               if (mode === 'config') {
-                const routeLabel = parentCard.querySelector('.route-label');
-                if (routeLabel) {
-                  routeLabel.textContent = displayName;
-                  routeLabel.style.fontSize = '16px';
-                  routeLabel.style.fontWeight = '600';
-                  // Add file icon
-                  const fileIcon = document.createElement('span');
-                  fileIcon.textContent = '📄 ';
-                  routeLabel.insertBefore(fileIcon, routeLabel.firstChild);
-                }
+                // Config mode: Create a custom card showing the config file name
+                parentCard = document.createElement('div');
+                parentCard.className = 'app promoted-parent config-group-parent';
+                parentCard.style.position = 'relative';
                 
-                // Hide the status badges for config mode (they don't make sense for a file grouping)
-                const statusRow = parentCard.querySelector('.status-row');
-                if (statusRow) statusRow.style.display = 'none';
+                // Header with config file name
+                const header = document.createElement('div');
+                header.className = 'route-header';
+                const titleSection = document.createElement('div');
+                titleSection.className = 'route-title';
+                const routeName = document.createElement('span');
+                routeName.className = 'route-name';
+                const fileIcon = createIcon('file-code', 16);
+                fileIcon.style.marginRight = '6px';
+                // Color the file icon based on theme
+                fileIcon.style.color = 'var(--lnk)';
+                routeName.appendChild(fileIcon);
+                routeName.appendChild(document.createTextNode(displayName));
+                titleSection.appendChild(routeName);
+                header.appendChild(titleSection);
+                parentCard.appendChild(header);
+                
+                // Add chips section (config file chip) - goes after header
+                const chipsSection = document.createElement('div');
+                chipsSection.className = 'route-chips-section';
+                const baseContainer = document.createElement('div');
+                baseContainer.className = 'chips';
+                baseContainer.style.display = 'flex';
+                baseContainer.style.alignItems = 'center';
+                baseContainer.style.gap = '8px';
+                const configChip = document.createElement('span');
+                configChip.className = 'chip';
+                configChip.style.fontSize = '10px';
+                configChip.style.opacity = '0.7';
+                configChip.textContent = configFile.replace(/\.conf$/, '');
+                configChip.title = `From ${configFile}`;
+                baseContainer.appendChild(configChip);
+                chipsSection.appendChild(baseContainer);
+                parentCard.appendChild(chipsSection);
+                
+                // Badge row will be created later, after children container
+              } else {
+                // Children mode: Use the regular route card
+                parentCard = createRouteCard(item, targetsArr, routes, meta, promotions);
+                parentCard.classList.add('promoted-parent');
+                parentCard.style.position = 'relative';
               }
               
               // Add visual indicator that this is a parent with children
@@ -2456,35 +2591,36 @@
                 parentCard.style.borderLeft = '4px solid var(--ok)';
                 parentCard.style.boxShadow = '0 0 0 1px rgba(22,199,132,0.2), 0 6px 24px rgba(0,0,0,.25)';
                 
-                // Add collapsible badge to the dedicated badge row
-                const badge = document.createElement('div');
-                badge.className = 'children-toggle-badge';
-                badge.style.cssText = 'background:rgba(22,199,132,0.8);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.2s, transform 0.2s;';
-                const childLabel = mode === 'config' ? 'route' : 'child';
-                const count = mode === 'config' ? allRoutes.length : children.length;
-                badge.innerHTML = `<span>${count} ${childLabel}${count > 1 ? (mode === 'config' ? 's' : 'ren') : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
-                
-                // Add badge to the badge row (row 5)
-                parentCard._badgeRow.appendChild(badge);
-                
-                // Add summary chips showing all routes (collapsed state)
+                // Create summary chips row showing all routes (LAST ROW when collapsed, above collapse chip)
                 const summaryRow = document.createElement('div');
                 summaryRow.className = 'route-summary-chips';
-                summaryRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);';
+                summaryRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;';
                 
                 allRoutes.forEach(routeItem => {
                   const chip = document.createElement('span');
                   chip.style.cssText = 'background:var(--codeBg);color:var(--text);padding:4px 8px;border-radius:4px;font-size:11px;border:1px solid var(--border);opacity:0.8;';
-                  chip.textContent = routeItem.route;
+                  // Remove leading and trailing slashes for readability
+                  chip.textContent = routeItem.route.replace(/^\/+|\/+$/g, '');
                   summaryRow.appendChild(chip);
                 });
                 
-                parentCard._badgeRow.appendChild(summaryRow);
+                // Create badge row with ONLY the collapse chip (SECOND TO LAST ROW, lower left)
+                const badgeRow = document.createElement('div');
+                badgeRow.className = 'badge-row';
+                badgeRow.style.cssText = 'display:flex;justify-content:flex-start;align-items:center;min-height:32px;margin-top:8px;';
                 
-                // Create children container INSIDE parent card (new rows below row 5)
+                // Add collapsible badge
+                const badge = document.createElement('div');
+                badge.className = 'children-toggle-badge';
+                badge.style.cssText = 'background:rgba(22,199,132,0.8);color:#fff;padding:6px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;transition:background 0.2s, transform 0.2s;';
+                const count = mode === 'config' ? allRoutes.length : children.length;
+                badge.innerHTML = `<span>${count} route${count > 1 ? 's' : ''}</span><span class="chevron" style="transition:transform 0.2s;">▼</span>`;
+                badgeRow.appendChild(badge);
+                
+                // Create children container (expanded state, replaces summary chips)
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'promoted-children';
-                childrenContainer.style.cssText = 'display:none;padding-top:16px;border-top:1px solid var(--border);flex-direction:column;gap:8px;';
+                childrenContainer.style.cssText = 'display:none;padding-top:16px;border-top:1px solid var(--border);flex-direction:column;gap:8px;margin-top:8px;';
                 
                 // In config mode, show ALL routes (including the promoted one)
                 const routesToShow = mode === 'config' ? allRoutes : children;
@@ -2498,6 +2634,9 @@
                   processedRoutes.add(child.route);
                 });
                 
+                // Append in order: summary chips (LAST ROW), badge row (SECOND TO LAST), children container (replaces summary when expanded)
+                parentCard.appendChild(summaryRow);
+                parentCard.appendChild(badgeRow);
                 parentCard.appendChild(childrenContainer);
                 
                 // Set up badge click handler
@@ -2530,7 +2669,9 @@
             }
           });
         }
-
+        
+        // Refresh Lucide icons after rebuilding
+        refreshIcons();
       }
       function sortRoutes(routeGroups, sortMode, targets, routes){
         if (sortMode==='alpha') return routeGroups.slice().sort((a,b)=> a.route.localeCompare(b.route));
@@ -2783,11 +2924,14 @@
       // Reload configurations functionality
       async function reloadConfigs() {
         const reloadBtn = document.getElementById('reloadConfigs');
-        const originalText = reloadBtn.textContent;
+        const originalHTML = reloadBtn.innerHTML;
         
         try {
           // Show loading state
-          reloadBtn.textContent = '🔄 Reloading...';
+          reloadBtn.innerHTML = '';
+          const loadingIcon = createIcon('loader-2', 18);
+          loadingIcon.style.animation = 'spin 1s linear infinite';
+          reloadBtn.appendChild(loadingIcon);
           reloadBtn.disabled = true;
           
           // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
@@ -2844,7 +2988,8 @@ Or check if config files have syntax errors.
         
         // Reset button after delay
         setTimeout(() => {
-          reloadBtn.textContent = originalText;
+          reloadBtn.innerHTML = originalHTML;
+          refreshIcons();
           reloadBtn.disabled = false;
           reloadBtn.style.background = '';
           reloadBtn.style.borderColor = '';
@@ -4519,7 +4664,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           
           if (response.ok && data.ok) {
             originalAutoScanSettings = { ...settings };
-            saveBtn.innerHTML = '💾';
+            saveBtn.innerHTML = '';
+            saveBtn.appendChild(createIcon('save', 16, '', 2.5));
+            refreshIcons();
             checkAutoScanChanges();
             
             statusDiv.style.display = 'block';
@@ -4538,7 +4685,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           statusDiv.style.background = 'rgba(239, 68, 68, 0.15)';
           statusDiv.style.color = 'var(--err)';
           statusDiv.textContent = `❌ ${e.message}`;
-          saveBtn.innerHTML = '💾';
+          saveBtn.innerHTML = '';
+          saveBtn.appendChild(createIcon('save', 16, '', 2.5));
+          refreshIcons();
           saveBtn.disabled = false;
           saveBtn.style.opacity = '1';
         }
