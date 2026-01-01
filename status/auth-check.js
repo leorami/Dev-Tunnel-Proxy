@@ -41,7 +41,7 @@
       
       // Create logout button
       const logoutBtn = document.createElement('button');
-      logoutBtn.textContent = '🔒 Logout';
+      logoutBtn.textContent = 'Logout';
       logoutBtn.className = 'tab logout-btn';
       logoutBtn.style.cssText = `
         background: rgba(239, 68, 68, 0.8);
@@ -67,7 +67,12 @@
       });
       
       logoutBtn.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to logout?')) return;
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Logout',
+          message: 'Are you sure you want to logout?'
+        });
+        if (!confirmed) return;
         
         try {
           await fetch('/admin/logout', {
@@ -77,7 +82,7 @@
           window.location.href = '/admin/login';
         } catch (err) {
           console.error('Logout failed:', err);
-          alert('Logout failed. Please try again.');
+          window.DTP.showDialog({ title: 'Logout Failed', message: 'Logout failed. Please try again.' });
         }
       });
       

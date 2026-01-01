@@ -41,12 +41,12 @@
     
     <div class="container">
       <div class="card">
-        <h2>📊 Reports Management</h2>
+        <h2>Reports Management</h2>
         <div class="toolbar">
-          <button id="refresh">🔄 Refresh</button>
-          <button id="prune7" class="warning">🗑️ Prune > 7 days</button>
-          <button id="prune30" class="warning">🗑️ Prune > 30 days</button>
-          <button id="pruneAllButLatest" class="danger">🗑️ Keep Latest Only</button>
+          <button id="refresh">Refresh</button>
+          <button id="prune7" class="warning">Prune > 7 days</button>
+          <button id="prune30" class="warning">Prune > 30 days</button>
+          <button id="pruneAllButLatest" class="danger">Keep Latest Only</button>
         </div>
         <div id="pagination-info" class="pagination-info"></div>
         <table>
@@ -105,7 +105,7 @@
             tbody.innerHTML = `
               <tr><td colspan="4">
                 <div class="empty-state">
-                  <div style="font-size:48px">📭</div>
+                  <div style="font-size:48px; opacity: 0.3;">(No Reports)</div>
                   <div style="font-size:16px;font-weight:600;margin-bottom:8px">No reports found</div>
                   <div>Reports will appear here as they are generated</div>
                 </div>
@@ -186,32 +186,50 @@
       document.getElementById('refresh').onclick = () => load(currentPage);
       
       document.getElementById('prune7').onclick = async () => {
-        if (!confirm('Delete all reports older than 7 days?')) return;
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune Reports',
+          message: 'Delete all reports older than 7 days?'
+        });
+        if (!confirmed) return;
         try {
           await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 7 }) });
+          window.DTP.showToast('Reports older than 7 days pruned', 'success');
           load(1);
         } catch(e) {
-          alert('Prune failed: ' + e.message);
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
         }
       };
       
       document.getElementById('prune30').onclick = async () => {
-        if (!confirm('Delete all reports older than 30 days?')) return;
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune Reports',
+          message: 'Delete all reports older than 30 days?'
+        });
+        if (!confirmed) return;
         try {
           await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 30 }) });
+          window.DTP.showToast('Reports older than 30 days pruned', 'success');
           load(1);
         } catch(e) {
-          alert('Prune failed: ' + e.message);
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
         }
       };
       
       document.getElementById('pruneAllButLatest').onclick = async () => {
-        if (!confirm('Delete all reports except the latest of each kind? This cannot be undone!')) return;
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune All Except Latest',
+          message: 'Delete all reports except the latest of each kind? This cannot be undone!'
+        });
+        if (!confirmed) return;
         try {
           await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ keepLatestPerKind: true }) });
+          window.DTP.showToast('Kept latest reports only', 'success');
           load(1);
         } catch(e) {
-          alert('Prune failed: ' + e.message);
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
         }
       };
       

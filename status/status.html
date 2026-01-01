@@ -91,6 +91,83 @@
       .switch{display:flex;gap:8px;align-items:center}
       .hidden{display:none}
       .summaryChips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+      .card-header-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 12px;
+      }
+
+      .card-header-row .header-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .card-header-row .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-shrink: 0;
+      }
+
+      .card-header-row .header-actions .btn {
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon-btn.header-action {
+        background: var(--btnBg);
+        border: 1px solid var(--btnBorder);
+        color: var(--btnText);
+        padding: 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .icon-btn.header-action:hover {
+        background: var(--btnBgHover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .icon-btn.header-action:active {
+        transform: translateY(0);
+      }
+      .card-title{
+        margin:0;
+        font-size:16px;
+        font-weight:700;
+        color:var(--heading);
+      }
+      .card-subtitle{
+        margin:2px 0 0 0;
+        color:var(--muted);
+        font-size:13px;
+      }
+      .icon-badge{
+        width:36px;
+        height:36px;
+        border-radius:50%;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border:1.5px solid rgba(59,130,246,0.35);
+        background:rgba(59,130,246,0.15);
+        color:#2563eb;
+      }
+      .icon-badge.status{background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.35);color:#2563eb;}
+      .icon-badge.settings{background:rgba(245,158,11,0.15);border-color:rgba(245,158,11,0.35);color:#d97706;}
+      .icon-badge.apps{background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.35);color:#0f9d58;}
       .chip strong{font-weight:700;margin-right:6px}
       .overviewCard{padding:12px 16px}
       /* Settings sub-cards */
@@ -278,9 +355,6 @@
       .circular-action-btn[title*="Notifications"]{background:rgba(127,176,255,0.15);border-color:rgba(127,176,255,0.4);color:#7fb0ff}
       .circular-action-btn[title*="Notifications"]:hover{background:rgba(127,176,255,0.25);border-color:rgba(127,176,255,0.6)}
       
-      .circular-action-btn[title*="Open Route"]{background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.4);color:#a78bfa}
-      .circular-action-btn[title*="Open Route"]:hover{background:rgba(139,92,246,0.25);border-color:rgba(139,92,246,0.6)}
-      
       .circular-action-btn[title*="Promote"]{background:rgba(34,197,94,0.15);border-color:rgba(34,197,94,0.4);color:#4ade80}
       .circular-action-btn[title*="Promote"]:hover{background:rgba(34,197,94,0.25);border-color:rgba(34,197,94,0.6)}
       
@@ -296,9 +370,6 @@
       /* Light Mode overrides */
       :root[data-theme="light"] .circular-action-btn[title*="Notifications"]{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#2563eb}
       :root[data-theme="light"] .circular-action-btn[title*="Notifications"]:hover{background:rgba(59,130,246,0.2);border-color:rgba(59,130,246,0.5)}
-      
-      :root[data-theme="light"] .circular-action-btn[title*="Open Route"]{background:rgba(139,92,246,0.12);border-color:rgba(139,92,246,0.3);color:#7c3aed}
-      :root[data-theme="light"] .circular-action-btn[title*="Open Route"]:hover{background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.5)}
       
       :root[data-theme="light"] .circular-action-btn[title*="Promote"]{background:rgba(34,197,94,0.12);border-color:rgba(34,197,94,0.3);color:#16a34a}
       :root[data-theme="light"] .circular-action-btn[title*="Promote"]:hover{background:rgba(34,197,94,0.2);border-color:rgba(34,197,94,0.5)}
@@ -324,8 +395,8 @@
 
       /* AI Drawer */
       :root{--aiWidth:clamp(360px, 32vw, 512px)}
-      .ai-drawer{position:fixed;right:0;height:calc(88vh - (var(--headerH, 64px) + var(--summaryH, 0px)));width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease}
-      .ai-drawer.collapsed{transform:translateX(calc(100% + 16px));border-left:none;box-shadow:none}
+      .ai-drawer{position:fixed;right:0;top:calc(var(--headerH, 64px) + 16px);height:calc(100vh - var(--headerH, 64px) - 32px);width:var(--aiWidth);padding:8px 8px;z-index:2005;background:var(--panelGlass);border-left:1px solid var(--border);border-radius:12px 0 0 12px;box-shadow:-8px 0 24px rgba(0,0,0,.35);backdrop-filter:saturate(160%) blur(8px);display:flex;flex-direction:column;transition:transform .18s ease,visibility 0s linear 0s;overflow:hidden;visibility:visible}
+      .ai-drawer.collapsed{transform:translateX(calc(100% + 50px));border-left:none;box-shadow:none;visibility:hidden;transition:transform .18s ease,visibility 0s linear .18s}
       .ai-drawer.collapsed .ai-header,.ai-drawer.collapsed .ai-content{opacity:0;pointer-events:none}
       /* Bottom-sheet mode for small screens */
       .ai-drawer.bottom-sheet{left:0;right:0;bottom:0;top:auto;width:auto;height:min(33vh, 420px);border-left:none;border-top:1px solid var(--border);border-radius:12px 12px 0 0;box-shadow:0 -8px 24px rgba(0,0,0,.35)}
@@ -496,12 +567,29 @@
     <div class="content">
       <div class="container">
         <div class="card overviewCard">
+          <div class="card-header-row">
+            <div class="header-main">
+              <span class="icon-badge status"><i data-lucide="activity" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
+              <div>
+                <p class="card-title">Status Overview</p>
+                <p class="card-subtitle">Proxy URL, targets, generated timestamp</p>
+              </div>
+            </div>
+          </div>
           <div class="summaryChips" id="summaryChips"></div>
         </div>
         
         <!-- Settings Card -->
         <div class="card" id="settingsCard">
-          <h2 style="margin:0"><i data-lucide="settings" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Settings</h2>
+          <div class="card-header-row">
+            <div class="header-main">
+              <span class="icon-badge settings"><i data-lucide="settings" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
+              <div>
+                <p class="card-title">Settings</p>
+                <p class="card-subtitle">Notifications, logging, scans</p>
+              </div>
+            </div>
+          </div>
           
           <div class="settings-grid">
             <!-- Notifications Service Sub-card (macOS only) -->
@@ -600,11 +688,36 @@
         </div>
 
         <div class="card" id="appsCard">
-          <h2 style="margin:0"><i data-lucide="boxes" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Configured Apps</h2>
+          <div class="card-header-row">
+            <div class="header-main">
+              <span class="icon-badge apps"><i data-lucide="boxes" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
+              <div>
+                <p class="card-title">Configured Apps</p>
+                <p class="card-subtitle">Routes by status, grouping, and filters</p>
+              </div>
+            </div>
+            <button class="icon-btn header-action" id="openRouteCreatorFromStatus" title="Create New Route">
+              <i data-lucide="plus-circle" stroke-width="2.5" style="width:20px;height:20px;"></i>
+            </button>
+          </div>
 
           <div class="card hidden" id="conflictCard" data-dismissible="true">
-            <h2>⚠️ Route Conflicts</h2>
-            <p>Multiple configuration files are declaring the same routes. Choose which config should win:</p>
+            <div class="card-header-row">
+              <div class="header-main">
+                <span class="icon-badge settings"><i data-lucide="alert-triangle" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
+                <div>
+                  <p class="card-title">Route Conflicts</p>
+                  <p class="card-subtitle">Multiple configurations are competing for the same URL paths</p>
+                </div>
+              </div>
+              <div class="header-actions">
+                <button class="btn" id="conflictFixBtn">
+                  <img src="/status/assets/calliope_heart_stethoscope.svg" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:6px;">
+                  Help Me
+                </button>
+                <button class="btn" id="conflictAckBtn">Dismiss</button>
+              </div>
+            </div>
             <div id="conflicts">Loading conflicts...</div>
           </div>
     
@@ -675,6 +788,15 @@
         }
       }
 
+      // Bridge to open dashboard route creator modal from status page
+      function openDashboardRouteCreator(){
+        try{
+          window.open('/dashboard/#create-route', '_blank', 'noopener');
+        }catch(e){
+          logError('Failed to open route creator', e);
+        }
+      }
+
       function initTheme(){
         const stored = localStorage.getItem('dtpTheme');
         // Default to dark if nothing stored
@@ -731,40 +853,6 @@
         return s;
       }
 
-      // Choose best URL to open (ALWAYS use ngrok URL + route)
-      function chooseOpenUrl(routes, targets, routeKey){
-        // ALWAYS use the global ngrok URL if available
-        if (globalNgrokUrl && globalNgrokUrl !== 'not discovered') {
-          // Ensure route starts with / and ngrok URL doesn't end with /
-          const cleanRoute = routeKey.startsWith('/') ? routeKey : '/' + routeKey;
-          const cleanNgrok = globalNgrokUrl.replace(/\/$/, '');
-          return cleanNgrok + cleanRoute;
-        }
-        
-        // Fallback to old logic if no global ngrok URL
-        const pref = ['ngrok', 'local-proxy'];
-        
-        // First pass: try to find a successful response (2xx or 3xx for ngrok, only 2xx for localhost)
-        for (const t of pref){
-          const info = (routes.summary?.[t]||{})[routeKey];
-          if (info && info.url) {
-            if (t === 'ngrok' && info.status >= 200 && info.status < 400) {
-              return info.url;
-            } else if (t === 'local-proxy' && info.status >= 200 && info.status < 300) {
-              return info.url;
-            }
-          }
-        }
-        
-        // Second pass: return ngrok URL even if not successful (better than localhost error)
-        for (const t of pref){
-          const info = (routes.summary?.[t]||{})[routeKey];
-          if (info && info.url) return info.url;
-        }
-        
-        return null;
-      }
-
       async function loadJSON(url){
         const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning':'true' } });
         if(!res.ok) throw new Error('HTTP '+res.status);
@@ -774,7 +862,7 @@
       let routesData = null;
       let preferences = null;
       let promotedRoots = null; // { [baseKey]: '/api/' }
-      let globalNgrokUrl = null; // Store the global ngrok URL for Open buttons
+      let globalNgrokUrl = null;
 
       function loadPrefs(){
         try{ return JSON.parse(localStorage.getItem('statusPrefs')||'{}'); }catch{ return {}; }
@@ -875,7 +963,7 @@
                 <div style="font-size: 13px; opacity: 0.8;">Groups routes whose paths start with this route (e.g., ${route}admin/, ${route}api/)</div>
               </button>
               <button class="mode-btn" data-mode="config" style="padding: 16px; text-align: left; background: var(--panel); border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                <div style="font-weight: 600; margin-bottom: 4px;">📄 Group Entire Config File</div>
+                <div style="font-weight: 600; margin-bottom: 4px;">Group Entire Config File</div>
                 <div style="font-size: 13px; opacity: 0.8;">Groups all routes from ${configFile} under the config file name</div>
               </button>
             </div>
@@ -922,7 +1010,7 @@
       // Notifications (per-route)
       // -------------------------------
       const NOTIF_STORE_LOCAL_KEY = 'routeNotificationsV1';
-      const NOTIF_BRIDGE_BASE = 'http://127.0.0.1:17888';
+      const NOTIF_BRIDGE_BASE = `http://${location.hostname === 'localhost' ? 'localhost' : '127.0.0.1'}:17888`;
       const NOTIF_TEST_ENDPOINT = `${NOTIF_BRIDGE_BASE}/test`;
       const NOTIF_SERVICE_STATUS_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/status`;
       const NOTIF_SERVICE_INSTALL_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/install`;
@@ -931,67 +1019,7 @@
 
       // Modal Dialog System (replaces browser alert/confirm)
       function showDialog(options) {
-        return new Promise((resolve) => {
-          const overlay = document.createElement('div');
-          overlay.className = 'overlay';
-          overlay.style.zIndex = '9999';
-          
-          const dialog = document.createElement('div');
-          dialog.className = 'modal';
-          dialog.style.cssText = 'max-width: 500px; z-index: 10000;';
-          
-          const title = document.createElement('h2');
-          title.textContent = options.title || 'Notification';
-          title.style.marginBottom = '16px';
-          dialog.appendChild(title);
-          
-          const message = document.createElement('div');
-          message.style.cssText = 'margin-bottom: 20px; line-height: 1.5; white-space: pre-wrap;';
-          message.textContent = options.message || '';
-          dialog.appendChild(message);
-          
-          const toolbar = document.createElement('div');
-          toolbar.className = 'toolbar';
-          toolbar.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end;';
-          
-          if (options.type === 'confirm') {
-            const cancelBtn = document.createElement('button');
-            cancelBtn.className = 'btn';
-            cancelBtn.textContent = options.cancelText || 'Cancel';
-            cancelBtn.style.background = 'var(--btnBg)';
-            cancelBtn.onclick = () => {
-              overlay.remove();
-              resolve(false);
-            };
-            toolbar.appendChild(cancelBtn);
-          }
-          
-          const okBtn = document.createElement('button');
-          okBtn.className = 'btn';
-          okBtn.textContent = options.okText || 'OK';
-          okBtn.onclick = () => {
-            overlay.remove();
-            resolve(true);
-          };
-          toolbar.appendChild(okBtn);
-          
-          dialog.appendChild(toolbar);
-          overlay.appendChild(dialog);
-          document.body.appendChild(overlay);
-          
-          // Focus OK button
-          okBtn.focus();
-          
-          // ESC to close
-          const handleEsc = (e) => {
-            if (e.key === 'Escape') {
-              overlay.remove();
-              resolve(false);
-              document.removeEventListener('keydown', handleEsc);
-            }
-          };
-          document.addEventListener('keydown', handleEsc);
-        });
+        return window.DTP.showDialog(options);
       }
 
       function notifKeyForRoute(route, source) {
@@ -1079,13 +1107,13 @@
         let subject, body;
         
         if (isExternal && st === 'running') {
-          subject = `✅ ${route} is live`;
+          subject = `${route} is live`;
           body = `Your ${route} app is now accessible online.`;
         } else if (isExternal && st === 'stopped') {
-          subject = `⚠️ ${route} went down`;
+          subject = `${route} went down`;
           body = `Your ${route} app stopped responding and is no longer accessible.`;
         } else if (!isExternal && st === 'stopped') {
-          subject = `🔌 Dev proxy is offline`;
+          subject = `Dev proxy is offline`;
           body = `Your development proxy stopped running.`;
         } else {
           // Fallback for other combinations
@@ -1158,7 +1186,7 @@
         const status = await checkServiceStatus();
         
         if (!status) {
-          statusText.innerHTML = '⚠️ Bridge not running. Start: <code style="background: var(--codeBg, #f5f5f5); padding: 2px 6px; border-radius: 4px; font-size: 11px;">node macos/notifications-bridge.js</code>';
+          statusText.innerHTML = 'Bridge not running. Start: <code style="background: var(--codeBg, #f5f5f5); padding: 2px 6px; border-radius: 4px; font-size: 11px;">node macos/notifications-bridge.js</code>';
           serviceChip.style.display = 'none';
           logsChip.style.display = 'none';
           return;
@@ -1170,7 +1198,7 @@
         const isRunning = status.engine?.running || false;
         
         if (isInstalled && isRunning) {
-          statusText.innerHTML = '✅ <strong>Running</strong> as background service';
+          statusText.innerHTML = '<strong>Running</strong> as background service';
           serviceChip.innerHTML = '<span>Uninstall</span>';
           serviceChip.className = 'chip warn';
           logsChip.style.display = 'flex';
@@ -1191,7 +1219,7 @@
             try {
               await uninstallService();
               await showDialog({
-                title: '✅ Service Uninstalled',
+                title: 'Service Uninstalled',
                 message: 'Background service uninstalled successfully.'
               });
               // Wait a moment for the service to fully stop before refreshing
@@ -1199,7 +1227,7 @@
               initNotificationsServiceCard(); // Refresh
             } catch (e) {
               await showDialog({
-                title: '❌ Uninstall Failed',
+                title: 'Uninstall Failed',
                 message: e.message
               });
               serviceChip.innerHTML = '<span>Uninstall</span>';
@@ -1228,7 +1256,7 @@
             try {
               await installService();
               await showDialog({
-                title: '✅ Service Installed',
+                title: 'Service Installed',
                 message: 'Background service installed and started successfully!\n\nLogs: ./.artifacts/notifications-engine.log'
               });
               // Wait a moment for the service to fully start before refreshing
@@ -1236,7 +1264,7 @@
               initNotificationsServiceCard(); // Refresh
             } catch (e) {
               await showDialog({
-                title: '❌ Install Failed',
+                title: 'Install Failed',
                 message: e.message
               });
               serviceChip.innerHTML = '<span>Install</span>';
@@ -1447,7 +1475,7 @@
           const subj = (n?.message?.subject || 'Dev Tunnel Proxy notification').toString();
           const body = (n?.message?.body || '').toString();
 
-          const testSubject = `🧪 TEST: ${subj}`;
+          const testSubject = `TEST: ${subj}`;
           const testBody = `Test notification for ${route}\n\n${body}`;
 
           const ok = await showDialog({
@@ -1475,22 +1503,22 @@
 
             if (resp.ok) {
               await showDialog({
-                title: '✅ Test Sent',
+                title: 'Test Sent',
                 message: `Test notification sent to ${recipients.join(', ')}!\n\nIf this is your first time, macOS may have prompted for automation permission.\n\nTo grant permission:\n1. Open System Settings → Privacy & Security → Automation\n2. Look for "node" in the list\n3. Check the box next to "Messages"`
               });
             } else {
               const detail = payload?.error || JSON.stringify(payload || {}) || `HTTP ${resp.status}`;
               const helpText = detail.includes('not authorized') || detail.includes('permission')
-                ? '\n\n🔐 Permission Issue:\n1. Open System Settings → Privacy & Security → Automation\n2. Look for "node" and enable "Messages"\n\nOr run: open "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"'
+                ? '\n\nPermission Issue:\n1. Open System Settings → Privacy & Security → Automation\n2. Look for "node" and enable "Messages"\n\nOr run: open "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"'
                 : '\n\nIs the macOS notifications bridge running?\nRun: node macos/notifications-bridge.js';
               await showDialog({
-                title: '❌ Test Failed',
+                title: 'Test Failed',
                 message: `${detail}${helpText}`
               });
             }
           } catch (e) {
             await showDialog({
-              title: '❌ Test Failed',
+              title: 'Test Failed',
               message: `${e?.message || e}\n\nIs the macOS notifications bridge running?\nRun: node macos/notifications-bridge.js`
             });
           }
@@ -1589,12 +1617,12 @@
 
           const enabledPill = document.createElement('span');
           enabledPill.className = 'notif-pill ' + (n.enabled ? 'ok' : 'warn');
-          enabledPill.innerHTML = n.enabled ? '✅ enabled' : '⏸ disabled';
+          enabledPill.innerHTML = n.enabled ? 'enabled' : 'disabled';
           controls.appendChild(enabledPill);
 
           const toggleBtn = document.createElement('button');
           toggleBtn.className = 'btn-small';
-          toggleBtn.textContent = n.enabled ? '⏸' : '▶';
+          toggleBtn.textContent = n.enabled ? 'Disable' : 'Enable';
           toggleBtn.title = n.enabled ? 'Disable' : 'Enable';
           toggleBtn.addEventListener('click', async (e) => {
             e.preventDefault(); e.stopPropagation();
@@ -1608,7 +1636,7 @@
 
           const editBtn = document.createElement('button');
           editBtn.className = 'btn-small';
-          editBtn.textContent = '✏️';
+          editBtn.textContent = 'Edit';
           editBtn.title = 'Edit';
           editBtn.addEventListener('click', (e) => {
             e.preventDefault(); e.stopPropagation();
@@ -1618,7 +1646,7 @@
 
           const testBtn = document.createElement('button');
           testBtn.className = 'btn-small';
-          testBtn.textContent = '🧪';
+          testBtn.textContent = 'Test';
           testBtn.title = 'Send test';
           testBtn.disabled = !!n.recycledAt || ((n?.action?.type || 'text').toLowerCase() !== 'text');
           testBtn.addEventListener('click', async (e) => {
@@ -1629,7 +1657,7 @@
 
           const recycleBtn = document.createElement('button');
           recycleBtn.className = 'btn-small';
-          recycleBtn.textContent = isRecycled ? '↺' : '♻️';
+          recycleBtn.textContent = isRecycled ? 'Restore' : 'Recycle';
           recycleBtn.title = isRecycled ? 'Restore' : 'Recycle';
           recycleBtn.addEventListener('click', async (e) => {
             e.preventDefault(); e.stopPropagation();
@@ -2066,18 +2094,20 @@
         }
       }
       function severityOf(route, targets, routes){
-        // ok if ANY target is ok; treat 308 as ok, other 3xx/0 as warn
-        let sev='err';
+        // Treat 308 as ok, other 3xx/0 as warn. If ANY target is 5xx, it's an error.
+        let highestSev = 'ok';
+        let foundAny = false;
         for (const t of targets){
           const info=(routes.summary?.[t]||{})[route];
           if (!info) continue;
+          foundAny = true;
           const s = info.status||0;
-          if (s>=200 && s<300) return 'ok';
-          if (s===308) return 'ok';
-          if (s>=300 && s<400) sev = sev==='ok'?'ok':'warn';
-          else if (s===0) sev = sev==='ok'?'ok':'warn';
+          if (s >= 500) return 'err'; // Critical failure on any target
+          if (s === 0) { highestSev = 'warn'; continue; }
+          if (s >= 400) { highestSev = 'warn'; continue; }
+          if (s >= 300 && s < 400 && s !== 308) { highestSev = 'warn'; continue; }
         }
-        return sev;
+        return foundAny ? highestSev : 'err';
       }
       function applyFilter(routeGroups, filterValue, targets, routes){
         const q=(filterValue||'').trim().toLowerCase(); if(!q) return routeGroups;
@@ -2189,21 +2219,6 @@
           openNotificationsModal({ route, source, meta: routes?.metadata?.[route] || null });
         });
         actionContainer.appendChild(notifyBtn);
-        
-        // Open button
-        const openBtn = createActionButton('open', {
-          title: 'Open Route',
-          innerHTML: '',
-          dataset: { route }
-        });
-        openBtn.appendChild(createIcon('external-link', 16));
-        openBtn.addEventListener('click', (e) => {
-          e.preventDefault(); 
-          e.stopPropagation();
-          const url = chooseOpenUrl(routes, targetsArr, route);
-          if (url) window.open(url, '_blank', 'noopener');
-        });
-        actionContainer.appendChild(openBtn);
         
         // Promote/Demote button (promotions passed as parameter)
         const promotionData = promotions?.[source]?.[route];
@@ -2762,10 +2777,26 @@
         const summaryWrap = document.getElementById('summaryChips');
         summaryWrap.innerHTML = '';
         const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Generated:</strong> ${generatedTime}`;
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Proxy URL:</strong> ${ngrokTxt}`;
+        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Generated</strong> ${generatedTime}`;
+        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Proxy URL</strong> ${ngrokTxt}`;
         const targets = Object.keys(routes.summary||{});
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Targets:</strong> ${targets.join(', ') || '—'}`;
+        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Targets</strong> ${targets.join(', ') || '—'}`;
+
+        // Add conflict alert chip if any
+        const conf = routes.nginxConflicts || routes.conflictSummary || {};
+        if (conf.totalConflicts > 0) {
+          const c = chipEl('Conflict Detected', 'err');
+          c.style.fontWeight = '700';
+          c.style.cursor = 'pointer';
+          c.onclick = () => { 
+            const el = document.getElementById('conflictCard');
+            if (el) {
+              el.classList.remove('hidden');
+              el.scrollIntoView({ behavior: 'smooth' });
+            }
+          };
+          summaryWrap.appendChild(c);
+        }
 
         // Group by source file from metadata (data-driven)
         const meta = routes.metadata || {};
@@ -2887,6 +2918,7 @@
         const groupByEl=document.getElementById('groupByMode');
         const filterEl=document.getElementById('routeFilter');
         const selfCheckBtn=document.getElementById('aiSelfCheckGlobal');
+        const openRouteCreator=document.getElementById('openRouteCreatorFromStatus');
         preferences = loadPrefs();
         if (groupByEl){
           const groupPref = preferences.groupByMode || 'none';
@@ -2902,6 +2934,9 @@
           if (preferences.filter) filterEl.value=preferences.filter;
           const debounced = debounce(()=>{ savePrefs(preferences); rebuildApps(); setTimeout(() => { applyMasonryLayout(); try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(true); } catch(e) {} }, 100); }, 250);
           filterEl.addEventListener('input',(e)=>{ preferences.filter=e.target.value; debounced(); });
+        }
+        if (openRouteCreator){
+          openRouteCreator.addEventListener('click', ()=> openDashboardRouteCreator());
         }
         
         // Reapply masonry on window resize
@@ -2943,12 +2978,12 @@
           });
           if (freshRoutes.ok) {
             scanSuccess = true;
-            logInfo('✅ Routes data refreshed');
+            logInfo('Routes data refreshed');
           }
           
           if (scanSuccess) {
             // Success feedback
-            reloadBtn.textContent = '✅ Reloaded!';
+            reloadBtn.textContent = 'Reloaded!';
             reloadBtn.style.background = '#16402b';
             reloadBtn.style.borderColor = '#2a7f54';
             reloadBtn.style.color = '#a6f3cc';
@@ -2965,7 +3000,7 @@
           console.error('Config reload failed:', error);
           
           // Error feedback
-          reloadBtn.textContent = '❌ Failed - Try Manual';
+          reloadBtn.textContent = 'Failed - Try Manual';
           reloadBtn.style.background = 'rgba(239,68,68,.15)';
           reloadBtn.style.borderColor = '#ef4444';
           reloadBtn.style.color = '#ef4444';
@@ -2979,8 +3014,13 @@ node test/scanApps.js
 Or check if config files have syntax errors.
           `.trim();
           
-          setTimeout(() => {
-            if (confirm(`Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page anyway to check if configs were updated externally?`)) {
+          setTimeout(async () => {
+            const confirmed = await window.DTP.showDialog({
+              type: 'confirm',
+              title: 'Reload Failed',
+              message: `Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page anyway to check if configs were updated externally?`
+            });
+            if (confirmed) {
               location.reload();
             }
           }, 1500);
@@ -3059,66 +3099,145 @@ Or check if config files have syntax errors.
       function showConflictManagement(routes) {
         const conflictCard = document.getElementById('conflictCard');
         const conflictsDiv = document.getElementById('conflicts');
+        const ackBtn = document.getElementById('conflictAckBtn');
+        const fixBtn = document.getElementById('conflictFixBtn');
         
+        const confSummary = routes.nginxConflicts || routes.conflictSummary || {};
         const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
-                            (routes.conflictSummary && routes.conflictSummary.totalConflicts > 0);
-        // Hide indicator if user acknowledged
-        try{ const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null'); if (ack && ack.ts) return; }catch{}
+                            (confSummary.totalConflicts > 0);
         
-        // Respect local acknowledgement to dismiss banner/content block
-        try{
-          const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null');
-          if (ack && ack.ts && (Date.now() - ack.ts < 7*24*3600*1000)){
-            conflictCard.classList.add('hidden');
-            return;
+        // Hide indicator if user acknowledged
+        try{ 
+          const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null'); 
+          if (ack && ack.ts && (Date.now() - ack.ts < 7*24*3600*1000)) {
+            if (!hasConflicts) {
+              conflictCard.classList.add('hidden');
+              return;
+            }
           }
         }catch{}
+
         if (!hasConflicts) { conflictCard.classList.add('hidden'); return; }
         
         conflictCard.classList.remove('hidden');
-        // Add a one-time acknowledge button
-        const ackBtn = document.createElement('button');
-        ackBtn.className = 'btn';
-        ackBtn.textContent = 'Acknowledge';
-        ackBtn.onclick = ()=>{ try{ localStorage.setItem('conflictsAck', JSON.stringify({ ts: Date.now() })); }catch{} conflictCard.classList.add('hidden'); };
-        const header = conflictCard.querySelector('h2');
-        if (header && !conflictCard.querySelector('.btn.ack')){ header.appendChild(document.createTextNode(' ')); header.appendChild(ackBtn); ackBtn.classList.add('ack'); }
+        
         conflictsDiv.innerHTML = '';
         
         // Parse nginx warnings to extract conflict information
         const conflicts = parseConflictWarnings(routes.nginxWarnings || []);
         
+        // Wire buttons (after conflicts are parsed)
+        if (ackBtn) {
+          ackBtn.onclick = () => { 
+            try{ localStorage.setItem('conflictsAck', JSON.stringify({ ts: Date.now() })); }catch{} 
+            conflictCard.classList.add('hidden'); 
+            window.DTP.showToast('info', 'Conflicts dismissed');
+          };
+        }
+        
+        if (fixBtn) {
+          fixBtn.onclick = () => {
+            const conflictText = conflicts.length > 0 
+              ? conflicts.map(c => `Route ${c.route} is claimed by ${c.configs.join(' and ')}.`).join('\n')
+              : `${confSummary.totalConflicts || 'Some'} route conflicts detected.`;
+            
+            const prompt = `I see some route conflicts in my configuration:\n\n${conflictText}\n\nCan you help me resolve these? I'm not sure which config should win or if I should rename some routes.`;
+            
+            // Open Calliope
+            const drawer = document.getElementById('aiDrawer');
+            if (drawer) {
+              drawer.classList.remove('collapsed');
+              document.body.classList.add('ai-open');
+              
+              // Set query and ask
+              setTimeout(() => {
+                const queryEl = document.getElementById('aiQuery');
+                if (queryEl) {
+                  queryEl.value = prompt;
+                  const askBtn = document.getElementById('aiAskBtn');
+                  if (askBtn) {
+                    setTimeout(() => askBtn.click(), 100);
+                  }
+                }
+              }, 200);
+            }
+          };
+        }
+        
+        if (conflicts.length === 0 && hasConflicts) {
+          conflictsDiv.innerHTML = `<div class="suggestion-item" style="padding: 16px; border: 1px dashed var(--err); border-radius: 8px; margin-bottom: 16px;">
+            <p style="margin: 0; color: var(--err); font-weight: 600;">⚠️ Detected ${confSummary.totalConflicts} conflicts, but couldn't parse the details.</p>
+            <p style="margin: 8px 0 0 0; opacity: 0.8;">This usually happens when the nginx logs are in an unexpected format. Try running a manual scan or ask Calliope for help.</p>
+          </div>`;
+          return;
+        }
+
         conflicts.forEach(conflict => {
           const conflictDiv = document.createElement('div');
           conflictDiv.className = 'conflict-item';
+          conflictDiv.style.marginBottom = '20px';
+          conflictDiv.style.padding = '16px';
+          conflictDiv.style.background = 'rgba(239, 68, 68, 0.05)';
+          conflictDiv.style.border = '1px solid rgba(239, 68, 68, 0.2)';
+          conflictDiv.style.borderRadius = '10px';
+          
           conflictDiv.innerHTML = `
-            <div class="conflict-header">
-              <h3>Route: ${conflict.route}</h3>
-              <div class="conflict-status">
-                Current winner: <strong>${conflict.winner}</strong>
+            <div class="conflict-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0; font-size: 16px; color: var(--err);">Path: ${conflict.route}</h3>
+                <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.8;">Multiple apps are trying to use this URL path. Only one can win.</p>
+              </div>
+              <div class="conflict-status" style="background: var(--err); color: white; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">
+                CONFLICT
               </div>
             </div>
-            <div class="conflict-options">
-              <div class="conflict-configs">
-                ${conflict.configs.map(config => `
-                  <label class="config-option ${config === conflict.winner ? 'active' : ''}">
-                    <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''}>
-                    <span class="config-name">${config.replace(/\.conf$/, '')}</span>
-                    <div class="config-actions">
-                      <button class="btn-small" onclick="viewConfig('${config}')">View</button>
-                      <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')">Rename Route</button>
-                    </div>
-                  </label>
-                `).join('')}
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+              <div class="conflict-options">
+                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Choose a winner:</p>
+                <div class="conflict-configs" style="display: flex; flex-direction: column; gap: 8px;">
+                  ${conflict.configs.map(config => `
+                    <label class="config-option ${config === conflict.winner ? 'active' : ''}" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                      <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''} style="accent-color: var(--ok);">
+                      <div style="flex: 1;">
+                        <span class="config-name" style="font-weight: 600;">${config.replace(/\.conf$/, '')}</span>
+                        ${config === conflict.winner ? '<span style="font-size: 10px; color: var(--ok); margin-left: 6px;">(Current Winner)</span>' : ''}
+                      </div>
+                      <div class="config-actions">
+                        <button class="btn-small" onclick="viewConfig('${config}')" style="padding: 4px 8px; font-size: 11px;">View</button>
+                      </div>
+                    </label>
+                  `).join('')}
+                </div>
+                <button class="btn" onclick="resolveConflict('${conflict.route}')" style="margin-top: 12px; width: 100%; background: var(--ok); border-color: var(--ok); color: white;">Save Winner Selection</button>
               </div>
-              <div class="conflict-actions">
-                <button class="btn" onclick="resolveConflict('${conflict.route}')">Apply Selection</button>
-                <button class="btn" onclick="autoFixConflict('${conflict.route}')">Auto-Fix</button>
+              
+              <div class="conflict-suggestions">
+                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Other Actions:</p>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div style="padding: 12px; background: rgba(127, 176, 255, 0.1); border: 1px dashed var(--lnk); border-radius: 8px;">
+                    <p style="margin: 0; font-size: 12px; font-weight: 600; color: var(--lnk);">💡 Suggestion: Rename Route</p>
+                    <p style="margin: 4px 0 10px 0; font-size: 11px; opacity: 0.8;">Give one of these apps a unique subpath so they can both exist.</p>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      ${conflict.configs.map(config => `
+                        <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')" style="font-size: 10px;">Rename in ${config.replace(/\.conf$/, '')}</button>
+                      `).join('')}
+                    </div>
+                  </div>
+                  
+                  <button class="btn" onclick="autoFixConflict('${conflict.route}')" style="background: var(--panel); border-style: dashed; font-size: 13px;">
+                    <i data-lucide="wand-2" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 6px;"></i>
+                    Try AI Auto-Fix
+                  </button>
+                </div>
               </div>
             </div>
           `;
           conflictsDiv.appendChild(conflictDiv);
         });
+        
+        // Refresh icons for any new content
+        if (window.lucide) lucide.createIcons();
       }
 
       function parseConflictWarnings(warnings) {
@@ -3159,12 +3278,19 @@ Or check if config files have syntax errors.
           
           if (response.ok) {
             // Refresh the page to show updated conflicts
+            window.DTP.showToast('Conflict resolved', 'success');
             location.reload();
           } else {
-            alert('Failed to resolve conflict. Check console for details.');
+            window.DTP.showDialog({ 
+              title: 'Resolution Failed', 
+              message: 'Failed to resolve conflict. Check console for details.' 
+            });
           }
         } catch (error) {
-          alert('Error resolving conflict: ' + error.message);
+          window.DTP.showDialog({ 
+            title: 'Error', 
+            message: 'Error resolving conflict: ' + error.message 
+          });
         }
       }
 
@@ -3172,8 +3298,12 @@ Or check if config files have syntax errors.
         openConfigModal(configFile);
       }
 
-      function renameRoute(route, configFile) {
-        const newRoute = prompt(`Rename route ${route} in ${configFile} to:`, route);
+      async function renameRoute(route, configFile) {
+        const newRoute = await window.DTP.showPrompt({
+          title: 'Rename Route',
+          message: `Rename route ${route} in ${configFile} to:`,
+          value: route
+        });
         if (newRoute && newRoute !== route) {
           renameRouteInConfig(route, newRoute, configFile);
         }
@@ -3263,7 +3393,7 @@ Or check if config files have syntax errors.
         if (action === 'rename') {
           const selectedRadio = document.querySelector(`input[name="conflict-${route}"]:checked`);
           if (!selectedRadio) {
-            alert('Please select a config file first');
+            window.DTP.showToast('Please select a config file first', 'error');
             return;
           }
           
@@ -3283,14 +3413,16 @@ Or check if config files have syntax errors.
           });
           
           if (response.ok) {
-            alert(`Route renamed successfully. Please restart the proxy for changes to take effect.`);
-            location.reload();
+            window.DTP.showDialog({ 
+              title: 'Success', 
+              message: `Route renamed successfully. Please restart the proxy for changes to take effect.` 
+            }).then(() => location.reload());
           } else {
             const error = await response.text();
-            alert('Failed to rename route: ' + error);
+            window.DTP.showDialog({ title: 'Error', message: 'Failed to rename route: ' + error });
           }
         } catch (error) {
-          alert('Error renaming route: ' + error.message);
+          window.DTP.showDialog({ title: 'Error', message: 'Error renaming route: ' + error.message });
         }
       }
 
@@ -3363,15 +3495,19 @@ Or check if config files have syntax errors.
           });
           
           if (response.ok) {
-            alert('Config saved successfully. Restart the proxy for changes to take effect.');
-            document.querySelector('.modal').remove();
-            location.reload();
+            window.DTP.showDialog({ 
+              title: 'Success', 
+              message: 'Config saved successfully. Restart the proxy for changes to take effect.' 
+            }).then(() => {
+              document.querySelector('.modal').remove();
+              location.reload();
+            });
           } else {
             const error = await response.text();
-            alert('Failed to save config: ' + error);
+            window.DTP.showDialog({ title: 'Error', message: 'Failed to save config: ' + error });
           }
         } catch (error) {
-          alert('Error saving config: ' + error.message);
+          window.DTP.showDialog({ title: 'Error', message: 'Error saving config: ' + error.message });
         }
       }
 
@@ -3687,7 +3823,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           viewBtn.addEventListener('click', () => {
             // Open a modal with details
             const detailsStr = JSON.stringify(entry.details || {}, null, 2);
-            alert(`Healing Details:\n${detailsStr}`);
+            window.DTP.showDialog({ 
+              title: 'Healing Details', 
+              message: detailsStr || 'No details recorded.' 
+            });
           });
           
           actions.appendChild(viewBtn);
@@ -4115,9 +4254,20 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           try{
             const resp = await fetch(window.DTP.config.apiPath('ai/reindex'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: '{}' });
             const data = await resp.json().catch(()=>null);
-            if (!resp.ok){ alert(`Reindex failed: ${(data&&data.error)||('HTTP '+resp.status)}`); }
-            else { appendBubble('assistant', 'Knowledge index rebuilt ✅'); }
-          } catch(e){ alert('Reindex error: '+e.message); }
+            if (!resp.ok){ 
+              window.DTP.showDialog({ 
+                title: 'Reindex Failed', 
+                message: (data&&data.error)||('HTTP '+resp.status) 
+              }); 
+            } else {
+              window.DTP.showToast('Knowledge index rebuilt', 'success');
+            }
+          } catch(e){ 
+            window.DTP.showDialog({ 
+              title: 'Reindex Error', 
+              message: e.message 
+            }); 
+          }
           await refreshHealth();
           reindexBtn.disabled = false; reindexBtn.textContent = 'Reindex';
         }

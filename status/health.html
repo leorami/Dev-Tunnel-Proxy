@@ -79,8 +79,8 @@
           <a class="btn tab" href="/reports" title="Browse generated reports">Reports</a>
           <a class="btn tab" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
           <span class="divider" aria-hidden="true"></span>
-          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">🔄</button>
-          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">Reload</button>
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">Theme</button>
           <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
         </div>
       </div>
@@ -143,7 +143,7 @@
         const stored = localStorage.getItem('dtpTheme');
         const theme = stored || 'dark';
         document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
-        document.getElementById('themeToggle').textContent = theme==='light' ? '🌙' : '☀️';
+        document.getElementById('themeToggle').textContent = 'Theme';
         document.getElementById('themeToggle').setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
       }
       function toggleTheme(){
@@ -151,7 +151,7 @@
         const next = cur==='light'?'dark':'light';
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('dtpTheme', next);
-        document.getElementById('themeToggle').textContent = next==='light' ? '🌙' : '☀️';
+        document.getElementById('themeToggle').textContent = 'Theme';
         document.getElementById('themeToggle').setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
       }
       async function refresh(){
@@ -162,7 +162,8 @@
           
           // Calculate conflict information first
           const conflicts = (routes && routes.nginxConflicts) || {};
-          const conflictCount = Object.keys(conflicts).length || ((routes && routes.conflictWarnings?.length>0) ? 1 : 0);
+          const conflictCount = (conflicts && typeof conflicts.totalConflicts === 'number') ? conflicts.totalConflicts : 
+                               ((routes && routes.conflictWarnings?.length>0) ? 1 : 0);
           const routeCount = Object.keys((routes && routes.metadata) || {}).length;
           
           // Calculate overall status based on proxy health and routes
@@ -177,7 +178,15 @@
             (hasConflicts ? `OK (${conflictCount} conflicts)` : `OK (${routeCount} routes)`) : 'ERROR';
           document.getElementById('overall-status').className='value '+(overallStatus==='ok'?'ok':overallStatus==='warn'?'warn':'err');
           document.getElementById('ngrok-url').textContent=(status && status.ngrok)||'not discovered';
-          document.getElementById('api-owner').textContent=conflictCount > 0 ? `${conflictCount} route conflicts` : 'No conflicts';
+          
+          const conflictEl = document.getElementById('api-owner');
+          if (conflictCount > 0) {
+            conflictEl.innerHTML = `<a href="/status#conflictCard" style="color: inherit; text-decoration: underline;">${conflictCount} route conflicts</a>`;
+            conflictEl.className = 'value err';
+          } else {
+            conflictEl.textContent = 'No conflicts';
+            conflictEl.className = 'value ok';
+          }
           document.getElementById('last-run').textContent=(routes&&routes.generatedAt)||(status&&status.generatedAt)||new Date().toISOString();
           const t = (status&&status.results)? Object.keys(status.results).join(', '): '—';
           document.getElementById('targets').textContent=t;
@@ -195,7 +204,7 @@
         
         try {
           // Show loading state
-          reloadBtn.textContent = '🔄';
+          reloadBtn.textContent = 'Reloading...';
           reloadBtn.disabled = true;
           
           // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
@@ -207,15 +216,16 @@
           });
           if (freshRoutes.ok) {
             scanSuccess = true;
-            console.log('✅ Routes data refreshed');
+            console.log('Routes data refreshed');
           }
           
           if (scanSuccess) {
             // Success feedback
-            reloadBtn.textContent = '✅';
+            reloadBtn.textContent = 'Reloaded';
             reloadBtn.style.background = '#16402b';
             reloadBtn.style.borderColor = '#2a7f54';
             reloadBtn.style.color = '#a6f3cc';
+            window.DTP.showToast('Configurations reloaded', 'success');
             
             // Refresh the health data after successful reload
             setTimeout(async () => {
@@ -229,7 +239,7 @@
           console.error('Config reload failed:', error);
           
           // Error feedback
-          reloadBtn.textContent = '❌';
+          reloadBtn.textContent = 'Failed';
           reloadBtn.style.background = 'rgba(239,68,68,.15)';
           reloadBtn.style.borderColor = '#ef4444';
           reloadBtn.style.color = '#ef4444';
@@ -243,8 +253,13 @@ node test/scanApps.js
 Or check if config files have syntax errors.
           `.trim();
           
-          setTimeout(() => {
-            if (confirm(`Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page data anyway?`)) {
+          setTimeout(async () => {
+            const confirmed = await window.DTP.showDialog({
+              type: 'confirm',
+              title: 'Reload Failed',
+              message: `Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page data anyway?`
+            });
+            if (confirmed) {
               refresh();
             }
           }, 1500);
