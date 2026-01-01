@@ -1,7 +1,7 @@
 # Configuration Management Guide
 
-**Last Updated**: December 2025  
-**Version**: 1.0
+**Last Updated**: January 2026  
+**Version**: 1.1
 
 This guide covers configuration management, API endpoints, conflict resolution, and best practices for the Dev Tunnel Proxy.
 
@@ -186,6 +186,124 @@ Allows apps to programmatically upload their Nginx configuration files to the pr
 3. The bundle is regenerated with `generateAppsBundle.js`
 4. Nginx configuration is tested and reloaded
 
+#### Create Route (Auto-Generate + Install) 🆕
+
+**New in v1.1**: Automatically generates optimal nginx configuration with built-in safety rails.
+
+**Endpoint:** `POST /devproxy/api/apps/create-route`
+
+**Request Body:**
+```json
+{
+  "name": "myapp",
+  "basePath": "/myapp",
+  "upstream": "http://myapp-container:3000",
+  "options": {
+    "redirect": true,
+    "websockets": true,
+    "forwardedPrefix": true
+  },
+  "install": true
+}
+```
+
+**Parameters:**
+- `name`: (Required) App name (alphanumeric, hyphens, underscores)
+- `basePath`: (Required) Route path (auto-normalized to `/myapp/` format)
+- `upstream`: (Required) Backend service URL (validated and normalized)
+- `options`: (Optional) Configuration options:
+  - `redirect`: Add trailing slash redirect (recommended: `true`)
+  - `websockets`: Add WebSocket support headers for HMR (recommended: `true`)
+  - `forwardedPrefix`: Add `X-Forwarded-Prefix` header for framework support
+- `install`: (Optional) If `true`, immediately installs to proxy (default: `false`)
+
+**Response:**
+```json
+{
+  "ok": true,
+  "config": "# Generated nginx configuration...",
+  "installed": true,
+  "filename": "myapp.conf",
+  "downloadUrl": "/devproxy/api/apps/download/myapp.conf"
+}
+```
+
+**Auto-Generated Features:**
+1. **Base Path Normalization**:
+   - Ensures leading slash: `myapp` → `/myapp`
+   - Ensures trailing slash: `/myapp` → `/myapp/`
+   - Result: Always `/myapp/` format
+
+2. **Upstream URL Validation**:
+   - Validates format (http:// or https://)
+   - Ensures proper hostname and port
+   - Adds trailing slash if missing
+
+3. **Reserved Path Checking**:
+   - Blocks `/`, `/status`, `/health`, `/api/*`, etc.
+   - Returns error if path conflicts with proxy infrastructure
+
+4. **Redirect Companion Block** (if `redirect: true`):
+   ```nginx
+   location = /myapp {
+     return 301 /myapp/;
+   }
+   ```
+
+5. **WebSocket Support** (if `websockets: true`):
+   ```nginx
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection "upgrade";
+   ```
+
+6. **X-Forwarded-Prefix Header** (if `forwardedPrefix: true`):
+   ```nginx
+   proxy_set_header X-Forwarded-Prefix /myapp;
+   ```
+
+7. **Essential Proxy Headers** (Always Included):
+   - Host, X-Real-IP, X-Forwarded-For
+   - X-Forwarded-Proto, X-Forwarded-Host
+   - ngrok-skip-browser-warning
+
+8. **Resilient Upstreams**:
+   - DNS resolver configuration
+   - Variable-based proxy_pass
+   - Proper timeouts
+
+**UI Shortcut:**
+Access via `/dashboard/#create-route` or click "Create Route" in the header or the plus icon in the Configured Apps card.
+
+**Example Generated Config:**
+```nginx
+# myapp.conf
+location = /myapp {
+  return 301 /myapp/;
+}
+
+location ^~ /myapp/ {
+  resolver 127.0.0.11 ipv6=off;
+  resolver_timeout 5s;
+  set $myapp_upstream myapp-container:3000;
+  
+  proxy_http_version 1.1;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+  proxy_set_header X-Forwarded-Host $host;
+  proxy_set_header X-Forwarded-Prefix /myapp;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header ngrok-skip-browser-warning "true";
+  
+  proxy_read_timeout 300s;
+  proxy_send_timeout 300s;
+  
+  proxy_pass http://$myapp_upstream/;
+}
+```
+
 #### Promote App Configuration to Override
 
 Promotes an existing app configuration to an override.
@@ -244,6 +362,46 @@ Updates the content of an existing configuration file.
   "file": "apps/app-name.conf"
 }
 ```
+
+#### Create Route (auto-generate + install)
+
+Creates a best-practice nginx snippet for a base path, installs it into `apps/`, and returns the config so it can be downloaded.
+
+**Endpoint:** `POST /devproxy/api/apps/create-route`
+
+**Request Body:**
+```json
+{
+  "name": "app-name",
+  "basePath": "/app-name/",
+  "upstream": "http://web:5173",
+  "options": {
+    "addRedirect": true,
+    "websockets": true,
+    "includePrefixHeader": true,
+    "install": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "installed": "app-name.conf",
+  "basePath": "/app-name/",
+  "upstream": "http://web:5173/",
+  "config": "# Auto-generated ...",
+  "download": "/devproxy/api/config/app-name.conf"
+}
+```
+
+**Behavior & Safety Rails**
+- `basePath` is normalized to include a trailing slash and cannot be `/` or any reserved proxy path.
+- Adds a `/path → /path/` redirect companion block when `options.addRedirect !== false`.
+- Adds WebSocket headers and `X-Forwarded-Prefix` by default.
+- Returns the generated config inline for download even if `install` is set to `false`.
+- UI shortcut: the `/dashboard/` page exposes a “Create Route” card that calls this API, installs the snippet, and offers a one-click download of the generated config file.
 
 ### Client Usage Example
 

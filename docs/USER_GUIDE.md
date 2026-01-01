@@ -1,7 +1,7 @@
 # Dev Tunnel Proxy User Guide
 
-**Last Updated**: December 2025  
-**Version**: 1.0
+**Last Updated**: January 2026  
+**Version**: 1.1
 
 Welcome! This guide will help you get started with Dev Tunnel Proxy, from initial setup to daily usage and troubleshooting.
 
@@ -385,7 +385,7 @@ curl https://abc123.ngrok.app/myapp/
 
 ### Overview
 
-The status dashboard (`http://localhost:8080/status`) is your command center.
+The status dashboard (`http://localhost:8080/status`) is your command center with a modern, polished interface featuring custom dialogs and improved UX.
 
 ### Key Features
 
@@ -396,9 +396,27 @@ Each route displays:
 - **Health status** (green=ok, yellow=warn, red=error)
 - **Status codes** (200, 404, 502, etc.)
 - **Source file** (which config defines this route)
-- **Actions** (Open, Diagnose, etc.)
+- **Actions** (Diagnose with Calliope, Notifications, etc.)
 
-#### 2. Filtering
+#### 2. Route Conflicts Management
+
+**New in v1.1**: Enhanced conflict detection and resolution
+
+When multiple configuration files declare the same routes, you'll see:
+- **Conflict Detected chip** in Status Overview - Click to scroll to conflicts
+- **Route Conflicts card** with:
+  - Icon badge and clear title
+  - **Help Me button** - Opens Calliope with conflict context pre-populated
+  - **Dismiss button** - Hides the card for 7 days
+  - Detailed descriptions of each conflict
+  - Visual "CONFLICT" badges
+  - Winner selection options
+  - Actionable suggestions with rename buttons
+  - AI Auto-Fix option
+
+The conflicts card provides clear explanations of what's happening and multiple ways to resolve issues.
+
+#### 3. Filtering
 
 **By severity**:
 - Click `ok`, `warn`, or `err` chips to filter
@@ -424,7 +442,46 @@ Routes are automatically grouped by upstream service for easier navigation.
 
 #### 5. Theme Toggle
 
-Click sun/moon icon in top-right to switch between light and dark modes.
+Click the moon/sun icon in top-right to switch between light and dark modes.
+
+#### 6. Modern UI Components (New in v1.1)
+
+The dashboard now features:
+- **Custom Modal Dialogs** - Replacing native browser dialogs with branded, consistent modals
+- **Toast Notifications** - Non-blocking success/error/info messages that auto-dismiss
+- **Custom Prompt Dialogs** - Styled input dialogs for renaming routes and other actions
+- **Icon-Based Navigation** - Lucide icons for Reload, View Toggle, and Theme
+- **Responsive Design** - Calliope drawer properly fits viewport with consistent gaps
+
+All custom dialogs feature:
+- Light/white backgrounds matching the app's style
+- Smooth animations and transitions
+- Keyboard navigation support (Escape to close, Enter to confirm)
+- Proper focus management
+- Screen reader compatibility
+
+#### 7. Create Route Tool (New in v1.1)
+
+Access via the **Create Route** link in the header or the plus icon in the Configured Apps card.
+
+Features:
+- **Framework Presets** - Quick configs for Next.js, Vite, Rails, Django, Express
+- **Auto-configuration** - Generates optimal nginx config with safety rails
+- **Instant Install** - One-click deployment to the proxy
+- **Download Option** - Get the generated config file
+- **Validation** - Ensures proper basePath formatting and upstream URLs
+- **Built-in Options**:
+  - Trailing slash redirects (recommended)
+  - WebSocket support (for HMR)
+  - X-Forwarded-Prefix header
+
+The tool automatically:
+- Normalizes base paths (ensures leading `/` and trailing `/`)
+- Validates upstream URLs
+- Checks against reserved proxy paths
+- Generates redirect companion blocks
+- Adds appropriate proxy headers
+- Tests and reloads nginx safely
 
 ---
 
@@ -437,10 +494,20 @@ Calliope is your AI assistant who:
 - **Diagnoses issues** when things aren't working
 - **Fixes problems automatically** (with your permission)
 - **Learns from each fix** to handle similar issues faster
+- **Helps resolve conflicts** between competing route configurations
 
 ### Opening Calliope
 
-Click the **Calliope** button in the header or the stethoscope icon (🩺) next to any route.
+**New in v1.1**: Improved drawer behavior
+- Click the **Calliope** button (with heart stethoscope icon) in the header
+- Or click the diagnostic icon next to any route
+- Or click **Help Me** button in the Route Conflicts card
+
+The Calliope drawer now:
+- **Completely hides when collapsed** - No visible edges or shadows
+- **Aligns perfectly with content** - Top-aligned with Status Overview card
+- **Fits within viewport** - Responsive height with 16px gaps top and bottom
+- **Smooth transitions** - Visibility transitions properly timed with animations
 
 ### Asking Questions
 
@@ -1230,6 +1297,137 @@ Test artifacts:      .artifacts/ui/
    - [TESTING_SECURITY_AND_QUALITY.md](./TESTING_SECURITY_AND_QUALITY.md) - Testing & security
 4. **Check Logs** - `./smart-build.sh logs`
 5. **Ask Community** - GitHub Discussions
+
+---
+
+## What's New in v1.1 (January 2026)
+
+### UI/UX Improvements
+
+#### Enhanced Status Dashboard
+- **Route Conflicts Card** completely redesigned with:
+  - Professional icon badge and header
+  - "Help Me" button with Calliope's heart stethoscope icon
+  - "Dismiss" button (renamed from "Acknowledge")
+  - Detailed conflict descriptions and actionable suggestions
+  - Direct Calliope integration with pre-populated prompts
+
+- **Consistent Card Design**:
+  - All major cards now have icon badges, titles, and subtitles
+  - Status Overview: Blue activity badge
+  - Settings: Orange settings badge  
+  - Configured Apps: Green boxes badge
+  - Route Conflicts: Orange alert triangle badge
+
+- **Icon-Based Navigation**:
+  - Reload button: Refresh icon (animated on click)
+  - View toggle: Grid/List icons that change based on state
+  - Theme toggle: Moon/Sun icons that change based on theme
+  - All icons using Lucide icon library
+
+#### Custom Dialog System
+Replaced all native browser dialogs (`alert`, `confirm`, `prompt`) with custom-designed components:
+
+- **Modal Dialogs** (`.modal`):
+  - White/light gray backgrounds matching app style
+  - Smooth fade-in animations
+  - Keyboard shortcuts (Escape to close, Enter to confirm)
+  - Backdrop click to close
+  - Proper focus management
+
+- **Toast Notifications** (`.toast`):
+  - Non-blocking messages that appear at top of screen
+  - Auto-dismiss after 3 seconds (configurable)
+  - Color-coded by type (success=green, error=red, warn=yellow, info=blue)
+  - Slide-in/fade-out animations
+  - Multiple toasts stack vertically
+
+- **Custom Prompts**:
+  - Styled input dialogs for route renaming and other text input
+  - Consistent with modal dialog design
+  - Pre-filled default values
+  - Validation support
+
+#### Calliope Drawer Enhancements
+- **Completely Hidden When Collapsed**:
+  - No visible edges or shadows on right side
+  - Uses `translateX(calc(100% + 50px))` to push completely off-screen
+  - `visibility: hidden` with proper transition timing
+
+- **Responsive Positioning**:
+  - Top-aligned with Status Overview card at `calc(var(--headerH) + 16px)`
+  - Bottom gap matches top gap (16px each side)
+  - Height: `calc(100vh - var(--headerH) - 32px)` for perfect viewport fit
+  - Always fits within viewport, no scrolling issues
+
+- **Smooth Transitions**:
+  - Visibility transition delayed on close (0.18s) to complete slide animation first
+  - Immediate visibility on open for instant appearance
+  - No flickering or visual artifacts
+
+#### Create Route Tool
+New **Route Creator** accessible from:
+- "Create Route" link in main header
+- Plus icon in Configured Apps card header
+- Direct deep-link: `/dashboard/#create-route`
+
+Features:
+- **Modal-based UI** - Doesn't leave the page, seamless workflow
+- **Framework Presets** - One-click configs for:
+  - Next.js (with basePath)
+  - Vite (with base)
+  - Rails (subpath mounted)
+  - Django (SCRIPT_NAME)
+  - Express/Node (manual prefix handling)
+
+- **Auto-generation** with safety rails:
+  - Base path normalization (ensures `/myapp/` format)
+  - Upstream URL validation
+  - Reserved path checking
+  - Trailing slash redirect generation
+  - WebSocket header injection
+  - X-Forwarded-Prefix header for frameworks that need it
+
+- **Instant Install or Download**:
+  - Check "Install to proxy" for immediate deployment
+  - Or download `.conf` file for manual installation
+  - Preview generated config before installation
+
+### Backend Improvements
+
+#### Configuration API Enhancements
+- **New Endpoint**: `POST /api/apps/create-route`
+  - Generates optimal nginx configuration
+  - Validates inputs against reserved paths
+  - Supports optional immediate installation
+  - Returns downloadable config content
+
+- **Enhanced Route Conflict Detection**:
+  - More detailed conflict reporting
+  - Better grouping of conflicting routes
+  - Suggestions for resolution
+
+- **Calliope Authentication**:
+  - Added `/api/ai/ask`, `/api/ai/cancel`, `/api/ai/chat-history` to public endpoints
+  - Proper error handling for authentication failures
+  - Consistent API responses
+
+#### macOS Notifications Bridge
+- **Fixed Installation Script**:
+  - Corrected unbound variable error (`${LABEL}` → `${ENGINE_LABEL}`)
+  - Proper service load order (bridge before engine)
+  - Added 1-second delay between loads for initialization
+
+- **Improved Connection Stability**:
+  - Uses `localhost` or `127.0.0.1` based on hostname detection
+  - Better error handling for bridge unavailability
+
+### Documentation Updates
+- Complete rewrite of Route Conflicts section
+- Added Create Route Tool documentation
+- Documented custom dialog/toast system
+- Added Calliope drawer positioning details
+- Updated all screenshots and examples
 
 ---
 

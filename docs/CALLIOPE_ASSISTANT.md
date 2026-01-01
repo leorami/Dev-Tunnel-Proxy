@@ -1,7 +1,7 @@
 # Calliope AI Assistant - Complete Guide
 
-**Last Updated**: December 2025  
-**Version**: 1.0
+**Last Updated**: January 2026  
+**Version**: 1.1
 
 <div align="center">
   <img src="../status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="120" />
@@ -654,22 +654,37 @@ curl -X POST http://localhost:3001/api/ai/cancel
 ### Via Status Interface
 
 1. **Open Status Dashboard** - Navigate to `http://localhost:8080/status`
-2. **Click Stethoscope Icon** - Click 🩺 next to any route
+2. **Click Diagnostic Icon** - Click the diagnostic icon next to any route
 3. **Watch Her Work** - See thinking animation and step-by-step progress
 4. **Read Results** - Get caring explanations of what she found and fixed
 
-### Via Chat Interface
+### Via Chat Interface (Enhanced in v1.1)
 
-1. **Open Calliope Drawer** - Click "Calliope" button in header
+1. **Open Calliope Drawer** - Click "Calliope" button (with heart stethoscope icon) in header
 2. **Type Your Question** - Ask in natural language
-3. **See Thinking Indicator** - Watch animated dots while she works
+3. **See Thinking Indicator** - Watch animated dots and status chips while she works
 4. **Get Answer** - Receive detailed, context-aware responses
+
+**New in v1.1**: Improved drawer behavior
+- **Completely Hidden When Collapsed**: No visible edges or shadows
+- **Perfect Viewport Fit**: Aligned with Status Overview card, 16px gaps top and bottom
+- **Smooth Transitions**: Visibility transitions properly timed with slide animations
+- **Responsive Design**: Always fits within viewport without scrolling issues
 
 **Example Questions**:
 - "Why is my logo not loading?"
 - "Can you fix the /impact route?"
 - "What does this 404 mean?"
 - "What are your healing capabilities?"
+- "What routes are currently configured?"
+
+### Via Route Conflicts Card (New in v1.1)
+
+When route conflicts are detected:
+1. **Click "Help Me" Button** - Opens Calliope with conflict context pre-populated
+2. **Automatic Question** - Calliope receives details about the specific conflicts
+3. **Get Resolution Help** - Calliope explains the conflicts and suggests fixes
+4. **Apply Fixes** - She can rename routes or modify configs to resolve conflicts
 - "How do I configure WebSocket support?"
 
 ### Via API
