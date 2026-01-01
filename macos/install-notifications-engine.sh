@@ -63,7 +63,7 @@ write_engine_plist() {
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>${LABEL}</string>
+    <string>${ENGINE_LABEL}</string>
 
     <key>ProgramArguments</key>
     <array>
@@ -130,18 +130,22 @@ case "$CMD" in
   install)
     echo "📦 Installing notifications system..."
     
-    # Install bridge first (engine depends on it)
+    # Clean out any existing loads first
+    unload_if_loaded
+    
+    # Write plists
     write_bridge_plist
-    launchctl load "$BRIDGE_PLIST" 2>/dev/null || true
+    write_engine_plist
+    
+    # Load bridge first (engine depends on it)
+    launchctl load "$BRIDGE_PLIST"
     echo "✅ Bridge installed: $BRIDGE_LABEL"
     echo "   Logs: $ROOT_DIR/.artifacts/notifications-bridge.log"
     
     # Wait a moment for bridge to start
     sleep 1
     
-    # Install engine
-    write_engine_plist
-    unload_if_loaded
+    # Load engine
     launchctl load "$ENGINE_PLIST"
     echo "✅ Engine installed: $ENGINE_LABEL"
     echo "   Logs: $ROOT_DIR/.artifacts/notifications-engine.log"
