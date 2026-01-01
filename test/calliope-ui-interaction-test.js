@@ -8,7 +8,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'https://ramileo.ngrok.app';
+const BASE_URL = 'http://localhost:8080';
 
 const colors = {
   reset: '\x1b[0m',
