@@ -148,7 +148,7 @@
       /* Tool Cards */
       .tools-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
         gap: 16px;
         margin-bottom: 24px;
       }
@@ -161,11 +161,25 @@
         box-shadow: 0 6px 24px rgba(0,0,0,.25);
         backdrop-filter: saturate(160%) blur(6px);
         transition: all .2s;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
       }
       
       .tool-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 28px rgba(0,0,0,.30);
+      }
+      .tool-card .card-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .tool-card .actions {
+        margin-top: auto;
+        display: flex;
+        justify-content: flex-end;
       }
       
       .tool-card h2 {
@@ -200,6 +214,20 @@
         letter-spacing: .5px;
       }
       
+      .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        font-size: 13px;
+        color: var(--text);
+      }
+      
+      .checkbox-row input[type=checkbox] {
+        width: auto;
+        margin: 0;
+      }
+      
       input[type=text], select {
         width: 100%;
         padding: 10px 12px;
@@ -223,6 +251,7 @@
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
       
       button {
@@ -285,6 +314,136 @@
         padding: 20px;
         box-shadow: 0 6px 24px rgba(0,0,0,.25);
         backdrop-filter: saturate(160%) blur(6px);
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 16px;
+      }
+      .modal-overlay.open { display: flex; }
+      .modal {
+        background: var(--panelGlass);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 680px;
+        box-shadow: 0 20px 48px rgba(0,0,0,.30);
+        backdrop-filter: saturate(160%) blur(12px);
+        display: flex;
+        flex-direction: column;
+      }
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 22px 12px 22px;
+        border-bottom: 1px solid var(--border);
+      }
+      .modal-header h2 { margin: 0; font-size: 20px; }
+      .modal-subtitle { margin: 6px 0 0 0; color: var(--muted); font-size: 13px; }
+      .modal-body {
+        padding: 18px 22px 0 22px;
+        max-height: 80vh;
+        overflow: auto;
+      }
+      .modal-footer {
+        padding: 16px 22px 20px 22px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        margin-top: 12px;
+      }
+      .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--text);
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .modal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px 16px;
+      }
+
+      /* Dialog and Toast */
+      .dialog-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        padding: 16px;
+        backdrop-filter: blur(4px);
+      }
+      .dialog-modal {
+        background: #ffffff;
+        color: #111827;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 440px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        border: 1px solid #e5e7eb;
+      }
+      .dialog-modal h2 { margin: 0 0 8px 0 !important; font-size: 18px !important; color: #111827 !important; font-weight: 700 !important; }
+      .dialog-modal p { margin: 0 0 24px 0 !important; font-size: 14px !important; color: #4b5563 !important; line-height: 1.6 !important; white-space: pre-wrap !important; }
+      .dialog-footer { display: flex; justify-content: flex-end; gap: 10px; }
+      .dialog-footer button { padding: 10px 20px; font-size: 14px; }
+      .dialog-btn-cancel { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+      .dialog-btn-cancel:hover { background: #e5e7eb; }
+      .dialog-btn-ok { background: #2563eb; color: #ffffff; border: none; }
+      .dialog-btn-ok:hover { background: #1d4ed8; }
+
+      .toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 11000;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .toast {
+        background: #ffffff;
+        color: #111827;
+        padding: 14px 20px;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 300px;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid #3b82f6;
+        font-weight: 500;
+        font-size: 14px;
+        animation: toastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .toast.success { border-left-color: #10b981; }
+      .toast.error { border-left-color: #ef4444; }
+      .toast.info { border-left-color: #3b82f6; }
+      @keyframes toastIn { 
+        from { transform: translateX(100%) scale(0.9); opacity: 0; } 
+        to { transform: translateX(0) scale(1); opacity: 1; } 
+      }
+      .toast.fade-out {
+        animation: toastOut 0.3s forwards;
+      }
+      @keyframes toastOut {
+        to { transform: translateX(100%) scale(0.9); opacity: 0; }
       }
       
       .results-panel h2 {
@@ -426,7 +585,7 @@
             const theme = stored || 'dark';
             document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
             const t = document.getElementById('themeToggle');
-            if (t) { t.textContent = theme === 'light' ? '🌙' : '☀️'; }
+            if (t) { t.textContent = 'Theme'; }
           } catch {}
         }
         
@@ -436,7 +595,7 @@
           document.documentElement.setAttribute('data-theme', next);
           localStorage.setItem('dtpTheme', next);
           const t = document.getElementById('themeToggle');
-          if (t) { t.textContent = next === 'light' ? '🌙' : '☀️'; }
+          if (t) { t.textContent = 'Theme'; }
         }
         
         // API config
@@ -489,16 +648,29 @@
           <a class="tab btn" href="/reports">Reports</a>
           <a class="tab btn active" href="/dashboard/">Dashboard</a>
           <span class="divider" aria-hidden="true"></span>
-          <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+          <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">Theme</button>
         </div>
       </div>
     </header>
     
     <div class="container">
       <div class="tools-grid">
+        <!-- Route Creator (launch modal) -->
+        <div class="tool-card" id="create-route">
+          <div class="card-main">
+            <div>
+              <h2 style="margin:0 0 6px 0">Create Route</h2>
+              <p style="margin:0;">Generate a base-path friendly config, install it in the proxy, and download the file.</p>
+            </div>
+            <div class="actions">
+              <button id="openRouteModal" class="primary">Open Route Creator</button>
+            </div>
+          </div>
+        </div>
+        
         <!-- Audit Tool -->
         <div class="tool-card">
-          <h2>🔍 Audit Route</h2>
+          <h2>Audit Route</h2>
           <p>Test a specific route and get a detailed report of any issues found.</p>
           <div class="input-group">
             <label for="auditRoute">Select Route</label>
@@ -513,7 +685,7 @@
         
         <!-- Audit + Heal Tool -->
         <div class="tool-card">
-          <h2>🔧 Audit + Heal</h2>
+          <h2>Audit + Heal</h2>
           <p>Audit a route and automatically attempt to fix any issues found.</p>
           <div class="input-group">
             <label for="healRoute">Select Route</label>
@@ -528,7 +700,7 @@
         
         <!-- Advanced Heal Tool -->
         <div class="tool-card">
-          <h2>⚡ Advanced Heal</h2>
+          <h2>Advanced Heal</h2>
           <p>Deep healing for complex issues. Analyzes configuration and fixes problems.</p>
           <div class="input-group">
             <label for="advHealRoute">Select Route</label>
@@ -543,7 +715,7 @@
         
         <!-- Reindex Tool -->
         <div class="tool-card">
-          <h2>📚 Reindex Knowledge</h2>
+          <h2>Reindex Knowledge</h2>
           <p>Rebuild Calliope's knowledge base from documentation and configuration files.</p>
           <div class="info-box">
             <strong>When to use:</strong> After updating documentation or when Calliope seems out of sync.
@@ -555,7 +727,7 @@
         
         <!-- Self-Check Tool -->
         <div class="tool-card">
-          <h2>🩺 Self-Check</h2>
+          <h2>Self-Check</h2>
           <p>Run Calliope's self-diagnostic to identify and fix system issues.</p>
           <div class="info-box">
             <strong>Tip:</strong> Run this if you're experiencing proxy or routing issues.
@@ -567,7 +739,7 @@
         
         <!-- Clear Thoughts Tool -->
         <div class="tool-card">
-          <h2>🧹 Clear Thoughts</h2>
+          <h2>Clear Thoughts</h2>
           <p>Clear Calliope's thought stream and reset her working memory.</p>
           <div class="info-box">
             <strong>Note:</strong> This won't affect her knowledge base, only her active thought process.
@@ -581,13 +753,68 @@
       <!-- Results Panel -->
       <div class="results-panel">
         <h2>
-          <span>📄 Results</span>
+          <span>Results</span>
           <span id="statusBadge" class="status-badge idle">Idle</span>
         </h2>
         <div id="output" class="result-content empty">
-          <div style="font-size:48px;margin-bottom:16px">🛠️</div>
           <div style="font-size:16px;font-weight:600;margin-bottom:8px">Ready to use tools</div>
           <div>Select a tool above to get started. Results will appear here.</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Route Creator Modal -->
+    <div class="modal-overlay" id="routeModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Create Route</h2>
+          <p class="modal-subtitle">Generate a base-path friendly config, install it, and download the file.</p>
+          <button class="modal-close" id="closeRouteModal" aria-label="Close">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="modal-grid">
+          <div class="input-group">
+            <label for="routePreset">Preset</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <select id="routePreset" style="flex:1;min-width:200px">
+                <option value="">Select a preset...</option>
+                <option value="next">Next.js (basePath, HMR)</option>
+                <option value="vite">Vite/React (HMR)</option>
+                <option value="rails">Rails (relative_url_root)</option>
+                <option value="django">Django (FORCE_SCRIPT_NAME)</option>
+                <option value="express">Express/Node</option>
+              </select>
+              <button id="btnApplyPreset">Apply</button>
+            </div>
+          </div>
+          <div class="input-group">
+            <label for="routeName">Config Name (.conf)</label>
+            <input type="text" id="routeName" placeholder="constitution-timeline" />
+          </div>
+          <div class="input-group">
+            <label for="routeBase">Base Path</label>
+            <input type="text" id="routeBase" placeholder="/constitution/" />
+          </div>
+          <div class="input-group">
+            <label for="routeUpstream">Upstream URL</label>
+            <input type="text" id="routeUpstream" placeholder="http://web:5173" />
+          </div>
+          <div class="input-group">
+            <label>Options</label>
+            <label class="checkbox-row"><input type="checkbox" id="routeRedirect" checked /> Add /path → /path/ redirect</label>
+            <label class="checkbox-row"><input type="checkbox" id="routeWebsockets" checked /> Enable WebSocket headers</label>
+            <label class="checkbox-row"><input type="checkbox" id="routePrefixHeader" checked /> Send X-Forwarded-Prefix</label>
+            <label class="checkbox-row"><input type="checkbox" id="routeInstall" checked /> Install now (writes to apps/)</label>
+          </div>
+          </div>
+          <div class="btn-group" id="routeDownloadRow" style="display:none; justify-content:flex-start; margin-top:12px;">
+            <a id="routeDownload" class="btn" href="#" download>Download config</a>
+            <span id="routeDownloadMeta" style="color:var(--muted);font-size:12px;"></span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="btnPreviewRoute">Preview config</button>
+          <button id="btnCreateRoute" class="primary">Create Route</button>
         </div>
       </div>
     </div>
@@ -622,6 +849,171 @@
         output.style.color = 'var(--err)';
         output.textContent = `Error: ${error.message || error}`;
         setStatus('Error', 'error');
+        showToast(error.message || error, 'error');
+      }
+
+      function showToast(message, type = 'info') {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.className = 'toast-container';
+          document.body.appendChild(container);
+        }
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+          toast.classList.add('fade-out');
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
+
+      function showDialog(options = {}) {
+        return new Promise((resolve) => {
+          const overlay = document.createElement('div');
+          overlay.className = 'dialog-overlay';
+          
+          const modal = document.createElement('div');
+          modal.className = 'dialog-modal';
+          
+          const title = document.createElement('h2');
+          title.textContent = options.title || 'Confirm';
+          modal.appendChild(title);
+          
+          const msg = document.createElement('p');
+          msg.textContent = options.message || '';
+          modal.appendChild(msg);
+          
+          const footer = document.createElement('div');
+          footer.className = 'dialog-footer';
+          
+          if (options.type === 'confirm') {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'dialog-btn-cancel';
+            cancelBtn.textContent = options.cancelText || 'Cancel';
+            cancelBtn.onclick = () => {
+              overlay.remove();
+              resolve(false);
+            };
+            footer.appendChild(cancelBtn);
+          }
+          
+          const okBtn = document.createElement('button');
+          okBtn.className = 'dialog-btn-ok';
+          okBtn.textContent = options.okText || 'OK';
+          okBtn.onclick = () => {
+            overlay.remove();
+            resolve(true);
+          };
+          footer.appendChild(okBtn);
+          
+          modal.appendChild(footer);
+          overlay.appendChild(modal);
+          document.body.appendChild(overlay);
+          
+          okBtn.focus();
+        });
+      }
+      
+      let routeDownloadUrl = null;
+      const PRESETS = {
+        next: {
+          name: 'next-app',
+          basePath: '/next-app/',
+          upstream: 'http://web:3000',
+          options: { addRedirect: true, websockets: true, includePrefixHeader: true }
+        },
+        vite: {
+          name: 'vite-app',
+          basePath: '/vite-app/',
+          upstream: 'http://web:5173',
+          options: { addRedirect: true, websockets: true, includePrefixHeader: true }
+        },
+        rails: {
+          name: 'rails-app',
+          basePath: '/rails-app/',
+          upstream: 'http://web:3000',
+          options: { addRedirect: true, websockets: false, includePrefixHeader: true }
+        },
+        django: {
+          name: 'django-app',
+          basePath: '/django-app/',
+          upstream: 'http://web:8000',
+          options: { addRedirect: true, websockets: false, includePrefixHeader: true }
+        },
+        express: {
+          name: 'express-app',
+          basePath: '/express-app/',
+          upstream: 'http://web:3000',
+          options: { addRedirect: true, websockets: true, includePrefixHeader: true }
+        }
+      };
+      function setRouteDownload(content, filename) {
+        const row = document.getElementById('routeDownloadRow');
+        const link = document.getElementById('routeDownload');
+        const meta = document.getElementById('routeDownloadMeta');
+        if (routeDownloadUrl) {
+          URL.revokeObjectURL(routeDownloadUrl);
+          routeDownloadUrl = null;
+        }
+        if (!content) {
+          if (row) row.style.display = 'none';
+          return;
+        }
+        const blob = new Blob([content], { type: 'text/plain' });
+        routeDownloadUrl = URL.createObjectURL(blob);
+        if (link) {
+          link.href = routeDownloadUrl;
+          link.download = filename || 'route.conf';
+        }
+        if (meta) {
+          meta.textContent = filename ? `Prepared ${filename}` : '';
+        }
+        if (row) row.style.display = 'flex';
+      }
+      
+      function collectRoutePayload(installFlag) {
+        return {
+          name: document.getElementById('routeName').value.trim(),
+          basePath: document.getElementById('routeBase').value.trim(),
+          upstream: document.getElementById('routeUpstream').value.trim(),
+          options: {
+            addRedirect: document.getElementById('routeRedirect').checked,
+            websockets: document.getElementById('routeWebsockets').checked,
+            includePrefixHeader: document.getElementById('routePrefixHeader').checked,
+            install: installFlag
+          }
+        };
+      }
+      
+      function showRouteResult(data) {
+        const meta = { ...(data || {}) };
+        const snippet = meta.config || '';
+        delete meta.config;
+        output.className = 'result-content';
+        const metaText = JSON.stringify(meta, null, 2);
+        output.textContent = snippet ? `${metaText}\n\n# Generated config\n${snippet}` : metaText;
+        setStatus(data && data.ok ? 'Complete' : 'Error', data && data.ok ? 'success' : 'error');
+      }
+
+      function scrollToCreateRouteIfNeeded() {
+        if (window.location.hash === '#create-route') {
+          openRouteModal();
+        }
+      }
+
+      function applyPreset(key) {
+        const p = PRESETS[key];
+        if (!p) return;
+        document.getElementById('routeName').value = p.name;
+        document.getElementById('routeBase').value = p.basePath;
+        document.getElementById('routeUpstream').value = p.upstream;
+        document.getElementById('routeRedirect').checked = p.options.addRedirect !== false;
+        document.getElementById('routeWebsockets').checked = p.options.websockets !== false;
+        document.getElementById('routePrefixHeader').checked = p.options.includePrefixHeader !== false;
       }
       
       async function post(path, body) {
@@ -698,6 +1090,66 @@
         }
       }
       
+      // Route creator
+      document.getElementById('btnCreateRoute').onclick = async () => {
+        try {
+          const installFlag = document.getElementById('routeInstall').checked;
+          const payload = collectRoutePayload(installFlag);
+          if (!payload.name || !payload.basePath || !payload.upstream) {
+            showError(new Error('Please provide name, base path, and upstream'));
+            return;
+          }
+          showLoading(installFlag ? 'Creating and installing route...' : 'Generating config...');
+          const res = await post('apps/create-route', payload);
+          showRouteResult(res);
+          setRouteDownload(res.config, res.installed || `${payload.name || 'route'}.conf`);
+        } catch (e) {
+          showError(e);
+          setRouteDownload(null);
+        }
+      };
+      
+      document.getElementById('btnPreviewRoute').onclick = async () => {
+        try {
+          const payload = collectRoutePayload(false);
+          if (!payload.name || !payload.basePath || !payload.upstream) {
+            showError(new Error('Please provide name, base path, and upstream'));
+            return;
+          }
+          showLoading('Building preview...');
+          const res = await post('apps/create-route', payload);
+          showRouteResult(res);
+          setRouteDownload(res.config, `${payload.name || 'route'}.conf`);
+        } catch (e) {
+          showError(e);
+          setRouteDownload(null);
+        }
+      };
+
+      document.getElementById('btnApplyPreset').onclick = () => {
+        const key = document.getElementById('routePreset').value;
+        applyPreset(key);
+      };
+
+      const routeModal = document.getElementById('routeModal');
+      const openRouteModalBtn = document.getElementById('openRouteModal');
+      const closeRouteModalBtn = document.getElementById('closeRouteModal');
+
+      function openRouteModal(){
+        if (routeModal){ routeModal.classList.add('open'); }
+      }
+      function closeRouteModal(){
+        if (routeModal){ routeModal.classList.remove('open'); }
+      }
+
+      if (openRouteModalBtn) openRouteModalBtn.addEventListener('click', openRouteModal);
+      if (closeRouteModalBtn) closeRouteModalBtn.addEventListener('click', closeRouteModal);
+      if (routeModal){
+        routeModal.addEventListener('click', (e)=>{
+          if (e.target === routeModal){ closeRouteModal(); }
+        });
+      }
+      
       // Audit
       document.getElementById('btnAudit').onclick = async () => {
         const route = document.getElementById('auditRoute').value;
@@ -741,11 +1193,17 @@
       
       // Reindex
       document.getElementById('btnReindex').onclick = async () => {
-        if (!confirm('Reindex knowledge base? This may take a minute.')) return;
+        const confirmed = await showDialog({
+          type: 'confirm',
+          title: 'Reindex Knowledge Base',
+          message: 'Reindex knowledge base? This may take a minute.'
+        });
+        if (!confirmed) return;
         try {
           showLoading('Reindexing knowledge base...');
           const res = await post('ai/reindex', {});
           showResult(res, 'success');
+          showToast('Knowledge base reindexed successfully', 'success');
         } catch (e) {
           showError(e);
         }
@@ -757,6 +1215,7 @@
           showLoading('Running self-check...');
           const res = await post('ai/self-check', { heal: true });
           showResult(res, 'success');
+          showToast('Self-check complete', 'success');
         } catch (e) {
           showError(e);
         }
@@ -764,11 +1223,17 @@
       
       // Clear Thoughts
       document.getElementById('btnClearThoughts').onclick = async () => {
-        if (!confirm('Clear all thoughts? This will reset Calliope\'s working memory.')) return;
+        const confirmed = await showDialog({
+          type: 'confirm',
+          title: 'Clear Thoughts',
+          message: 'Clear all thoughts? This will reset Calliope\'s working memory.'
+        });
+        if (!confirmed) return;
         try {
           showLoading('Clearing thoughts...');
           const res = await post('ai/thoughts/clear', {});
           showResult(res, 'success');
+          showToast('Thoughts cleared', 'success');
         } catch (e) {
           showError(e);
         }
@@ -779,10 +1244,12 @@
         document.addEventListener('DOMContentLoaded', () => {
           console.log('[Dashboard] DOM loaded, calling loadRoutes()');
           loadRoutes();
+          scrollToCreateRouteIfNeeded();
         });
       } else {
         console.log('[Dashboard] DOM already loaded, calling loadRoutes()');
         loadRoutes();
+        scrollToCreateRouteIfNeeded();
       }
     </script>
   </body>
