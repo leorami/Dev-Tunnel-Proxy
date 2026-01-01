@@ -5,7 +5,10 @@
       const theme = stored || 'dark';
       document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
       const t = document.getElementById('themeToggle');
-      if (t){ t.textContent = theme==='light' ? '🌙' : '☀️'; }
+      if (t){
+        t.innerHTML = theme === 'light' ? '<i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i>' : '<i data-lucide="sun" stroke-width="2.5" style="width:18px;height:18px"></i>';
+        if (window.lucide) lucide.createIcons();
+      }
     }catch{}
   }
   function toggleTheme(){
@@ -14,7 +17,10 @@
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('dtpTheme', next);
     const t = document.getElementById('themeToggle') || document.getElementById('themeToggleFallback');
-    if (t){ t.textContent = next==='light' ? '🌙' : '☀️'; }
+    if (t){
+      t.innerHTML = next === 'light' ? '<i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i>' : '<i data-lucide="sun" stroke-width="2.5" style="width:18px;height:18px"></i>';
+      if (window.lucide) lucide.createIcons();
+    }
   }
   function initView(){
     try{
@@ -22,7 +28,11 @@
       const view = stored || 'comfortable';
       document.body.setAttribute('data-view', view);
       const v = document.getElementById('viewToggle');
-      if (v){ v.textContent = view==='compact' ? '⊞' : '⊟'; v.title = view==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View'; }
+      if (v){
+        v.innerHTML = view === 'compact' ? '<i data-lucide="layout-grid" stroke-width="2.5" style="width:18px;height:18px"></i>' : '<i data-lucide="layout-list" stroke-width="2.5" style="width:18px;height:18px"></i>';
+        v.title = view==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View';
+        if (window.lucide) lucide.createIcons();
+      }
     }catch{}
   }
   function toggleView(){
@@ -31,7 +41,11 @@
     document.body.setAttribute('data-view', next);
     localStorage.setItem('dtpView', next);
     const v = document.getElementById('viewToggle');
-    if (v){ v.textContent = next==='compact' ? '⊞' : '⊟'; v.title = next==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View'; }
+    if (v){
+      v.innerHTML = next === 'compact' ? '<i data-lucide="layout-grid" stroke-width="2.5" style="width:18px;height:18px"></i>' : '<i data-lucide="layout-list" stroke-width="2.5" style="width:18px;height:18px"></i>';
+      v.title = next==='compact' ? 'Switch to Comfortable View' : 'Switch to Compact View';
+      if (window.lucide) lucide.createIcons();
+    }
   }
   function buildHeader(active){
     const header = document.createElement('header');
@@ -46,10 +60,11 @@
       `    <a class="tab btn ${active==='health'?'active':''}" href="/health">Health</a>`+
       `    <a class="tab btn ${active==='reports'?'active':''}" href="/reports">Reports</a>`+
       `    <a class="tab btn ${active==='dashboard'?'active':''}" href="/dashboard/">Dashboard</a>`+
+      '    <a class="tab btn" href="/dashboard/#create-route">Create Route</a>'+
       '    <span class="divider" aria-hidden="true"></span>'+
-      '    <button class="action btn" id="reloadConfigs" title="Reload configurations">🔄</button>'+
-      '    <button class="action btn" id="viewToggle" title="Toggle view density" aria-label="Toggle view density">⊟</button>'+
-      '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>'+
+      '    <button class="action btn" id="reloadConfigs" title="Reload configurations"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
+      '    <button class="action btn" id="viewToggle" title="Toggle view density" aria-label="Toggle view density"><i data-lucide="layout-list" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
+      '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
       '    <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
       '    <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
       '  </div>'+
@@ -354,7 +369,14 @@
     }
     
     const clearBtn = drawer.querySelector('#aiClearBtn');
-    clearBtn.addEventListener('click', ()=>{ if (confirm('Clear Calliope chat history?')){ try{ localStorage.removeItem(LS_KEY); }catch{} renderChat(); } });
+    clearBtn.addEventListener('click', async ()=>{ 
+      const confirmed = await window.DTP.showDialog({
+        type: 'confirm',
+        title: 'Clear History',
+        message: 'Clear Calliope chat history?'
+      });
+      if (confirmed){ try{ localStorage.removeItem(LS_KEY); }catch{} renderChat(); } 
+    });
     const copyBtn = drawer.querySelector('#aiCopyBtn');
     if (copyBtn){ copyBtn.addEventListener('click', ()=>{ try{ const c = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); navigator.clipboard.writeText(c.map(m=>`[${m.role}] ${m.content}`).join('\n')); copyBtn.textContent='Copied'; setTimeout(()=> copyBtn.textContent='Copy', 1200); }catch{} }); }
     const healBtn = drawer.querySelector('#aiHealBtn');
@@ -491,7 +513,140 @@
     }catch{}
   }
 
+  function showToast(message, type = 'info') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  function showDialog(options = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'dialog-overlay';
+      
+      const modal = document.createElement('div');
+      modal.className = 'dialog-modal';
+      
+      const title = document.createElement('h2');
+      title.textContent = options.title || 'Confirm';
+      modal.appendChild(title);
+      
+      const msg = document.createElement('p');
+      msg.textContent = options.message || '';
+      modal.appendChild(msg);
+      
+      const footer = document.createElement('div');
+      footer.className = 'dialog-footer';
+      
+      if (options.type === 'confirm') {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = 'dialog-btn-cancel';
+        cancelBtn.textContent = options.cancelText || 'Cancel';
+        cancelBtn.onclick = () => {
+          overlay.remove();
+          resolve(false);
+        };
+        footer.appendChild(cancelBtn);
+      }
+      
+      const okBtn = document.createElement('button');
+      okBtn.className = 'dialog-btn-ok';
+      okBtn.textContent = options.okText || 'OK';
+      okBtn.onclick = () => {
+        overlay.remove();
+        resolve(true);
+      };
+      footer.appendChild(okBtn);
+      
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      okBtn.focus();
+    });
+  }
+
+  function showPrompt(options = {}) {
+    return new Promise((resolve) => {
+      const overlay = document.createElement('div');
+      overlay.className = 'dialog-overlay';
+      
+      const modal = document.createElement('div');
+      modal.className = 'dialog-modal';
+      
+      const title = document.createElement('h2');
+      title.textContent = options.title || 'Prompt';
+      modal.appendChild(title);
+      
+      const msg = document.createElement('p');
+      msg.textContent = options.message || '';
+      modal.appendChild(msg);
+      
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = options.value || '';
+      input.placeholder = options.placeholder || '';
+      input.style.width = '100%';
+      input.style.padding = '10px';
+      input.style.marginBottom = '20px';
+      input.style.borderRadius = '8px';
+      input.style.border = '1px solid #d1d5db';
+      input.style.color = '#111827';
+      modal.appendChild(input);
+      
+      const footer = document.createElement('div');
+      footer.className = 'dialog-footer';
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'dialog-btn-cancel';
+      cancelBtn.textContent = options.cancelText || 'Cancel';
+      cancelBtn.onclick = () => {
+        overlay.remove();
+        resolve(null);
+      };
+      footer.appendChild(cancelBtn);
+      
+      const okBtn = document.createElement('button');
+      okBtn.className = 'dialog-btn-ok';
+      okBtn.textContent = options.okText || 'OK';
+      okBtn.onclick = () => {
+        const val = input.value;
+        overlay.remove();
+        resolve(val);
+      };
+      footer.appendChild(okBtn);
+      
+      modal.appendChild(footer);
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      
+      input.focus();
+      input.select();
+      
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') okBtn.click();
+        if (e.key === 'Escape') cancelBtn.click();
+      });
+    });
+  }
+
   window.DTP = window.DTP || {};
+  window.DTP.showToast = showToast;
+  window.DTP.showDialog = showDialog;
+  window.DTP.showPrompt = showPrompt;
   window.DTP.attachHeader = attachHeader;
   window.DTP.attachCalliope = attachCalliope;
   window.DTP.initTheme = initTheme;
