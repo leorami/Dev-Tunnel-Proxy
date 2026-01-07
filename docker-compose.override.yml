@@ -1,0 +1,22 @@
+services:
+  proxy:
+    volumes:
+      - ./config/nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./build/sites-enabled:/etc/nginx/conf.d/sites-enabled:ro
+      - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
+      - ./.artifacts:/usr/share/nginx/html/.artifacts
+      - ./.certs:/etc/nginx/certs:ro
+      - ./status:/usr/share/nginx/html/status:ro
+      - ./dashboard/public:/usr/share/nginx/html/dashboard:ro
+      - nginx_cache:/var/cache/nginx
+
+  proxy-config-api:
+    environment:
+      - NODE_ENV=production
+      - AUTO_SCAN_ENABLED=0
+      - AUTO_SCAN_INTERVAL_SECONDS=300
+
+volumes:
+  nginx_cache:
+    driver: local

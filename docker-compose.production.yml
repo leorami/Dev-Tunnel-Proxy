@@ -1,0 +1,109 @@
+services:
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: dev-proxy
+    ports:
+      - "8080:80"
+      - "443:443"
+    volumes:
+      - ./config/nginx.production.conf:/etc/nginx/nginx.conf:ro
+      - ./config/default.production.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./build/sites-enabled:/etc/nginx/conf.d/sites-enabled:ro
+      - ./scripts/nginx-entrypoint.sh:/entrypoint.sh:ro
+      - ./.artifacts:/usr/share/nginx/html/.artifacts
+      - ./.certs:/etc/nginx/certs:ro
+      - ./status:/usr/share/nginx/html/status:ro
+      - ./dashboard/public:/usr/share/nginx/html/dashboard:ro
+      - nginx_cache:/var/cache/nginx
+    networks:
+      - devproxy
+    command: ["sh", "/entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health.json"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  dashboard-dev:
+    image: node:18-alpine
+    container_name: dashboard-dev
+    profiles: ["dashboard"]
+    working_dir: /app
+    volumes:
+      - ./dashboard:/app
+    command: ["npm", "run", "dev"]
+    networks:
+      - devproxy
+    environment:
+      - PORT=2000
+      - NODE_ENV=production
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: dev-ngrok
+    command: ["sh", "/entrypoint.sh"]
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      - NGROK_STATIC_DOMAIN=${NGROK_STATIC_DOMAIN}
+    volumes:
+      - ./scripts/ngrok-entrypoint.sh:/entrypoint.sh:ro
+      - ./config/ngrok.dynamic.yml:/etc/ngrok.dynamic.yml:ro
+    depends_on:
+      - proxy
+    networks:
+      - devproxy
+
+  proxy-config-api:
+    image: node:18-alpine
+    container_name: dev-proxy-config-api
+    working_dir: /app
+    # Ensure Docker CLI is available so Calliope can self‑heal by reloading nginx, regenerating bundles, etc.
+    # Also mount the host Docker socket for docker exec/run calls.
+    user: root
+    command:
+      - sh
+      - -c
+      - |
+          apk add --no-cache docker-cli >/dev/null 2>&1 || true
+
+          # Lightweight sidecars, co-located in this container to reduce the overall container count
+          node utils/notificationsAPI.js &
+
+          if [ "${AUTO_SCAN_ENABLED:-0}" = "1" ]; then
+            (while true; do
+              node test/scanApps.js || true
+              sleep "${AUTO_SCAN_INTERVAL_SECONDS:-300}"
+            done) &
+          fi
+
+          exec node utils/proxyConfigAPI.js
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=production
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - OPENAI_EMBED_MODEL=${OPENAI_EMBED_MODEL}
+      - CALLIOPE_PUPPETEER_IMAGE=ghcr.io/puppeteer/puppeteer:latest
+      - CALLIOPE_PUPPETEER_PLATFORM=linux/amd64
+      - NOTIFICATIONS_API_PORT=3002
+      - LOCAL_PROXY_BASE=http://dev-proxy
+      - AUTO_SCAN_ENABLED=${AUTO_SCAN_ENABLED:-0}
+      - AUTO_SCAN_INTERVAL_SECONDS=${AUTO_SCAN_INTERVAL_SECONDS:-300}
+    networks:
+      - devproxy
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+    depends_on:
+      - proxy
+
+networks:
+  devproxy:
+    external: true
+    name: devproxy
+
+volumes:
+  nginx_cache:
+    driver: local
