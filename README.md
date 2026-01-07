@@ -43,20 +43,44 @@
 - **⚡ Hot Reload**: Safe configuration updates without downtime
 - **🧪 Automated Testing**: Built-in health checks, route scanning, and UI testing with Playwright
 
-## Recent Updates (December 2025)
+## What's New
 
-### macOS Notifications System
-- **Text Notifications**: Route status changes can now send text messages via Messages.app (macOS only)
-- **Notifications Bridge**: Local HTTP server for UI integration and service management
-- **Background Service**: Install/uninstall notifications engine directly from the UI
-- **Deployment-Agnostic**: Checks endpoint availability via HTTP instead of Docker-specific state
-- **Smart Architecture**: Engine → Bridge → Messages.app for proper macOS permissions
+### Version 1.1 (January 2026) - UI/UX Overhaul
 
-### Documentation Consolidation
-- **New API.md**: Comprehensive API reference consolidating endpoint structure and migration guides
-- **Renamed Files**: CALLIOPE.md → CALLIOPE_ASSISTANT.md, OPERATIONS.md → TESTING_SECURITY_AND_QUALITY.md
-- **Cleaner Structure**: All docs are now final-version references without "new features" or "recent changes" language
-- **Better Navigation**: Updated cross-references across all documentation files
+**Major Improvements:**
+- **🎨 Custom Dialog & Toast System**: Beautiful, branded dialogs replacing native browser alerts
+- **🚨 Enhanced Route Conflicts**: Professional conflict management with "Help Me" button for Calliope
+- **🎯 Create Route Tool**: Powerful route generator with framework presets (Next.js, Vite, Rails, Django, Express)
+- **🎨 Unified Card Design**: Consistent, professional appearance with icon badges and clear hierarchy
+- **🔧 Icon-Based Navigation**: Intuitive icons for reload, view toggle, and theme switching
+
+**Performance & Production Mode:**
+- **⚡ Production Mode**: Optimized configuration for 74% memory reduction and 4x concurrent capacity
+- **📊 Performance Monitoring**: Gzip compression, DNS caching, and response time improvements
+- **🔄 Easy Mode Switching**: Scripts to toggle between production and development modes
+- See **[Production Mode Guide](docs/PRODUCTION_MODE.md)** for details
+
+**Bug Fixes:**
+- Fixed macOS notifications bridge persistent errors
+- Corrected Calliope AI endpoint routing (404 issues)
+- Improved status page accuracy and health calculation
+- Better button layouts and visual consistency
+
+**Full details:** See [CHANGELOG.md](CHANGELOG.md) for complete version history
+
+### Recent Updates (December 2025)
+
+**macOS Notifications System:**
+- Text notifications via Messages.app (macOS only)
+- Notifications bridge with UI integration
+- Background service management from the UI
+- Deployment-agnostic architecture
+
+**Documentation Consolidation:**
+- Comprehensive API reference (API.md)
+- Production mode & performance guide (PRODUCTION_MODE.md)
+- Renamed and reorganized for clarity
+- Better cross-references throughout
 
 ## Quick Start
 
@@ -116,6 +140,12 @@ This starts all services in detached mode:
 - **dev-proxy**: Nginx reverse proxy (port 8080)
 - **dev-ngrok**: Secure tunnel to external networks
 - **dev-proxy-config-api**: Configuration + AI management API (port 3001), plus built-in notifications storage (port 3002) and route health monitoring
+
+**⚡ Performance Tip:** For optimal performance, switch to production mode after setup:
+```bash
+./scripts/switch-to-production.sh
+```
+This enables gzip compression, DNS caching, and reduces memory usage by 74%. See **[Production Mode Guide](docs/PRODUCTION_MODE.md)** for details.
 
 ### 4. Install App Routes
 
@@ -314,6 +344,38 @@ When using ngrok, your proxy is **publicly accessible**. The admin password ensu
 ---
 
 ## Configuration Management
+
+### 🎯 Create Route Tool (New in v1.1)
+
+The easiest way to add a new app is using the **Create Route Tool**:
+
+**Access:**
+- Click "Create Route" in the dashboard header
+- Click the plus icon in the Configured Apps card
+- Visit directly: `http://localhost:8080/dashboard/#create-route`
+
+**Features:**
+- **Framework Presets**: Next.js, Vite, Rails, Django, Express with optimal defaults
+- **Auto-Generation**: Generates production-ready nginx configs with safety rails
+- **Validation**: Checks for reserved paths and conflicts before creation
+- **Flexible Deployment**: Install directly or download `.conf` file
+- **WebSocket Support**: Automatic headers for HMR and real-time features
+
+**Example:**
+```json
+{
+  "name": "myapp",
+  "basePath": "/myapp",
+  "upstream": "http://myapp-container:3000",
+  "options": {
+    "redirect": true,
+    "websockets": true,
+    "forwardedPrefix": true
+  }
+}
+```
+
+See the [User Guide](docs/USER_GUIDE.md#create-route-tool) for detailed instructions.
 
 ### How It Works
 
@@ -1116,7 +1178,14 @@ Our documentation has been consolidated for easier navigation. Here are the core
    - Known issues and limitations
    - Operational best practices
 
-7. **[Product & Roadmap](docs/PRODUCT.md)** - Vision and future plans
+7. **[Production Mode & Performance](docs/PRODUCTION_MODE.md)** - Performance optimization guide
+   - Production vs. development mode
+   - Performance improvements and results
+   - Switching between modes
+   - Monitoring and troubleshooting
+   - Best practices and future optimizations
+
+8. **[Product & Roadmap](docs/PRODUCT.md)** - Vision and future plans
    - Product overview and value propositions
    - Use cases and target audience
    - Competitive landscape
@@ -1242,14 +1311,28 @@ However, the **multi-container approach provides superior flexibility** without 
 
 # Check status
 ./smart-build.sh status
+
+# Switch to production mode (recommended)
+./scripts/switch-to-production.sh
+
+# Switch back to development mode
+./scripts/switch-to-development.sh
 ```
 
 ### Key Endpoints
 
 - **Status Dashboard**: `http://localhost:8080/status`
+- **Create Route Tool**: `http://localhost:8080/dashboard/#create-route`
 - **Health Check**: `http://localhost:8080/health`
 - **API Docs**: `http://localhost:3001/api/`
 - **Reports**: `http://localhost:8080/reports`
+
+### Performance Tips
+
+- **⚡ Use Production Mode**: 74% less memory, 4x concurrent capacity, gzip compression
+- **📊 Monitor Resources**: `docker stats dev-proxy dev-proxy-config-api dev-ngrok`
+- **🔍 Check Performance**: `time curl -s http://localhost:8080/ > /dev/null`
+- **📖 Full Guide**: See [Production Mode](docs/PRODUCTION_MODE.md)
 
 ### Need Help?
 
