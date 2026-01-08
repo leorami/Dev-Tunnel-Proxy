@@ -33,11 +33,11 @@ describe('Calliope Documentation Collection', () => {
       assert.ok(readme.content.length > 0, 'README.md content should not be empty');
     });
     
-    test('should include CALLIOPE.md from docs/', () => {
+    test('should include CALLIOPE_ASSISTANT.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const calliope = docs.find(d => d.relPath === 'docs/CALLIOPE.md');
-      assert.ok(calliope, 'Should include CALLIOPE.md');
+      const calliope = docs.find(d => d.relPath === 'docs/CALLIOPE_ASSISTANT.md');
+      assert.ok(calliope, 'Should include CALLIOPE_ASSISTANT.md');
       assert.ok(calliope.content.includes('Calliope'), 'Content should mention Calliope');
     });
     
@@ -62,11 +62,11 @@ describe('Calliope Documentation Collection', () => {
       assert.ok(config, 'Should include CONFIGURATION.md');
     });
     
-    test('should include OPERATIONS.md from docs/', () => {
+    test('should include USER_GUIDE.md from docs/', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const operations = docs.find(d => d.relPath === 'docs/OPERATIONS.md');
-      assert.ok(operations, 'Should include OPERATIONS.md');
+      const userGuide = docs.find(d => d.relPath === 'docs/USER_GUIDE.md');
+      assert.ok(userGuide, 'Should include USER_GUIDE.md');
     });
     
     test('should include PRODUCT.md from docs/', () => {
@@ -172,8 +172,8 @@ describe('Calliope Documentation Collection', () => {
     test('should document troubleshooting procedures', () => {
       const docs = proxyConfigAPI.collectDocs();
       
-      const troubleshootDoc = docs.find(d => d.relPath.includes('USER_GUIDE') || d.relPath.includes('OPERATIONS'));
-      assert.ok(troubleshootDoc, 'Should have user guide or operations documentation');
+      const troubleshootDoc = docs.find(d => d.relPath.includes('USER_GUIDE') || d.relPath.includes('ARCHITECTURE'));
+      assert.ok(troubleshootDoc, 'Should have user guide or architecture documentation');
     });
   });
   

@@ -50,7 +50,7 @@ async function test() {
   
   // Get initial status
   console.log('1. Checking health endpoint...');
-  const initial = await makeRequest('GET', '/api/ai/health');
+  const initial = await makeRequest('GET', '/devproxy/api/ai/health');
   
   if (!initial.data || initial.status !== 200) {
     console.log('   ❌ FAIL: Could not get health status');
@@ -108,7 +108,7 @@ async function test() {
   
   // The activity field comes from currentActivity which is set by setActivity()
   // which is called by pushStatusChip()
-  console.log(`   Current activity from /api/ai/health: "${initial.data.activity}"`);
+  console.log(`   Current activity from /devproxy/api/ai/health: "${initial.data.activity}"`);
   
   if (initial.data.activity === undefined) {
     console.log('   ❌ FAIL: activity field is missing');
@@ -134,7 +134,7 @@ async function test() {
   console.log('When operations run:');
   console.log('  1. pushStatusChip("Auditing") is called');
   console.log('  2. setActivity("auditing") updates currentActivity');
-  console.log('  3. GET /api/ai/health returns activity: "auditing"');
+  console.log('  3. GET /devproxy/api/ai/health returns activity: "auditing"');
   console.log('  4. UI can display the status chip');
   console.log('');
   console.log('NOTE: Full integration testing requires the site auditor to work,');

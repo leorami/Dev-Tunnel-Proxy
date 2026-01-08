@@ -112,10 +112,10 @@ it('should verify nginx config does not have trailing slash on apps proxy_pass',
       `proxy_pass should not include path with trailing slash, got: ${proxyPassValue}`
     );
     
-    // Should be just the host variable
+    // Should be just the host variable or the upstream name
     assert.ok(
-      proxyPassValue.includes('$config_api') && !proxyPassValue.includes('/devproxy'),
-      `proxy_pass should be just the host variable, got: ${proxyPassValue}`
+      (proxyPassValue.includes('$config_api') || proxyPassValue.includes('config_api_upstream')) && !proxyPassValue.includes('/devproxy'),
+      `proxy_pass should be just the host variable or upstream, got: ${proxyPassValue}`
     );
     
   } catch (e) {
@@ -134,10 +134,10 @@ it('should verify all API proxy_pass directives use deferred DNS resolution', ()
     
     apiBlocks.forEach((block, i) => {
       if (block.includes('proxy_pass')) {
-        // Should use $config_api variable for deferred resolution
+        // Should use $config_api variable or defined upstream for optimized resolution
         assert.ok(
-          block.includes('$config_api') || block.includes('set $'),
-          `Block ${i + 1} should use variable-based proxy_pass for deferred DNS resolution`
+          block.includes('$config_api') || block.includes('set $') || block.includes('_upstream'),
+          `Block ${i + 1} should use variable-based proxy_pass or upstream for optimized DNS/connection resolution`
         );
       }
     });

@@ -71,7 +71,13 @@ const puppeteer = require('puppeteer');
     const text = msg.text();
     
     if (type === 'error') {
-      consoleErrors.push({ type, text, location: msg.location() });
+      const loc = msg.location();
+      const url = loc ? loc.url : '';
+      // Ignore 401 Unauthorized for /admin/check which is expected during initial load
+      if (text.includes('401') && (text.includes('/admin/check') || url.includes('/admin/check'))) {
+        return;
+      }
+      consoleErrors.push({ type, text, location: loc });
     } else if (type === 'warning') {
       consoleWarnings.push({ type, text });
     }
