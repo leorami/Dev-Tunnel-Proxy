@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginIfRequired } from './login-helper';
 
 test.describe('Status Dashboard', () => {
   test('renders and shows Calliope, captures console and styles', async ({ page }, testInfo) => {
@@ -6,6 +7,7 @@ test.describe('Status Dashboard', () => {
     page.on('console', (msg) => logs.push({ type: msg.type(), text: msg.text() }));
 
     await page.goto('/status', { waitUntil: 'domcontentloaded' });
+    await loginIfRequired(page);
 
     // Verify title present
     await expect(page.locator('header h1')).toContainText('Dev Tunnel Proxy');
@@ -25,15 +27,12 @@ test.describe('Status Dashboard', () => {
     });
     await testInfo.attach('overview-styles.json', { body: JSON.stringify(styles, null, 2), contentType: 'application/json' });
 
-    // Expand Calliope drawer and trigger a self-check via the UI button (more realistic)
+    // Expand Calliope drawer
     await page.locator('#calliopeOpen').click();
-    // Prefer the drawer-local Self‑Check to avoid header overlap/positioning issues
-    const drawerSelfCheck = page.locator('#aiHealBtn');
-    if (await drawerSelfCheck.count()) {
-      await drawerSelfCheck.click();
-    } else {
-      await page.getByRole('button', { name: /Self‑Check/i }).click();
-    }
+    
+    // Verification: drawer should be visible
+    const drawer = page.locator('#aiDrawer');
+    await expect(drawer).toBeVisible();
 
     // Persist console logs
     const warnErr = logs.filter(l => l.type === 'warning' || l.type === 'error');
@@ -48,6 +47,7 @@ test.describe('Status Dashboard', () => {
 
   test('Clicking stethoscope runs Calliope health when enabled', async ({ page }) => {
     await page.goto('/status', { waitUntil: 'domcontentloaded' });
+    await loginIfRequired(page);
 
     // Force-enable Calliope affordances for deterministic behavior in CI
     await page.evaluate(() => {
