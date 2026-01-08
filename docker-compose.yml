@@ -1,6 +1,8 @@
 services:
   proxy:
-    image: nginx:1.25-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: dev-proxy
     ports:
       - "8080:80"

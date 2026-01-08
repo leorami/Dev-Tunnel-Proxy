@@ -39,6 +39,9 @@ fi
 cat > docker-compose.override.yml <<'EOF'
 services:
   proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
     volumes:
       - ./config/nginx.production.conf:/etc/nginx/nginx.conf:ro
       - ./config/default.conf:/etc/nginx/conf.d/default.conf:ro
