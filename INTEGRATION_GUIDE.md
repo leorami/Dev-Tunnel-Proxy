@@ -22,6 +22,26 @@ All management API endpoints are namespaced under `/devproxy/api/`:
 - **443** - Nginx proxy (HTTPS)
 - **3001** - Config API (direct access, not recommended)
 
+### Ngrok / public URL vs `localhost:8080`
+
+Ngrok tunnels to **`dev-proxy:80`** (same nginx as `http://localhost:8080`). If your app works on the host at `http://localhost:3100/...` but **`https://<your-domain>.ngrok.app/<app>`** returns JSON like:
+
+```json
+{"error":"Service Unavailable","message":"The requested application is not currently running..."}
+```
+
+that response is from the **proxy** (upstream unreachable), not ngrok. Almost always the app containers are **not attached to the `devproxy` Docker network**—often because you ran `docker network connect` once and a later **`docker compose up` / restart recreated the containers** without that network.
+
+**Quick fix (until next recreate):**
+
+```bash
+docker network connect devproxy your-app-web
+docker network connect devproxy your-app-api   # if proxied by name
+docker network inspect devproxy --format '{{range .Containers}}{{.Name}} {{end}}' | tr ' ' '\n' | grep your-app
+```
+
+**Permanent fix:** declare the external network in your app’s `docker-compose.yml` (see Option 3 below).
+
 ## Authentication Flow
 
 Most management endpoints require authentication. Follow this flow:
@@ -108,13 +128,35 @@ docker exec dev-proxy nginx -s reload
 
 ### Option 3: Docker Network Connect
 
-If your app runs in Docker, connect to the `devproxy` network:
+If your app runs in Docker, it must be on the **`devproxy`** network so **`dev-proxy` (nginx)** can resolve hostnames like `myapp-web:3000` from your `apps/*.conf`.
+
+**One-off (lost when containers are recreated):**
 
 ```bash
-docker network connect devproxy myapp-container
+docker network connect devproxy myapp-web
+docker network connect devproxy myapp-api
 ```
 
-Then your app can reach the proxy at `http://dev-proxy:8080`.
+**Persistent (recommended):** attach every service nginx talks to:
+
+```yaml
+services:
+  myapp-web:
+    networks:
+      - default
+      - devproxy
+  myapp-api:
+    networks:
+      - default
+      - devproxy
+
+networks:
+  devproxy:
+    external: true
+    name: devproxy
+```
+
+Then your app can reach the proxy at `http://dev-proxy:80` (or `http://dev-proxy:8080` from the host maps to container port 80).
 
 ## Common Mistakes
 

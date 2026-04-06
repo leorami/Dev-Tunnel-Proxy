@@ -27,6 +27,10 @@ coverage/
 .env.local
 .DS_Store
 
+# Local archives / accidental nginx config backups (keep repo generic)
+__archive_source__/
+config/*.backup.*
+
 # Apps runtime snippets (ignored to keep project generic)
 apps/*.conf
 apps/*.conf.backup.*

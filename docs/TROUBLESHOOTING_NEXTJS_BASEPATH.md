@@ -1,5 +1,34 @@
 # Troubleshooting Next.js Apps with basePath
 
+## Issue: Public ngrok URL returns 503 JSON; localhost app port works
+
+### Symptoms
+
+- `http://localhost:3100/myapp` (or your dev port) works.
+- `http://localhost:8080/myapp` or `https://your-domain.ngrok.app/myapp` returns **503** with body:
+  `{"error":"Service Unavailable","message":"The requested application is not currently running..."}`.
+- `https://your-domain.ngrok.app/health.json` or `/status` may still work (tunnel and proxy are up).
+
+### Root Cause
+
+Nginx in **`dev-proxy`** proxies to Docker service names (e.g. `myapp-web:3100`). Those names only resolve if the app containers are on the **`devproxy`** network. Host port mapping (`3100:3100`) does not put the container on `devproxy`. After **`docker compose up`** recreates containers, a previous manual `docker network connect` is **gone**.
+
+### Solution
+
+```bash
+docker network connect devproxy myapp-web
+# repeat for each upstream hostname in apps/*.conf (e.g. myapp-api)
+```
+
+Make it permanent with `networks: devproxy: external: true` in your app compose (see [INTEGRATION_GUIDE.md](../INTEGRATION_GUIDE.md)).
+
+### Verify
+
+```bash
+docker network inspect devproxy --format '{{range .Containers}}{{.Name}} {{end}}' | tr ' ' '\n' | grep myapp
+docker exec dev-proxy getent hosts myapp-web
+```
+
 ## Issue: 503 Service Unavailable or 308 Redirect Loop
 
 ### Symptoms
