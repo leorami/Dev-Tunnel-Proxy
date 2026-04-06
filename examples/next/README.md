@@ -51,7 +51,7 @@ Install `examples/next/myapp.conf` using the API endpoint (recommended):
 
 ```javascript
 // Using fetch API
-fetch('http://dev-proxy:8080/api/apps/install', {
+fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({

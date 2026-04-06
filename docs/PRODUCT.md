@@ -65,7 +65,7 @@ Traditional solutions:
 
 ```javascript
 // From within your app container
-fetch('http://dev-proxy:8080/api/apps/install', {
+fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
   method: 'POST',
   body: JSON.stringify({
     name: 'myapp',

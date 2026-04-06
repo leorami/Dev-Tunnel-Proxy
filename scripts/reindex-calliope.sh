@@ -41,8 +41,8 @@ if [ -z "$OPENAI_API_KEY" ]; then
 fi
 
 # Check if Calliope API is running
-if ! curl -s http://localhost:3001/api/ai/health > /dev/null 2>&1; then
-  echo "❌ Error: Calliope API is not running on port 3001"
+if ! curl -s http://localhost:8080/devproxy/api/ai/health > /dev/null 2>&1; then
+  echo "❌ Error: Calliope API is not running (check http://localhost:8080/devproxy/api/ai/health)"
   echo "   Start it with: docker-compose up -d dev-calliope-api"
   exit 1
 fi
@@ -54,7 +54,7 @@ echo "   - examples/*.md"
 echo ""
 
 # Trigger reindex via API
-RESPONSE=$(curl -s -X POST http://localhost:3001/api/ai/reindex)
+RESPONSE=$(curl -s -X POST http://localhost:8080/devproxy/api/ai/reindex)
 
 # Check if reindex was successful
 if echo "$RESPONSE" | grep -q '"ok":true'; then

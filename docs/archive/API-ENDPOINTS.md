@@ -1,5 +1,14 @@
 # Dev Tunnel Proxy API Endpoints
 
+⚠️ **DEPRECATED**: This document contains outdated information. Please refer to [docs/API.md](../API.md) for current API documentation.
+
+**Key Changes:**
+- API base path is now `/devproxy/api/` (not `/api/`)
+- Authentication is now required for most endpoints
+- Use port 8080 (nginx) instead of 3001 (direct API access)
+
+---
+
 This document describes the available API endpoints for interacting with the dev-tunnel-proxy service.
 
 ## Configuration Management
@@ -8,7 +17,7 @@ This document describes the available API endpoints for interacting with the dev
 
 Allows apps to programmatically upload their Nginx configuration files to the proxy.
 
-**Endpoint:** `POST /api/apps/install`
+**Endpoint:** `POST /devproxy/api/apps/install` (was `/api/apps/install`)
 
 **Request Body:**
 ```json
@@ -45,7 +54,7 @@ Allows apps to programmatically upload their Nginx configuration files to the pr
 
 Promotes an existing app configuration to an override.
 
-**Endpoint:** `POST /api/overrides/promote`
+**Endpoint:** `POST /devproxy/api/overrides/promote` (was `/api/overrides/promote`)
 
 **Request Body:**
 ```json
@@ -69,7 +78,7 @@ Promotes an existing app configuration to an override.
 
 Retrieves the content of a configuration file.
 
-**Endpoint:** `GET /api/config/:file`
+**Endpoint:** `GET /devproxy/api/config/:file` (was `/api/config/:file`)
 
 **Response:**
 ```json
@@ -83,7 +92,7 @@ Retrieves the content of a configuration file.
 
 Updates the content of an existing configuration file.
 
-**Endpoint:** `POST /api/config/:file`
+**Endpoint:** `POST /devproxy/api/config/:file` (was `/api/config/:file`)
 
 **Request Body:**
 ```json
@@ -106,7 +115,7 @@ Here's an example of how to use the API to programmatically install a configurat
 
 ```javascript
 async function installAppConfig(name, content) {
-  const response = await fetch('http://dev-proxy:8080/api/apps/install', {
+  const response = await fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

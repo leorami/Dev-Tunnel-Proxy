@@ -79,9 +79,9 @@ The following paths are reserved for proxy functionality:
 - `/reports` - Reports page
 - `/dashboard` - Dashboard interface
 - `/api/ai/` - Calliope AI endpoints
-- `/api/config/` - Configuration API
-- `/api/apps/` - Apps API
-- `/api/overrides/` - Overrides API
+- `/devproxy/api/config/` - Configuration API
+- `/devproxy/api/apps/` - Apps API
+- `/devproxy/api/overrides/` - Overrides API
 - `/api/reports/` - Reports API
 - `/health.json` - Health status JSON
 - `/routes.json` - Routes configuration JSON
@@ -409,7 +409,7 @@ Here's an example of how to use the API to programmatically install a configurat
 
 ```javascript
 async function installAppConfig(name, content) {
-  const response = await fetch('http://dev-proxy:8080/api/apps/install', {
+  const response = await fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -540,8 +540,8 @@ Content-Type: application/json
 }
 
 # View/edit config files
-GET /api/config/app2.conf
-POST /api/config/app2.conf
+GET /devproxy/api/config/app2.conf
+POST /devproxy/api/config/app2.conf
 Content-Type: text/plain
 [nginx config content]
 ```

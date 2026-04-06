@@ -1066,7 +1066,7 @@ nginx: [warn] conflicting server name "_" on 0.0.0.0:80, ignored
 **Workaround**:
 ```bash
 # Manual cleanup
-curl -X POST http://localhost:3001/api/reports/prune -d '{"keep":10}'
+curl -X POST http://localhost:8080/devproxy/api/reports/prune -d '{"keep":10}'
 rm -rf .artifacts/ui/*
 ```
 
@@ -1223,7 +1223,7 @@ upstream prematurely closed connection while reading response header
 
 **Resolution**: API automatically regenerates and reloads
 
-**Fix**: POST /api/apps/install triggers end-to-end update
+**Fix**: POST /devproxy/api/apps/install triggers end-to-end update
 
 #### R6: Calliope Couldn't Access Documentation
 

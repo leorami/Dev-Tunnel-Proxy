@@ -671,7 +671,7 @@ node examples/api-upload-config.js myapp ./myapp.conf
 
 **Step 3: Update cURL Commands**
 
-**Before:**
+**Before (Incorrect - Missing /devproxy prefix):**
 ```bash
 curl -X POST http://localhost:8080/api/apps/install \
   -H 'Content-Type: application/json' \
@@ -724,8 +724,9 @@ curl http://localhost:8080/devproxy/api/ai/health \
 **3. Verify Your App's API Still Works**
 
 ```bash
-# Your app's API should work fine now
-curl http://localhost:8080/api/whatever-your-app-has
+# Your app's own API (not the proxy management API) should work fine
+# For example, if your app serves routes at /myapp/api/users
+curl http://localhost:8080/myapp/api/users
 ```
 
 ---

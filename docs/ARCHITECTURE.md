@@ -361,7 +361,7 @@ function isRootLevelDevHelper(pathSpec) {
 **Reserved paths protected:**
 - `/` - Landing page (FORBIDDEN)
 - `/status`, `/health`, `/reports`, `/dashboard` - UI endpoints
-- `/api/ai/*`, `/api/config/*`, `/api/apps/*` - API endpoints
+- `/devproxy/api/ai/*`, `/devproxy/api/config/*`, `/devproxy/api/apps/*` - API endpoints
 - `/.artifacts/*` - Internal artifacts
 - `/health.json`, `/routes.json`, `/status.json` - JSON endpoints
 
@@ -470,7 +470,7 @@ myapp-backend → nginx → ngrok → Client
    └─► Nginx snippet with location blocks
 
 2. Upload via API or file system
-   POST /api/apps/install { name, content }
+   POST /devproxy/api/apps/install { name, content }
    or
    Copy to apps/myapp.conf manually
 
@@ -480,7 +480,7 @@ myapp-backend → nginx → ngrok → Client
    └─► Returns success
 
 4. Triggers automatic bundle generation
-   (or manual: POST /api/apps/regenerate)
+   (or manual: POST /devproxy/api/apps/regenerate)
 ```
 
 #### Transformation

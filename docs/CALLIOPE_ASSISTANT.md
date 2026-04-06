@@ -388,7 +388,7 @@ From our test suite:
 
 **Option 1: Via API (Recommended)**
 ```bash
-curl -X POST http://localhost:3001/api/ai/reindex
+curl -X POST http://localhost:8080/devproxy/api/ai/reindex
 ```
 
 **Option 2: Via Script**
@@ -420,7 +420,7 @@ The system automatically detects documentation changes and triggers reindexing w
 #### Check Index Status
 
 ```bash
-curl http://localhost:3001/api/ai/stats
+curl http://localhost:8080/devproxy/api/ai/stats
 ```
 
 Response:
@@ -460,7 +460,7 @@ All endpoints are served by the `dev-proxy-config-api` container on port 3001.
 Check if Calliope is available and healthy.
 
 ```bash
-curl http://localhost:3001/api/ai/health
+curl http://localhost:8080/devproxy/api/ai/health
 ```
 
 Response:
@@ -476,7 +476,7 @@ Response:
 Get embedding index statistics.
 
 ```bash
-curl http://localhost:3001/api/ai/stats
+curl http://localhost:8080/devproxy/api/ai/stats
 ```
 
 Response:
@@ -494,7 +494,7 @@ Response:
 Get Calliope's current activity status.
 
 ```bash
-curl http://localhost:3001/api/ai/activity
+curl http://localhost:8080/devproxy/api/ai/activity
 ```
 
 Response:
@@ -518,7 +518,7 @@ Response:
 Ask Calliope a question about your setup.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/ask \
+curl -X POST http://localhost:8080/devproxy/api/ai/ask \
   -H 'Content-Type: application/json' \
   -d '{"query": "Why is /myapp returning 502?"}'
 ```
@@ -539,7 +539,7 @@ Response:
 Request focused health check with optional healing.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/self-check \
+curl -X POST http://localhost:8080/devproxy/api/ai/self-check \
   -H 'Content-Type: application/json' \
   -d '{"heal": true, "route": "/myapp/"}'
 ```
@@ -554,7 +554,7 @@ Options:
 Trigger advanced step-by-step healing process.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/advanced-heal \
+curl -X POST http://localhost:8080/devproxy/api/ai/advanced-heal \
   -H 'Content-Type: application/json' \
   -d '{"route": "/api/", "hint": "nginx test failed"}'
 ```
@@ -570,7 +570,7 @@ Options:
 Run a one-off site audit and return a summary.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/audit \
+curl -X POST http://localhost:8080/devproxy/api/ai/audit \
   -H 'Content-Type: application/json' \
   -d '{"url": "http://dev-proxy/myapp", "wait": 2000}'
 ```
@@ -584,7 +584,7 @@ Options:
 Iterate audit → heal → re-audit until green or limit reached.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/audit-and-heal \
+curl -X POST http://localhost:8080/devproxy/api/ai/audit-and-heal \
   -H 'Content-Type: application/json' \
   -d '{"url": "http://dev-proxy/myapp", "maxPasses": 3}'
 ```
@@ -600,7 +600,7 @@ Options:
 Rebuild Calliope's knowledge base from documentation.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/reindex
+curl -X POST http://localhost:8080/devproxy/api/ai/reindex
 ```
 
 Response:
@@ -620,7 +620,7 @@ Response:
 Get thinking events for real-time UI updates (polling).
 
 ```bash
-curl http://localhost:3001/api/ai/thoughts
+curl http://localhost:8080/devproxy/api/ai/thoughts
 ```
 
 Response:
@@ -644,7 +644,7 @@ Response:
 Cancel current long-running operation.
 
 ```bash
-curl -X POST http://localhost:3001/api/ai/cancel
+curl -X POST http://localhost:8080/devproxy/api/ai/cancel
 ```
 
 ---
@@ -693,14 +693,14 @@ Perfect for automation, CI/CD, or custom tooling:
 
 ```javascript
 // Check route health
-const health = await fetch('http://localhost:3001/api/ai/self-check', {
+const health = await fetch('http://localhost:8080/devproxy/api/ai/self-check', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({heal: true, route: '/myapp/'})
 });
 
 // Ask a question
-const answer = await fetch('http://localhost:3001/api/ai/ask', {
+const answer = await fetch('http://localhost:8080/devproxy/api/ai/ask', {
   method: 'POST',
   headers: {'Content-Type': 'application/json'},
   body: JSON.stringify({query: 'How do I add a new route?'})

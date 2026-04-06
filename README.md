@@ -418,13 +418,13 @@ See [CONFIG-MANAGEMENT-GUIDE.md](docs/CONFIG-MANAGEMENT-GUIDE.md#reserved-paths-
 
 ```bash
 # View diagnostics
-curl -s http://localhost:3001/api/apps/diagnostics | jq
+curl -s http://localhost:8080/devproxy/api/apps/diagnostics | jq
 
 # List active locations
-curl -s http://localhost:3001/api/apps/active | jq
+curl -s http://localhost:8080/devproxy/api/apps/active | jq
 
 # Force regenerate bundle
-curl -s -X POST http://localhost:3001/api/apps/regenerate \
+curl -s -X POST http://localhost:8080/devproxy/api/apps/regenerate \
   -H 'content-type: application/json' -d '{"reload":true}' | jq
 ```
 
@@ -564,7 +564,7 @@ POST /api/ai/audit-and-heal
 ./smart-build.sh reload  # Checks for doc changes, reindexes if needed
 
 # Check index status
-curl http://localhost:3001/api/ai/stats
+curl http://localhost:8080/devproxy/api/ai/stats
 ```
 
 ### OpenAI Integration
@@ -589,7 +589,7 @@ The proxy provides comprehensive RESTful APIs for configuration management, diag
 
 #### Install App Configuration
 ```bash
-POST /api/apps/install
+POST /devproxy/api/apps/install
 {
   "name": "myapp",
   "content": "# nginx configuration..."
@@ -605,33 +605,33 @@ Automatically:
 #### Configuration Operations
 ```bash
 # List all app configs
-GET /api/apps/list
+GET /devproxy/api/apps/list
 
 # View active locations
-GET /api/apps/active
+GET /devproxy/api/apps/active
 
 # Get bundle diagnostics
-GET /api/apps/diagnostics
+GET /devproxy/api/apps/diagnostics
 
 # Force regenerate bundle
-POST /api/apps/regenerate
+POST /devproxy/api/apps/regenerate
 {"reload": true}
 
 # Scan routes and update status
-POST /api/apps/scan
+POST /devproxy/api/apps/scan
 {"base": "http://dev-proxy"}
 
 # Cleanup old artifacts
-POST /api/apps/cleanup
+POST /devproxy/api/apps/cleanup
 ```
 
 #### Config File Management
 ```bash
 # View config file
-GET /api/config/:filename
+GET /devproxy/api/config/:filename
 
 # Update config file
-POST /api/config/:filename
+POST /devproxy/api/config/:filename
 {"content": "# nginx configuration..."}
 ```
 
@@ -639,11 +639,11 @@ POST /api/config/:filename
 
 ```bash
 # Resolve route conflict
-POST /api/resolve-conflict
+POST /devproxy/api/resolve-conflict
 {"route": "/api/", "winner": "myapp.conf"}
 
 # Rename route in config
-POST /api/rename-route
+POST /devproxy/api/rename-route
 {
   "oldRoute": "/api/",
   "newRoute": "/myapp-api/",
@@ -651,11 +651,11 @@ POST /api/rename-route
 }
 
 # Promote app config to override
-POST /api/overrides/promote
+POST /devproxy/api/overrides/promote
 {"filename": "myapp.conf"}
 
 # List override conflicts
-GET /api/overrides/conflicts
+GET /devproxy/api/overrides/conflicts
 ```
 
 ### <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI Assistant APIs
@@ -1324,7 +1324,7 @@ However, the **multi-container approach provides superior flexibility** without 
 - **Status Dashboard**: `http://localhost:8080/status`
 - **Create Route Tool**: `http://localhost:8080/dashboard/#create-route`
 - **Health Check**: `http://localhost:8080/health`
-- **API Docs**: `http://localhost:3001/api/`
+- **API Docs**: `http://localhost:8080/devproxy/api/`
 - **Reports**: `http://localhost:8080/reports`
 
 ### Performance Tips

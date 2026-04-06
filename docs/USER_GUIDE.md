@@ -246,9 +246,11 @@ Avoid using these paths in your app configurations:
 | `/health` | Health page | Reserved |
 | `/reports` | Reports page | Reserved |
 | `/dashboard` | Dashboard | Reserved |
-| `/api/ai/*` | Calliope AI | Reserved |
-| `/api/config/*` | Config API | Reserved |
-| `/api/apps/*` | Apps API | Reserved |
+| `/devproxy/api/ai/*` | Calliope AI | Reserved |
+| `/devproxy/api/config/*` | Config API | Reserved |
+| `/devproxy/api/apps/*` | Apps API | Reserved |
+| `/devproxy/api/overrides/*` | Overrides API | Reserved |
+| `/devproxy/api/reports/*` | Reports API | Reserved |
 | `/health.json` | Health JSON | Reserved |
 | `/routes.json` | Routes JSON | Reserved |
 | `/.artifacts/*` | Artifacts | Reserved |
@@ -291,7 +293,7 @@ If your app is already running in Docker, use the API:
 
 ```javascript
 // From your app's code or startup script
-fetch('http://dev-proxy:8080/api/apps/install', {
+fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -956,7 +958,7 @@ Click stethoscope icon → Calliope will diagnose and suggest fixes
 
 3. **Network error**
    ```bash
-   curl http://localhost:3001/api/ai/health
+   curl http://localhost:8080/devproxy/api/ai/health
    ```
 
 ### Tunnel URL Changes
@@ -1213,20 +1215,20 @@ module.exports = {
 
 ```bash
 # List installed app files (sorted by mtime)
-curl -s http://localhost:3001/api/apps/list | jq
+curl -s http://localhost:8080/devproxy/api/apps/list | jq
 
 # Show final active locations (order + source)
-curl -s http://localhost:3001/api/apps/active | jq
+curl -s http://localhost:8080/devproxy/api/apps/active | jq
 
 # View bundle diagnostics (included vs skipped + reasons)
-curl -s http://localhost:3001/api/apps/diagnostics | jq
+curl -s http://localhost:8080/devproxy/api/apps/diagnostics | jq
 
 # Force regenerate + nginx reload
-curl -s -X POST http://localhost:3001/api/apps/regenerate \
+curl -s -X POST http://localhost:8080/devproxy/api/apps/regenerate \
   -H 'content-type: application/json' -d '{"reload":true}' | jq
 
 # Rescan routes and refresh routes.json
-curl -s -X POST http://localhost:3001/api/apps/scan \
+curl -s -X POST http://localhost:8080/devproxy/api/apps/scan \
   -H 'content-type: application/json' \
   -d '{"base":"http://dev-proxy"}' | jq
 ```
@@ -1270,7 +1272,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/myapp/api/health
 Status Dashboard:    http://localhost:8080/status
 Health Check:        http://localhost:8080/health.json
 Routes:              http://localhost:8080/routes.json
-API Base:            http://localhost:3001/api/
+API Base:            http://localhost:8080/devproxy/api/
 ngrok Admin:         http://localhost:4040
 ```
 
@@ -1396,7 +1398,7 @@ Features:
 ### Backend Improvements
 
 #### Configuration API Enhancements
-- **New Endpoint**: `POST /api/apps/create-route`
+- **New Endpoint**: `POST /devproxy/api/apps/create-route`
   - Generates optimal nginx configuration
   - Validates inputs against reserved paths
   - Supports optional immediate installation

@@ -29,7 +29,7 @@ This directory contains example configurations for different types of applicatio
 3. **Install the configuration using the API endpoint** (recommended):
    ```javascript
    // Using fetch API
-   fetch('http://dev-proxy:8080/api/apps/install', {
+   fetch('http://dev-proxy:8080/devproxy/api/apps/install', {
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
      body: JSON.stringify({
@@ -70,7 +70,7 @@ location ^~ /myapp/ {
 **Reserved proxy paths to avoid:**
 - `/` (landing page) - **FORBIDDEN**
 - `/status`, `/health`, `/reports`, `/dashboard` - UI endpoints
-- `/api/ai/*`, `/api/config/*`, `/api/apps/*` - API endpoints
+- `/devproxy/api/ai/*`, `/devproxy/api/config/*`, `/devproxy/api/apps/*` - API endpoints
 
 See [CONFIG-MANAGEMENT-GUIDE.md](../docs/CONFIG-MANAGEMENT-GUIDE.md#reserved-paths---root-path-restriction) for complete details.
 
