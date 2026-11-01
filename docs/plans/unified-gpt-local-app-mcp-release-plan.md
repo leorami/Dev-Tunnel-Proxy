@@ -20,6 +20,12 @@ Cross-project sources:
 - `smart-build.sh` now includes both MCP suites in the native `test:unit` path.
 - `docs/architecture/UNIFIED_GPT_LOCAL_APP_MCP_GATEWAY_V1.md` and `packages/dev-proxy-mcp/README.md` — single source of truth, adoption, external approval boundaries.
 
+## Formal QA and adoption handoff (now committed)
+
+- **Full adversarial QA matrix and explicit evidence receipt:** [`docs/qa/UNIFIED_GPT_LOCAL_APP_MCP_RELEASE_QA.md`](../qa/UNIFIED_GPT_LOCAL_APP_MCP_RELEASE_QA.md). It distinguishes local proxy, app-user identity, real cloud MCP access, and irreversible writes, including specific fail-closed checks.
+- **Optional instruction reusable by any project:** [`docs/adoption/GENERIC_PROJECT_MCP_ADOPTION_INSTRUCTION.md`](../adoption/GENERIC_PROJECT_MCP_ADOPTION_INSTRUCTION.md). This is a proposal/assessment instruction, not an automatic installation or Engineer assignment.
+- **Primary engineering priority stays unchanged.** Owner will coordinate any further Dev Tunnel Proxy work from that project. Source PR #2 remains DRAFT, untested after extraction, and never grants merge/deploy/tunnel privileges.
+
 ## Remaining work in ONE future test/release boundary
 
 1. Re-establish actual DevProxy `master` and draft PR head. Code-read actual diff, unexpected removals and origin provenance. Confirm all source files have generic model-safe names and no private project data, media, credentials or real user domains. Check MIT notices and any dependency compatibility before public sharing.
