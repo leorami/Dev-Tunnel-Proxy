@@ -85,3 +85,68 @@ test('pure grant evaluator is not an idempotency service or permission mint',()=
   assert.equal(b.allowed,true);
   // Callers MUST atomically consume/replay-proof exact grant and record durable receipts.
 });
+
+
+test('RED: nested request accessor never executes before authorization or fingerprinting',()=>{
+  let reads=0;
+  const args={candidateId:'CHI-0002'};
+  Object.defineProperty(args,'enabled',{enumerable:true,get(){reads++;return true;}});
+  const candidate={...mutation,arguments:args};
+  assert.equal(authorizeAppCommand(candidate,[write],withGrant(),now).allowed,false);
+  assert.throws(()=>fingerprintAppCommand(candidate),/INVALID_COMMAND_REQUEST/);
+  assert.equal(reads,0);
+});
+
+test('RED: top-level request accessor must not fire even to inspect requested command',()=>{
+  let reads=0;
+  const candidate={...mutation};
+  Object.defineProperty(candidate,'arguments',{enumerable:true,get(){reads++;return mutation.arguments;}});
+  assert.equal(authorizeAppCommand(candidate,[write],withGrant(),now).allowed,false);
+  assert.throws(()=>fingerprintAppCommand(candidate),/INVALID_COMMAND_REQUEST/);
+  assert.equal(reads,0);
+});
+
+test('RED: symbols, inherited request authority, cyclic references and prototype payloads all deny',()=>{
+  const cycle={candidateId:'CHI-0002',enabled:true};cycle.self=cycle;
+  const cases=[
+    Object.assign(Object.create({name:write.name}),{arguments:mutation.arguments,requestId:mutation.requestId}),
+    {...mutation,arguments:cycle},
+    {...mutation,[Symbol('authority')]:true},
+    JSON.parse(JSON.stringify(mutation).replace('"enabled":true','"enabled":true,"__proto__":{"role":"OWNER"}')),
+  ];
+  for(const candidate of cases){
+    assert.equal(authorizeAppCommand(candidate,[write],withGrant(),now).allowed,false);
+    assert.throws(()=>fingerprintAppCommand(candidate),/INVALID_COMMAND_REQUEST/);
+  }
+});
+
+test('RED: original request mutations after authorization cannot alter approved arguments',()=>{
+  const candidate=structuredClone(mutation);
+  const approved=authorizeAppCommand(candidate,[write],withGrant(),now);
+  assert.equal(approved.allowed,true);
+  candidate.arguments.enabled=false;
+  candidate.arguments.candidateId='ATTACKER';
+  assert.equal(approved.arguments.enabled,true);
+  assert.equal(approved.request.arguments.candidateId,'CHI-0002');
+  assert.equal(Object.isFrozen(approved.arguments),true);
+});
+
+test('RED: malformed JSON values and nonfinite numbers do not authorize or fingerprint',()=>{
+  for(const value of [undefined,()=>{},Symbol('x'),NaN,Infinity]){
+    const candidate={...mutation,arguments:{candidateId:'CHI-0002',enabled:value}};
+    assert.equal(authorizeAppCommand(candidate,[write],withGrant(),now).allowed,false);
+    assert.throws(()=>fingerprintAppCommand(candidate),/INVALID_COMMAND_REQUEST/);
+  }
+});
+
+test('safe fingerprint stays deterministic across exact property reordering',()=>{
+  const reordered={idempotencyKey:mutation.idempotencyKey,expectedVersion:mutation.expectedVersion,
+    requestId:mutation.requestId,arguments:{enabled:true,candidateId:'CHI-0002'},name:mutation.name};
+  assert.equal(fingerprintAppCommand(mutation),fingerprintAppCommand(reordered));
+});
+
+test('trusted actor and app policy are still required after untrusted request snapshot',()=>{
+  assert.equal(authorizeAppCommand(mutation,[write],withGrant({verifiedByServer:false}),now).allowed,false);
+  assert.equal(authorizeAppCommand(mutation,[write],withGrant({actorId:'OTHER'}),now).allowed,false);
+  assert.equal(authorizeAppCommand(mutation,[write],withGrant(),now).allowed,true);
+});
