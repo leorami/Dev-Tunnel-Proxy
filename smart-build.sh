@@ -496,6 +496,11 @@ cmd_test_unit() {
       "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
   fi
   
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Unified App MCP Gateway and Policy (Node 22)" \
+      "node --test '$ROOT_DIR/tests/unit/dev-proxy-mcp.test.mjs' '$ROOT_DIR/tests/unit/dev-proxy-mcp-app-policy.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
