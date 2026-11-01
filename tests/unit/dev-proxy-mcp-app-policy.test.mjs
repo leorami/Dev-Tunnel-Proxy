@@ -2,17 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { authorizeAppCommand, fingerprintAppCommand } from '../../packages/dev-proxy-mcp/app-policy.mjs';
 
-const resource='https://ramileo.ngrok.app/tigerslam/mcp';
+const resource='https://dev.example.test/photos/mcp';
 const read={
-  name:'tiger_slam.gallery.reason_state',appId:'tiger_slam',kind:'read',
-  scope:'tiger_slam.gallery.read',roles:['OWNER','ADMIN'],environments:['development'],
+  name:'photos.gallery.reason_state',appId:'photos',kind:'read',
+  scope:'photos.gallery.read',roles:['OWNER','ADMIN'],environments:['development'],
   argumentSchema:{type:'object',additionalProperties:false,required:['candidateId'],properties:{
     candidateId:{type:'string',minLength:8,maxLength:8},
   }},
 };
 const write={
-  ...read,name:'tiger_slam.gallery.set_reason_flag',kind:'reversible_write',
-  scope:'tiger_slam.gallery.write',
+  ...read,name:'photos.gallery.set_reason_flag',kind:'reversible_write',
+  scope:'photos.gallery.write',
   argumentSchema:{type:'object',additionalProperties:false,required:['candidateId','enabled'],properties:{
     candidateId:{type:'string',minLength:8,maxLength:8},enabled:{type:'boolean'},
   }},
@@ -24,8 +24,8 @@ const mutation={
   expectedVersion:61,idempotencyKey:'d1953398-aa90-4ad1-b799-912f2f2a3eac',
 };
 const context={
-  appId:'tiger_slam',environment:'development',resource,
-  actor:{id:'owner-1',role:'OWNER',scopes:['tiger_slam.gallery.read','tiger_slam.gallery.write'],tokenAudience:resource},
+  appId:'photos',environment:'development',resource,
+  actor:{id:'owner-1',role:'OWNER',scopes:['photos.gallery.read','photos.gallery.write'],tokenAudience:resource},
   grant:null,
 };
 const withGrant=(override={})=>({...context,grant:{
@@ -39,10 +39,10 @@ test('read requires exact app, role, OAuth scope and resource audience',()=>{
   assert.equal(authorizeAppCommand(request,[read],context).allowed,true);
   const cases=[
     {...context,actor:{...context.actor,tokenAudience:'https://other.invalid/mcp'}},
-    {...context,appId:'wizardmaker'},
+    {...context,appId:'otherapp'},
     {...context,environment:'production'},
     {...context,actor:{...context.actor,role:'VIEWER'}},
-    {...context,actor:{...context.actor,scopes:['tiger_slam.research_candidates']}},
+    {...context,actor:{...context.actor,scopes:['photos.research_candidates']}},
   ];
   for(const invalid of cases) assert.equal(authorizeAppCommand(request,[read],invalid).allowed,false);
 });
