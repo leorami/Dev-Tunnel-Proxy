@@ -44,6 +44,7 @@ function checkArgs(value,schema){
   }
   return true;
 }
+export { checkArgs as validateAppCommandArguments };
 const emptySchema=Object.freeze({type:'object',additionalProperties:false,required:[],properties:{}});
 function digest(text){return createHash('sha256').update(text).digest();}
 function sameSecret(a,b){if(typeof a!=='string'||typeof b!=='string')return false;return timingSafeEqual(digest(a),digest(b));}
