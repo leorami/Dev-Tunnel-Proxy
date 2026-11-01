@@ -50,6 +50,10 @@ app's existing domain service, with its own consent and audit
 6. A proxy's **local bearer token is machine authentication**, not the human who owns Tiger Slam/Wizardmaker or permission to access that user's private data. Never log or publish tokens.
 7. The existing Tiger Slam production Research MCP at `/mcp` uses a different legacy protocol and OAuth user grants. Preserve it unchanged. Plan an interoperability/transition test before moving any production connected app to the generic gateway; do not break working research connections for new features.
 
+## Independent shared app-policy input hardening (CTO follow-up)
+
+- [Request-snapshot safety proof and RED/GREEN evidence](MCP_APP_POLICY_UNTRUSTED_SNAPSHOT_GATE.md): shared `app-policy.mjs` rejects untrusted getter/proxy-like payloads, inherited/symbol fields, cyclic JSON, and caller mutation after policy authorization. Original isolated harness **8 pass / 5 fail**; corrected harness **13 pass / 0 fail** (six inherited + seven adversarial cases). The shared policy is still NOT automatically wired into every gateway command, and the real native Dev Proxy test gate/owner UAT remain pending. No cloud GPT or production grant is created.
+
 ## Security and agency invariants
 
 - Deny-by-default per-app registration; no shell, file browser, Docker socket, arbitrary HTTP, wildcard CORS, raw session cookies or broad OS permissions.
