@@ -7,9 +7,14 @@
  * Keep origin-specific browser/session checks in the calling handler.
  */
 function classifyManagementRequest(method, pathname, base='/devproxy/api') {
-  const isManagement = typeof pathname === 'string'
+  const isConfiguredManagement = typeof pathname === 'string'
     && (pathname === base || pathname.startsWith(base + '/'));
-  const isPublic = isManagement
+  // The legacy /api/config/:file handlers remain in proxyConfigAPI.js. They
+  // must never provide a direct-port anonymous bypass of the new namespace.
+  const isLegacyConfig = typeof pathname === 'string'
+    && (pathname === '/api/config' || pathname.startsWith('/api/config/'));
+  const isManagement = isConfiguredManagement || isLegacyConfig;
+  const isPublic = isConfiguredManagement
     && method === 'GET'
     && pathname === base + '/ai/health';
   return Object.freeze({
