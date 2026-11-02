@@ -17,11 +17,18 @@ test('source copy is OFF by default and requires both explicit enable and approv
  assert.equal(authorizeHostSnapshot(project,undefined,{}).allowed,false);
  assert.equal(authorizeHostSnapshot(project,undefined,{CALLIOPE_CODE_SNAPSHOT_ENABLED:'1'}).allowed,false);
  assert.equal(authorizeHostSnapshot(project,undefined,{CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:dir}).allowed,false);
- const approved={CALLIOPE_CODE_SNAPSHOT_ENABLED:'1',CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:dir};
+ const approved={CALLIOPE_CODE_SNAPSHOT_ENABLED:'1',CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:project};
  const result=authorizeHostSnapshot(project,'safe-snapshot',approved);
  assert.equal(result.allowed,true,result.reason);
  assert.equal(result.source,fs.realpathSync(project));
  assert.equal(result.name,'safe-snapshot');
+ assert.equal(authorizeHostSnapshot(dir,'safe-snapshot',approved).allowed,false,'no parent traversal');
+ const nested=path.join(project,'nested');fs.mkdirSync(nested);
+ assert.equal(authorizeHostSnapshot(nested,'safe-snapshot',approved).allowed,false,'no implicit subtree grants');
+ for(const dirname of ['.private','.artifacts','.ssh','node_modules']){
+   const blocked=path.join(project,dirname);fs.mkdirSync(blocked);
+   assert.equal(authorizeHostSnapshot(blocked,'safe-snapshot',{...approved,CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:blocked}).allowed,false,dirname);
+ }
  assert.equal(authorizeHostSnapshot('/',undefined,{...approved,CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:'/'}).allowed,false,'never a whole-root snapshot');
 });
 
