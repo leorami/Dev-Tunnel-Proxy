@@ -1,6 +1,10 @@
 services:
   proxy:
-    image: nginx:1.25-alpine
+    # The production nginx.conf loads Brotli dynamic modules from Dockerfile.
+    # The stock nginx:1.25-alpine image does NOT contain these modules.
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: dev-proxy
     ports:
       - "8080:80"
@@ -94,8 +98,8 @@ services:
     networks:
       - devproxy
     ports:
-      - "3001:3001"
-      - "3002:3002"
+      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3002:3002"
     depends_on:
       - proxy
 
