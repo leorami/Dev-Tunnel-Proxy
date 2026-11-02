@@ -496,6 +496,82 @@ cmd_test_unit() {
       "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
   fi
   
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Management perimeter security (source-only, safe)" \
+      "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Admin password/session security (test-owned temporary files)" \
+      "node --test '$ROOT_DIR/tests/security/admin-session-foundation.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Trusted-origin CSRF boundary (pure)" \
+      "node --test '$ROOT_DIR/tests/security/trusted-origin-csrf.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Trusted-origin Compose forwarding (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/trusted-origin-compose-gate.test.mjs'" || test_result=1
+  fi
+
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "macOS bridge authorization (mock-only, no Messages)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-authorization.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Same-origin login destination" \
+      "node --test '$ROOT_DIR/tests/security/login-redirect-same-origin.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Integrated security release source invariants" \
+      "node --test '$ROOT_DIR/tests/security/security-release-integration.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Production Compose and mode-switch packaging gate (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/production-packaging-gate.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Fail-closed owner release decision (pure, no live reads)" \
+      "node --test '$ROOT_DIR/tests/security/release-decision-readonly.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private rollback image export (fake Docker, test-only HOME)" \
+      "node --test '$ROOT_DIR/tests/security/private-rollback-export.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private config backup and isolated file restore (test-owned only)" \
+      "node --test '$ROOT_DIR/tests/security/private-config-snapshot.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Safe nginx reload (fake node/docker, test-owned files only)" \
+      "node --test '$ROOT_DIR/tests/security/nginx-safe-reload.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Read-only nginx startup fail-closed (fake nginx only)" \
+      "node --test '$ROOT_DIR/tests/security/nginx-readonly-startup.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Route precedence mtime restore (isolated extract only)" \
+      "node --test '$ROOT_DIR/tests/security/restore-route-precedence.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Recovery image tag binding (pure, no Docker)" \
+      "node --test '$ROOT_DIR/tests/security/recovery-image-tag-binding.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
