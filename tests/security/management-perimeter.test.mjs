@@ -63,3 +63,26 @@ for (const compose of ['docker-compose.yml','docker-compose.production.yml']) {
     assert.doesNotMatch(s,/^\s*-\s*["']300[12]:300[12]["']/m);
   });
 }
+
+
+for (const config of ['config/default.conf','config/default.production.conf']) {
+  test(config+' keeps route inventory and nginx diagnostics away from anonymous tunnel clients', () => {
+    const source=read(config);
+    for (const marker of [
+      'location = /routes {',
+      'location = /routes.json {',
+      'location = /status.json {',
+      'location /dashboard {',
+    ]) {
+      const index=source.indexOf(marker);
+      assert.notEqual(index,-1,marker);
+      assert.match(source.slice(index,index+250),/auth_request\s+\/admin\/check;/,marker);
+    }
+    const monitor=source.indexOf('location /nginx_status {');
+    assert.notEqual(monitor,-1);
+    const tail=source.slice(monitor,monitor+460);
+    assert.match(tail,/allow\s+127\.0\.0\.1;/);
+    assert.match(tail,/deny\s+all;/);
+    assert.doesNotMatch(tail,/allow\s+(?:172\.|192\.168\.|10\.)/);
+  });
+}
