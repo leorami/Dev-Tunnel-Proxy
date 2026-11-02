@@ -50,6 +50,14 @@ app's existing domain service, with its own consent and audit
 6. A proxy's **local bearer token is machine authentication**, not the human who owns Tiger Slam/Wizardmaker or permission to access that user's private data. Never log or publish tokens.
 7. The existing Tiger Slam production Research MCP at `/mcp` uses a different legacy protocol and OAuth user grants. Preserve it unchanged. Plan an interoperability/transition test before moving any production connected app to the generic gateway; do not break working research connections for new features.
 
+## CTO consolidation and source-only trust receipt (2026-11-01)
+
+The read-only proof branch is descended from **latest shared PR #2** at `3240420ce0ec70328f2d64e9e19e1b6ff186d59e`, not from stale `master`. It incorporates the exact newer untrusted-payload security implementation and adversarial test suite from independent draft PR #3, whose ancestor preceded the four latest PR #2 documentation commits. This preserves both sets of substantive work without changing the existing proxy/ngrok runtime or claiming either draft PR is merged.
+
+The direct CTO integration sequence is **adversarial tests first**, policy source second, then additional two-real-loopback-app isolation tests. See [exact untrusted request snapshot security gate](MCP_APP_POLICY_UNTRUSTED_SNAPSHOT_GATE.md). These are committed changes on an isolated branch, **not a current native PASS**; the Dev Tunnel Proxy tests, live source/port proof, protected identity and public ChatGPT transport remain unverified. The combined branch is an engineering-review starting point, not production authority.
+
+Only non-personal read-only app state is in the first usable MCP boundary. `app-policy.mjs` remains a pure evaluator **not automatically wired** to the gateway; local one-use approvals in the sample are not OAuth identity, owner grants, durable idempotency or permission for real user-data writes. Cross-app command and private read actions must fail closed absent a real app-owned verified principal and domain enforcement. Do not add a public `/mcp` ingress to prove local connectivity.
+
 ## Security and agency invariants
 
 - Deny-by-default per-app registration; no shell, file browser, Docker socket, arbitrary HTTP, wildcard CORS, raw session cookies or broad OS permissions.
