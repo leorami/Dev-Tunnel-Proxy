@@ -1,7 +1,7 @@
 # Production Mode & Performance Optimization Guide
 
 **Last Updated:** January 7, 2026  
-**Status:** ✅ Production Mode Active
+**Status:** Source configuration documented; actual installed mode must be verified before any rollout
 
 ## Table of Contents
 
@@ -21,9 +21,9 @@
 
 ## Quick Start
 
-### Current Status
+### Configuration capabilities (not a live status report)
 
-Your dev-tunnel-proxy is running in **optimized production mode** with:
+The repository's optimized production configuration is designed to provide the following features **when applied and verified**:
 - **74% less memory** (290MB → 75MB total)
 - **4x more concurrent connections** (1024 → 4096)
 - **HTTP/2 support** (Request multiplexing and header compression)
@@ -49,6 +49,14 @@ curl -kI -H "Accept-Encoding: br" https://localhost/ | grep "content-encoding: b
 ```
 
 ---
+
+## Security RC1 release gate
+
+**Do not execute the mode-switch scripts, `docker compose up/down`, or `./smart-build.sh restart` on a running proxy without owner-approved maintenance and rollback.** `scripts/switch-to-production.sh` stops existing containers and rewrites local override/config files, so it is not a read-only verification command. When it is explicitly authorized later, it must include **both** `docker-compose.yml` and `docker-compose.override.yml` so the production settings are not discarded by an explicit single `-f`.
+
+The standalone `docker-compose.production.yml` also exists as a distinct production manifest. It must be independently checked using `docker compose -f docker-compose.production.yml config`, then safely built and exercised in a **disposable project/network with unrelated ports** using a custom Brotli-capable image. Do not run it against the current `devproxy` Docker network, active port mappings, real credentials, or the owner checkout to prove source readiness.
+
+Source checks under `tests/security/production-packaging-gate.test.mjs` are nonmutating but **not** a substitute for a genuine Compose build plus `nginx -t`, actual Node API runtime parity, authenticated UI and a tested rollback. The installed proxy source SHA, current container images, real runtime mode and historical performance figures remain unverified until the owner authorizes a private inventory and release verification.
 
 ## Overview
 
@@ -149,7 +157,7 @@ http {
 
 ### 2. Custom Docker Image
 
-The proxy now builds from a local `Dockerfile` to include the Brotli module, which is compiled specifically for the running Nginx version.
+The production Compose manifest **must build from the repository `Dockerfile`**, because `config/nginx.production.conf` loads the Brotli dynamic modules. The stock `nginx:1.25-alpine` image does not include them. On the candidate branch the manifest uses `build: {context: ., dockerfile: Dockerfile}`; that alone is not evidence it was used by the running installation.
 
 ### 3. DNS Caching & Resiliency (`config/default.production.conf`)
 

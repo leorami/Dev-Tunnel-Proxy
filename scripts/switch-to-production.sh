@@ -68,7 +68,10 @@ echo ""
 
 # Start with production settings
 echo "🔄 Starting containers in production mode..."
-docker-compose -f docker-compose.yml up -d
+# An explicit -f suppresses implicit override loading. Include both manifests
+# so the production nginx.conf, custom Dockerfile, and production API settings
+# are truly applied. This script is a LIVE mode-switch; never run in tests.
+docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
 
 echo ""
 echo "✅ Production mode activated!"
