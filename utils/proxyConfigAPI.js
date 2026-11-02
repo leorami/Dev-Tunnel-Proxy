@@ -605,6 +605,7 @@ async function handle(req, res){
       // Set cookie
       res.writeHead(200, {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
         'Set-Cookie': adminSessionCookie(session.token,{host:req.headers.host})
       });
       
@@ -625,6 +626,7 @@ async function handle(req, res){
       
       res.writeHead(200, {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-store',
         'Set-Cookie': adminSessionCookie('',{host:req.headers.host,expire:true})
       });
       
