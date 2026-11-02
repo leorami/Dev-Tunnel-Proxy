@@ -93,6 +93,8 @@ services:
       - CALLIOPE_PUPPETEER_PLATFORM=linux/amd64
       - NOTIFICATIONS_API_PORT=3002
       - LOCAL_PROXY_BASE=http://dev-proxy
+      # Fail before deployment if the trusted browser origin allowlist was not supplied.
+      - DEVPROXY_TRUSTED_ORIGINS=${DEVPROXY_TRUSTED_ORIGINS:?Explicit trusted browser origins required for admin login}
       - AUTO_SCAN_ENABLED=${AUTO_SCAN_ENABLED:-0}
       - AUTO_SCAN_INTERVAL_SECONDS=${AUTO_SCAN_INTERVAL_SECONDS:-300}
     networks:
