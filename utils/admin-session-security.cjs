@@ -51,16 +51,51 @@ function headerPort(hostHeader){
   const parts=hostHeader.split(':');
   return parts.length>1?parts[1]:'';
 }
-function adminRequestOriginAllowed(hostHeader, originHeader){
-  if(originHeader===undefined||originHeader==='') return true;
-  if(typeof hostHeader!=='string'||typeof originHeader!=='string') return false;
+function parseTrustedOriginList(value){
+  if(value instanceof Set) return [...value];
+  if(Array.isArray(value)) return value;
+  if(typeof value!=='string'||!value.trim()) return [];
+  return value.split(/[\s,]+/).map((x)=>x.trim()).filter(Boolean);
+}
+function normalizeTrustedOrigins(value){
+  if(value instanceof Set){
+    // Already normalized by the process bootstrap.
+    return value;
+  }
+  const out=new Set();
+  for(const raw of parseTrustedOriginList(value)){
+    let url;
+    try{ url=new URL(raw); }catch{ continue; }
+    if(url.username||url.password||url.pathname!=='/'||url.search||url.hash) continue;
+    if(url.protocol!=='http:'&&url.protocol!=='https:') continue;
+    out.add(url.origin);
+  }
+  return out;
+}
+/**
+ * Trusted Origin allowlist, not Host spoofing.
+ * options.trustedOrigins: iterable/string of exact origins (scheme://host[:port])
+ * options.authMode: 'cookie' | 'bearer'
+ * options.method: HTTP method
+ * Cookie mutations require a trusted Origin. Missing Origin is only allowed for
+ * bearer callers or non-mutating methods (nginx auth_request GETs).
+ */
+function adminRequestOriginAllowed(originHeader, options={}){
+  const trusted=normalizeTrustedOrigins(options?.trustedOrigins);
+  const authMode=options?.authMode==='bearer'?'bearer':'cookie';
+  const method=String(options?.method||'GET').toUpperCase();
+  const mutating=!['GET','HEAD','OPTIONS'].includes(method);
+  if(originHeader===undefined||originHeader===''){
+    if(authMode==='bearer') return true;
+    return !mutating;
+  }
+  if(typeof originHeader!=='string') return false;
   let origin;
   try{ origin=new URL(originHeader); }catch{ return false; }
   if(origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash) return false;
-  if(origin.hostname.toLowerCase()!==headerHostname(hostHeader)) return false;
-  // Nginx forwards $host without a port. When the header has a port, it must match.
-  const port=headerPort(hostHeader);
-  return !port||String(origin.port||'')===port;
+  if(origin.protocol!=='http:'&&origin.protocol!=='https:') return false;
+  if(!trusted.size) return false;
+  return trusted.has(origin.origin);
 }
 function isLoopbackHostname(host){
   return typeof host==='string'&&/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/.test(host.toLowerCase());
@@ -116,4 +151,4 @@ function readSecureSessionFile(file,now=Date.now()){
     return sanitizedSessionEntries(value?.sessions,now);
   }catch{return new Map();}
 }
-module.exports={safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,isLoopbackHostname,adminRequestOriginAllowed};
+module.exports={safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,isLoopbackHostname,adminRequestOriginAllowed,normalizeTrustedOrigins,headerHostname,headerPort};

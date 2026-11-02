@@ -93,13 +93,24 @@ test('session corruption does not forge admin authentication',t=>{
 });
 
 
-test('a presented Origin must match the request host and an absent Origin stays usable',()=>{
- assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', undefined), true);
- assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', 'http://127.0.0.1:18080'), true);
- assert.equal(adminRequestOriginAllowed('127.0.0.1', 'http://127.0.0.1:18080'), true);
- assert.equal(adminRequestOriginAllowed('your-proxy.example.ngrok.app', 'https://your-proxy.example.ngrok.app'), true);
+test('trusted Origin allowlist denies host spoofing, scheme mismatch, and cookie mutations without Origin',()=>{
+ const local=['http://127.0.0.1:18080'];
+ const pub=['https://your-proxy.example.ngrok.app'];
+ // Cookie GET may omit Origin (nginx auth_request).
+ assert.equal(adminRequestOriginAllowed(undefined,{trustedOrigins:local,authMode:'cookie',method:'GET'}), true);
+ // Cookie POST without Origin is denied.
+ assert.equal(adminRequestOriginAllowed(undefined,{trustedOrigins:local,authMode:'cookie',method:'POST'}), false);
+ // Bearer may omit Origin on mutations.
+ assert.equal(adminRequestOriginAllowed(undefined,{trustedOrigins:local,authMode:'bearer',method:'POST'}), true);
+ // Exact trusted local origin allowed.
+ assert.equal(adminRequestOriginAllowed('http://127.0.0.1:18080',{trustedOrigins:local,authMode:'cookie',method:'POST'}), true);
+ // Portless Host no longer legitimizes another port; only trusted Origins count.
+ assert.equal(adminRequestOriginAllowed('http://127.0.0.1:9999',{trustedOrigins:local,authMode:'cookie',method:'POST'}), false);
+ // HTTP Origin is not accepted for an HTTPS-only trusted public host.
+ assert.equal(adminRequestOriginAllowed('http://your-proxy.example.ngrok.app',{trustedOrigins:pub,authMode:'cookie',method:'POST'}), false);
+ assert.equal(adminRequestOriginAllowed('https://your-proxy.example.ngrok.app',{trustedOrigins:pub,authMode:'cookie',method:'POST'}), true);
  for (const origin of ['https://evil.invalid','http://127.0.0.1:18080.evil','null','https://user:pass@127.0.0.1:18080','http://127.0.0.1:18081']) {
-  assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', origin), false, origin);
+  assert.equal(adminRequestOriginAllowed(origin,{trustedOrigins:local,authMode:'cookie',method:'POST'}), false, origin);
  }
 });
 
@@ -114,5 +125,7 @@ test('actual management API uses the primitives, never unequal raw Buffer compar
  assert.doesNotMatch(server,/fs\.writeFileSync\(SESSION_FILE,\s*JSON\.stringify/);
  assert.match(server,/fs\.appendFileSync\(ENV_FILE, envLine, \{ encoding:'utf8',mode:0o600 \}\)/);
  assert.match(server,/fs\.chmodSync\(ENV_FILE,0o600\)/);
- assert.match(server,/adminRequestOriginAllowed\(req\.headers\.host,\s*req\.headers\.origin\)/);
+ assert.match(server,/adminRequestOriginAllowed\(req\.headers\.origin/);
+ assert.match(server,/DEVPROXY_TRUSTED_ORIGINS/);
+ assert.match(server,/authMode:\s*requestAuthMode\(req\)/);
 });

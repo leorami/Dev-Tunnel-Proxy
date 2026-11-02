@@ -23,7 +23,8 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
-const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed} = require('./admin-session-security.cjs');
+const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
+const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -176,8 +177,17 @@ function extractSessionToken(req) {
   return extractAdminSessionToken(req);
 }
 
+function requestAuthMode(req) {
+  const auth = req?.headers?.authorization;
+  if (typeof auth === 'string' && /^Bearer [a-f0-9]{64}$/.test(auth)) return 'bearer';
+  return 'cookie';
+}
 function originDenied(req, res) {
-  if (adminRequestOriginAllowed(req.headers.host, req.headers.origin)) return false;
+  if (adminRequestOriginAllowed(req.headers.origin, {
+    trustedOrigins: TRUSTED_ORIGINS,
+    authMode: requestAuthMode(req),
+    method: req.method,
+  })) return false;
   send(res, 403, { error: 'Origin denied' });
   return true;
 }

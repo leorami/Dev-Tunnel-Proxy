@@ -104,3 +104,29 @@ test('restore refuses path traversal and symlink targets', (t) => {
     /UNSAFE_RESTORE_NODE/,
   );
 });
+
+test('parent symlink out of the extract root cannot have mtime changed', (t) => {
+  const base = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-mtime-parent-'));
+  t.after(() => fs.rmSync(base, {recursive: true, force: true}));
+  const outside = path.join(base, 'outside');
+  fs.mkdirSync(outside);
+  const victim = path.join(outside, 'leak.conf');
+  fs.writeFileSync(victim, 'SECRET');
+  const before = fs.statSync(victim).mtimeMs;
+  const root = path.join(base, 'extract');
+  fs.mkdirSync(root);
+  fs.symlinkSync(outside, path.join(root, 'apps'));
+  assert.throws(
+    () => restoreManifestMtimes(root, {
+      files: [{
+        path: 'apps/leak.conf',
+        bytes: 6,
+        mode: fs.statSync(victim).mode & 0o777,
+        mtimeMs: before + 60000,
+        sha256: sha(victim),
+      }],
+    }),
+    /UNSAFE_RESTORE_NODE/,
+  );
+  assert.equal(fs.statSync(victim).mtimeMs, before);
+});

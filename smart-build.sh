@@ -507,6 +507,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Trusted-origin CSRF boundary (pure)" \
+      "node --test '$ROOT_DIR/tests/security/trusted-origin-csrf.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "macOS bridge authorization (mock-only, no Messages)" \
       "node --test '$ROOT_DIR/tests/security/notification-bridge-authorization.test.mjs'" || test_result=1
   fi
