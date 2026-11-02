@@ -261,6 +261,8 @@ cmd_up() {
 }
 
 cmd_down() {
+  # Same P0 gate as up/restart/apply — ordinary down must not stop a drifted live stack.
+  rc1_premutation_guard down || exit $?
   echo "==> Stopping containers..."
   (cd "$ROOT_DIR" && $COMPOSE stop)
 }

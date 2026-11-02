@@ -2,7 +2,7 @@
 // DEVPROXY P0 RC1. Pure, no IO. Only validates redacted, locally attested
 // transition metadata. NEVER authorizes an actual runtime mutation.
 const RELEASE_SHA='d89c962fb31a962a518f331bae458e63708e7e86';
-const ACTIONS=new Set(['up','restart','apply']);
+const ACTIONS=new Set(['up','restart','apply','down']);
 const LIVE_KEYS=new Set(['attested','liveSource','proxyImage','publicHealth',
   'anonymousRoutes','managementPorts','apiDockerSocket',
   'privateConfigPreserved','routeFingerprintPreserved']);

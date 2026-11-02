@@ -19,7 +19,7 @@ const check=(action, live=healthy(), candidate=proposal())=>assessReleaseMutatio
 test('R0 observed drift cannot be approved by any ordinary smart-build mutation',()=>{
   const live={...healthy(),liveSource:'owner_checkout',proxyImage:'different',
     publicHealth:'full_report',anonymousRoutes:'open',managementPorts:'all_interfaces'};
-  for(const action of ['up','restart','apply']){
+  for(const action of ['up','restart','apply','down']){
     const result=check(action,live);
     assert.equal(result.code,'P0_DRIFT_BLOCKED',action);
     assert.equal(result.productionChangeAuthorized,false);
@@ -60,7 +60,7 @@ test('missing candidate rollback/provenance/continuity fails closed',()=>{
 });
 
 test('unsupported command and suspicious metadata cannot authorize change',()=>{
-  for(const action of ['down','deploy','',null,{'x':'up'}]){
+  for(const action of ['deploy','',null,{'x':'up'}]){
     const result=check(action);
     assert.equal(result.code,'INVALID_INPUT');
     assert.equal(result.mutationAllowed,false);

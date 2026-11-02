@@ -39,7 +39,7 @@ test('disposable isolated project identity is required for DEVPROXY_DISPOSABLE_S
   assert.equal(isDisposableStack({ DEVPROXY_DISPOSABLE_STACK: '0', COMPOSE_PROJECT_NAME: 'rc1driftfix' }), false);
 });
 
-test('R0-shaped live drift blocks up/restart/apply even with a perfect candidate', async () => {
+test('R0-shaped live drift blocks up/restart/apply/down even with a perfect candidate', async () => {
   const candidate = {
     sourceSha: RELEASE_SHA,
     exactPrivateMounts: true,
@@ -48,7 +48,7 @@ test('R0-shaped live drift blocks up/restart/apply even with a perfect candidate
     rollbackReady: true,
     verifiedDisposable: true,
   };
-  for (const action of ['up', 'restart', 'apply']) {
+  for (const action of ['up', 'restart', 'apply', 'down']) {
     const result = await runPremutationGuard(action, { live: driftedLive(), candidate });
     assert.equal(result.mutationAllowed, false, action);
     assert.equal(result.productionChangeAuthorized, false);
@@ -107,12 +107,23 @@ test('management ports all_interfaces is enough to block with other R0 fields', 
   assert.equal(result.code, 'P0_DRIFT_BLOCKED');
 });
 
-test('disposable stack short-circuits without authorizing production', async () => {
+test('disposable stack short-circuits without authorizing production when live names are absent', async () => {
   const result = await runPremutationGuard('up', {
     env: { DEVPROXY_DISPOSABLE_STACK: '1', COMPOSE_PROJECT_NAME: 'devproxy-test-drift' },
+    liveContainersPresent: false,
     live: driftedLive(),
   });
   assert.equal(result.code, 'DISPOSABLE_STACK_ALLOWED');
   assert.equal(result.mutationAllowed, true);
+  assert.equal(result.productionChangeAuthorized, false);
+});
+
+test('disposable bypass refuses while live dev-proxy containers exist', async () => {
+  const result = await runPremutationGuard('up', {
+    env: { DEVPROXY_DISPOSABLE_STACK: '1', COMPOSE_PROJECT_NAME: 'devproxy-test-drift' },
+    liveContainersPresent: true,
+  });
+  assert.equal(result.code, 'DISPOSABLE_COLLIDES_WITH_LIVE');
+  assert.equal(result.mutationAllowed, false);
   assert.equal(result.productionChangeAuthorized, false);
 });

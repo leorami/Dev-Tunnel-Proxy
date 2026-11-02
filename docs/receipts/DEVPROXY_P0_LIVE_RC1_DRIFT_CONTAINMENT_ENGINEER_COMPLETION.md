@@ -13,7 +13,7 @@
 ## What shipped (source only)
 1. Kept CTO pure policy `utils/rc1-release-drift-policy.cjs` + RED/GREEN fixture tests.
 2. Added read-only attestor `utils/rc1-release-drift-attest.cjs` and CLI `scripts/rc1-drift-premutation-guard.cjs`.
-3. Wired **pre-mutation** `rc1_premutation_guard` at the start of `cmd_up`, `cmd_restart`, `cmd_apply` (before ensure_network / bundle regen / compose stop|up).
+3. Wired **pre-mutation** `rc1_premutation_guard` at the start of `cmd_up`, `cmd_restart`, `cmd_apply`, and (follow-up) `cmd_down` (before ensure_network / bundle regen / compose stop|up). Disposable bypass now refuses while live `dev-proxy*` containers exist (`DISPOSABLE_COLLIDES_WITH_LIVE`).
 4. Appended policy + guard tests to `./smart-build.sh test:unit` (existing hooks preserved).
 5. `PLAN_ONLY` recovery plan: `docs/receipts/DEVPROXY_P0_LIVE_RC1_DRIFT_CONTAINMENT_PLAN_ONLY.md` (not READY).
 

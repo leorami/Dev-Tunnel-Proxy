@@ -249,11 +249,26 @@ async function attestLive() {
   };
 }
 
+function liveNamedContainersPresent(opts = {}) {
+  if (typeof opts.liveContainersPresent === 'boolean') return opts.liveContainersPresent;
+  return containerExists('dev-proxy') || containerExists('dev-proxy-config-api');
+}
+
 async function runPremutationGuard(action, opts = {}) {
   const env = opts.env || process.env;
   const rootDir = opts.rootDir || process.cwd();
 
   if (isDisposableStack(env)) {
+    // Hardcoded container_name/ports in compose mean a "disposable" project can
+    // collide with or rewrite shared owner bind outputs while live names exist.
+    if (liveNamedContainersPresent(opts)) {
+      return {
+        code: 'DISPOSABLE_COLLIDES_WITH_LIVE',
+        mutationAllowed: false,
+        productionChangeAuthorized: false,
+        note: 'Refuse disposable bypass while live dev-proxy* containers exist',
+      };
+    }
     return {
       code: 'DISPOSABLE_STACK_ALLOWED',
       mutationAllowed: true,
