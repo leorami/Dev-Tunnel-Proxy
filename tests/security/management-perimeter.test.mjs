@@ -69,6 +69,28 @@ for (const compose of ['docker-compose.yml','docker-compose.production.yml']) {
 
 
 for (const config of ['config/default.conf','config/default.production.conf']) {
+  test(config+' authenticates management prefixes before they proxy the control plane', () => {
+    const source=read(config);
+    for (const marker of [
+      'location /devproxy/api/ai/ {',
+      'location /devproxy/api/config/ {',
+      'location ^~ /devproxy/api/apps/ {',
+      'location /devproxy/api/overrides/ {',
+      'location /devproxy/api/reports/ {',
+      'location /devproxy/api/resolve-conflict {',
+      'location /devproxy/api/rename-route {',
+    ]) {
+      const index=source.indexOf(marker);
+      assert.notEqual(index,-1,marker);
+      assert.match(source.slice(index,index+180),/auth_request\s+\/admin\/check;/,marker);
+    }
+    const health=source.indexOf('location = /devproxy/api/ai/health {');
+    assert.notEqual(health,-1);
+    assert.doesNotMatch(source.slice(health,health+220),/auth_request/);
+  });
+}
+
+for (const config of ['config/default.conf','config/default.production.conf']) {
   test(config+' keeps route inventory and nginx diagnostics away from anonymous tunnel clients', () => {
     const source=read(config);
     for (const marker of [
