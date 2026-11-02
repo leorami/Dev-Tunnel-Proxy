@@ -577,6 +577,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/recovery-image-tag-binding.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Calliope private snapshot boundary (fixtures only, no real projects)" \
+      "node --test '$ROOT_DIR/tests/security/calliope-snapshot-boundary.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
