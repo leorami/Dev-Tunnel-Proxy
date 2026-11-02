@@ -501,6 +501,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Admin password/session security (test-owned temporary files)" \
+      "node --test '$ROOT_DIR/tests/security/admin-session-foundation.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
