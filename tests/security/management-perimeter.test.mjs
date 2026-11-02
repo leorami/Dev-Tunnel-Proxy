@@ -25,6 +25,9 @@ test('management API defaults to authentication; only exact read-only health is 
     ['GET','/devproxy/api/reports/list',false,true],
     ['POST','/devproxy/api/apps/install',false,true],
     ['GET','/devproxy/api',false,true],
+    ['GET','/api/config/existing.conf',false,true],
+    ['POST','/api/config/existing.conf',false,true],
+    ['GET','/api/config',false,true],
     ['GET','/devproxy/apiX/ai/health',false,false],
     ['GET','/config',false,false],
   ];
