@@ -21,13 +21,25 @@ fi
 
 echo "⚠ nginx -t failed; attempting emergency fallback (disabling app bundle)..." >&2
 
-# Emergency fallback: disable generated app bundle if present to keep core UI/API alive
-if [ -f "/etc/nginx/conf.d/sites-enabled/apps.generated.conf" ]; then
+BUNDLE="/etc/nginx/conf.d/sites-enabled/apps.generated.conf"
+DISABLED="/etc/nginx/conf.d/sites-enabled/apps.generated.conf.disabled"
+
+# Compose bind-mounts sites-enabled read-only. A failed mv must NOT be ignored
+# and must NOT continue into a misleading "apps disabled" retry.
+if [ -f "$BUNDLE" ] || [ -L "$BUNDLE" ]; then
   echo "  → Disabling apps.generated.conf..." >&2
-  mv /etc/nginx/conf.d/sites-enabled/apps.generated.conf /etc/nginx/conf.d/sites-enabled/apps.generated.conf.disabled 2>/dev/null || true
+  if ! mv "$BUNDLE" "$DISABLED" 2>/dev/null; then
+    echo "✗ Cannot disable apps.generated.conf (read-only mount or permission failure)." >&2
+    echo "✗ Refusing to start nginx with an invalid configuration." >&2
+    exit 1
+  fi
+else
+  echo "✗ No apps.generated.conf present to disable after nginx -t failure." >&2
+  echo "✗ Refusing to start nginx with an invalid configuration." >&2
+  exit 1
 fi
 
-# Retry with bundle disabled
+# Retry only after a successful rename that actually removed the bundle.
 echo "Retrying nginx validation with apps disabled..."
 if test_nginx_config; then
   echo "✓ Configuration valid with apps disabled, starting nginx..." >&2
