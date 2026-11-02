@@ -546,6 +546,21 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/nginx-safe-reload.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Read-only nginx startup fail-closed (fake nginx only)" \
+      "node --test '$ROOT_DIR/tests/security/nginx-readonly-startup.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Route precedence mtime restore (isolated extract only)" \
+      "node --test '$ROOT_DIR/tests/security/restore-route-precedence.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Recovery image tag binding (pure, no Docker)" \
+      "node --test '$ROOT_DIR/tests/security/recovery-image-tag-binding.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
