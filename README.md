@@ -36,7 +36,9 @@
 
 A new **reusable, app-centric MCP gateway** is being consolidated here from Wizardmaker's modern Node gateway and Tiger Slam's scoped command authorization policy. The shared, opt-in package lives at [`packages/dev-proxy-mcp/`](packages/dev-proxy-mcp/README.md) with [architecture and safety contract](docs/architecture/UNIFIED_GPT_LOCAL_APP_MCP_GATEWAY_V1.md).
 
-This is **not installed or exposed** by the running proxy; no ChatGPT tunnel, OAuth grant, app command or production deployment is created automatically. The local reference binds only to loopback, uses a separate machine-local secret and publishes no OS shell, arbitrary URL or filesystem command. Review the [detailed adversarial QA matrix](docs/qa/UNIFIED_GPT_LOCAL_APP_MCP_RELEASE_QA.md), the [generic copy-and-paste adoption instruction](docs/adoption/GENERIC_PROJECT_MCP_ADOPTION_INSTRUCTION.md), and the [non-executable readiness plan](docs/plans/unified-gpt-local-app-mcp-release-plan.md) before connecting applications.
+This is **not installed or exposed** by the running proxy; no ChatGPT tunnel, OAuth grant, app command or production deployment is created automatically.
+
+**Next bounded engineering proof (NOT STARTED by the link):** [DevProxy-001 consolidated read-only local MCP handoff](docs/handoffs/DEVPROXY_001_FIRST_REAL_LOCAL_MCP_READONLY.md), tracked in [DevProxy issue #4](https://github.com/leorami/Dev-Tunnel-Proxy/issues/4). It integrates the separate safe-input security correction from draft PR #3 onto latest draft PR #2 and requires native source-exact validation before any live connection. The local reference binds only to loopback, uses a separate machine-local secret and publishes no OS shell, arbitrary URL or filesystem command. Review the [detailed adversarial QA matrix](docs/qa/UNIFIED_GPT_LOCAL_APP_MCP_RELEASE_QA.md), the [generic copy-and-paste adoption instruction](docs/adoption/GENERIC_PROJECT_MCP_ADOPTION_INSTRUCTION.md), and the [non-executable readiness plan](docs/plans/unified-gpt-local-app-mcp-release-plan.md) before connecting applications.
 
 ## Key Features
 

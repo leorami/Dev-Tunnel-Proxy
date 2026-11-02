@@ -1,0 +1,19 @@
+# Shared MCP app policy — untrusted request snapshot gate
+
+**CTO security correction, 2026-11-01.** Source branch `cto/shared-mcp-policy-untrusted-inputs-20261101` starts from shared Dev Tunnel Proxy DRAFT PR #2, `b5213d17ac2d1c8cce69960d6a144171749f6195`. This is an isolated reviewable proposal, **not installed**, not integrated into Wizardmaker or Tiger Slam, and not permission for GPTs to mutate anything. The existing primary Wizardmaker Cursor Engineer owns Plan062R and is NOT interrupted.
+
+## Actual defect and implications
+
+The inherited `packages/dev-proxy-mcp/app-policy.mjs` computed an authorization intent fingerprint directly from **caller-supplied JavaScript objects**. Its `requestValid` used `Object.keys` and read request fields, while `canonical()` read nested fields and skipped `undefined` values. It never rejected symbols, getters, cyclic objects, inherited metadata or caller mutation **after authorization**. This meant a property getter could execute during what should be pure policy evaluation, fingerprinting could throw or hang on a circular graph, and a caller could mutate the actual returned `arguments` after authorization. A gateway transported over JSON usually cannot carry executable getters; an internal app adapter or custom MCP SDK can still pass hostile objects, and this shared module is documented for cross-project use.
+
+## Source fix
+
+`app-policy.mjs` now copies a finite, bounded, plain JSON-shaped request **only through own data descriptors**. Accessors, symbols, undefined/function/nonfinite values, cycles, deep/large structures, suspicious prototype keys and non-plain objects fail closed. Fingerprints are computed **from the validated snapshot**, not the caller's live object. `authorizeAppCommand` uses the same immutable snapshot for schema, actor/role/scope/audience/environment and exact grant comparison; allowed results expose a frozen top-level clone of arguments and request, not the original request reference. Invalid fingerprints throw a bounded `INVALID_COMMAND_REQUEST` TypeError. The separate trusted app registry and server-verified context remain app-owned; nothing here mints OAuth authority or consumes grants.
+
+## RED-first evidence and limitations
+
+An isolated Node v22.16.0 policy harness recreated the prior source and ran the same 6 inherited policy behaviors plus 7 new security cases. **Original implementation: 8 pass / 5 fail**, including getter execution, unsafe identity/prototypes and mutable authorized arguments. **Corrected local implementation: 13 pass / 0 fail**. The exact new test expectations were also committed to `tests/unit/dev-proxy-mcp-app-policy.test.mjs`, with the original six tests preserved. The isolation used a minimal equivalent `validateAppCommandArguments` gateway shim so it does **not** prove the Dev Tunnel Proxy's real combined `./smart-build.sh test:unit` suite or the source-exact GitHub bytes have executed in that full environment. Those checks remain mandatory before merge/acceptance; **no production or external calls were made**.
+
+## Integration fence
+
+The shared Dev Tunnel Proxy PR #2 is the canonical proposed home for reusable GPT↔local-app MCP code. This security patch should be accepted into that shared package after independent code review and native tests, rather than copied into a second Wizardmaker-specific gateway. App adapters must independently enforce real OAuth/resource ownership, app-specific consent, durable mutation idempotency, revocation, audit and approved deployment. The generic gateway and the separate `app-policy.mjs` are **not automatically integrated** yet, so no cloud GPT or app command receives new authority from this patch. Child/family data, OpenRouter credentials, key purchases, owner :5186 checkout, running proxies, protected branches, shared/public release and merges are unchanged.
