@@ -12,7 +12,7 @@
 | Product pin / candidate code | `d89c962fb31a962a518f331bae458e63708e7e86` |
 | Prior mount-continuity tip | `2248cc1fcd8bb15517079e7d2812dbd6765c0547` |
 | Protected master | `62a4d7babae986ade1feb0fd6dbe7dd32532523a` (unchanged) |
-| This receipt commit | *(filled at commit time)* |
+| This receipt commit | `04fae672afe2bf015d0c0d41e0943565e5b918c5` |
 
 ## Tests (native Node 22.19.0)
 - Parent RED for missing `rc1-config-parity` helper → fail
