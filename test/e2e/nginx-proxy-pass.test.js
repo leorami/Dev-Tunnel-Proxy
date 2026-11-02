@@ -69,12 +69,11 @@ it('should correctly proxy /devproxy/api/ai/reindex through nginx', async () => 
     headers: { 'Content-Type': 'application/json' }
   });
   
-  // Should not return 404
-  assert.notStrictEqual(response.status, 404, 'Should not return 404');
-  // Should return 503 (no API key) or 200 (success)
+  // Security contract: anonymous reindex is not a health probe.
+  // The route exists, but only authenticated administrators may invoke it.
   assert.ok(
-    response.status === 503 || response.status === 200,
-    `Expected 503 or 200, got ${response.status}`
+    response.status === 302 || response.status === 401,
+    `Expected authentication gate (302 or 401), got ${response.status}`
   );
 });
 

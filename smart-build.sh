@@ -181,6 +181,23 @@ ensure_network() {
   fi
 }
 
+# P0 RC1: fail closed before any network/bundle/compose mutation when live drift is attested.
+# Env disposable flags never authorize these entrypoints (see rc1-disposable-compose-bypass.RED.test.cjs).
+rc1_premutation_guard() {
+  local action="$1"
+  local guard="$ROOT_DIR/scripts/rc1-drift-premutation-guard.cjs"
+  if [ ! -f "$guard" ]; then
+    echo "EVIDENCE_INCOMPLETE: missing rc1-drift-premutation-guard.cjs" >&2
+    return 2
+  fi
+  if command -v node >/dev/null 2>&1; then
+    ROOT_DIR="$ROOT_DIR" node "$guard" "$action"
+    return $?
+  fi
+  echo "EVIDENCE_INCOMPLETE: node required for RC1 drift pre-mutation guard" >&2
+  return 2
+}
+
 cmd_setup() {
   # If project appears already set up, exit early
   if [ -f "$ROOT_DIR/.env" ] || [ -d "$ROOT_DIR/node_modules" ] || [ -f "$ROOT_DIR/.certs/dev.crt" ]; then
@@ -225,6 +242,7 @@ cmd_setup() {
 }
 
 cmd_up() {
+  rc1_premutation_guard up || exit $?
   ensure_network
   load_auto_scan_settings
   echo "==> Regenerating app bundle..."
@@ -243,11 +261,15 @@ cmd_up() {
 }
 
 cmd_down() {
+  # Same P0 gate as up/restart/apply — ordinary down must not stop a drifted live stack.
+  rc1_premutation_guard down || exit $?
   echo "==> Stopping containers..."
   (cd "$ROOT_DIR" && $COMPOSE stop)
 }
 
 cmd_restart() {
+  # Guard BEFORE stop/network/bundle — drifted live must not be torn down by ordinary restart.
+  rc1_premutation_guard restart || exit $?
   echo "==> Restarting containers (without removing them)..."
   # Stop services cleanly so we preserve container IDs and logs (including dev-ngrok)
   (cd "$ROOT_DIR" && $COMPOSE stop)
@@ -295,6 +317,7 @@ cmd_status() {
 }
 
 cmd_apply() {
+  rc1_premutation_guard apply || exit $?
   echo "==> Re-applying dev containers..."
   ensure_network
   if command -v node >/dev/null 2>&1; then
@@ -496,6 +519,102 @@ cmd_test_unit() {
       "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
   fi
   
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Management perimeter security (source-only, safe)" \
+      "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Admin password/session security (test-owned temporary files)" \
+      "node --test '$ROOT_DIR/tests/security/admin-session-foundation.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Trusted-origin CSRF boundary (pure)" \
+      "node --test '$ROOT_DIR/tests/security/trusted-origin-csrf.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Trusted-origin Compose forwarding (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/trusted-origin-compose-gate.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Public health report confidentiality (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/public-health-privacy.test.mjs'" || test_result=1
+  fi
+
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "macOS bridge authorization (mock-only, no Messages)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-authorization.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Same-origin login destination" \
+      "node --test '$ROOT_DIR/tests/security/login-redirect-same-origin.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Integrated security release source invariants" \
+      "node --test '$ROOT_DIR/tests/security/security-release-integration.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Production Compose and mode-switch packaging gate (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/production-packaging-gate.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Fail-closed owner release decision (pure, no live reads)" \
+      "node --test '$ROOT_DIR/tests/security/release-decision-readonly.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private rollback image export (fake Docker, test-only HOME)" \
+      "node --test '$ROOT_DIR/tests/security/private-rollback-export.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private config backup and isolated file restore (test-owned only)" \
+      "node --test '$ROOT_DIR/tests/security/private-config-snapshot.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Safe nginx reload (fake node/docker, test-owned files only)" \
+      "node --test '$ROOT_DIR/tests/security/nginx-safe-reload.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Read-only nginx startup fail-closed (fake nginx only)" \
+      "node --test '$ROOT_DIR/tests/security/nginx-readonly-startup.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Route precedence mtime restore (isolated extract only)" \
+      "node --test '$ROOT_DIR/tests/security/restore-route-precedence.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Recovery image tag binding (pure, no Docker)" \
+      "node --test '$ROOT_DIR/tests/security/recovery-image-tag-binding.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 release drift policy (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-release-drift-policy.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 drift pre-mutation guard (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-release-drift-guard.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 disposable Compose bypass denial (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-disposable-compose-bypass.RED.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
