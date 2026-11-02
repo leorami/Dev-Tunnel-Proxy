@@ -520,6 +520,10 @@ cmd_test_unit() {
     run_test_with_progress "Public health report confidentiality (source-only)" \
       "node --test '$ROOT_DIR/tests/security/public-health-privacy.test.mjs'" || test_result=1
   fi
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 controlled cutover operator preflight (pure)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs'" || test_result=1
+  fi
 
 
   if [ $test_result -eq 0 ]; then
