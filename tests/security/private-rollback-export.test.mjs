@@ -31,7 +31,7 @@ function fixture(t,{badId=false}={}){
  ...ids.map(id=>'    '+id+') printf "%s\\n" "'+id+'" ;;'),
  '    *) exit 41 ;;',
  '   esac ;;',
- ' "image save") printf "FAKE_DOCKER_IMAGE_ARCHIVE_TEST_ONLY" ;;',
+ ' "image save") printf "%0600d" 1 ;;',
  ' *) exit 42 ;;',
  'esac',
  'printf "%s\\n" "$1 $2" >> "$DEVPROXY_FAKE_DOCKER_LOG"',
@@ -110,7 +110,7 @@ test('approved fixture-only export writes private archive and hash receipt; no r
  assert.equal(fs.statSync(folder).mode&0o077,0);
  assert.equal(fs.statSync(archive).mode&0o077,0);
  assert.equal(fs.statSync(receipt).mode&0o077,0);
- assert.equal(fs.readFileSync(archive,'utf8'),'FAKE_DOCKER_IMAGE_ARCHIVE_TEST_ONLY');
+ assert.equal(fs.readFileSync(archive).length,600);
  assert.match(fs.readFileSync(receipt,'utf8'),/rollback-images\.tar/);
  const logs=fs.readFileSync(f.log,'utf8');
  assert.equal((logs.match(/image save/g)||[]).length,1);
