@@ -8,7 +8,7 @@ import { createRequire } from 'node:module';
 const require=createRequire(import.meta.url);
 const {
   safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,
-  writeSecureSessionFile,readSecureSessionFile,
+  writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,
 }=require('../../utils/admin-session-security.cjs');
 const secret='distinct-admin-password-'+'a'.repeat(35);
 const token='a'.repeat(64);
@@ -93,6 +93,16 @@ test('session corruption does not forge admin authentication',t=>{
 });
 
 
+test('a presented Origin must match the request host and an absent Origin stays usable',()=>{
+ assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', undefined), true);
+ assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', 'http://127.0.0.1:18080'), true);
+ assert.equal(adminRequestOriginAllowed('127.0.0.1', 'http://127.0.0.1:18080'), true);
+ assert.equal(adminRequestOriginAllowed('your-proxy.example.ngrok.app', 'https://your-proxy.example.ngrok.app'), true);
+ for (const origin of ['https://evil.invalid','http://127.0.0.1:18080.evil','null','https://user:pass@127.0.0.1:18080','http://127.0.0.1:18081']) {
+  assert.equal(adminRequestOriginAllowed('127.0.0.1:18080', origin), false, origin);
+ }
+});
+
 test('actual management API uses the primitives, never unequal raw Buffer comparison or plaintext session overwrite',()=>{
  const server=fs.readFileSync(new URL('../../utils/proxyConfigAPI.js',import.meta.url),'utf8');
  assert.match(server,/safeAdminPasswordMatches\(password,\s*ADMIN_PASSWORD\)/);
@@ -104,4 +114,5 @@ test('actual management API uses the primitives, never unequal raw Buffer compar
  assert.doesNotMatch(server,/fs\.writeFileSync\(SESSION_FILE,\s*JSON\.stringify/);
  assert.match(server,/fs\.appendFileSync\(ENV_FILE, envLine, \{ encoding:'utf8',mode:0o600 \}\)/);
  assert.match(server,/fs\.chmodSync\(ENV_FILE,0o600\)/);
+ assert.match(server,/adminRequestOriginAllowed\(req\.headers\.host,\s*req\.headers\.origin\)/);
 });

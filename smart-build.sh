@@ -506,6 +506,21 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/admin-session-foundation.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "macOS bridge authorization (mock-only, no Messages)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-authorization.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Same-origin login destination" \
+      "node --test '$ROOT_DIR/tests/security/login-redirect-same-origin.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Integrated security release source invariants" \
+      "node --test '$ROOT_DIR/tests/security/security-release-integration.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
