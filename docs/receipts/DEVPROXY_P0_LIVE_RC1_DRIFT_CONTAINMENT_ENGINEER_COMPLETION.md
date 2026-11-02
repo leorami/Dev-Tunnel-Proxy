@@ -8,7 +8,7 @@
 | Handoff | `origin/cto/devproxy-p0-live-drift-containment-20261102@50c6f0f14c5e39f61e0a7d57cfa48e181b8abfae:docs/handoffs/DEVPROXY_P0_LIVE_RC1_DRIFT_CONTAINMENT.md` |
 | CTO tip (base) | `50c6f0f14c5e39f61e0a7d57cfa48e181b8abfae` |
 | Accepted product | `d89c962fb31a962a518f331bae458e63708e7e86` |
-| Engineer tip |  |
+| Engineer tip | `engineer/devproxy-p0-live-drift-containment-20261102@cbdd4a2eb0fc5e15ffcadb5828897b0778dabdff` |
 
 ## What shipped (source only)
 1. Kept CTO pure policy `utils/rc1-release-drift-policy.cjs` + RED/GREEN fixture tests.
