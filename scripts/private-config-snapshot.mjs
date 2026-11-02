@@ -16,7 +16,18 @@ const REQUIRED=['docker-compose.yml','config/default.conf','build/sites-enabled/
 const ALLOWLIST=[
   'docker-compose.yml','docker-compose.production.yml','docker-compose.override.yml',
   'config','build/sites-enabled','apps','overrides','status','dashboard/public',
-  '.certs','.artifacts','scripts/nginx-entrypoint.sh','scripts/ngrok-entrypoint.sh',
+  '.certs',
+  // Recovery-critical artifact files only. Recursive `.artifacts` (especially
+  // reports/) can exceed capacity and is not required to restore nginx routes.
+  '.artifacts/admin-session.json',
+  '.artifacts/auto-scan-settings.json',
+  '.artifacts/override-conflicts.json',
+  '.artifacts/route-notifications.json',
+  '.artifacts/route-promotions.json',
+  '.artifacts/route-resolutions.json',
+  '.artifacts/notifications-engine-state.json',
+  '.artifacts/bundle-diagnostics.json',
+  'scripts/nginx-entrypoint.sh','scripts/ngrok-entrypoint.sh',
   'scripts/reload.sh','scripts/switch-to-production.sh','scripts/switch-to-development.sh',
 ];
 const MAX_BYTES=8*1024*1024*1024;

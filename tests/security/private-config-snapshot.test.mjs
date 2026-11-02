@@ -200,6 +200,21 @@ exec "${realTar}" "$@"
   }
 });
 
+test('unbounded .artifacts/reports tree is not archived and does not trip capacity',t=>{
+  const f=setup(t);
+  const reports=path.join(f.repo,'.artifacts','reports');
+  fs.mkdirSync(reports,{recursive:true});
+  for(let i=0;i<50;i++)fs.writeFileSync(path.join(reports,`scan-${i}.json`), 'x'.repeat(1024));
+  fs.mkdirSync(path.join(f.repo,'.artifacts'),{recursive:true});
+  fs.writeFileSync(path.join(f.repo,'.artifacts','admin-session.json'),'{"fixture":true}');
+  const r=f.run(f.approved);
+  assert.equal(r.status,0,r.stderr+' '+r.stdout);
+  const dir=path.join(f.output,fs.readdirSync(f.output)[0]);
+  const manifest=JSON.parse(fs.readFileSync(path.join(dir,'manifest.private.json'),'utf8'));
+  assert.ok(manifest.files.some(x=>x.path==='.artifacts/admin-session.json'));
+  assert.equal(manifest.files.some(x=>x.path.startsWith('.artifacts/reports/')),false);
+});
+
 test('approved fixture creates private archive, hashes, preserves mtimes and secret confinement',t=>{
   const f=setup(t);
   const r=f.run(f.approved);
