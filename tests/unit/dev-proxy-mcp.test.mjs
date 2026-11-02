@@ -253,3 +253,34 @@ test('2026-07-28 spec: accepts encoded mirrored MCP tool name, rejects obsolete 
  const body=await response.json();
  assert.equal(body.error.code,-32601);
 });
+
+
+test('two independently running loopback apps remain isolated and report current actual HTTP state',async t=>{
+ let betaStatus=200;
+ const one=createServer((_req,res)=>{res.writeHead(200,{'content-type':'text/plain'});res.end('one');});
+ const two=createServer((_req,res)=>{res.writeHead(betaStatus,{'content-type':'text/plain'});res.end('two');});
+ await Promise.all([new Promise(resolve=>one.listen(0,'127.0.0.1',resolve)),new Promise(resolve=>two.listen(0,'127.0.0.1',resolve))]);
+ t.after(()=>Promise.all([new Promise(resolve=>one.close(resolve)),new Promise(resolve=>two.close(resolve))]));
+ const onePort=one.address().port,twoPort=two.address().port;
+ const c=await setup({apps:{
+   alpha:createLoopbackHealthApp({label:'App alpha',port:onePort}),
+   beta:createLoopbackHealthApp({label:'App beta',port:twoPort}),
+ }});
+ t.after(()=>c.live.close());
+ const listed=await invoke(c,'app.list',{});
+ assert.deepEqual(listed.result.apps.map(item=>item.id).sort(),['alpha','beta']);
+ const first=await invoke(c,'app.command',{app:'alpha',command:'health.check',args:{}});
+ const second=await invoke(c,'app.command',{app:'beta',command:'health.check',args:{}});
+ assert.deepEqual({online:first.result.online,port:first.result.port},{online:true,port:onePort});
+ assert.deepEqual({online:second.result.online,port:second.result.port},{online:true,port:twoPort});
+ betaStatus=503;
+ const betaNow=await invoke(c,'app.status',{app:'beta'});
+ const alphaNow=await invoke(c,'app.status',{app:'alpha'});
+ assert.deepEqual({online:betaNow.result.online,httpStatus:betaNow.result.httpStatus},{online:false,httpStatus:503});
+ assert.equal(alphaNow.result.online,true);
+ const override=await invoke(c,'app.command',{app:'alpha',command:'health.check',args:{port:twoPort}});
+ assert.equal(override.rpc.result.isError,true);
+ assert.equal(override.result.status,'COMMAND_ARGUMENTS_DENIED');
+ const unknown=await invoke(c,'app.status',{app:'gamma'});
+ assert.equal(unknown.result.status,'UNKNOWN_APP');
+});
