@@ -34,6 +34,8 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { spawnSync, execSync } = require('child_process');
+const { randomBytes } = require('node:crypto');
+const { authorizeBridgeRequest, resolveAllowedOrigins } = require('./notifications-bridge-auth.cjs');
 
 const PORT = parseInt(process.env.NOTIF_BRIDGE_PORT || '17888', 10);
 const HOST = '127.0.0.1';
@@ -41,14 +43,57 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const LABEL = 'com.leorami.devtunnelproxy.notifications';
 const PLIST_PATH = path.join(os.homedir(), 'Library', 'LaunchAgents', `${LABEL}.plist`);
 
+// Local operator-only pairing credential. Never in served HTML, API, .artifacts,
+// logs, or repository; the user retrieves it directly on their Mac when pairing.
+// A configured environment credential wins, but must be strong.
+const SECRET_DIR=path.join(os.homedir(),'Library','Application Support','Dev Tunnel Proxy');
+const SECRET_PATH=path.join(SECRET_DIR,'notification-bridge.token');
+function loadOrCreateBridgeToken() {
+  const configured=process.env.NOTIF_BRIDGE_TOKEN;
+  if(configured!==undefined) {
+    if(typeof configured!=='string'||configured.length<32) throw new Error('NOTIF_BRIDGE_TOKEN must contain at least 32 characters');
+    return configured;
+  }
+  fs.mkdirSync(SECRET_DIR,{recursive:true,mode:0o700});
+  const dir=fs.lstatSync(SECRET_DIR);
+  if(!dir.isDirectory()||(dir.mode&0o077)) throw new Error('Notification secret directory permissions unsafe');
+  try {
+    const fd=fs.openSync(SECRET_PATH,'wx',0o600);
+    try { fs.writeSync(fd,randomBytes(32).toString('hex')+'\n'); }
+    finally { fs.closeSync(fd); }
+  } catch(e) {
+    if(e.code!=='EEXIST') throw e;
+  }
+  const st=fs.lstatSync(SECRET_PATH);
+  if(!st.isFile()||(st.mode&0o077)||(typeof process.getuid==='function'&&st.uid!==process.getuid())) {
+    throw new Error('Notification bridge token file ownership or permissions unsafe');
+  }
+  const token=fs.readFileSync(SECRET_PATH,'utf8').trim();
+  if(token.length<32) throw new Error('Notification bridge token file too short');
+  return token;
+}
+const BRIDGE_TOKEN=loadOrCreateBridgeToken();
+const BRIDGE_ALLOWED_ORIGINS=resolveAllowedOrigins(process.env.NOTIF_BRIDGE_ALLOWED_ORIGINS||'');
+
+
+function bridgeCorsHeaders(res) {
+  if(!res.bridgeCorsOrigin) return {'Vary':'Origin'};
+  return {
+    'Vary':'Origin',
+    'Access-Control-Allow-Origin':res.bridgeCorsOrigin,
+    'Access-Control-Allow-Methods':'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers':'Authorization, Content-Type',
+    'Access-Control-Allow-Private-Network':'true',
+  };
+}
 function json(res, statusCode, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+    ...bridgeCorsHeaders(res),
   });
   res.end(body);
 }
@@ -56,7 +101,13 @@ function json(res, statusCode, obj) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (chunk) => { data += chunk; });
+    req.on('data', (chunk) => {
+      data += chunk;
+      if(Buffer.byteLength(data)>64*1024) {
+        reject(Object.assign(new Error('Request too large'),{status:413}));
+        req.destroy();
+      }
+    });
     req.on('end', () => resolve(data));
     req.on('error', reject);
   });
@@ -241,12 +292,13 @@ function uninstallLaunchAgent() {
 
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.method === 'OPTIONS') {
-      res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      });
+    const decision=authorizeBridgeRequest(req,{
+      token:BRIDGE_TOKEN,port:PORT,allowedOrigins:BRIDGE_ALLOWED_ORIGINS,
+    });
+    res.bridgeCorsOrigin=decision.corsOrigin;
+    if(!decision.allowed) return json(res,decision.status,{ok:false,error:decision.reason});
+    if(decision.isPreflight) {
+      res.writeHead(204,{'Cache-Control':'no-store',...bridgeCorsHeaders(res)});
       return res.end();
     }
 
@@ -312,12 +364,13 @@ const server = http.createServer(async (req, res) => {
 
     return json(res, 404, { ok: false, error: 'Not found' });
   } catch (e) {
-    return json(res, 500, { ok: false, error: e?.message || String(e) });
+    return json(res, e?.status === 413 ? 413 : 500, { ok: false, error: e?.status === 413 ? 'Request too large' : 'Internal bridge error' });
   }
 });
 
 server.listen(PORT, HOST, () => {
   // eslint-disable-next-line no-console
   console.log(`[notifications-bridge] listening on http://${HOST}:${PORT}`);
+  console.log('[notifications-bridge] pairing token location: '+(process.env.NOTIF_BRIDGE_TOKEN?'configured environment':'private local file '+SECRET_PATH));
 });
 
