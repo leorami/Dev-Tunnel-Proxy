@@ -75,3 +75,16 @@ test('failed reload exits nonzero, restores prior bundle and does not claim succ
  assert.deepEqual(f.commands(),['exec dev-proxy nginx -t','exec dev-proxy nginx -s reload']);
  assert.doesNotMatch(r.stdout,/nginx reloaded \(config test passed\)/);
 });
+
+test('a symlinked bundle is left untouched and never invokes node or docker',t=>{
+ const f=fixture(t);
+ const target=path.join(f.root,'outside-target.conf');
+ fs.writeFileSync(target,'OLD_GOOD_CONF');
+ fs.rmSync(f.generated);
+ fs.symlinkSync(target,f.generated);
+ const r=f.run();
+ assert.notEqual(r.status,0,r.stderr);
+ assert.deepEqual(f.commands(),[]);
+ assert.equal(fs.lstatSync(f.generated).isSymbolicLink(),true);
+ assert.equal(fs.readFileSync(target,'utf8'),'OLD_GOOD_CONF');
+});

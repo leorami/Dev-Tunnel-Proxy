@@ -7,6 +7,16 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUNDLE_DIR="$ROOT_DIR/build/sites-enabled"
 BUNDLE_FILE="$BUNDLE_DIR/apps.generated.conf"
+# Stop at ROOT_DIR. Ancestors above the repo can be macOS symlinks such as
+# /var and must not be treated as an app-route redirect.
+current="$BUNDLE_FILE"
+while [[ "$current" != "$ROOT_DIR" && "$current" != "/" ]]; do
+  if [[ -L "$current" ]]; then
+    echo "Refusing to regenerate through a symlinked app route path." >&2
+    exit 1
+  fi
+  current="$(dirname "$current")"
+done
 BACKUP_FILE=""
 HAD_BUNDLE=0
 
