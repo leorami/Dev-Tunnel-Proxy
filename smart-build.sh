@@ -181,6 +181,23 @@ ensure_network() {
   fi
 }
 
+# P0 RC1: fail closed before any network/bundle/compose mutation when live drift is attested.
+# Disposable fixture stacks only: DEVPROXY_DISPOSABLE_STACK=1 and COMPOSE_PROJECT_NAME matching rc1*|devproxy-test*|tmp*|disposable*.
+rc1_premutation_guard() {
+  local action="$1"
+  local guard="$ROOT_DIR/scripts/rc1-drift-premutation-guard.cjs"
+  if [ ! -f "$guard" ]; then
+    echo "EVIDENCE_INCOMPLETE: missing rc1-drift-premutation-guard.cjs" >&2
+    return 2
+  fi
+  if command -v node >/dev/null 2>&1; then
+    ROOT_DIR="$ROOT_DIR" node "$guard" "$action"
+    return $?
+  fi
+  echo "EVIDENCE_INCOMPLETE: node required for RC1 drift pre-mutation guard" >&2
+  return 2
+}
+
 cmd_setup() {
   # If project appears already set up, exit early
   if [ -f "$ROOT_DIR/.env" ] || [ -d "$ROOT_DIR/node_modules" ] || [ -f "$ROOT_DIR/.certs/dev.crt" ]; then
@@ -225,6 +242,7 @@ cmd_setup() {
 }
 
 cmd_up() {
+  rc1_premutation_guard up || exit $?
   ensure_network
   load_auto_scan_settings
   echo "==> Regenerating app bundle..."
@@ -248,6 +266,8 @@ cmd_down() {
 }
 
 cmd_restart() {
+  # Guard BEFORE stop/network/bundle — drifted live must not be torn down by ordinary restart.
+  rc1_premutation_guard restart || exit $?
   echo "==> Restarting containers (without removing them)..."
   # Stop services cleanly so we preserve container IDs and logs (including dev-ngrok)
   (cd "$ROOT_DIR" && $COMPOSE stop)
@@ -295,6 +315,7 @@ cmd_status() {
 }
 
 cmd_apply() {
+  rc1_premutation_guard apply || exit $?
   echo "==> Re-applying dev containers..."
   ensure_network
   if command -v node >/dev/null 2>&1; then
@@ -575,6 +596,16 @@ cmd_test_unit() {
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "Recovery image tag binding (pure, no Docker)" \
       "node --test '$ROOT_DIR/tests/security/recovery-image-tag-binding.test.mjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 release drift policy (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-release-drift-policy.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 drift pre-mutation guard (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-release-drift-guard.test.cjs'" || test_result=1
   fi
 
   return $test_result
