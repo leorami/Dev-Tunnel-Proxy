@@ -26,13 +26,20 @@ function authorizeHostSnapshot(input,outName,env=process.env){
     // Reject aliases/symlinks at any depth, including a symlinked parent.
     if(real!==source)return {allowed:false,reason:'PROJECT_SYMLINK_DENIED'};
   }catch{return {allowed:false,reason:'PROJECT_NOT_AVAILABLE'};}
+  // An explicit project grant must not become a parent-directory grant,
+  // nor may a sensitive hidden/runtime tree be treated as a project root.
+  const prohibited=new Set(['.artifacts','.private','.git','.ssh','.aws',
+    '.gnupg','.kube','.azure','node_modules','.env','secrets','credentials']);
+  if(real.split(path.sep).some(part=>prohibited.has(part.toLowerCase()))) {
+    return {allowed:false,reason:'PROTECTED_SOURCE_ROOT'};
+  }
   let approved=false;
   for(const raw of roots){
     if(!path.isAbsolute(raw))continue;
     let root;
     try{root=fs.realpathSync(raw);}catch{continue;}
     if(root===path.parse(root).root)continue; // never authorize whole disk
-    if(real===root || real.startsWith(root+path.sep)){approved=true;break;}
+    if(real===root){approved=true;break;}
   }
   if(!approved)return {allowed:false,reason:'PROJECT_ROOT_DENIED'};
   const fallback=(path.basename(real).replace(/[^A-Za-z0-9_-]/g,'_').slice(0,55)||'source')
