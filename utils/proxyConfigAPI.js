@@ -23,6 +23,7 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
+const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile} = require('./admin-session-security.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -92,6 +93,7 @@ function ensureAdminPassword() {
       const match = envContent.match(/^ADMIN_PASSWORD=(.+)$/m);
       if (match && match[1] && match[1].length >= 16) {
         process.env.ADMIN_PASSWORD = match[1];
+        fs.chmodSync(ENV_FILE,0o600);
         console.log('[AUTH] Loaded ADMIN_PASSWORD from .env file');
         return match[1];
       }
@@ -106,7 +108,8 @@ function ensureAdminPassword() {
 
     // Append to .env file
     const envLine = `\nADMIN_PASSWORD=${randomPassword}\n`;
-    fs.appendFileSync(ENV_FILE, envLine, 'utf8');
+    fs.appendFileSync(ENV_FILE, envLine, { encoding:'utf8',mode:0o600 });
+    fs.chmodSync(ENV_FILE,0o600);
     process.env.ADMIN_PASSWORD = randomPassword;
     
     console.log('[AUTH] ⚠️  Generated new ADMIN_PASSWORD and saved to .env');
@@ -127,34 +130,18 @@ const ADMIN_PASSWORD = ensureAdminPassword();
 let activeSessions = new Map();
 
 function loadSessions() {
-  try {
-    if (fs.existsSync(SESSION_FILE)) {
-      const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
-      activeSessions = new Map(Object.entries(data.sessions || {}));
-      // Clean up expired sessions
-      const now = Date.now();
-      for (const [token, session] of activeSessions.entries()) {
-        if (session.expiresAt < now) {
-          activeSessions.delete(token);
-        }
-      }
-      console.log(`[AUTH] Loaded ${activeSessions.size} active sessions`);
-    }
-  } catch (e) {
-    console.error('[AUTH] Failed to load sessions:', e.message);
-  }
+  // Never follow a session-file symlink; discard malformed, expired and
+  // noncanonical tokens. Repair overly broad legacy file permissions.
+  activeSessions=readSecureSessionFile(SESSION_FILE);
+  console.log(`[AUTH] Loaded ${activeSessions.size} active sessions`);
 }
 
 function saveSessions() {
   try {
-    fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
-    const data = {
-      sessions: Object.fromEntries(activeSessions),
-      savedAt: new Date().toISOString()
-    };
-    fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {
-    console.error('[AUTH] Failed to save sessions:', e.message);
+    // Atomic 0600 replacement, never a world-readable direct JSON write.
+    writeSecureSessionFile(SESSION_FILE,activeSessions);
+  } catch(e) {
+    console.error('[AUTH] Failed to save session state:',e.message);
   }
 }
 
@@ -179,25 +166,14 @@ function validateSession(token) {
     saveSessions();
     return false;
   }
-  // Update last used
+  // Keep access metadata in memory. Authentication must not rewrite a file
+  // containing live bearer tokens for every status poll and nginx auth check.
   session.lastUsed = Date.now();
-  saveSessions();
   return true;
 }
 
 function extractSessionToken(req) {
-  // Check cookie header
-  const cookies = req.headers.cookie;
-  if (cookies) {
-    const match = cookies.match(/admin_session=([a-f0-9]+)/);
-    if (match) return match[1];
-  }
-  // Check Authorization header
-  const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ')) {
-    return auth.substring(7);
-  }
-  return null;
+  return extractAdminSessionToken(req);
 }
 
 function requireAuth(req, res, u) {
@@ -613,11 +589,9 @@ async function handle(req, res){
         return send(res, 400, { error: 'Password required' });
       }
       
-      // Constant-time comparison to prevent timing attacks
-      const isValid = crypto.timingSafeEqual(
-        Buffer.from(password),
-        Buffer.from(ADMIN_PASSWORD)
-      );
+      // Hash to equal-sized digests before timing-safe comparison, so malformed
+      // or wrong-length inputs are ordinary 401 responses, never HTTP 500.
+      const isValid = safeAdminPasswordMatches(password,ADMIN_PASSWORD);
       
       if (!isValid) {
         // Add small delay to prevent brute force
@@ -631,7 +605,8 @@ async function handle(req, res){
       // Set cookie
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'Set-Cookie': `admin_session=${session.token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${7 * 24 * 60 * 60}`
+        'Cache-Control': 'no-store',
+        'Set-Cookie': adminSessionCookie(session.token,{host:req.headers.host})
       });
       
       return res.end(JSON.stringify({
@@ -651,7 +626,8 @@ async function handle(req, res){
       
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'Set-Cookie': 'admin_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0'
+        'Cache-Control': 'no-store',
+        'Set-Cookie': adminSessionCookie('',{host:req.headers.host,expire:true})
       });
       
       return res.end(JSON.stringify({ ok: true, message: 'Logged out' }));
