@@ -113,8 +113,7 @@ ADMIN_PASSWORD=your-secure-password-here
 2. **Auto-generate**: Leave it blank and the proxy will generate a secure random password on first startup
 
 **To view your auto-generated password:**
-- From localhost: Visit `http://localhost:8080/admin/show-password`
-- Or check the `ADMIN_PASSWORD` variable in your `.env` file
+- On the trusted local machine, read the `ADMIN_PASSWORD` variable from the private `.env` file or configured secret store. No HTTP password-display route exists.
 
 ### 2. One-Time Setup
 
@@ -241,7 +240,7 @@ The proxy uses **two separate endpoint namespaces**:
 These are NOT affected by `PROXY_API_BASE_PATH`:
 - `POST /admin/login` - Authenticate and get session cookie
 - `POST /admin/logout` - Destroy session
-- `GET /admin/show-password` - View auto-generated password (localhost only)
+- `GET /admin/show-password` - **Retired (404)**. Password recovery is a trusted local operation, not a network service.
 - `GET /config` - Discover API base path (public)
 
 #### 2. Management API (Configurable Namespace)
@@ -294,14 +293,8 @@ If you don't set `ADMIN_PASSWORD`, the proxy will automatically generate a secur
 **To view your auto-generated password:**
 
 ```bash
-# From localhost only (security restriction)
-curl http://localhost:8080/admin/show-password
-
-# Or visit in your browser
-open http://localhost:8080/admin/show-password
-
-# Or check your .env file
-grep ADMIN_PASSWORD .env
+# Run only in your private local working copy (never paste the value into chats/logs)
+grep '^ADMIN_PASSWORD=' .env
 ```
 
 ### Logging In
@@ -323,9 +316,9 @@ grep ADMIN_PASSWORD .env
 
 - ✅ **Auto-generated passwords**: Prevents default password attacks
 - ✅ **Session-based auth**: 7-day sessions with HttpOnly cookies
-- ✅ **Localhost-only password display**: `/admin/show-password` only accessible from localhost
-- ✅ **Constant-time comparison**: Prevents timing attacks
-- ✅ **Rate limiting**: 1-second delay on failed login attempts
+- ✅ **No password disclosure endpoint**: `/admin/show-password` is disabled; secrets remain in trusted local configuration
+- ⚠️ **Authentication hardening still underway**: Timing-safe comparisons require equal-size inputs; full session/CSRF/rate-limit review is DEVPROXY-003
+- ⚠️ **Login throttling is incomplete**: A delay exists, but a persistent request-rate budget is still DEVPROXY-003
 - ✅ **No default passwords**: Each installation has a unique password
 
 ### Public Access Considerations
