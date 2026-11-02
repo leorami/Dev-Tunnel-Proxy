@@ -536,6 +536,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/private-rollback-export.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private config backup and isolated file restore (test-owned only)" \
+      "node --test '$ROOT_DIR/tests/security/private-config-snapshot.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
