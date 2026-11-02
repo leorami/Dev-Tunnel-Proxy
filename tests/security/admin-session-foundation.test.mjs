@@ -91,3 +91,17 @@ test('session corruption does not forge admin authentication',t=>{
  fs.writeFileSync(file,'invalid JSON');
  assert.equal(readSecureSessionFile(file).size,0);
 });
+
+
+test('actual management API uses the primitives, never unequal raw Buffer comparison or plaintext session overwrite',()=>{
+ const server=fs.readFileSync(new URL('../../utils/proxyConfigAPI.js',import.meta.url),'utf8');
+ assert.match(server,/safeAdminPasswordMatches\(password,\s*ADMIN_PASSWORD\)/);
+ assert.doesNotMatch(server,/crypto\.timingSafeEqual\(\s*Buffer\.from\(password\)/);
+ assert.match(server,/adminSessionCookie\(session\.token,\s*\{host:req\.headers\.host\}\)/);
+ assert.match(server,/adminSessionCookie\('',\s*\{host:req\.headers\.host,expire:true\}\)/);
+ assert.match(server,/writeSecureSessionFile\(SESSION_FILE,activeSessions\)/);
+ assert.match(server,/readSecureSessionFile\(SESSION_FILE\)/);
+ assert.doesNotMatch(server,/fs\.writeFileSync\(SESSION_FILE,\s*JSON\.stringify/);
+ assert.match(server,/fs\.appendFileSync\(ENV_FILE, envLine, \{ encoding:'utf8',mode:0o600 \}\)/);
+ assert.match(server,/fs\.chmodSync\(ENV_FILE,0o600\)/);
+});
