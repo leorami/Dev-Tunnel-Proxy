@@ -531,6 +531,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/release-decision-readonly.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Private rollback image export (fake Docker, test-only HOME)" \
+      "node --test '$ROOT_DIR/tests/security/private-rollback-export.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
