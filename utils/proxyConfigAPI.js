@@ -22,6 +22,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
+const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -109,7 +110,7 @@ function ensureAdminPassword() {
     process.env.ADMIN_PASSWORD = randomPassword;
     
     console.log('[AUTH] ⚠️  Generated new ADMIN_PASSWORD and saved to .env');
-    console.log('[AUTH] 🔐 Access password at: http://localhost:8080/admin/show-password (localhost only)');
+    console.log('[AUTH] Password recovery requires trusted local access to the configured secret store.');
     
     return randomPassword;
   } catch (e) {
@@ -590,201 +591,8 @@ async function handle(req, res){
     // AUTHENTICATION ENDPOINTS
     // ========================================
     
-    // GET /admin/show-password - Localhost only, shows the configured password
-    if (req.method === 'GET' && u.pathname === '/admin/show-password'){
-      // Only allow from localhost - check Host header and X-Real-IP
-      const xRealIP = req.headers['x-real-ip'];
-      const xForwardedFor = req.headers['x-forwarded-for'];
-      const socketAddr = req.socket.remoteAddress || req.connection.remoteAddress;
-      const remoteAddr = xRealIP || (xForwardedFor && xForwardedFor.split(',')[0].trim()) || socketAddr;
-      const hostHeader = req.headers['host'] || '';
-      
-      // Check if request is from localhost based on:
-      // 1. Host header contains localhost or 127.0.0.1
-      // 2. Remote address is localhost (direct connection)
-      // 3. Request is coming through Docker network but Host is localhost (proxied from nginx on localhost)
-      const hostIsLocalhost = hostHeader.includes('localhost') || 
-                              hostHeader.includes('127.0.0.1') || 
-                              hostHeader.includes('[::1]');
-      
-      const addrIsLocalhost = remoteAddr === '127.0.0.1' || 
-                              remoteAddr === '::1' || 
-                              remoteAddr === '::ffff:127.0.0.1' ||
-                              remoteAddr === 'localhost';
-      
-      // Allow if either the host header indicates localhost OR the address is localhost
-      // This handles both direct connections and proxied connections through nginx
-      const isLocalhost = hostIsLocalhost || addrIsLocalhost;
-      
-      if (!isLocalhost) {
-        console.log('[AUTH] Rejected non-localhost access:', { remoteAddr, hostHeader });
-        return send(res, 403, { error: 'Forbidden', message: 'This endpoint is only accessible from localhost' });
-      }
-      
-      // Return HTML page with password and instructions
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Password - Dev Tunnel Proxy</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #f8fafc;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-    }
-    .container {
-      max-width: 600px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 1rem;
-      padding: 3rem;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .password-box {
-      background: #0f172a;
-      border: 2px solid #4f46e5;
-      border-radius: 0.5rem;
-      padding: 1.5rem;
-      margin: 2rem 0;
-      font-family: 'Monaco', 'Courier New', monospace;
-      font-size: 1.125rem;
-      word-break: break-all;
-      color: #06b6d4;
-      position: relative;
-    }
-    .copy-btn {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      background: #4f46e5;
-      color: white;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 0.375rem;
-      cursor: pointer;
-      font-size: 0.875rem;
-      transition: all 0.2s;
-    }
-    .copy-btn:hover {
-      background: #4338ca;
-      transform: translateY(-1px);
-    }
-    .copy-btn.copied {
-      background: #10b981;
-    }
-    .info {
-      background: rgba(139, 92, 246, 0.1);
-      border-left: 4px solid #8b5cf6;
-      padding: 1rem;
-      margin: 1.5rem 0;
-      border-radius: 0.375rem;
-      line-height: 1.6;
-    }
-    .info h3 {
-      margin-bottom: 0.5rem;
-      color: #8b5cf6;
-    }
-    code {
-      background: #0f172a;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-      font-family: 'Monaco', 'Courier New', monospace;
-      color: #06b6d4;
-    }
-    .warning {
-      background: rgba(245, 158, 11, 0.1);
-      border-left: 4px solid #f59e0b;
-      padding: 1rem;
-      margin: 1.5rem 0;
-      border-radius: 0.375rem;
-      line-height: 1.6;
-    }
-    .warning strong {
-      color: #f59e0b;
-    }
-    a {
-      color: #4f46e5;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    a:hover {
-      color: #06b6d4;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>🔐 Admin Password</h1>
-    <p style="color: #94a3b8; margin-bottom: 2rem;">
-      This password protects your Dev Tunnel Proxy admin pages from unauthorized access.
-    </p>
-    
-    <div class="password-box">
-      <button class="copy-btn" onclick="copyPassword()">Copy</button>
-      <div id="password">${ADMIN_PASSWORD}</div>
-    </div>
-    
-    <div class="info">
-      <h3>📍 Password Location</h3>
-      <p>Your admin password is stored in: <code>.env</code></p>
-      <p style="margin-top: 0.5rem;">Variable name: <code>ADMIN_PASSWORD</code></p>
-    </div>
-    
-    <div class="info">
-      <h3>✏️ How to Change Password</h3>
-      <p>1. Open <code>.env</code> in your project root</p>
-      <p>2. Find the line: <code>ADMIN_PASSWORD=${ADMIN_PASSWORD.substring(0, 20)}...</code></p>
-      <p>3. Change it to your desired password (minimum 16 characters)</p>
-      <p>4. Restart the proxy: <code>./smart-build.sh restart</code></p>
-    </div>
-    
-    <div class="warning">
-      <strong>⚠️ Security Notice:</strong> This endpoint is only accessible from localhost. 
-      Never share your admin password or expose it publicly. The password was automatically 
-      generated to prevent default password attacks.
-    </div>
-    
-    <p style="text-align: center; margin-top: 2rem; color: #94a3b8;">
-      <a href="/status">← Back to Status Dashboard</a>
-    </p>
-  </div>
-  
-  <script>
-    function copyPassword() {
-      const password = document.getElementById('password').textContent;
-      navigator.clipboard.writeText(password).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        btn.textContent = 'Copied!';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = 'Copy';
-          btn.classList.remove('copied');
-        }, 2000);
-      });
-    }
-  </script>
-</body>
-</html>`;
-      
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      return res.end(html);
-    }
+    // Password recovery is a LOCAL TRUSTED OPERATOR action, not an HTTP endpoint.
+    // The old /admin/show-password disclosure route is intentionally retired.
     
     // GET /admin/login - Serve login page
     if (req.method === 'GET' && u.pathname === '/admin/login'){
@@ -877,48 +685,13 @@ async function handle(req, res){
     // PROTECTED ROUTES - Require Authentication
     // ========================================
     
-    // Public endpoints that don't require authentication
-    const publicEndpoints = [
-      apiPath('ai/health'),
-      apiPath('ai/reindex'),
-      apiPath('ai/stats'),
-      apiPath('ai/thoughts'),
-      apiPath('ai/ask'),
-      apiPath('ai/cancel'),
-      apiPath('ai/chat-history'),
-      apiPath('overrides/conflicts'),
-      apiPath('settings/auto-scan')
-    ];
-    
-    const isPublicEndpoint = publicEndpoints.some(path => u.pathname === path);
-    
-    // Debug logging for public endpoint check
-    if (u.pathname.startsWith(PROXY_API_BASE_PATH)) {
-      console.log(`[AUTH CHECK] ${u.pathname} - isPublic: ${isPublicEndpoint}`);
+    // Fail closed across the complete management namespace. Exceptions are
+    // method-specific and read-only; no default-allow routes for unknown names.
+    const authBoundary = classifyManagementRequest(req.method, u.pathname, PROXY_API_BASE_PATH);
+    if (authBoundary.requiresAuth) {
+      if (!requireAuth(req, res, u)) return;
     }
-    
-    // Protect all admin/management endpoints (except public ones)
-    const protectedPaths = [
-      apiPath('apps/'),
-      apiPath('config/'),
-      apiPath('overrides/'),
-      apiPath('reports/'),
-      apiPath('ai/'),
-      apiPath('resolve-conflict'),
-      apiPath('rename-route')
-    ];
-    
-    const isProtectedPath = protectedPaths.some(path => u.pathname.startsWith(path));
-    
-    if (isProtectedPath && !isPublicEndpoint) {
-      console.log(`[AUTH CHECK] ${u.pathname} - PROTECTED, requiring auth`);
-      if (!requireAuth(req, res, u)) {
-        return; // requireAuth already sent response
-      }
-    } else if (isPublicEndpoint) {
-      console.log(`[AUTH CHECK] ${u.pathname} - PUBLIC, skipping auth`);
-    }
-    
+
     // GET /api/ai/thoughts - Get streaming thought events (stub for now)
     if (req.method === 'GET' && u.pathname === apiPath('ai/thoughts')){
       // Return empty events array - real implementation would return thought stream
