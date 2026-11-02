@@ -12,7 +12,7 @@
 | Accepted product base | `d89c962fb31a962a518f331bae458e63708e7e86` (not master) |
 | CTO proposal tip (PR #16) | `4cc0017d1723a5d845cbfadd9614543a9a21ee77` |
 | Protected master (unchanged) | `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| Engineer tip | `engineer/devproxy-004a-private-snapshot-integ-20261102@e6c79a47430964902ff5ba70ce7053e106274332` |
+| Engineer tip |  |
 
 ## Integration scope (exact)
 
