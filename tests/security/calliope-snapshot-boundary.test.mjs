@@ -100,4 +100,7 @@ test('snapshot source has no untrusted shell command and container tar is disabl
  assert.doesNotMatch(container,/execSync\(cmd|tar -C|docker exec \$\{/);
  assert.match(container,/CONTAINER_SNAPSHOT_DISABLED/);
  assert.match(code,/authorizeHostSnapshot\(/);
+ const copier=fs.readFileSync(new URL('../../utils/snapshot-copy.js',import.meta.url),'utf8');
+ assert.match(copier,/O_NOFOLLOW/,'source reads must reject symlinks swapped after readdir');
+ assert.match(copier,/flag:'wx'/,'source copies must not overwrite preexisting output files');
 });
