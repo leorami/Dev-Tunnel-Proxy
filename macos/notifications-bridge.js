@@ -104,8 +104,8 @@ function readBody(req) {
     req.on('data', (chunk) => {
       data += chunk;
       if(Buffer.byteLength(data)>64*1024) {
+        req.pause();
         reject(Object.assign(new Error('Request too large'),{status:413}));
-        req.destroy();
       }
     });
     req.on('end', () => resolve(data));
@@ -330,6 +330,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && req.url === '/test') {
+      const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (contentType !== 'application/json') {
+        return json(res, 415, { ok: false, error: 'Content-Type must be application/json' });
+      }
       const raw = await readBody(req);
       let payload;
       try {
@@ -369,8 +373,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
+  const pairingFromEnvironment = process.env.NOTIF_BRIDGE_TOKEN !== undefined;
   // eslint-disable-next-line no-console
   console.log(`[notifications-bridge] listening on http://${HOST}:${PORT}`);
-  console.log('[notifications-bridge] pairing token location: '+(process.env.NOTIF_BRIDGE_TOKEN?'configured environment':'private local file '+SECRET_PATH));
+  console.log('[notifications-bridge] pairing token location: '+(pairingFromEnvironment?'configured environment':'private local file '+SECRET_PATH));
 });
 

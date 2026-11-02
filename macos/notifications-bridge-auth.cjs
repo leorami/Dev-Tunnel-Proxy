@@ -65,12 +65,17 @@ function authorizeBridgeRequest(request,{token,port=17888,allowedOrigins=resolve
     }
     return {allowed:true,status:204,corsOrigin,isPreflight:true};
   }
-  if(!methods.has(request.method)) return {allowed:false,status:405,corsOrigin,reason:'BRIDGE_METHOD_DENIED'};
-  if(url==='/health') return {allowed:true,status:200,corsOrigin};
+  if(url==='/health') {
+    if(!methods.has(request.method)) return {allowed:false,status:405,corsOrigin,reason:'BRIDGE_METHOD_DENIED'};
+    return {allowed:true,status:200,corsOrigin};
+  }
+  // Privileged routes fail closed as unauthorized before method details.
+  // A wrong verb must not skip the bearer check.
   if(typeof token!=='string'||token.length<32) return {allowed:false,status:503,corsOrigin,reason:'BRIDGE_NOT_PAIRED'};
   const auth=headers.authorization;
   const presented=typeof auth==='string'&&auth.startsWith('Bearer ')?auth.slice(7):'';
   if(!equalSecret(presented,token))return {allowed:false,status:401,corsOrigin,reason:'BRIDGE_AUTH_REQUIRED'};
+  if(!methods.has(request.method)) return {allowed:false,status:405,corsOrigin,reason:'BRIDGE_METHOD_DENIED'};
   return {allowed:true,status:200,corsOrigin};
 }
 module.exports={resolveAllowedOrigins,authorizeBridgeRequest};

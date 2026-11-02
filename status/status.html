@@ -1161,6 +1161,15 @@
       // -------------------------------
       // Notifications Service Card (Main Page)
       // -------------------------------
+      async function probeBridgeHealth() {
+        try {
+          const resp = await fetch(`${NOTIF_BRIDGE_BASE}/health`, { cache: 'no-store' });
+          return resp.ok;
+        } catch {
+          return false;
+        }
+      }
+
       async function checkServiceStatus() {
         try {
           const resp = await authorizedBridgeFetch(NOTIF_SERVICE_STATUS_ENDPOINT);
@@ -1216,11 +1225,22 @@
 
         subcard.style.display = 'block';
 
+        const bridgeUp = await probeBridgeHealth();
+        if (!bridgeUp) {
+          statusText.textContent = 'Notifications bridge is not running. Start it locally with: node macos/notifications-bridge.js';
+          serviceChip.style.display = 'flex';
+          serviceChip.textContent = 'Not running';
+          serviceChip.className = 'chip';
+          serviceChip.onclick = null;
+          logsChip.style.display = 'none';
+          return;
+        }
+
         // Check service status
         const status = await checkServiceStatus();
         
         if (!status) {
-          statusText.textContent = 'Notifications bridge not paired or unavailable. Pair this browser tab to check status. Start the local bridge with: node macos/notifications-bridge.js';
+          statusText.textContent = 'Notifications bridge is not yet paired. Pair this browser tab before checking status.';
           serviceChip.style.display = 'flex';
           serviceChip.textContent = 'Pair Bridge';
           serviceChip.className = 'chip ok';

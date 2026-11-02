@@ -78,6 +78,29 @@ test('runtime provisions a user-only token file outside public artifact mounts',
  assert.doesNotMatch(server,/console\.log\([^\n]*BRIDGE_TOKEN/);
 });
 
+test('a message send rejects a non-JSON content type before Messages.app',()=>{
+  const server=readFileSync(new URL('../../macos/notifications-bridge.js', import.meta.url),'utf8');
+  const start=server.indexOf("req.url === '/test'");
+  const send=server.indexOf('sendViaMessages(', start);
+  assert.notEqual(start,-1);
+  assert.notEqual(send,-1);
+  const gate=server.slice(start, send);
+  assert.match(gate,/content-type/i);
+  assert.match(gate,/application\/json/);
+  assert.match(gate,/415/);
+});
+
+test('status card distinguishes a stopped bridge from a bridge that is not yet paired',()=>{
+  const ui=readFileSync(new URL('../../status/status.html', import.meta.url),'utf8');
+  assert.match(ui,/Notifications bridge is not running/);
+  assert.match(ui,/Notifications bridge is not yet paired/);
+  const probe=ui.indexOf('async function probeBridgeHealth');
+  assert.notEqual(probe,-1);
+  const body=ui.slice(probe, probe+500);
+  assert.match(body,/\/health/);
+  assert.doesNotMatch(body,/Authorization/);
+});
+
 test('runtime/UI integration never directly expose unauthenticated macOS operations',()=>{
  const server=readFileSync(new URL('../../macos/notifications-bridge.js', import.meta.url),'utf8');
  const ui=readFileSync(new URL('../../status/status.html', import.meta.url),'utf8');
