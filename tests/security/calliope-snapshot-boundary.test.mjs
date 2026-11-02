@@ -35,6 +35,10 @@ test('root boundary and output name cannot escape the approved workspace',t=>{
   assert.equal(safeSnapshotName(name),null,String(name));
   if(name)assert.equal(authorizeHostSnapshot(good,name,env).allowed,false,String(name));
  }
+ const colon=path.join(dir,'repo:alternate');fs.mkdirSync(colon);
+ assert.equal(authorizeHostSnapshot(colon,'valid-name',{
+  CALLIOPE_CODE_SNAPSHOT_ENABLED:'1',CALLIOPE_CODE_SNAPSHOT_APPROVED_ROOTS:dir
+ }).allowed,false,'Docker mount separator cannot appear in approved source');
  const link=path.join(dir,'link');fs.symlinkSync(good,link);
  assert.equal(authorizeHostSnapshot(link,'valid-name',env).allowed,false,'reject symlink source');
  assert.equal(authorizeHostSnapshot(good,'good_snapshot.2026',env).allowed,true);
@@ -84,6 +88,7 @@ test('snapshot source has no untrusted shell command and container tar is disabl
  assert.doesNotMatch(host,/execSync\(cmd/);
  assert.match(host,/execFileSync\('docker'/);
  assert.match(host,/PRIVATE_SNAPSHOTS_DIR/);
+ assert.match(host,/fs\.realpathSync\(PRIVATE_SNAPSHOTS_DIR\)/,'a symlinked private-store parent must fail closed');
  assert.doesNotMatch(host,/resources\/<stamp>|\.artifacts\/calliope\/resources/);
  assert.doesNotMatch(container,/execSync\(cmd|tar -C|docker exec \$\{/);
  assert.match(container,/CONTAINER_SNAPSHOT_DISABLED/);
