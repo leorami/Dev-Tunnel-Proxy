@@ -54,11 +54,20 @@ async function copySourceTree(sourceRoot,outputRoot){
         const info=await fsp.lstat(src);
         if(!info.isFile()||!shouldCopySourceFile(relative,info.size))continue;
         if(copied>=MAX_FILES||bytes+info.size>MAX_SNAPSHOT_BYTES)continue;
-        const dest=path.join(out,...nextParts);
-        await fsp.mkdir(path.dirname(dest),{recursive:true,mode:0o700});
-        await fsp.copyFile(src,dest,fs.constants.COPYFILE_EXCL);
-        await fsp.chmod(dest,0o600);
-        copied+=1;bytes+=info.size;
+        // Do not turn a symlink swap after readdir into a secret read. This is
+        // an intentionally fail-closed Linux/macOS-only copier.
+        if(typeof fs.constants.O_NOFOLLOW!=='number')throw new Error('No safe nofollow file access');
+        const handle=await fsp.open(src,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+        try{
+          const opened=await handle.stat();
+          if(!opened.isFile()||opened.size!==info.size||!shouldCopySourceFile(relative,opened.size))continue;
+          const data=await handle.readFile();
+          if(data.length!==opened.size)continue;
+          const dest=path.join(out,...nextParts);
+          await fsp.mkdir(path.dirname(dest),{recursive:true,mode:0o700});
+          await fsp.writeFile(dest,data,{flag:'wx',mode:0o600});
+          copied+=1;bytes+=opened.size;
+        }finally{await handle.close();}
       }
     }
   }
