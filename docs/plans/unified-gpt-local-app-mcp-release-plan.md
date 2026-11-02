@@ -1,6 +1,6 @@
 # Unified GPT ↔ Local App MCP: remaining validation and shareability (NON-EXECUTABLE DRAFT)
 
-**Not an Engineer assignment yet.** No second primary engineer is to be dispatched while Tiger Slam's owner photo tagging/ngrok/real production fastlane or Wizardmaker's real-model assignment remains active. This plan preserves completed independent CTO source in one shared repository for a future safe coordination boundary; it authorizes no deployment, proxy configuration change, public endpoint, connector installation, protected merge, app account action or credential request.
+**DEVPROXY-001 prepared — no Engineer started by this document.** The Dev Tunnel Proxy project now owns its independent shared-gateway implementation lane and its one primary Cursor Engineer; no Tiger Slam or Wizardmaker primary Engineer assignment is modified, interrupted, or duplicated. The bounded next source-first handoff is [DEVPROXY-001 first real local read-only proof](../handoffs/DEVPROXY_001_FIRST_REAL_LOCAL_MCP_READONLY.md), coordinated by [DevProxy issue #4](https://github.com/leorami/Dev-Tunnel-Proxy/issues/4). Existing PR #2 and independent policy PR #3 are reconciled as source on a new CTO branch for native verification. This source proposal authorizes no deployment, proxy configuration change, public endpoint, connector installation, protected merge, app account action, or credential request.
 
 ## Truth and source gate
 
