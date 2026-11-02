@@ -20,6 +20,9 @@ function authorizeHostSnapshot(input,outName,env=process.env){
     const stat=fs.lstatSync(source);
     if(!stat.isDirectory() || stat.isSymbolicLink())return {allowed:false,reason:'PROJECT_NOT_DIRECTORY'};
     real=fs.realpathSync(source);
+    // Docker -v uses ':' as a structural separator. A bind mount path must
+    // never be able to create additional volume options through its spelling.
+    if (/[,:\r\n]/.test(real))return {allowed:false,reason:'UNSAFE_BIND_MOUNT_PATH'};
     // Reject aliases/symlinks at any depth, including a symlinked parent.
     if(real!==source)return {allowed:false,reason:'PROJECT_SYMLINK_DENIED'};
   }catch{return {allowed:false,reason:'PROJECT_NOT_AVAILABLE'};}
