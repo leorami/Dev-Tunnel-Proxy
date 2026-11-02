@@ -41,7 +41,7 @@ test('allowed origins are exact, not suffix/domain/reflection or wildcard matche
  assert.equal(auth('POST','/test',bearer).allowed,true,'valid authenticated nonbrowser operator allowed');
 });
 test('local UI origins are exact and preflight never grants authority',()=>{
- const origins=['http://localhost:8080','http://127.0.0.1:8080','https://localhost:8443','https://127.0.0.1:8443'];
+ const origins=['http://localhost','http://127.0.0.1','http://localhost:8080','http://127.0.0.1:8080','https://localhost','https://127.0.0.1','https://localhost:8443','https://127.0.0.1:8443'];
  for(const origin of origins){
   const p=auth('OPTIONS','/service/install',{host:'127.0.0.1:17888',origin,'access-control-request-method':'POST','access-control-request-headers':'authorization,content-type'});
   assert.equal(p.allowed,true,origin);
@@ -69,6 +69,15 @@ test('configuration must reject insecure public/http origins instead of allowing
  assert.throws(()=>resolveAllowedOrigins('https://trusted.example/path'));
  assert.throws(()=>resolveAllowedOrigins('https://u:p@trusted.example'));
 });
+test('runtime provisions a user-only token file outside public artifact mounts',()=>{
+ const server=readFileSync(new URL('../../macos/notifications-bridge.js',import.meta.url),'utf8');
+ assert.match(server,/['"]Application Support['"]/);
+ assert.match(server,/['"]notification-bridge\.token['"]/);
+ assert.match(server,/mode:0o700/);
+ assert.match(server,/fs\.openSync\(SECRET_PATH,'wx',0o600\)/);
+ assert.doesNotMatch(server,/console\.log\([^\n]*BRIDGE_TOKEN/);
+});
+
 test('runtime/UI integration never directly expose unauthenticated macOS operations',()=>{
  const server=readFileSync(new URL('../../macos/notifications-bridge.js', import.meta.url),'utf8');
  const ui=readFileSync(new URL('../../status/status.html', import.meta.url),'utf8');
