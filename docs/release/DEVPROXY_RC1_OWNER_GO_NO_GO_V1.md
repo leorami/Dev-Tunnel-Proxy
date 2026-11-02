@@ -1,42 +1,49 @@
-# DevProxy Security RC1 — decision-ready rollout evidence (NO-GO today)
+# DevProxy Security RC1 — owner decision packet (NO-GO)
 
-**Owner decision packet, NOT deployment authorization.** The installed nginx/ngrok/API and macOS bridge are **unchanged**. This file is source-prepared by CTO after exact Engineer-I RETURNED preflight [issue #17](https://github.com/leorami/Dev-Tunnel-Proxy/issues/17) on `cto/devproxy-rc1-production-packaging-20261101@54cb4c78ba40ac2e71e7123af9a91bacf36de815`. The candidate includes the already-tested perimeter, session, login-return and macOS bridge protections, plus fixed production Compose Brotli image and override handling, all **unmerged**. Public ingress and full live route baseline are NOT validated.
+**Owner decision packet, NOT deployment authorization.** Installed nginx/ngrok/API and the macOS bridge are **unchanged**. Classifier flags stay `releaseAuthorized=false` and `installed=false` even if every readiness gate later passes.
 
-## Confirmed vs outstanding evidence
+**Current recommendation: NO-GO** for live cutover. Remaining blockers are owner UAT, explicit owner approval, Mac bridge host plan, and an authorized production rollout — not another backup sprint.
 
-| Owner milestone | Evidence now | Gate |
+## Reconciled evidence (source-linked; no private archive bytes)
+
+| Milestone | Evidence | Gate |
 | --- | --- | --- |
-| Exact source/test history | RC1 first RED + 37/37 security tests; preflight RED (1 pass, 3 fail) and source GREEN; canonical `./smart-build.sh test:unit` exit 0 | PASS, source only |
-| Production package | Compose builds project Dockerfile image `sha256:693d99872b2a263caf5a611165a1b7c62e11b055d49a0806934adeb14ae57cb7`; Brotli modules and disposable compressed health check pass | PASS, disposable only |
-| Existing API runtime parity | Disposable `node:18-alpine` v18.20.8 login, auth/Origin, session, artifact denials, logout | PASS, partial runtime |
-| Owner-equivalent browser fixture | Browser login/redirect/staging screenshot with fake credentials, no owner browser tab | PASS, fixture only |
-| Mac notification protection | Mock bridge tests passed; running host bridge was NOT restarted, real Messages/LaunchAgents not touched | PASS mock, NOT INSTALLED |
-| Installed proxy identity | Read-only: installed nginx image `sha256:bfc92bd8e3083962adfa084916481128a25d7bf7a0fb62325aa25f60fac41634`, API image `sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e` | PASS identity; image IDs are not rollback artifacts |
-| Verified offline rollback | Old image IDs have **not** been saved/hashed/restored from an independent owner-private archive | NOT_RUN; **release blocker** |
-| Current route/service baseline | Stable active routes and health statuses have not been collected as a private redacted comparison | NOT_RUN; **release blocker** |
-| Public tunnel ingress strategy | No owner-authorized external verification; never retrieve old potentially public private-file bodies | NOT_RUN; **release blocker** |
-| Owner staging acceptance | Actual owner's login, dashboard, apps/routing, and new Mac tab-pairing experience not personally accepted | NOT_RUN; **release blocker** |
-| Bridge host restart/rollback plan | Owner-controlled host LaunchAgent restart and token pairing need independent approval | NOT_RUN; **release blocker** |
-| Explicit release authority | No authorization to merge to protected master, restart live proxy/ngrok, touch production ports or rotate secrets | NO; **absolute stop** |
+| Source / unit tests | Node 22 canonical `./smart-build.sh test:unit` exit 0 on RC1 tip `031de0d0e8d4f87e9badbdd2853d6506577e8b0e` and this evidence branch | `sourceTests` **PASS** |
+| Production Compose package | Preflight disposable Brotli image proof (PR #18 / issue #17); Compose still unmerged | `productionCompose` **PASS** (disposable) |
+| Node 18 API parity | Disposable `node:18-alpine` session/login proofs across RC1 receipts | `node18Parity` **PASS** |
+| Fixture browser | Preflight + PR #27 headless signed-in staging screenshots (fixture credentials) | `fixtureBrowser` **PASS** |
+| Mac bridge mock | RC1 mock authorization tests; live LaunchAgent/bridge **not** restarted | `macBridgeMock` **PASS** (mock only) |
+| Installed image identity | Read-only: proxy `sha256:bfc92bd8…fac41634`, API `sha256:8d6421d6…a09d9e`, ngrok `sha256:141f5645…bf2bfa` (still running) | `currentImageIdentified` **PASS** |
+| Offline rollback archive + restore | Owner-private image+config archives already created (Issue #19 / PR #25). Issue #26 verified named-tag binding in disposable dind, exact route mtime restore, fail-closed RO nginx at `62b1846…`. Archives **preserved**, not recreated | `rollbackArchiveVerified` **PASS** |
+| Redacted route/health fingerprint | Live proxy/API/ngrok **running**; loopback `/health.json` HTTP 200 (body not published); owner checkout `apps/*.conf` count **17**; no route names or response bodies in this packet | `routeBaselineRecorded` **PASS** (counts/status only — **not** live cutover parity) |
+| Public ingress **plan** review | Source-only review of ngrok static/dynamic entrypoint, nginx `$host` / `X-Forwarded-*`, and mandatory `DEVPROXY_TRUSTED_ORIGINS` (PR #28). **No** live public probe or domain discovery | `publicIngressPlanReviewed` **PASS** (plan only) |
+| Owner staging UAT | Disposable loopback staging remains at `http://127.0.0.1:18090/admin/login` (PR #27). Owner has not recorded acceptance | `ownerStagingUat` **NOT_RUN** |
+| Mac bridge owner plan | Separate authorization required before LaunchAgent/token work | `macBridgeOwnerPlan` **NOT_RUN** |
+| Explicit owner approval | Not granted by this packet | `ownerExplicitApproval` **NOT_RUN** |
 
-**Current recommendation: NO-GO for changes to live installation.** The fact that release source is tested does not imply the deployed proxy or host Mac bridge is already protected. The running proxy may have known source-level security weaknesses. This status requires owner attention; however no real user token exposure or historical compromise has been proven.
+## Public ingress plan (source-only; no live probe)
 
-## Read-only evidence plan — next single mini-sprint
+1. **ngrok:** `scripts/ngrok-entrypoint.sh` uses `NGROK_STATIC_DOMAIN` when set (HTTPS hostname tunnel to `dev-proxy:80`); otherwise copies `config/ngrok.dynamic.yml` (HTTP proto, `bind_tls: true`, dynamic domain). Inspect enabled in both templates.
+2. **nginx:** Forwards `Host $host` (portless) and often `X-Forwarded-Proto $scheme` / `X-Forwarded-For`. Management APIs use `auth_request /admin/check`. Do **not** treat Host or forwarded headers as the CSRF trust root.
+3. **Trusted origins:** API allowlists exact `DEVPROXY_TRUSTED_ORIGINS` (`scheme://host[:port]`). Both Compose files **fail config** if unset (PR #28). For any future authorized public cutover, operator must set origins to the real browser origin **and** the authorized public HTTPS origin (static domain when used). No wildcards, Host-derived policy, or client-controlled header fallback.
+4. **Post-cutover checks (future, separate authority):** anonymous denials on management paths; owner-authenticated UI parity; never log confidential bodies. **Not performed here.**
 
-1. Preserve all actual owner checkout files, active Cursor assignments and services. Reconfirm GitHub current SHA, issue #17, draft PRs #7/#11/#12/#13/#15/#16/#18, and installed image IDs via **read-only, redacted** inspection; never print container environment, secrets, private proxy route names, session contents or owner directory listings.
-2. Prepare a **private redacted route/health baseline** using statuses and counts/hashes only. Prefer captured existing health/status metadata over requesting protected endpoint bodies. No crawling of historical `/.artifacts/`; those may still be exposed in the running version. Do not test dangerous POST/AI self-heal on live service. If a zero-content baseline requires reading privileged config or authenticating with owner's cookie, mark `BLOCKED_OWNER_AUTH` and request a separate owner-controlled run.
-3. Prepare a **durable rollback evidence contract**: preserve and tag both exact old image IDs in an owner-private, access-limited storage destination; optionally use offline `docker image save` and SHA-256 verification only **after separate owner authorization**. Image exports may contain application code or embedded credentials, so never upload to GitHub, chat, cloud storage or a public artifact path. This planning slice must NOT export or prune images or alter the live Docker daemon.
-4. Map actual public ingress with a proposed *status-only* negative matrix for deployment validation. Do not run old-version requests that might return sensitive bodies through a known open path. Post-release checks must verify anonymous status denial and owner-authenticated app route parity with no confidential response body in logs. All public tunnel/host restarts are separate approvals.
-5. Capture staged owner UAT acceptance plan: login success/failure, private reports, app route list, route precedence, dashboard, Calliope safe read and disabled writes, logout, external Secure cookie, and the separate per-tab Mac notification pairing. Owner controls any real app credentials, pairing secret and Messages send.
-6. Use `node scripts/release-decision-readonly.mjs` with **non-secret, local-only JSON evidence statuses via STDIN** to produce a redacted fixed-gate report. Exit 2 = NO_GO, exit 0 = READY_FOR_OWNER_DECISION **never authorization**. It does not call Docker, read files, open sockets, rotate secrets or alter state. No values, URLs or secrets are echoed.
-7. Return the exact source SHA, full focused/canonical Node22 test exits, one private redacted baseline *summary* without route names, clear BLOCKED cases and a decision-ready rollout/rollback owner checklist. STOP. Do not merge/deploy/trigger owner Mac changes.
+## Remaining blockers (owner / separate authority)
 
-## Release gate meanings
+1. **Owner staging UAT** on `http://127.0.0.1:18090/admin/login` (password only in private disposable `api.env`; do not paste to GitHub).
+2. **Mac bridge host plan** (LaunchAgent / pairing) — not a restart task in this sprint.
+3. **Explicit owner GO** for merge/restart/credential/public ingress — none of which this packet grants.
+4. Unmerged security/RC1 draft stack (including #27/#28 and earlier RC1 drafts) vs protected `master@62a4d7babae986ade1feb0fd6dbe7dd32532523a`.
+5. Broader debt remains tracked elsewhere (e.g. DEVPROXY-004 Docker socket / issue #10).
 
-**READINESS** and **AUTHORITY** are separate. Even if every evidence gate is marked PASS, the classifier never reports `releaseAuthorized=true` or `installed=true`. Owner must review, explicitly approve the actual change set, maintenance impact and rollback; only a separately authorized operator should apply the production rollout. This is not a mechanism to grant implicit user consent.
+## Owner UAT checklist (loopback staging only)
 
-## Other unresolved security debt
+- [ ] Login success / wrong-password failure on staging
+- [ ] Dashboard / status navigation while signed in
+- [ ] Logout and anonymous denial
+- [ ] Confirm you did **not** use the public tunnel or live `:8080` admin for this UAT
+- [ ] Record GO or NO-GO for live change (separate from this packet)
 
-Trusted-origin CSRF source and disposable staging proof are on draft PR #27 (`f9c3ef…`); Compose now **requires** an explicit operator-provided `DEVPROXY_TRUSTED_ORIGINS` allowlist (exact `scheme://host[:port]` list matching the real owner browser origin and any authorized public static domain) before `docker compose … config` can render either `docker-compose.yml` or `docker-compose.production.yml`. Do not invent wildcards, Host-derived policy, or forwarded-header fallbacks. Private domains/tokens must stay off GitHub and out of receipts. The production API still runs Node18, and privileged Docker socket/root self-healing remains in [DEVPROXY-004 issue #10](https://github.com/leorami/Dev-Tunnel-Proxy/issues/10). The source-only snapshot hardening PR #16 is not yet Engineer tested and should not distract from shipping the existing security fixes.
+## Authority boundary
 
-**Nonnegotiable:** no protected merges, live Docker restarts, `scripts/switch-to-production.sh`, real Messages, LaunchAgent modifications, public MCP exposure, secret rotation or cloud upload from this readiness workflow.
+**READINESS ≠ AUTHORITY.** No protected merge, live proxy/ngrok restart, public staging exposure, archive replacement, Mac bridge change, token rotation, password publication, or deployment is authorized by a PASS gate or by this file.
