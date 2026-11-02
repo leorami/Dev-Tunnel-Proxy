@@ -11,7 +11,7 @@
 | --- | --- |
 | Handoff executed | `df3d74881920abd0ef8c51c8b5f0e21a1f55091a` (`origin/cto/devproxy-p0-private-restoration-readiness-20261102`) |
 | Source base (PR #39 tip) | `6a1b5a51386e0db0a2fd2db0fa5822374aa48404` |
-| This engineer branch tip | see branch HEAD after push`0a3e92e4cc5f612c0c64fcbaa8b533190fc77fb4` on `engineer/devproxy-p0-private-restoration-readiness-20261102` |
+| This engineer branch tip | full 40-SHA recorded in Issue #10 RETURNED comment and draft PR head (branch `engineer/devproxy-p0-private-restoration-readiness-20261102`) |
 | Accepted RC1 product pin | `d89c962fb31a962a518f331bae458e63708e7e86` |
 | Reused cutover helpers from | `67c098d0dbf2240ba3021b944587ffb45ac8c46a` |
 | Protected master (untouched) | `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
