@@ -615,6 +615,16 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc1-disposable-compose-bypass.RED.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "P0 restoration evidence contract (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/p0-restoration-evidence.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 cutover preflight/parity/mount (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs' '$ROOT_DIR/tests/security/rc1-config-parity.test.cjs' '$ROOT_DIR/tests/security/rc1-mount-continuity.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
