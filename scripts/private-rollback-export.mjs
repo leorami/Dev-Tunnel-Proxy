@@ -87,7 +87,17 @@ try{
     const oldUmask=process.umask(0o077);
     try{
       fs.mkdirSync(root,{recursive:true,mode:0o700});
-      if(fs.realpathSync(root)!==path.resolve(root))throw new Error('UNSAFE_PRIVATE_DIRECTORY');
+      // Compare canonical paths. path.resolve leaves macOS prefixes such as
+      // /var -> /private/var unresolved, so a literal inequality rejects a
+      // normal temporary HOME. A symlinked Library or private-rollbacks
+      // segment was already rejected by lstat above; this still rejects a
+      // swap that makes the created directory resolve outside HOME.
+      const home=os.homedir();
+      const relative=path.relative(path.resolve(home),path.resolve(root));
+      if(relative.startsWith('..')||path.isAbsolute(relative))throw new Error('UNSAFE_PRIVATE_DIRECTORY');
+      if(fs.realpathSync(root)!==path.resolve(fs.realpathSync(home),relative)){
+        throw new Error('UNSAFE_PRIVATE_DIRECTORY');
+      }
       const st=fs.lstatSync(root);
       if(!st.isDirectory()||(st.mode&0o077)||
          (typeof process.getuid==='function' && st.uid!==process.getuid())){
