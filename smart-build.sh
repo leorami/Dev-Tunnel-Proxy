@@ -526,6 +526,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/production-packaging-gate.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Fail-closed owner release decision (pure, no live reads)" \
+      "node --test '$ROOT_DIR/tests/security/release-decision-readonly.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
