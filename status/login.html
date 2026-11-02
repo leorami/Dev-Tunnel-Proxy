@@ -250,6 +250,7 @@
     </div>
   </div>
 
+  <script src="/assets/login-redirect-policy.js"></script>
   <script>
     const form = document.getElementById('loginForm');
     const passwordInput = document.getElementById('password');
@@ -259,7 +260,7 @@
 
     // Get redirect URL from query params
     const urlParams = new URLSearchParams(window.location.search);
-    const redirectUrl = urlParams.get('redirect') || '/status';
+    const redirectUrl = window.DevProxyRedirectPolicy.safeLoginRedirect(urlParams.get('redirect'));
 
     // Check if already authenticated
     fetch('/admin/check', {
