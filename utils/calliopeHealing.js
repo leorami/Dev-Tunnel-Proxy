@@ -9,7 +9,8 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { execSync, spawn, execFileSync } = require('child_process');
+const { authorizeHostSnapshot } = require('./snapshotSecurity.cjs');
 const { promisify } = require('util');
 const exec = promisify(require('child_process').exec);
 
@@ -19,6 +20,7 @@ const CALLIOPE_DIR = path.join(ARTIFACTS_DIR, 'calliope');
 const KB_FILE = path.join(CALLIOPE_DIR, 'healing-kb.json');
 const AUDITS_DIR = path.join(ARTIFACTS_DIR, 'audits');
 const RESOURCES_DIR = path.join(CALLIOPE_DIR, 'resources');
+const PRIVATE_SNAPSHOTS_DIR = path.join(ROOT, '.private', 'calliope', 'snapshots');
 const AUDIT_HISTORY_DIR = path.join(CALLIOPE_DIR, 'audit-history');
 
 // Regenerate nginx bundle and reload - ensures Calliope's fixes take effect
@@ -318,62 +320,34 @@ function ensureGenericPatterns() {
  * - Excludes heavy directories (node_modules, .git, dist, build, .next, out, coverage, public, tmp, .cache)
  */
 async function snapshotProjectToResources(hostProjectPath, outName) {
+  // Explicit allowlisted source roots only, and disabled unless opted in.
+  // Do not create private dirs or call Docker for an unauthorized request.
+  const authority = authorizeHostSnapshot(hostProjectPath, outName);
+  if (!authority.allowed) return { success: false, code: authority.reason, message: 'Code snapshot not authorized' };
+  let dest;
   try {
-    if (!hostProjectPath || !fs.existsSync(hostProjectPath)) {
-      return { success: false, message: 'hostProjectPath does not exist' };
+    fs.mkdirSync(PRIVATE_SNAPSHOTS_DIR, { recursive: true, mode: 0o700 });
+    const privateState = fs.lstatSync(PRIVATE_SNAPSHOTS_DIR);
+    if (!privateState.isDirectory() || privateState.isSymbolicLink() || (privateState.mode & 0o077)) {
+      return { success: false, code: 'PRIVATE_SNAPSHOT_DIR_UNSAFE', message: 'Private snapshot storage unavailable' };
     }
-    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
-    const base = outName || (path.basename(hostProjectPath.replace(/\/?$/, '')) + '_' + stamp);
-    const dest = path.join(RESOURCES_DIR, base);
-    fs.mkdirSync(dest, { recursive: true });
-
-    const tmpDir = path.join(CALLIOPE_DIR, 'tmp');
-    fs.mkdirSync(tmpDir, { recursive: true });
-    const scriptPath = path.join(tmpDir, 'copy-src.js');
-    const js = `
-const fs = require('fs');
-const path = require('path');
-const EXCLUDE_DIRS = new Set(['node_modules','.git','dist','build','.next','out','coverage','public','tmp','.cache','.output']);
-const INCLUDE_EXTS = new Set(['.js','.jsx','.ts','.tsx','.mjs','.cjs','.json','.md','.yml','.yaml','.html','.css','.scss','.xml','.sh','.sql']);
-function shouldInclude(filePath, stat){
-  if (!stat.isFile()) return false;
-  const base = path.basename(filePath);
-  if (base.startsWith('.')) {
-    if (/^\.env(\..*)?$/.test(base)) return true;
-  }
-  const ext = path.extname(filePath).toLowerCase();
-  return INCLUDE_EXTS.has(ext);
-}
-async function walk(srcDir, outDir){
-  const entries = await fs.promises.readdir(srcDir, { withFileTypes: true });
-  for (const e of entries){
-    const srcPath = path.join(srcDir, e.name);
-    const outPath = path.join(outDir, e.name);
-    if (e.isDirectory()){
-      if (EXCLUDE_DIRS.has(e.name)) continue;
-      await walk(srcPath, outPath);
-    } else if (e.isFile()){
-      const st = await fs.promises.stat(srcPath);
-      if (shouldInclude(srcPath, st)){
-        await fs.promises.mkdir(path.dirname(outPath), { recursive: true });
-        await fs.promises.copyFile(srcPath, outPath);
-      }
-    }
-  }
-}
-(async()=>{
-  await fs.promises.mkdir('/out/src', { recursive: true });
-  await walk('/src', '/out/src');
-})().catch(e=>{ console.error(e && (e.stack||e)); process.exit(1); });
-`;
-    fs.writeFileSync(scriptPath, js, 'utf8');
-
-    const cmd = `docker run --rm -v "${hostProjectPath}:/src:ro" -v "${dest}:/out" -v "${scriptPath}:/script.js:ro" node:20-alpine node /script.js`;
-    execSync(cmd, { encoding: 'utf8' });
-
-    return { success: true, message: 'Snapshot created', dest };
-  } catch (e) {
-    return { success: false, message: `snapshotProjectToResources failed: ${e.message}` };
+    // Refuse collisions instead of overwriting an existing owner snapshot.
+    dest = path.join(PRIVATE_SNAPSHOTS_DIR, authority.name);
+    fs.mkdirSync(dest, { mode: 0o700 });
+    const copier = path.join(__dirname, 'snapshot-copy.js');
+    // Argument vectors: no caller-controlled shell, no network, minimal caps.
+    execFileSync('docker', [
+      'run','--rm','--network','none','--read-only',
+      '--cap-drop','ALL','--security-opt','no-new-privileges',
+      '-v', authority.source + ':/src:ro',
+      '-v', dest + ':/out:rw',
+      '-v', copier + ':/script.js:ro',
+      'node:20-alpine','node','/script.js'
+    ], { encoding: 'utf8', timeout: 60000, maxBuffer: 65536 });
+    return { success: true, message: 'Private source-only snapshot created', dest };
+  } catch (_) {
+    // Do not return command stderr, host paths or potentially private data.
+    return { success: false, code: 'SNAPSHOT_FAILED', message: 'Private source-only snapshot failed' };
   }
 }
 
@@ -466,23 +440,11 @@ async function analyzeSnapshotForProxyCompatibility(snapshotDir) {
  * Snapshot a running container's project path into Calliope resources (filtered) using tar piping.
  */
 async function snapshotContainerProject(containerName, srcPathInContainer, outName) {
-  try {
-    if (!containerName || !srcPathInContainer) return { success:false, message:'containerName and srcPathInContainer required' };
-    const stamp = new Date().toISOString().replace(/[:.]/g,'-');
-    const base = outName || (`${containerName.replace(/[^a-zA-Z0-9_-]/g,'_')}_${stamp}`);
-    const dest = path.join(RESOURCES_DIR, base);
-    fs.mkdirSync(path.join(dest, 'src'), { recursive: true });
-
-    const excludes = [
-      '--exclude=node_modules', '--exclude=.git', '--exclude=dist', '--exclude=build', '--exclude=.next', '--exclude=out', '--exclude=coverage', '--exclude=public', '--exclude=tmp', '--exclude=.cache', '--exclude=.output'
-    ].join(' ');
-
-    const cmd = `docker exec ${containerName} sh -lc "cd ${srcPathInContainer} 2>/dev/null && tar -cf - ${excludes} ." | tar -C ${dest}/src -xf -`;
-    execSync(cmd, { encoding: 'utf8' });
-    return { success:true, dest };
-  } catch (e) {
-    return { success:false, message: `snapshotContainerProject failed: ${e.message}` };
-  }
+  // No untrusted docker-exec shell or tar extraction of arbitrary container
+  // trees. Keep this route fail-closed until a scoped, symlink-safe extractor
+  // and an actual per-container owner grant are implemented and tested.
+  return { success: false, code: 'CONTAINER_SNAPSHOT_DISABLED',
+    message: 'Container source snapshots are disabled pending secure owner-scoped extraction' };
 }
 
 /**
