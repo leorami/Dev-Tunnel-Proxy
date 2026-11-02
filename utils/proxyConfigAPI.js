@@ -23,7 +23,7 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
-const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile} = require('./admin-session-security.cjs');
+const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed} = require('./admin-session-security.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -176,7 +176,14 @@ function extractSessionToken(req) {
   return extractAdminSessionToken(req);
 }
 
+function originDenied(req, res) {
+  if (adminRequestOriginAllowed(req.headers.host, req.headers.origin)) return false;
+  send(res, 403, { error: 'Origin denied' });
+  return true;
+}
+
 function requireAuth(req, res, u) {
+  if (originDenied(req, res)) return false;
   const token = extractSessionToken(req);
   if (validateSession(token)) {
     return true; // Authenticated
@@ -582,6 +589,7 @@ async function handle(req, res){
     
     // POST /admin/login - Authenticate and create session
     if (req.method === 'POST' && u.pathname === '/admin/login'){
+      if (originDenied(req, res)) return;
       const body = await parseBody(req);
       const password = body && body.password;
       
@@ -618,6 +626,7 @@ async function handle(req, res){
     
     // POST /admin/logout - Destroy session
     if (req.method === 'POST' && u.pathname === '/admin/logout'){
+      if (originDenied(req, res)) return;
       const token = extractSessionToken(req);
       if (token) {
         activeSessions.delete(token);
@@ -636,6 +645,7 @@ async function handle(req, res){
     // GET /admin/check - Check if authenticated
     // Used by nginx auth_request - returns 200 if authenticated, 401 if not
     if (req.method === 'GET' && u.pathname === '/admin/check'){
+      if (originDenied(req, res)) return;
       const token = extractSessionToken(req);
       const isAuthenticated = validateSession(token);
       

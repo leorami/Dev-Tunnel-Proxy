@@ -35,6 +35,33 @@ function extractAdminSessionToken(req){
   }
   return found!==null&&TOKEN_PATTERN.test(found)?found:null;
 }
+function headerHostname(hostHeader){
+  if(hostHeader.startsWith('[')){
+    const end=hostHeader.indexOf(']');
+    return end>0?hostHeader.slice(1,end).toLowerCase():'';
+  }
+  return hostHeader.split(':')[0].toLowerCase();
+}
+function headerPort(hostHeader){
+  if(hostHeader.startsWith('[')){
+    const end=hostHeader.indexOf(']');
+    const rest=end>0?hostHeader.slice(end+1):'';
+    return rest.startsWith(':')?rest.slice(1):'';
+  }
+  const parts=hostHeader.split(':');
+  return parts.length>1?parts[1]:'';
+}
+function adminRequestOriginAllowed(hostHeader, originHeader){
+  if(originHeader===undefined||originHeader==='') return true;
+  if(typeof hostHeader!=='string'||typeof originHeader!=='string') return false;
+  let origin;
+  try{ origin=new URL(originHeader); }catch{ return false; }
+  if(origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash) return false;
+  if(origin.hostname.toLowerCase()!==headerHostname(hostHeader)) return false;
+  // Nginx forwards $host without a port. When the header has a port, it must match.
+  const port=headerPort(hostHeader);
+  return !port||String(origin.port||'')===port;
+}
 function isLoopbackHostname(host){
   return typeof host==='string'&&/^(?:localhost|127\.0\.0\.1|\[::1\])(?::\d{1,5})?$/.test(host.toLowerCase());
 }
@@ -89,4 +116,4 @@ function readSecureSessionFile(file,now=Date.now()){
     return sanitizedSessionEntries(value?.sessions,now);
   }catch{return new Map();}
 }
-module.exports={safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,isLoopbackHostname};
+module.exports={safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,isLoopbackHostname,adminRequestOriginAllowed};
