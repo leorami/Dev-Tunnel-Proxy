@@ -314,10 +314,10 @@ function ensureGenericPatterns() {
 }
 
 /**
- * Create a filtered code snapshot of a host project into Calliope resources dir using Docker.
- * - Reads from host path (read-only)
- * - Copies only source and important files into .artifacts/calliope/resources/<stamp>/src
- * - Excludes heavy directories (node_modules, .git, dist, build, .next, out, coverage, public, tmp, .cache)
+ * Create a private, bounded, source-only snapshot for an explicitly approved project.
+ * - Disabled without operator opt-in and a canonical allowlisted source root.
+ * - Copies only permitted code/doc files into .private/calliope/snapshots/<stamp>/src.
+ * - No raw .env*, private credentials, dot dirs, symlinks, or general container tar.
  */
 async function snapshotProjectToResources(hostProjectPath, outName) {
   // Explicit allowlisted source roots only, and disabled unless opted in.
@@ -328,7 +328,13 @@ async function snapshotProjectToResources(hostProjectPath, outName) {
   try {
     fs.mkdirSync(PRIVATE_SNAPSHOTS_DIR, { recursive: true, mode: 0o700 });
     const privateState = fs.lstatSync(PRIVATE_SNAPSHOTS_DIR);
-    if (!privateState.isDirectory() || privateState.isSymbolicLink() || (privateState.mode & 0o077)) {
+    // The leaf may be a regular directory under a symlinked parent that
+    // points into the public artifact tree. Compare the entire resolved path.
+    const privateRealPath = fs.realpathSync(PRIVATE_SNAPSHOTS_DIR);
+    if (!privateState.isDirectory() || privateState.isSymbolicLink()
+        || privateRealPath !== path.resolve(PRIVATE_SNAPSHOTS_DIR)
+        || /[,:\r\n]/.test(privateRealPath)
+        || (privateState.mode & 0o077)) {
       return { success: false, code: 'PRIVATE_SNAPSHOT_DIR_UNSAFE', message: 'Private snapshot storage unavailable' };
     }
     // Refuse collisions instead of overwriting an existing owner snapshot.
