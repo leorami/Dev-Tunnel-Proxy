@@ -81,6 +81,8 @@ for (const config of ['config/default.conf','config/default.production.conf']) {
       assert.notEqual(index,-1,marker);
       assert.match(source.slice(index,index+250),/auth_request\s+\/admin\/check;/,marker);
     }
+    const aliases=source.slice(source.indexOf('location = /routes {'),source.indexOf('location /nginx_status {'));
+    assert.doesNotMatch(aliases,/Access-Control-Allow-Origin\s+\*/);
     const monitor=source.indexOf('location /nginx_status {');
     assert.notEqual(monitor,-1);
     const tail=source.slice(monitor,monitor+460);
