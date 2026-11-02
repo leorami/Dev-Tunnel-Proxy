@@ -496,6 +496,11 @@ cmd_test_unit() {
       "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
   fi
   
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "macOS Notification Bridge Authorization (no side effects)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-authorization.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
