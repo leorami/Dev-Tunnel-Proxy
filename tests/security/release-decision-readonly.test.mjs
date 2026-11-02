@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import fs from 'node:fs';
+import {spawnSync} from 'node:child_process';
 const require=createRequire(import.meta.url);
 const {assessReleaseEvidence,formatRedactedDecision,RELEASE_GATES}=require('../../utils/release-decision.cjs');
 
@@ -79,4 +80,30 @@ test('text report cannot echo arbitrary secret-bearing fields from caller',()=>{
 test('decision module and CLI never inspect live Docker, access secrets or issue HTTP calls',()=>{
  const mod=fs.readFileSync(new URL('../../utils/release-decision.cjs',import.meta.url),'utf8');
  assert.doesNotMatch(mod,/child_process|execSync|spawnSync|fetch\(|https?\.request|curl|\.env|admin-session\.json|readFileSync|writeFileSync/);
+});
+
+
+test('readiness CLI consumes optional fixture evidence but never emits private fields',()=>{
+ const script=new URL('../../scripts/release-decision-readonly.mjs',import.meta.url).pathname;
+ const partial=spawnSync(process.execPath,[script],{encoding:'utf8',
+   input:JSON.stringify({...verified,secret:'PRIVATE_MARKER_DO_NOT_PRINT'})});
+ assert.equal(partial.status,2);
+ assert.match(partial.stdout,/Recommendation: NO_GO/);
+ assert.doesNotMatch(partial.stdout,/PRIVATE_MARKER_DO_NOT_PRINT/);
+ const complete=spawnSync(process.execPath,[script],{encoding:'utf8',input:JSON.stringify(allEvidence)});
+ assert.equal(complete.status,0);
+ assert.match(complete.stdout,/READY_FOR_OWNER_DECISION/);
+ assert.match(complete.stdout,/Release authority: OWNER_ONLY/);
+ assert.doesNotMatch(complete.stdout,/Deployment performed: YES/);
+});
+
+test('readiness CLI rejects invalid or oversized input without printing it',()=>{
+ const script=new URL('../../scripts/release-decision-readonly.mjs',import.meta.url).pathname;
+ for(const input of ['PRIVATE_MARKER_DO_NOT_PRINT', '{broken', 'x'.repeat(12000)]){
+  const result=spawnSync(process.execPath,[script],{encoding:'utf8',input});
+  assert.equal(result.status,2);
+  assert.match(result.stdout,/NO_GO/);
+  assert.doesNotMatch(result.stdout,/PRIVATE_MARKER_DO_NOT_PRINT/);
+  assert.doesNotMatch(result.stderr,/PRIVATE_MARKER_DO_NOT_PRINT/);
+ }
 });
