@@ -521,6 +521,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/security-release-integration.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Production Compose and mode-switch packaging gate (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/production-packaging-gate.test.mjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
