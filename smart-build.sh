@@ -500,6 +500,11 @@ cmd_test_unit() {
     run_test_with_progress "Management perimeter security (source-only, safe)" \
       "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
   fi
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Public /health.json confidentiality (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/health-json-confidentiality.test.mjs'" || test_result=1
+  fi
+
 
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "Admin password/session security (test-owned temporary files)" \
