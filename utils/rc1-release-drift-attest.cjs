@@ -249,39 +249,22 @@ async function attestLive() {
   };
 }
 
-function liveNamedContainersPresent(opts = {}) {
-  if (typeof opts.liveContainersPresent === 'boolean') return opts.liveContainersPresent;
-  return containerExists('dev-proxy') || containerExists('dev-proxy-config-api');
-}
-
 async function runPremutationGuard(action, opts = {}) {
   const env = opts.env || process.env;
   const rootDir = opts.rootDir || process.cwd();
 
-  if (isDisposableStack(env)) {
-    // Hardcoded container_name/ports in compose mean a "disposable" project can
-    // collide with or rewrite shared owner bind outputs while live names exist.
-    if (liveNamedContainersPresent(opts)) {
-      return {
-        code: 'DISPOSABLE_COLLIDES_WITH_LIVE',
-        mutationAllowed: false,
-        productionChangeAuthorized: false,
-        note: 'Refuse disposable bypass while live dev-proxy* containers exist',
-      };
-    }
-    return {
-      code: 'DISPOSABLE_STACK_ALLOWED',
-      mutationAllowed: true,
-      productionChangeAuthorized: false,
-      note: 'Isolated disposable Compose project only',
-    };
-  }
+  // P0 corrective: NEVER authorize from DEVPROXY_DISPOSABLE_STACK / COMPOSE_* /
+  // DOCKER_HOST / absence of named containers. Those env flags are untrusted.
+  // Isolated disposable Docker must use purpose-built fixture Compose only,
+  // outside these smart-build mutating entrypoints.
+  void isDisposableStack(env);
+  void opts.liveContainersPresent;
 
   const live = opts.live || (await attestLive());
   const candidate = opts.candidate || defaultCandidate(rootDir, env);
   const result = assessReleaseMutationPlan({ action, live, candidate });
 
-  // Policy never authorizes production mutation. Block all non-disposable paths.
+  // Policy never authorizes production mutation.
   if (result.code === 'PLAN_COMPATIBLE_OWNER_GATE') {
     return {
       code: 'OWNER_GATE_REQUIRED',

@@ -107,23 +107,34 @@ test('management ports all_interfaces is enough to block with other R0 fields', 
   assert.equal(result.code, 'P0_DRIFT_BLOCKED');
 });
 
-test('disposable stack short-circuits without authorizing production when live names are absent', async () => {
+test('disposable env flags never authorize mutation even when live names are absent', async () => {
   const result = await runPremutationGuard('up', {
     env: { DEVPROXY_DISPOSABLE_STACK: '1', COMPOSE_PROJECT_NAME: 'devproxy-test-drift' },
     liveContainersPresent: false,
-    live: driftedLive(),
+    live: {
+      attested: false,
+      liveSource: 'unknown',
+      proxyImage: 'unknown',
+      publicHealth: 'unknown',
+      anonymousRoutes: 'unknown',
+      managementPorts: 'unknown',
+      apiDockerSocket: 'unknown',
+      privateConfigPreserved: false,
+      routeFingerprintPreserved: false,
+    },
   });
-  assert.equal(result.code, 'DISPOSABLE_STACK_ALLOWED');
-  assert.equal(result.mutationAllowed, true);
+  assert.equal(result.mutationAllowed, false);
   assert.equal(result.productionChangeAuthorized, false);
+  assert.notEqual(result.code, 'DISPOSABLE_STACK_ALLOWED');
 });
 
-test('disposable bypass refuses while live dev-proxy containers exist', async () => {
+test('disposable env with drifted live still fail-closed (no short-circuit allow)', async () => {
   const result = await runPremutationGuard('up', {
     env: { DEVPROXY_DISPOSABLE_STACK: '1', COMPOSE_PROJECT_NAME: 'devproxy-test-drift' },
     liveContainersPresent: true,
+    live: driftedLive(),
   });
-  assert.equal(result.code, 'DISPOSABLE_COLLIDES_WITH_LIVE');
+  assert.equal(result.code, 'P0_DRIFT_BLOCKED');
   assert.equal(result.mutationAllowed, false);
   assert.equal(result.productionChangeAuthorized, false);
 });

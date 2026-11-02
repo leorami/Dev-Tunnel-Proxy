@@ -182,7 +182,7 @@ ensure_network() {
 }
 
 # P0 RC1: fail closed before any network/bundle/compose mutation when live drift is attested.
-# Disposable fixture stacks only: DEVPROXY_DISPOSABLE_STACK=1 and COMPOSE_PROJECT_NAME matching rc1*|devproxy-test*|tmp*|disposable*.
+# Env disposable flags never authorize these entrypoints (see rc1-disposable-compose-bypass.RED.test.cjs).
 rc1_premutation_guard() {
   local action="$1"
   local guard="$ROOT_DIR/scripts/rc1-drift-premutation-guard.cjs"
@@ -608,6 +608,11 @@ cmd_test_unit() {
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "RC1 drift pre-mutation guard (fixtures only)" \
       "node --test '$ROOT_DIR/tests/security/rc1-release-drift-guard.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 disposable Compose bypass denial (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-disposable-compose-bypass.RED.test.cjs'" || test_result=1
   fi
 
   return $test_result
