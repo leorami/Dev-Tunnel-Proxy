@@ -1010,6 +1010,40 @@
       // Notifications (per-route)
       // -------------------------------
       const NOTIF_STORE_LOCAL_KEY = 'routeNotificationsV1';
+      // Browser-to-local-Mac bridge is a distinct authorization boundary.
+      // A local operator retrieves the secret *on the Mac*, then pairs this
+      // tab explicitly. Never persist it in localStorage or a public page.
+      const NOTIF_BRIDGE_PAIR_KEY = 'devproxy-notifications-pairing-tab';
+      function getBridgeToken(interactive=false) {
+        let token='';
+        try { token=sessionStorage.getItem(NOTIF_BRIDGE_PAIR_KEY)||''; } catch {}
+        if (!token && interactive) {
+          const supplied=window.prompt(
+            'Enter your local notifications bridge pairing token. On your Mac, find it in '+
+            '~/Library/Application Support/Dev Tunnel Proxy/notification-bridge.token. '+
+            'Never paste this token into a chat or issue.'
+          );
+          if(supplied && supplied.trim().length>=32) {
+            token=supplied.trim();
+            try { sessionStorage.setItem(NOTIF_BRIDGE_PAIR_KEY,token); } catch {}
+          }
+        }
+        return token;
+      }
+      async function authorizedBridgeFetch(endpoint, options={},interactive=false) {
+        if(new URL(endpoint).origin!==new URL(NOTIF_BRIDGE_BASE).origin) throw new Error('Untrusted notifications bridge URL');
+        const token=getBridgeToken(interactive);
+        if(!token) throw new Error('Pair your local notifications bridge to continue');
+        const res=await fetch(endpoint,{
+          ...options,cache:'no-store',
+          headers:{...(options.headers||{}),Authorization:`Bearer ${token}`},
+        });
+        if(res.status===401||res.status===403) {
+          try { sessionStorage.removeItem(NOTIF_BRIDGE_PAIR_KEY); } catch {}
+          throw new Error('Notification bridge pairing rejected. Check its token and allowed UI origin.');
+        }
+        return res;
+      }
       const NOTIF_BRIDGE_BASE = `http://${location.hostname === 'localhost' ? 'localhost' : '127.0.0.1'}:17888`;
       const NOTIF_TEST_ENDPOINT = `${NOTIF_BRIDGE_BASE}/test`;
       const NOTIF_SERVICE_STATUS_ENDPOINT = `${NOTIF_BRIDGE_BASE}/service/status`;
@@ -1129,7 +1163,7 @@
       // -------------------------------
       async function checkServiceStatus() {
         try {
-          const resp = await fetch(NOTIF_SERVICE_STATUS_ENDPOINT);
+          const resp = await authorizedBridgeFetch(NOTIF_SERVICE_STATUS_ENDPOINT);
           if (!resp.ok) return null;
           const data = await resp.json();
           return data;
@@ -1140,7 +1174,7 @@
 
       async function installService() {
         try {
-          const resp = await fetch(NOTIF_SERVICE_INSTALL_ENDPOINT, { method: 'POST' });
+          const resp = await authorizedBridgeFetch(NOTIF_SERVICE_INSTALL_ENDPOINT, { method: 'POST' },true);
           const data = await resp.json();
           if (!resp.ok) {
             throw new Error(data?.error || `HTTP ${resp.status}`);
@@ -1153,7 +1187,7 @@
 
       async function uninstallService() {
         try {
-          const resp = await fetch(NOTIF_SERVICE_UNINSTALL_ENDPOINT, { method: 'POST' });
+          const resp = await authorizedBridgeFetch(NOTIF_SERVICE_UNINSTALL_ENDPOINT, { method: 'POST' },true);
           const data = await resp.json();
           if (!resp.ok) {
             throw new Error(data?.error || `HTTP ${resp.status}`);
@@ -1186,8 +1220,19 @@
         const status = await checkServiceStatus();
         
         if (!status) {
-          statusText.innerHTML = 'Bridge not running. Start: <code style="background: var(--codeBg, #f5f5f5); padding: 2px 6px; border-radius: 4px; font-size: 11px;">node macos/notifications-bridge.js</code>';
-          serviceChip.style.display = 'none';
+          statusText.textContent = 'Notifications bridge not paired or unavailable. Pair this browser tab to check status. Start the local bridge with: node macos/notifications-bridge.js';
+          serviceChip.style.display = 'flex';
+          serviceChip.textContent = 'Pair Bridge';
+          serviceChip.className = 'chip ok';
+          serviceChip.onclick = async () => {
+            if (!getBridgeToken(true)) return;
+            const verified=await checkServiceStatus();
+            if(!verified) {
+              await showDialog({title:'Bridge unavailable',message:'Pairing was not verified. Check the local bridge is running and its origin policy permits this page.'});
+              return;
+            }
+            initNotificationsServiceCard();
+          };
           logsChip.style.display = 'none';
           return;
         }
@@ -1488,7 +1533,7 @@
           if (!ok) return;
 
           try {
-            const resp = await fetch(NOTIF_TEST_ENDPOINT, {
+            const resp = await authorizedBridgeFetch(NOTIF_TEST_ENDPOINT, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -1496,7 +1541,7 @@
                 subject: testSubject,
                 message: testBody
               })
-            });
+            },true);
 
             let payload = null;
             try { payload = await resp.json(); } catch {}
