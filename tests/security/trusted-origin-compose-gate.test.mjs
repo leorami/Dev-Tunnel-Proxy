@@ -17,7 +17,9 @@ for (const name of ['docker-compose.yml', 'docker-compose.production.yml']) {
 }
 
 test('API exact-Origin policy reads explicit process env only', () => {
-  const api = fs.readFileSync(new URL('../../utils/proxyConfigAPI.js', import.meta.url), 'utf8');
-  assert.match(api, /normalizeTrustedOrigins\(process\.env\.DEVPROXY_TRUSTED_ORIGINS\)/);
+  // proxyConfigAPI.js historically embeds NULs; read as latin1 so the bootstrap line is searchable.
+  const api = fs.readFileSync(new URL('../../utils/proxyConfigAPI.js', import.meta.url), 'latin1');
+  // Returned staging bootstrap uses `|| ''`; still must be process.env only — never Host-derived.
+  assert.match(api, /normalizeTrustedOrigins\(process\.env\.DEVPROXY_TRUSTED_ORIGINS(?:\s*\|\|\s*'')?\)/);
   assert.doesNotMatch(api, /normalizeTrustedOrigins\(req\.headers\.host\)/);
 });
