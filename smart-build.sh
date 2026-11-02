@@ -525,6 +525,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 private mount continuity plan (pure)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-mount-continuity.test.cjs'" || test_result=1
+  fi
+
 
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "macOS bridge authorization (mock-only, no Messages)" \
