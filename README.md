@@ -1359,6 +1359,10 @@ The bridge provides:
 
 The Status UI connects to `http://127.0.0.1:17888` to access these features.
 
+**Proposed secure bridge pairing (draft, not deployed):** Operations that read local notification state, install/uninstall the LaunchAgent, or send a test Messages.app notification require an owner-paired browser tab. The macOS bridge provisions a strong token in the private local file `~/Library/Application Support/Dev Tunnel Proxy/notification-bridge.token` (directory 0700, file 0600). On the **same Mac**, read that file in a trusted local terminal and enter the token into the Status UI's **Pair Bridge** prompt. Never paste tokens into GitHub, chats, shared screenshots, application logs or web URLs. A pairing lasts only for that browser tab. External ngrok HTTPS origins are disabled by default; owners may explicitly configure `NOTIF_BRIDGE_ALLOWED_ORIGINS=https://exact-domain.example` **for the bridge process** only when they understand the security implications. This does not grant ChatGPT or a remote computer access to the Mac's Messages app.
+
+See [macOS bridge security/pairing design](docs/architecture/DEVPROXY_P0_MACOS_BRIDGE_PAIRING_SECURITY_V1.md). The current installed service is unchanged until separately reviewed and deployed.
+
 ### Installing the Background Service
 
 Once the bridge is running, open any route's Notifications panel in the Status UI. You'll see a **⚙️ Background Service** section where you can:
