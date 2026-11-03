@@ -1,0 +1,121 @@
+{
+  "audit_id": "DEVPROXY_P0_RO_CODE_RW_ROUTE_DATA_PARITY",
+  "label": "RO_ROUTE_MUTATION_PARITY_READY_FOR_OWNER_GO",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "4c75d7f4a7bc8cc0f227360d4c43255f552e0fae",
+    "cto_pr": 54,
+    "engineer_pr53_sha": "228bd700e9b980c2d2a948087c4ee02b6b07a566",
+    "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "prior_go_consumed": "6595948888"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "focused": "34/34 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "parity_before": {
+    "parity": true,
+    "sha": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "count": 270,
+    "head": "d89c962fb31a962a518f331bae458e63708e7e86"
+  },
+  "disp_compose_gates": {
+    "/app": {
+      "present": true,
+      "read_only": true,
+      "ok": true
+    },
+    "/app/.env": {
+      "present": true,
+      "read_only": true,
+      "ok": true
+    },
+    "/app/apps": {
+      "present": true,
+      "read_only": false,
+      "ok": true
+    },
+    "/app/overrides": {
+      "present": true,
+      "read_only": false,
+      "ok": true
+    },
+    "/app/config": {
+      "present": true,
+      "read_only": false,
+      "ok": true
+    },
+    "/app/build/sites-enabled": {
+      "present": true,
+      "read_only": false,
+      "ok": true
+    },
+    "/app/.artifacts": {
+      "present": true,
+      "read_only": false,
+      "ok": true
+    }
+  },
+  "functional_essentials": {
+    "app_config_write": true,
+    "override_write": true,
+    "config_edit": true,
+    "bundle_output": true,
+    "code_ro": true,
+    "mount_matrix": true,
+    "auth_session": true,
+    "synth17": true,
+    "no_docker_sock": true
+  },
+  "api_mutation": {
+    "install_http": "422",
+    "install_error_code": "nginx_test_failed",
+    "app_file_written_despite_status": true,
+    "promote_http": "422",
+    "override_written": true,
+    "regen_http": "200",
+    "sites_has_parityapi": true,
+    "docker_bin": false,
+    "docker_sock": false
+  },
+  "config_edit": {
+    "rw_config_dir_write": true,
+    "http_config_path_reaches_write_then_nginx": true
+  },
+  "postcheck_synthetic": {
+    "ok": {
+      "code": "API_ONLY_RO_POSTCHECK_PLAN_ONLY",
+      "productionChangeAuthorized": false,
+      "performedActions": false,
+      "deployed": false,
+      "liveAttested": false
+    },
+    "badWritableCode": {
+      "code": "WRITABLE_APP_SUBMOUNT",
+      "productionChangeAuthorized": false,
+      "performedActions": false,
+      "deployed": false,
+      "liveAttested": false
+    }
+  },
+  "live_passive": {
+    "proxy_id_prefix": "1932725ad746",
+    "api_id_prefix": "51bbafd0cf14",
+    "ngrok_id_prefix": "178b23cbdb9d",
+    "proxy_candidate": true,
+    "app_rw_still": true,
+    "ports_loopback": true,
+    "apps_17": true,
+    "ngrok_unchanged": true,
+    "live_mutation": false
+  },
+  "remaining_cto_architecture": {
+    "capability": "nginxTestAndMaybeReload requires docker CLI + docker exec dev-proxy",
+    "observed": "install/promote/config HTTP return 422 nginx_test_failed after RW file mutation when docker_bin=no and sock=no",
+    "do_not_reintroduce_host_docker_socket": true,
+    "consequence": "Full HTTP 200 on install/promote/config needs alternate reload path or controlled proxy signal without mounting docker.sock into API"
+  }
+}
