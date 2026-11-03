@@ -13,7 +13,7 @@
 | Prior Engineer #63 | `012aac8b17ca057f6abbcb2c1d4a28b878000ae8` — preserved |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip | see authoritative SHA after push |
+| This receipt tip | `35664aa682b82e1577bee14add22b273fc06da84` |
 
 ## STARTED
 Verified PR #63 tip and CTO `10d350dc…`. No competing active assignment. Specialists: none.
@@ -42,5 +42,7 @@ Verified PR #63 tip and CTO `10d350dc…`. No competing active assignment. Speci
 
 ## RETURNED
 **`NONLIVE_GUARDED_HOST_WORKER_VERIFIED` / `NOT_DEPLOYED`.**
+
+**Authoritative receipt SHA:** `35664aa682b82e1577bee14add22b273fc06da84`
 
 **Specialists:** none. **Production mutate:** none. **Owner UAT:** not invited.
