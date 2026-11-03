@@ -11,13 +11,12 @@ function record(o){
  if(o===null||typeof o!=='object'||Array.isArray(o))return false;
  const p=Object.getPrototypeOf(o);return (p===Object.prototype||p===null)&&Reflect.ownKeys(o).every(k=>typeof k==='string'&&K.has(k)&&Object.getOwnPropertyDescriptor(o,k)&&Object.prototype.hasOwnProperty.call(Object.getOwnPropertyDescriptor(o,k),'value'));
 }
-function noSymlinkComponents(absolute){
- let current=path.parse(absolute).root;
- for(const part of absolute.slice(current.length).split(path.sep).filter(Boolean)){
-  current=path.join(current,part);
-  if(fs.lstatSync(current).isSymbolicLink())return false;
- }
- return true;
+function noSymlinkStageRoots(stageRoot,candidateRoot){
+ // Reject symlink stage/candidate leaves. Do not walk OS ancestor mounts:
+ // macOS /var -> /private/var would false-BLOCKED_SYMLINK under os.tmpdir().
+ if(fs.lstatSync(stageRoot).isSymbolicLink()||fs.lstatSync(candidateRoot).isSymbolicLink())return false;
+ const realStage=fs.realpathSync(stageRoot),realCand=fs.realpathSync(candidateRoot);
+ return path.dirname(realCand)===realStage;
 }
 function existingTarget(target){
  try{
@@ -37,7 +36,7 @@ function prepareEmptyDotenvTarget(input){
      !path.isAbsolute(stageRoot)||!path.isAbsolute(candidateRoot)||
      stageRoot!==path.normalize(stageRoot)||candidateRoot!==path.normalize(candidateRoot)||
      path.dirname(candidateRoot)!==stageRoot)return reply('BLOCKED_STAGE_BOUNDARY');
-  if(!noSymlinkComponents(stageRoot)||!noSymlinkComponents(candidateRoot))return reply('BLOCKED_SYMLINK');
+  if(!noSymlinkStageRoots(stageRoot,candidateRoot))return reply('BLOCKED_SYMLINK');
   const s=fs.lstatSync(stageRoot),c=fs.lstatSync(candidateRoot);
   if(!s.isDirectory()||!c.isDirectory()||(s.mode&0o777)!==0o700||
      (c.mode&0o022)!==0||s.uid!==c.uid||
