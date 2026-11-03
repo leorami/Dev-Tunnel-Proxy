@@ -33,6 +33,8 @@ const fallback = () => ({
   browserOriginPolicyApplied: true,
   rollbackTestedWithinBudget: true,
   trustedReadOnlyRuntimeAttestation: true,
+  ownerAdminCredentialPreserved: true,
+  activeSessionsPreserved: true,
 });
 const run = (o = {}) => assessSecureRollback({
   secureBaseline: secureBaseline(),
@@ -72,6 +74,13 @@ test('no claims can bypass missing explicit confidentiality assertions', () => {
       const x=run({proposedFallback:{...fallback(),[key]:value}});
       denied(x); assert.equal(x.code,'EVIDENCE_INCOMPLETE',key+'='+value);
     }
+  }
+});
+test('a synthetic staging password or unverified sessions cannot be called a secure fallback', () => {
+  for(const key of ['ownerAdminCredentialPreserved','activeSessionsPreserved']) {
+    const x=run({proposedFallback:{...fallback(),[key]:false}});
+    denied(x);
+    assert.equal(x.code,'EVIDENCE_INCOMPLETE',key);
   }
 });
 test('untrusted baseline is never allowed to prove itself', () => {
