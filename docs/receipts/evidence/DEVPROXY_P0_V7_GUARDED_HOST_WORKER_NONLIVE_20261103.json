@@ -1,0 +1,60 @@
+{
+  "label": "NONLIVE_GUARDED_HOST_WORKER_VERIFIED",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "10d350dc2ef7c6683ca35efcc8c7980babc79769",
+    "cto_pr": 64,
+    "pr63_head": "012aac8b17ca057f6abbcb2c1d4a28b878000ae8",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "consumed_go": "6595948888"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "cto_host_operation_quarantine": "17/17 exit 0",
+    "v6_focused": "43/43 exit 0",
+    "v7_guarded_nonlive_integration": "9/9 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "did_not_repeat_pr59_disposable_api": true,
+  "did_not_repeat_pr61_socket_probe": true,
+  "did_not_repeat_pr63_mac_bind_probe": true,
+  "api_runtime": {
+    "allowConfigEdit": false,
+    "spool_wired": false,
+    "host_worker_installed": false
+  },
+  "changed_source_files": [
+    "utils/rc1-v7-guarded-host-worker-nonlive.cjs",
+    "utils/rc1-v6-bind-ipc-nonlive.cjs",
+    "tests/security/rc1-v7-guarded-host-worker-nonlive.test.cjs"
+  ],
+  "preserved_cto_modules": [
+    "utils/rc1-host-operation-quarantine.cjs",
+    "tests/security/rc1-host-operation-quarantine.test.cjs"
+  ],
+  "evidence_classes": {
+    "synthetic_fixture": true,
+    "mac_owner_transport": "MAC_SHARED_BIND_PENDING_unchanged",
+    "running_owner_origin_five": "all_unknown_not_pass"
+  },
+  "live_passive": {
+    "live_ids_prefix": {
+      "dev-proxy": "1932725ad746",
+      "dev-proxy-config-api": "51bbafd0cf14",
+      "dev-ngrok": "178b23cbdb9d"
+    },
+    "origin_five": {
+      "SOURCE_CURRENT": "unknown",
+      "SINGLE_RUNTIME": "unknown",
+      "NO_SHADOW_APPS": "unknown",
+      "REAL_APP_VERIFIED": "unknown",
+      "OWNER_WORK_PRESERVED": "unknown"
+    },
+    "owner_artifacts_written": false,
+    "mac_bind_probe_redone": false,
+    "specialists": "none"
+  },
+  "specialists": "none",
+  "receipt_content_sha": "35664aa682b82e1577bee14add22b273fc06da84"
+}
