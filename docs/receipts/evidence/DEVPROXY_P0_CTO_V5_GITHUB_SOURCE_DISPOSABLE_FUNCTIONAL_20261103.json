@@ -1,0 +1,99 @@
+{
+  "auth": true,
+  "synth17": true,
+  "promote": {
+    "http": 200,
+    "body": {
+      "ok": true,
+      "promoted": "v5act.conf"
+    },
+    "file": true
+  },
+  "config_edit": {
+    "http": 200,
+    "body": {
+      "ok": true
+    },
+    "changed": true
+  },
+  "regen_noreload": {
+    "http": 200,
+    "body": {
+      "ok": true,
+      "reloaded": false
+    }
+  },
+  "regen_reload": {
+    "http": 200,
+    "body": {
+      "ok": true,
+      "reloaded": true
+    }
+  },
+  "install2": {
+    "http": 200,
+    "body": {
+      "ok": true,
+      "installed": "v5act2.conf"
+    },
+    "file": true,
+    "ngx": [
+      200,
+      "v5act2-live"
+    ]
+  },
+  "invalid_422": {
+    "http": 422,
+    "body": {
+      "ok": false,
+      "error": "NGINX_CANDIDATE_REJECTED_ROLLED_BACK"
+    },
+    "file_absent": true,
+    "apps_same": true,
+    "bundle_same": true,
+    "marker_clear": true
+  },
+  "quarantine_503": {
+    "http": 503,
+    "body": {
+      "ok": false,
+      "error": "ACTIVATION_INDETERMINATE"
+    },
+    "route_marker": true,
+    "host_marker": "yes",
+    "v5q_absent": true
+  },
+  "quarantine_blocks_second": {
+    "http": 503,
+    "body": {
+      "ok": false,
+      "error": "ROUTE_STATE_QUARANTINED"
+    }
+  },
+  "csrf_evil": {
+    "http": 403
+  },
+  "rename_deferred": {
+    "http": 503,
+    "body": {
+      "ok": false,
+      "error": "transactional_rename_not_integrated"
+    }
+  },
+  "final": {
+    "synth17": true,
+    "v5act": true,
+    "v5act2": true,
+    "ngx_v5act": [
+      200,
+      "v5act-live"
+    ],
+    "ngx_synth01": [
+      200,
+      "synth01"
+    ],
+    "code_ro": true
+  },
+  "api_no_docker_sock": true,
+  "broker_has_docker_sock": true
+}

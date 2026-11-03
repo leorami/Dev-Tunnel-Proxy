@@ -45,6 +45,42 @@ const ENV_FILE = path.join(ROOT, '.env');
 const SESSION_FILE = path.join(ARTIFACTS_DIR, 'admin-session.json');
 const AUTO_SCAN_SETTINGS_FILE = path.join(ARTIFACTS_DIR, 'auto-scan-settings.json');
 const ROUTE_PROMOTIONS_FILE = path.join(ARTIFACTS_DIR, 'route-promotions.json');
+const {createProductionRouteMutationService} = require('./production-route-mutation.cjs');
+const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
+const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
+let routeManager = null;
+function getRouteMutationService(){
+  if(routeManager) return routeManager;
+  try {
+    // All required values are operator-provisioned privately, never in Git.
+    const socket=process.env.DEVPROXY_RELOAD_SOCKET;
+    const secretFile=process.env.DEVPROXY_RELOAD_SECRET_FILE;
+    let activation=null;
+    if(socket||secretFile){
+      if(typeof socket!=='string'||typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
+      const st=fs.lstatSync(secretFile);
+      if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o077)!==0)return null;
+      const secret=fs.readFileSync(secretFile);
+      activation=createAuthenticatedReloadClient({socketPath:socket,secret});
+    }
+    // Create only this private owner-data lock leaf; never modify /app source.
+    const art=fs.lstatSync(ARTIFACTS_DIR);
+    if(!art.isDirectory()||art.isSymbolicLink())return null;
+    const lockDir=path.join(ARTIFACTS_DIR,'route-mutation-locks');
+    try{fs.mkdirSync(lockDir,{mode:0o700});}catch(e){if(e.code!=='EEXIST')return null;}
+    const ld=fs.lstatSync(lockDir);
+    if(!ld.isDirectory()||ld.isSymbolicLink()||(ld.mode&0o077)!==0||
+       (typeof process.getuid==='function'&&ld.uid!==process.getuid()))return null;
+    const lock=createExclusiveMutationLock({directory:lockDir});
+    const generateBundle=()=>new Promise((resolve,reject)=>{
+      require('node:child_process').execFile(process.execPath,[path.join(__dirname,'generateAppsBundle.js')],
+        {cwd:ROOT,shell:false,timeout:12000,maxBuffer:4096},err=>err?reject(Error('BUNDLE_FAILED')):resolve());
+    });
+    routeManager=createProductionRouteMutationService({root:ROOT,activation,generateBundle,lock,allowConfigEdit:process.env.DEVPROXY_ALLOW_CONFIG_EDIT==='1'});
+    return routeManager;
+  } catch { return null; }
+}
+
 const RESERVED_PATHS = [
   '/',
   '/status',
@@ -404,19 +440,14 @@ function parseBody(req){
 }
 
 function safeConfigPath(file){
-  // Only allow single filename like encast.conf or paths under apps/
-  if (!file || file.includes('..')) return null;
-  const candidates = [
-    path.join(APPS_DIR, file),
-    path.join(ROOT, file),
-  ];
-  for (const p of candidates){
-    if (fs.existsSync(p) && fs.statSync(p).isFile()) return p;
-  }
-  // Fallback: search under apps for filename
-  const p2 = path.join(APPS_DIR, path.basename(file));
-  if (fs.existsSync(p2)) return p2;
-  return null;
+  if(typeof file!=='string'||file.includes('..'))return null;
+  const m=/^(?:(apps|overrides|config)\/)?([a-zA-Z0-9_-]{1,80}\.conf|default\.production\.conf)$/.exec(file);
+  if(!m)return null;
+  const root=m[1]==='overrides'?OVERRIDES_DIR:m[1]==='config'?path.join(ROOT,'config'):APPS_DIR;
+  if(m[2]==='default.production.conf'&&m[1]!=='config')return null;
+  const resolved=path.join(root,m[2]);
+  try{const st=fs.lstatSync(resolved);return st.isFile()&&!st.isSymbolicLink()&&st.nlink===1?resolved:null;}
+  catch{return null;}
 }
 
 function normalizeBasePath(basePath){
@@ -497,60 +528,16 @@ function buildRouteConfigSnippet({ name, basePath, upstream, options = {} }){
 }
 
 async function installAppConfigFile(name, content){
-  const appName = (name || '').replace(/\.conf$/i, '');
-  if (!appName || typeof appName !== 'string' || appName.includes('/') || appName.includes('..') || !appName.match(/^[a-zA-Z0-9_-]+$/)){
-    throw { status:400, code:'invalid_app_name', detail:'name must be alphanumeric with optional - or _ and no path segments' };
-  }
-  if (!content || typeof content !== 'string'){
-    throw { status:400, code:'invalid_content', detail:'content is required' };
-  }
-  fs.mkdirSync(APPS_DIR, { recursive: true });
-  const destPath = path.join(APPS_DIR, `${appName}.conf`);
-  // Backup existing file with retention
-  if (fs.existsSync(destPath)){
-    fs.copyFileSync(destPath, `${destPath}.backup.${Date.now()}`);
-    try{
-      const keep = Math.max(0, Number(process.env.CONFIG_BACKUP_RETENTION)||3);
-      if (keep >= 0){
-        const dir = path.dirname(destPath);
-        const base = path.basename(destPath);
-        const list = (fs.readdirSync(dir).filter(f => f.startsWith(base + '.backup.'))||[])
-          .map(f => ({ f, ts: Number(f.split('.backup.')[1]||0) }))
-          .sort((a,b)=> b.ts - a.ts);
-        const toDelete = list.slice(keep).map(x=> path.join(dir, x.f));
-        toDelete.forEach(p=>{ try{ fs.unlinkSync(p); }catch{} });
-      }
-    }catch{}
-  }
-  fs.writeFileSync(destPath, content, 'utf8');
-  let hardenWarning = null;
-  try {
-    const harden = spawnSync('node', [path.join(__dirname, 'hardenUpstreams.js')], { cwd: ROOT, encoding: 'utf8' });
-    if (harden.status !== 0){
-      hardenWarning = (harden.stderr || harden.stdout || '').trim() || 'hardenUpstreams failed';
-    }
-  } catch (e) {
-    hardenWarning = e.message;
-  }
-  const gen = spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-  if (gen.status !== 0){
-    throw { status:500, code:'bundle_generation_failed', detail: (gen.stderr||gen.stdout||'').slice(0,400) };
-  }
-  const test = nginxTestAndMaybeReload();
-  if (!test.ok){
-    throw { status:422, code:'nginx_test_failed', detail: test.stderr };
-  }
-  return { filename: `${appName}.conf`, path: destPath, hardenWarning };
+  const manager=getRouteMutationService();
+  if(!manager)throw {status:503,code:'ROUTE_ACTIVATION_UNAVAILABLE'};
+  const r=await manager.install(name,content);
+  if(!r.ok)throw {status:r.httpStatus,code:r.code};
+  const appName=name.replace(/\.conf$/i,'');
+  return {filename:appName+'.conf',hardenWarning:null};
 }
-
-function nginxTestAndMaybeReload(){
-  const test = spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-t'], { encoding: 'utf8' });
-  if (test.status !== 0){
-    return { ok:false, stderr: (test.stderr||'').trim() || (test.stdout||'').trim() };
-  }
-  spawnSync('docker', ['exec', 'dev-proxy', 'nginx', '-s', 'reload'], { encoding: 'utf8' });
-  return { ok:true };
-}
+// Retired: non-transactional Docker CLI reload had a partial-write failure.
+// Any remaining callers fail closed rather than regaining host Docker powers.
+function nginxTestAndMaybeReload(){return {ok:false,stderr:'TRANSACTIONAL_ROUTE_ACTIVATION_REQUIRED'};}
 
 function loadResolutions(){
   try{
@@ -896,27 +883,22 @@ async function handle(req, res){
       }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
     }
 
-    // POST /api/apps/regenerate { reload?: boolean }
+    // POST /api/apps/regenerate. Preserve generation-only parity without
+    // claiming nginx worker activation; reload:true must use the host broker.
     if (req.method === 'POST' && u.pathname === apiPath('apps/regenerate')){
-      try{
-        const body = await parseBody(req);
-        const wantReload = Boolean(body && body.reload);
-        const gen = spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        if (gen.status !== 0){
-          return send(res, 500, { ok:false, error: 'bundle_generation_failed', detail: (gen.stderr||gen.stdout||'').slice(0,400) });
-        }
-        let reload = { ok:false };
-        if (wantReload){ reload = nginxTestAndMaybeReload(); }
-        return send(res, 200, { ok:true, reloaded: reload.ok });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+      const body=await parseBody(req);
+      const manager=getRouteMutationService();
+      if(!manager)return send(res,503,{ok:false,error:'ROUTE_ACTIVATION_UNAVAILABLE'});
+      const r=await manager.regenerate({reload:Boolean(body&&body.reload)});
+      return send(res,r.httpStatus,{ok:r.ok,reloaded:r.reloaded===true,error:r.ok?undefined:r.code});
     }
-
     // POST /api/apps/cleanup { dryRun?: true }
     // Heuristic duplicate finder: groups by normalized content hash; keep newest per hash
     if (req.method === 'POST' && u.pathname === apiPath('apps/cleanup')){
       try{
         const body = await parseBody(req);
         const dryRun = (body && typeof body.dryRun === 'boolean') ? body.dryRun : true;
+        if(!dryRun)return send(res,503,{ok:false,error:'transactional_cleanup_not_integrated'});
         const files = fs.existsSync(APPS_DIR) ? fs.readdirSync(APPS_DIR).filter(f=>f.endsWith('.conf')) : [];
         const entries = files.map(f=>{
           const p = path.join(APPS_DIR, f);
@@ -1001,42 +983,15 @@ async function handle(req, res){
       }
     }
 
-    // Promote app config into overrides (replace override with apps version)
-    // POST /api/overrides/promote { filename }
+    // Promote app route only via scoped filesystem transaction and host verification.
     if (req.method === 'POST' && u.pathname === apiPath('overrides/promote')){
-      try{
-        const body = await parseBody(req);
-        const { filename } = body || {};
-        if (!filename || filename.includes('/') || filename.includes('..')){
-          return send(res, 400, { ok:false, error: 'Invalid filename' });
-        }
-        const appPath = path.join(APPS_DIR, filename);
-        const overridePath = path.join(OVERRIDES_DIR, filename);
-        if (!fs.existsSync(appPath)) return send(res, 404, { ok:false, error: 'App config not found' });
-        fs.mkdirSync(OVERRIDES_DIR, { recursive: true });
-
-        // Backup existing override if present
-        if (fs.existsSync(overridePath)){
-          fs.copyFileSync(overridePath, overridePath + '.bak.' + Date.now());
-        }
-        // Replace override with app version
-        fs.copyFileSync(appPath, overridePath);
-
-        // Regenerate bundle and reload nginx
-        const gen = spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        if (gen.status !== 0){
-          return send(res, 500, { ok:false, error: 'bundle_generation_failed', detail: (gen.stderr||gen.stdout||'').slice(0,400) });
-        }
-        const test = nginxTestAndMaybeReload();
-        if (!test.ok){
-          return send(res, 422, { ok:false, error: 'nginx_test_failed', detail: test.stderr });
-        }
-        return send(res, 200, { ok:true, promoted: filename });
-      }catch(e){
-        return send(res, 500, { ok:false, error: e.message });
-      }
+      const body=await parseBody(req);
+      const manager=getRouteMutationService();
+      if(!manager)return send(res,503,{ok:false,error:'ROUTE_ACTIVATION_UNAVAILABLE'});
+      const r=await manager.promote(body&&body.filename);
+      return send(res,r.httpStatus,{ok:r.ok,error:r.ok?undefined:r.code,
+        promoted:r.ok?body.filename:undefined});
     }
-
     // POST /api/apps/create-route
     // Create a config snippet with common defaults, optionally install it, and return the content for download
     if (req.method === 'POST' && u.pathname === apiPath('apps/create-route')){
@@ -1139,34 +1094,27 @@ async function handle(req, res){
       return send(res, 200, { ok:true, length: thinkingEvents.length });
     }
 
-    // GET /api/config/:file
-    if (req.method === 'GET' && seg[0] === 'api' && seg[1] === 'config' && seg[2]){
-      const p = safeConfigPath(seg.slice(2).join('/'));
-      if (!p) return send(res, 400, { error: 'Invalid file' });
-      const content = fs.readFileSync(p, 'utf8');
-      return send(res, 200, { file: path.relative(ROOT, p), content });
+    // GET /api/config/:file - only preexisting, bounded owner route files.
+    if (req.method === 'GET' && u.pathname.startsWith(apiPath('config/'))){
+      const p=safeConfigPath(u.pathname.slice(apiPath('config/').length));
+      if(!p)return send(res,400,{error:'Invalid file'});
+      try{return send(res,200,{file:path.relative(ROOT,p),content:fs.readFileSync(p,'utf8')});}
+      catch{return send(res,404,{error:'File unavailable'});}
     }
-
-    // POST /api/config/:file  { content }
-    if (req.method === 'POST' && seg[0] === 'api' && seg[1] === 'config' && seg[2]){
-      const p = safeConfigPath(seg.slice(2).join('/'));
-      if (!p) return send(res, 400, { error: 'Invalid file' });
-      const body = await parseBody(req);
-      if (typeof body.content !== 'string') return send(res, 400, { error: 'Missing content' });
-
-      const backup = p + '.backup.' + Date.now();
-      fs.copyFileSync(p, backup);
-      fs.writeFileSync(p, body.content, 'utf8');
-
-      const test = nginxTestAndMaybeReload();
-      if (!test.ok){
-        // revert
-        fs.copyFileSync(backup, p);
-        return send(res, 422, { error: 'nginx test failed', detail: test.stderr });
-      }
-      return send(res, 200, { ok:true, file: path.relative(ROOT, p) });
+    // POST /api/config/:file - bounded route data only, never application code.
+    if (req.method === 'POST' && u.pathname.startsWith(apiPath('config/'))){
+      const p=safeConfigPath(u.pathname.slice(apiPath('config/').length));
+      if(!p)return send(res,400,{ok:false,error:'BLOCKED_UNSAFE_CONFIG_ROUTE'});
+      const body=await parseBody(req);
+      if(!body||typeof body.content!=='string')return send(res,400,{ok:false,error:'INVALID_CONTENT'});
+      const manager=getRouteMutationService();
+      if(!manager)return send(res,503,{ok:false,error:'ROUTE_ACTIVATION_UNAVAILABLE'});
+      const rel=path.relative(ROOT,p),name=path.basename(p);
+      const r=rel.startsWith('apps'+path.sep)?await manager.editApp(name,body.content):
+        rel.startsWith('overrides'+path.sep)?await manager.editOverride(name,body.content):
+        await manager.editConfig(name,body.content);
+      return send(res,r.httpStatus,{ok:r.ok,error:r.ok?undefined:r.code});
     }
-
     // POST /api/resolve-conflict { route, winner }
     if (req.method === 'POST' && u.pathname === apiPath('resolve-conflict')){
       const body = await parseBody(req);
@@ -1178,37 +1126,11 @@ async function handle(req, res){
       return send(res, 200, { ok:true });
     }
 
-    // POST /api/rename-route { oldRoute, newRoute, configFile }
+    // POST /api/rename-route intentionally held until source-exact atomic rename.
+    // The old implementation wrote before a Docker CLI reload and was unsafe.
     if (req.method === 'POST' && u.pathname === apiPath('rename-route')){
-      const body = await parseBody(req);
-      const { oldRoute, newRoute, configFile } = body || {};
-      if (!oldRoute || !newRoute || !configFile) return send(res, 400, { error: 'oldRoute, newRoute, configFile required' });
-      const p = safeConfigPath(configFile);
-      if (!p) return send(res, 400, { error: 'Invalid configFile' });
-      const backup = p + '.backup.' + Date.now();
-      const src = fs.readFileSync(p, 'utf8');
-
-      // naive replacements to cover common patterns
-      const patterns = [
-        new RegExp('location\\s*=\\s*' + escapeReg(oldRoute) + '(?=\\s|$)', 'g'),
-        new RegExp('location\\s*\\^~\\s*' + escapeReg(oldRoute) + '(?=\\s|$)', 'g'),
-        new RegExp('(proxy_pass\\s+http[s]?:\\/\\/[^;]*?)' + escapeReg(oldRoute), 'g'),
-      ];
-      let updated = src;
-      for (const r of patterns){ updated = updated.replace(r, (m, g1) => g1 ? g1 + newRoute : m.replace(oldRoute, newRoute)); }
-
-      if (updated === src) return send(res, 409, { error: 'No occurrences found to rename' });
-      fs.copyFileSync(p, backup);
-      fs.writeFileSync(p, updated, 'utf8');
-
-      const test = nginxTestAndMaybeReload();
-      if (!test.ok){
-        fs.copyFileSync(backup, p);
-        return send(res, 422, { error: 'nginx test failed', detail: test.stderr });
-      }
-      return send(res, 200, { ok:true, file: path.relative(ROOT, p) });
+      return send(res,503,{ok:false,error:'transactional_rename_not_integrated'});
     }
-
     // ======== AI Assistant (optional) ========
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
