@@ -57,5 +57,6 @@
     "host_worker_installed": false,
     "specialists": "none"
   },
-  "specialists": "none"
+  "specialists": "none",
+  "receipt_content_sha": "b3565346cc071cbc15cdedaaf0c9ba18181c6eff"
 }

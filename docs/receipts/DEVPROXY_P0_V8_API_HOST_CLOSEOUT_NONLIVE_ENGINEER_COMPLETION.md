@@ -13,7 +13,7 @@
 | Prior Engineer #65 | `adba833bb35ac6981b34b8b7f4754ad304d9616f` — preserved |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip | see authoritative SHA after push |
+| This receipt tip | `b3565346cc071cbc15cdedaaf0c9ba18181c6eff` |
 
 ## STARTED
 Verified PR #65 tip and CTO `b32b423…`. No competing active assignment. Specialists: none.
@@ -44,5 +44,7 @@ After v7 fence clear and signed reply, outer v8/v5 post-check can still observe 
 
 ## RETURNED
 **`NONLIVE_API_HOST_SPOOL_INTEGRATION_VERIFIED` / `NOT_DEPLOYED`.**
+
+**Authoritative receipt SHA:** `b3565346cc071cbc15cdedaaf0c9ba18181c6eff`
 
 **Specialists:** none. **Production mutate:** none. **Owner UAT:** not invited.
