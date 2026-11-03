@@ -76,7 +76,7 @@ function getRouteMutationService(){
       require('node:child_process').execFile(process.execPath,[path.join(__dirname,'generateAppsBundle.js')],
         {cwd:ROOT,shell:false,timeout:12000,maxBuffer:4096},err=>err?reject(Error('BUNDLE_FAILED')):resolve());
     });
-    routeManager=createProductionRouteMutationService({root:ROOT,activation,generateBundle,lock,allowConfigEdit:process.env.DEVPROXY_ALLOW_CONFIG_EDIT==='1'});
+    routeManager=createProductionRouteMutationService({root:ROOT,activation,generateBundle,lock,allowConfigEdit:false});
     return routeManager;
   } catch { return null; }
 }

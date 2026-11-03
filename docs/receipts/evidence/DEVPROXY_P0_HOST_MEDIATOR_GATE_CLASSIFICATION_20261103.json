@@ -1,0 +1,18 @@
+{
+  "pr59_sidecar": {
+    "code": "BROKER_DOCKER_PRIVILEGE_BLOCKED",
+    "productionChangeAuthorized": false,
+    "readyForOwnerUat": false,
+    "deployed": false,
+    "actualHostAttested": false,
+    "liveChangePerformed": false
+  },
+  "live_ro": {
+    "code": "API_UNEXPECTED_MOUNT",
+    "productionChangeAuthorized": false,
+    "readyForOwnerUat": false,
+    "deployed": false,
+    "actualHostAttested": false,
+    "liveChangePerformed": false
+  }
+}

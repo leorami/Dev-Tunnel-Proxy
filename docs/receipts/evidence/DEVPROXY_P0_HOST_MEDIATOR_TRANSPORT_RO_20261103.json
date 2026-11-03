@@ -1,0 +1,14 @@
+{
+  "docker_desktop_engine_os": "linux",
+  "host_os": "darwin",
+  "observed_pr59_transport": "sidecar_linux_volume_unix_socket_plus_docker_sock_on_broker",
+  "mac_host_unix_socket_to_linux_container": "not_viable",
+  "alternatives_without_new_authority": {
+    "host_process_unix_socket_into_api_container": "blocked_by_desktop_vm_boundary",
+    "long_lived_broker_sidecar_with_docker_sock": "forbidden_by_handoff",
+    "new_network_listener_or_tunnel": "forbidden_without_separate_authority",
+    "mount_docker_sock_in_api": "forbidden"
+  },
+  "conclusion": "BLOCKED_HOST_TRANSPORT_CAPABILITY",
+  "single_minimal_decision_ready_option": "Authorize a host-process mediator design that Docker Desktop can actually carry (private IPC from Mac host broker to the existing API container) without a docker.sock sidecar and without an externally reachable listener; until that authority exists, do not promote PR #59 disposable sidecar evidence to live readiness."
+}
