@@ -156,3 +156,12 @@ test('timeout cannot be disabled or unbounded by caller',()=>{
  assert.throws(()=>createHostOperationQuarantine({directory:'/tmp/test',timeoutMs:0}),/INVALID_HOST_QUARANTINE_CONFIG/);
  assert.throws(()=>createHostOperationQuarantine({directory:'/tmp/test',timeoutMs:900000}),/INVALID_HOST_QUARANTINE_CONFIG/);
 });
+test('a callback may run real host commands, so guard must never claim no Docker action occurred',async()=>{
+ const f=await fixture();try{
+  const q=createHostOperationQuarantine({directory:f.root});let invoked=false;
+  const r=await q.run(()=>{invoked=true;return GOOD;});
+  assert.equal(invoked,true);
+  assert.equal(r.status,'VERIFIED_HOST_OPERATION');
+  assert.equal(Object.hasOwn(r,'performedDockerAction'),false);
+ }finally{await f.close();}
+});
