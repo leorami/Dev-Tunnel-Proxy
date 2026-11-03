@@ -11,7 +11,7 @@ Unix-socket blocker, PR #59's disposable route activation proof and PR #63's
 nonlive composition: do not repeat or discard them.
 
 CTO already delivered: `utils/rc1-host-operation-quarantine.cjs` +
-`tests/security/rc1-host-operation-quarantine.test.cjs` (16 passing Node 22.16
+`tests/security/rc1-host-operation-quarantine.test.cjs` (17 passing Node 22.16
 regressions, 1 RED missing-module receipt) plus design canon. Source is on
 this isolated CTO branch; do NOT recreate it in Cursor.
 
@@ -39,7 +39,7 @@ specialists but do not manufacture starts.
    separate host worker instances), crash/timeout, replaced sentinel, benign
    validation failure, forged positive reply, unchanged route file bytes,
    and absence of Docker socket or unexpected side effects. Run the CTO
-   16-test suite, existing v6 43 tests and project canonical
+   17-test suite, existing v6 43 tests and project canonical
    `./smart-build.sh test:unit`. No duplicate app or hidden preview server.
 5. **No** live host worker installation, long-lived process, Docker action,
    owner `.artifacts` write, new listener, sidecar, API env change, nginx
