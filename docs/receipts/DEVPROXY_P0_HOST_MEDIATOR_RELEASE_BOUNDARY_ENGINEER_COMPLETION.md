@@ -13,7 +13,7 @@
 | Prior Engineer #59 HEAD | `2a5769bd1105543692c7a21a51919e93f03d52d5` (receipt content `d8e6e527…`) |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip | see authoritative SHA after push |
+| This receipt tip | `201ac8535126feaa210cf90e5f2fe856211500d7` |
 
 ## STARTED
 Rechecked PR #59 HEAD vs tip, PR #60 CTO gate, live IDs (`1932725ad746…` / `51bbafd0cf14…` / `178b23cbdb9d…`). Did **not** rebuild v5 modules or repeat Mac disposable activation tests.
@@ -47,5 +47,7 @@ Transactional rename/cleanup; live host-process broker; content-bound config-edi
 
 ## RETURNED
 **`BLOCKED_HOST_TRANSPORT_CAPABILITY` / `NOT_DEPLOYED`.**
+
+**Authoritative receipt SHA:** `201ac8535126feaa210cf90e5f2fe856211500d7`
 
 **Specialists:** none. **Production mutate:** none. **Owner UAT:** not invited.

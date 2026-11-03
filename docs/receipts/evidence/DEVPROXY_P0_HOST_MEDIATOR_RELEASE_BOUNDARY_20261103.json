@@ -80,5 +80,6 @@
     "utils/rc1-route-host-trust-gate.cjs",
     "tests/security/rc1-route-host-trust-gate.test.cjs",
     "docs/handoffs/DEVPROXY_P0_HOST_MEDIATOR_RELEASE_BOUNDARY.md"
-  ]
+  ],
+  "receipt_content_sha": "201ac8535126feaa210cf90e5f2fe856211500d7"
 }
