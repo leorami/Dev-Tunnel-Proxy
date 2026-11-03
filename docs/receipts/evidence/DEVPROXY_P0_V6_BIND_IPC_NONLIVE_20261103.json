@@ -1,0 +1,70 @@
+{
+  "label": "SOURCE_CONTENT_BINDING_VERIFIED",
+  "host_transport": "MAC_SHARED_BIND_PENDING",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "7c451f908e0704f1f90529fc18680e17b8247110",
+    "cto_pr": 62,
+    "pr61_head": "1f2dbb78e8c045c008ace441e414aed495cbcdc1",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "consumed_go": "6595948888"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "v6_focused": "43/43 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "did_not_repeat_pr59_disposable_api_tests": true,
+  "did_not_repeat_pr61_host_socket_investigation": true,
+  "api_runtime": {
+    "allowConfigEdit": false,
+    "spool_wired": false,
+    "unix_socket_client_still_present": true
+  },
+  "nonlive_candidate": "utils/rc1-v6-bind-ipc-nonlive.cjs",
+  "cto_modules": [
+    "utils/rc1-route-candidate-manifest.cjs",
+    "utils/rc1-content-bound-activation-request.cjs",
+    "utils/rc1-activation-spool.cjs",
+    "utils/rc1-fixed-activation-host-worker.cjs"
+  ],
+  "live_facts_redacted": {
+    "api_has_artifacts_bind": true,
+    "api_artifacts_rw": true,
+    "api_app_rw": true,
+    "api_has_docker_sock": false,
+    "proxy_has_docker_sock": false,
+    "note": "owner .artifacts bind exists on live API; NOT written/probed under this handoff",
+    "origin_five": {
+      "SOURCE_CURRENT": "unknown",
+      "SINGLE_RUNTIME": "unknown",
+      "NO_SHADOW_APPS": "unknown",
+      "REAL_APP_VERIFIED": "unknown",
+      "OWNER_WORK_PRESERVED": "unknown"
+    }
+  },
+  "test_owned_bind_probe": {
+    "probe_root": "/private/tmp/dpv6-bind-probe",
+    "owner_artifacts_touched": false,
+    "new_sidecar": false,
+    "docker_sock_mounted": false,
+    "network_listener": false,
+    "host_background_process": false,
+    "host_to_container_read": true,
+    "container_to_host_append_visible": true,
+    "container_fsync_file_visible_on_host": true,
+    "container_hardlink_publish_visible": true,
+    "conclusion": "test_owned_bind_file_ipc_feasible_on_docker_desktop",
+    "not_proven": [
+      "owner_.artifacts_ACL_UID_mapping",
+      "live_spool_under_owner_artifacts",
+      "host_worker_install",
+      "API_wired_to_spool"
+    ],
+    "mac_shared_bind_status": "MAC_SHARED_BIND_PENDING"
+  },
+  "origin_five": "all_unknown_not_pass",
+  "decision_ready_minimum_if_needed": "Owner authorization for a test-owned two-sided validation under a private non-owner spool path (or explicitly attested owner .artifacts ACL/UID plan) plus separate authority to install/run the fixed-action host worker \u2014 not granted by this receipt.",
+  "receipt_content_sha": "8d7a1e76e0c40c10f922574d26ac86496982c5f9"
+}
