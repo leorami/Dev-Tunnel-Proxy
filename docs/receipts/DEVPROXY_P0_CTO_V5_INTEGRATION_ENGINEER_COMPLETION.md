@@ -16,7 +16,7 @@
 | Handoff inside archive | `docs/handoffs/DEVPROXY_P0_CTO_V5_CONTENT_BOUND_ACTIVATION.md` |
 | Accessibility per CTO | Uncommitted conversation artifact; **not** available to Cursor from the comment alone; **no** `origin/<cto-branch>@40SHA` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This receipt tip | commit SHA after push |
+| This receipt tip |  |
 
 ## STARTED
 Rechecked PR #55/#56 tips and CTO `6612140718`. Did **not** repeat product/parity work from those returns. Live IDs unchanged; no production mutation.

@@ -19,5 +19,6 @@
     "ngrok_prefix": "178b23cbdb9d",
     "live_mutation": false
   },
-  "missing_fact": "CTO v5 package bytes not on GitHub and not on owner Mac paths accessible to Engineer"
+  "missing_fact": "CTO v5 package bytes not on GitHub and not on owner Mac paths accessible to Engineer",
+  "receipt_sha": "f7ebbab092353b7ee668e17339530b0437181cb8"
 }
