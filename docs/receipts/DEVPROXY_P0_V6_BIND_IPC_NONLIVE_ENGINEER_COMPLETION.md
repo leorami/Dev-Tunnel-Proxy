@@ -14,7 +14,7 @@
 | Prior Engineer #61 | `1f2dbb78e8c045c008ace441e414aed495cbcdc1` (`BLOCKED_HOST_TRANSPORT_CAPABILITY`) — evidence preserved, not replaced |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip | see authoritative SHA after push |
+| This receipt tip | `8d7a1e76e0c40c10f922574d26ac86496982c5f9` |
 
 ## STARTED
 Verified PR #61 tip, CTO `7c451f9…`, live IDs unchanged. No active competing engineer assignment on this scope.
@@ -43,5 +43,7 @@ Owner authorization for test-owned two-sided validation (private non-owner spool
 
 ## RETURNED
 **`SOURCE_CONTENT_BINDING_VERIFIED` / `NOT_DEPLOYED`** with **`MAC_SHARED_BIND_PENDING`**.
+
+**Authoritative receipt SHA:** `8d7a1e76e0c40c10f922574d26ac86496982c5f9`
 
 **Specialists:** none. **Production mutate:** none.

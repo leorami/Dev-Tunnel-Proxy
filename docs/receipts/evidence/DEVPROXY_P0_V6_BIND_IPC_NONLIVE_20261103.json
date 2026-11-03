@@ -65,5 +65,6 @@
     "mac_shared_bind_status": "MAC_SHARED_BIND_PENDING"
   },
   "origin_five": "all_unknown_not_pass",
-  "decision_ready_minimum_if_needed": "Owner authorization for a test-owned two-sided validation under a private non-owner spool path (or explicitly attested owner .artifacts ACL/UID plan) plus separate authority to install/run the fixed-action host worker \u2014 not granted by this receipt."
+  "decision_ready_minimum_if_needed": "Owner authorization for a test-owned two-sided validation under a private non-owner spool path (or explicitly attested owner .artifacts ACL/UID plan) plus separate authority to install/run the fixed-action host worker \u2014 not granted by this receipt.",
+  "receipt_content_sha": "8d7a1e76e0c40c10f922574d26ac86496982c5f9"
 }
