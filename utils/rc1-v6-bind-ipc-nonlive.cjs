@@ -13,6 +13,8 @@ const {provisionPrivateQueue,createSpoolClient,createSpoolHost}=require('./rc1-a
 const {createFixedActivationHostWorker}=require('./rc1-fixed-activation-host-worker.cjs');
 const {createGuardedNonliveHostWorker}=require('./rc1-v7-guarded-host-worker-nonlive.cjs');
 const {createHostOperationQuarantine}=require('./rc1-host-operation-quarantine.cjs');
+const {createRouteActivationSpoolAdapter}=require('./rc1-v8-spool-activation-adapter.cjs');
+const {createNonliveV8ApiHostCloseoutCandidate}=require('./rc1-v8-api-host-closeout-nonlive.cjs');
 
 const NONLIVE=Object.freeze({
   label:'SOURCE_CONTENT_BINDING_V6_NONLIVE',
@@ -41,6 +43,8 @@ function createNonliveV6BindIpcCandidate(){
     createFixedActivationHostWorker,
     createHostOperationQuarantine,
     createGuardedNonliveHostWorker,
+    createRouteActivationSpoolAdapter,
+    createNonliveV8ApiHostCloseoutCandidate,
   });
 }
 
