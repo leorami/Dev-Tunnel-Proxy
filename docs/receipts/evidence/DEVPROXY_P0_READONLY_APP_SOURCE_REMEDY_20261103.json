@@ -1,0 +1,120 @@
+{
+  "audit_id": "DEVPROXY_P0_READONLY_APP_SOURCE_REMEDY_ENGINEER",
+  "label": "RO_REPAIR_READY_FOR_OWNER_DECISION",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "5bc68dd42cfb64a4863f760b7dfcaecb7ada62d4",
+    "cto_pr": 49,
+    "integrity_pr48_sha": "ddc14a115f2f13457d3dfc7fd7ab158d32449831",
+    "source_base_before_fix": "5bc68dd42cfb64a4863f760b7dfcaecb7ada62d4",
+    "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "owner_go_initial_restore": "6595948888",
+    "does_not_authorize_second_recreate": true
+  },
+  "mac_helper_fix": {
+    "red_first": "8/11 fail BLOCKED_SYMLINK under os.tmpdir via /var symlink",
+    "fix": "reject symlink stage/candidate leaves + realpath child boundary; do not walk OS ancestors",
+    "green": "11/11",
+    "node": "v22.19.0",
+    "helper_blob_sha1_after_fix": "aa691b831771cd7b0319d3cc6c20a514898869ce",
+    "helper_blob_sha1_cto_original": "d60e4002f4b291fbc1de7facf7d198e40fdef99a"
+  },
+  "tests": {
+    "focused_rc1_empty_dotenv_target": "11/11 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "stage_only": {
+    "plan_code": "READY_PRIVATE_STAGE_ONLY",
+    "apply_code": "CREATED_EMPTY_PRIVATE_PLACEHOLDER",
+    "idempotent_code": "ALREADY_EMPTY_PRIVATE_PLACEHOLDER",
+    "productionChangeAuthorized": false,
+    "size": 0,
+    "mode": "600",
+    "isFile": true,
+    "isSymlink": false,
+    "nlink": 1,
+    "secretBytesRead": false
+  },
+  "product_parity": {
+    "product_head": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "src_tree_sha256": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "cand_tree_sha256": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "parity": true,
+    "file_count": 270,
+    "file_count_cand": 270
+  },
+  "disp_compose_gates": {
+    "admin_password_absent_in_environment": true,
+    "origins_present": true,
+    "origins_count": 3,
+    "app_ro": true,
+    "dotenv_ro": true,
+    "apps_ro": true,
+    "artifacts_rw": true,
+    "ports": [
+      {
+        "published": "13001",
+        "target": 3001,
+        "host_ip": "127.0.0.1"
+      },
+      {
+        "published": "13002",
+        "target": 3002,
+        "host_ip": "127.0.0.1"
+      }
+    ],
+    "ports_loopback": true
+  },
+  "disp_runtime_proof": {
+    "api_running": true,
+    "mount_app_rw": false,
+    "mount_dotenv_rw": false,
+    "mount_apps_rw": false,
+    "mount_artifacts_rw": true,
+    "digest_match": true,
+    "digest_prefix": "0c9bd6e23f60",
+    "apps_conf_count": 17,
+    "origins_count": 3,
+    "login_ok": true,
+    "check_authed": true,
+    "evil_http": "403",
+    "docker_sock": false,
+    "app_write_rc": "1",
+    "env_write_rc": "1",
+    "apps_write_rc": "1",
+    "arts_write_rc": "0"
+  },
+  "live_passive": {
+    "proxy_id_prefix": "1932725ad746",
+    "api_id_prefix": "51bbafd0cf14",
+    "ngrok_id_prefix": "178b23cbdb9d",
+    "proxy_image_candidate": true,
+    "app_rw": true,
+    "api_docker_sock": false,
+    "ports_3001_loopback": true,
+    "ports_3002_loopback": true,
+    "apps_17": true,
+    "apps_count": 17,
+    "cto_probe_absent_in_container_listing": true,
+    "cto_probe_absent_on_host_product": true,
+    "live_mutation_this_audit": false,
+    "ngrok_unchanged_prefix": true,
+    "dotenv_mount_is_ro": true,
+    "app_mount_is_rw_deviation_still_live": true
+  },
+  "proposed_owner_gated_recreate": {
+    "requires_fresh_explicit_owner_go": true,
+    "scope": "API-only preferred; proxy only if necessary",
+    "steps": [
+      "Private 0700 stage + non-git candidate from d89c962 with digest parity",
+      "prepareEmptyDotenvTarget apply:true for zero-byte 0600 .env",
+      "Precreate other nested mountpoint dirs/files as needed (.artifacts dir)",
+      "Compose overlay: /app:ro + owner .env:ro + origins-only env_file (3, no ADMIN_PASSWORD)",
+      "Scoped force-recreate proxy-config-api (proxy if needed); never bfc92bd8 fallback",
+      "Verify mount RW=false and write EROFS; preserve 17 apps, sessions, ngrok/bridge"
+    ],
+    "fail_closed": "contain within proxy+API scope; never insecure image rollback"
+  }
+}
