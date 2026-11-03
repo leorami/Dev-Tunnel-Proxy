@@ -1,0 +1,17 @@
+{
+  "live_ids_prefix": {
+    "dev-proxy": "1932725ad746",
+    "dev-proxy-config-api": "51bbafd0cf14",
+    "dev-ngrok": "178b23cbdb9d"
+  },
+  "origin_five": {
+    "SOURCE_CURRENT": "unknown",
+    "SINGLE_RUNTIME": "unknown",
+    "NO_SHADOW_APPS": "unknown",
+    "REAL_APP_VERIFIED": "unknown",
+    "OWNER_WORK_PRESERVED": "unknown"
+  },
+  "owner_artifacts_written": false,
+  "mac_bind_probe_redone": false,
+  "specialists": "none"
+}
