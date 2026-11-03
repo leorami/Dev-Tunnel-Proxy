@@ -616,6 +616,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 status-only anonymous route attestation (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-anon-route-probe.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "RC1 disposable Compose bypass denial (fixtures only)" \
       "node --test '$ROOT_DIR/tests/security/rc1-disposable-compose-bypass.RED.test.cjs'" || test_result=1
   fi
