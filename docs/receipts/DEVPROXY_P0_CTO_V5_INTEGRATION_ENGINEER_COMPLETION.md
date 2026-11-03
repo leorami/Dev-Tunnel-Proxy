@@ -41,4 +41,6 @@ Authorize a CTO Git commit/push of the exact zip (SHA256 match) and dispatch `or
 ## RETURNED
 **`CTO_V5_INTEGRATION_BLOCKED_SOURCE_UNAVAILABLE` / `NOT_DEPLOYED`.**
 
+**Authoritative receipt SHA:** `082732a2ef47b9f62a831bee6379e2103c7fb3be`
+
 **Specialists:** none. **Production mutate:** none.
