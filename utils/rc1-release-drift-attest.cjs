@@ -120,6 +120,8 @@ function httpProbe(port, urlPath, collectBody = false) {
       { host: '127.0.0.1', port, path: urlPath, method: 'GET', timeout: 4000 },
       (res) => {
         const base = { status: res.statusCode || 0, body: '', location: res.headers.location || '', truncated: false };
+        res.on('error', () => resolve({ status: 0, body: '', location: '', truncated: false }));
+        res.on('close', () => resolve({ status: 0, body: '', location: '', truncated: false }));
         if (!collectBody) {
           resolve(base);
           res.destroy();
