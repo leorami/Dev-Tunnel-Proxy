@@ -69,5 +69,6 @@
     "utils/scoped-nginx-reload-mediator.cjs",
     "utils/route-activation-transaction.cjs",
     "utils/engineer-return-detection.cjs"
-  ]
+  ],
+  "receipt_content_sha": "ac74c1eaf2f79e91dd990ea7f5c4a8fe3f3f9d4c"
 }

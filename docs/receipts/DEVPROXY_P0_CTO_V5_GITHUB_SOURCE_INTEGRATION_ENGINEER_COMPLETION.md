@@ -17,7 +17,7 @@
 | Disposable proxy image | `sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip | see authoritative SHA after push |
+| This receipt tip |  |
 
 Companion evidence under `docs/receipts/evidence/DEVPROXY_P0_CTO_V5_GITHUB_SOURCE_*`.
 
