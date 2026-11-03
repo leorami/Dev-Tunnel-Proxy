@@ -1,0 +1,75 @@
+{
+  "label": "DISPOSABLE_ROUTE_ACTIVATION_VERIFIED",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "proxy_image": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+    "approved_proxy_image": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+    "proxy_image_match": true,
+    "integrated_api_sha256": "0c3cdbc7bf25ccb6292b403e90aa8e25a03c2ae164687617e0dc546015af6457",
+    "preview_blob": "74fb1cd3e0985df05ce89bc8a2ededf025933052",
+    "approved_api_blob": "2eb02328ab892add8a07648890c0047daafa3fc2",
+    "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "cto_handoff_sha": "e31d9b031af300b93e663e547439386bf04e7ab8"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "cto_route_activation_v5": "125/125 exit 0 (TMPDIR=/private/tmp/dpv5-node-tmp)",
+    "smart_build_test_unit_exit": 0
+  },
+  "disposable_essentials": {
+    "install_http": 200,
+    "install_ngx": 200,
+    "promote_http": 200,
+    "config_edit_http": 200,
+    "regen_noreload": 200,
+    "regen_reload": 200,
+    "invalid_422": 422,
+    "invalid_restored": true,
+    "quarantine_503": 503,
+    "quarantine_durable": "ROUTE_STATE_QUARANTINED",
+    "csrf_evil": 403,
+    "synth17": true,
+    "api_no_docker_sock": true,
+    "broker_has_docker_sock": true,
+    "rename_deferred": "transactional_rename_not_integrated"
+  },
+  "live_passive": {
+    "before": {
+      "proxy": "1932725ad746d70490ba62ace980a70c872a9b5ac6bfad76b5d5be955fa0bd28",
+      "api": "51bbafd0cf14190d22cc29e994ad063ba09e16105ea818de2db5bf91318303e7",
+      "ngrok": "178b23cbdb9d8aaf447d4f9bb8613393e32054733ed0ecb63d075bafe20d17f9"
+    },
+    "after": {
+      "proxy": "1932725ad746d70490ba62ace980a70c872a9b5ac6bfad76b5d5be955fa0bd28",
+      "api": "51bbafd0cf14190d22cc29e994ad063ba09e16105ea818de2db5bf91318303e7",
+      "ngrok": "178b23cbdb9d8aaf447d4f9bb8613393e32054733ed0ecb63d075bafe20d17f9"
+    },
+    "unchanged": true
+  },
+  "engineer_integration_notes": [
+    "Used CTO preview blob 74fb1cd3\u2026 as initial utils/proxyConfigAPI.js",
+    "Copied CTO v5 utils into utils/ without reimplementation",
+    "allowConfigEdit gated by DEVPROXY_ALLOW_CONFIG_EDIT=1 for attested disposable RW config mount",
+    "Mac Docker Desktop: Unix socket Mac-host\u2194Linux-container unavailable; host mediator ran as non-API sidecar sharing Linux volume socket; docker.sock only on broker sidecar",
+    "Mac bind-mount lock fd.close EIO: route-mutation-locks on Docker volume",
+    "Deferred: transactional rename + destructive cleanup (codemod fail-closed / 503 transactional_rename_not_integrated)"
+  ],
+  "changed_source_files": [
+    "utils/proxyConfigAPI.js",
+    "utils/production-route-mutation.cjs",
+    "utils/owner-authenticated-reload.cjs",
+    "utils/exclusive-route-mutation-lock.cjs",
+    "utils/host-bundle-digest-verifier.cjs",
+    "utils/host-execfile-adapter.cjs",
+    "utils/fixed-owner-activation-host.cjs",
+    "utils/fixed-nginx-docker-driver.cjs",
+    "utils/host-nginx-reload-client.cjs",
+    "utils/host-nginx-reload-service.cjs",
+    "utils/scoped-nginx-reload-mediator.cjs",
+    "utils/route-activation-transaction.cjs",
+    "utils/engineer-return-detection.cjs"
+  ],
+  "receipt_content_sha": "ac74c1e",
+  "authoritative_receipt_sha": "d8e6e52717d0759c1d35ca19810a7827d9013b49"
+}

@@ -1,0 +1,10 @@
+{
+  "proxy_image": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+  "approved_proxy_image": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+  "proxy_image_match": true,
+  "integrated_api_sha256": "0c3cdbc7bf25ccb6292b403e90aa8e25a03c2ae164687617e0dc546015af6457",
+  "preview_blob": "74fb1cd3e0985df05ce89bc8a2ededf025933052",
+  "approved_api_blob": "2eb02328ab892add8a07648890c0047daafa3fc2",
+  "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+  "cto_handoff_sha": "e31d9b031af300b93e663e547439386bf04e7ab8"
+}
