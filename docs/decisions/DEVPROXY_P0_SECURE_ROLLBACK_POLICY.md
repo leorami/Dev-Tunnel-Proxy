@@ -9,8 +9,8 @@
 
 ## CTO-owned source, RED first
 - `utils/rc1-secure-rollback-contract.cjs`: pure metadata-only checker. It never runs Docker/network/files, reads credentials, or authorizes release. Only a full-sha256 image/route/config/mount/origin fingerprint match to a previously independently verified secure RC1 baseline, with all confidentiality gates, can return `RC1_SECURITY_MATCH_PLAN_ONLY`. Even then `securitySafe:false`, `productionChangeAuthorized:false`, and `performedActions:false` because code cannot attest live reality.
-- `tests/security/rc1-secure-rollback-contract.test.cjs`: 12 test groups including pre-RC1 fallback denial, untrusted baseline, public API bind, password disclosure, artifact access, Origin continuity, malformed evidence, redaction and immutable result.
-- Original RED: `node --test` exited 1 with module absent. GREEN: exact GitHub source/test blob SHA1 verified against Node 22.16.0 local bytes and native `node --test` **12/12 passed**. Canonical unit hook added on isolated CTO branch, not verified on owner Mac.
+- `tests/security/rc1-secure-rollback-contract.test.cjs`: 13 test groups including pre-RC1 fallback denial, untrusted baseline, public API bind, password disclosure, artifact access, Origin continuity, **owner admin credential/session continuity**, malformed evidence, redaction and immutable result. A staged **synthetic** ADMIN_PASSWORD is not the owner's existing credential and MUST NOT accidentally replace production login state.
+- Original RED: `node --test` exited 1 with module absent. Additional credential/session RED intentionally failed (before the requirements were added), then GREEN. GREEN: exact GitHub source/test blob SHA1 verified against Node 22.16.0 local bytes and native `node --test` **13/13 passed**. Canonical unit hook added on isolated CTO branch, not verified on owner Mac.
 - No live/owner files accessed, zero Docker operations, zero new primary assignment, no approved product merge or deployment.
 
 ## Release policy (for owner/CTO later, NOT an Engineer-I staging handoff)
