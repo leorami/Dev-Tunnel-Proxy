@@ -87,16 +87,17 @@ function inspectEffectiveCompose(raw){
     const ports=inspectPorts(api.value);if(ports)return reply(ports);
     const n=uniqueMounts(proxy.value),a=uniqueMounts(api.value);
     if(!n||!a)return reply('INVALID_EVIDENCE');
-    const required=[['/app',true],['/app/.env',true],['/app/.artifacts',false],['/app/config/default.production.conf',true]];
+    const required=[['/app',true],['/app/.env',true],['/app/.artifacts',false],['/app/config',false],['/app/build/sites-enabled',false]];
     if(required.some(([target,ro])=>!a.has(target)||a.get(target).readOnly!==ro))return reply('MOUNT_CONTINUITY_MISMATCH');
-    if(!n.has('/etc/nginx/conf.d/default.conf')||n.get('/etc/nginx/conf.d/default.conf').readOnly!==true)return reply('MOUNT_CONTINUITY_MISMATCH');
+    if(!n.has('/etc/nginx/conf.d/default.conf')||n.get('/etc/nginx/conf.d/default.conf').readOnly!==true||!n.has('/etc/nginx/conf.d/sites-enabled')||n.get('/etc/nginx/conf.d/sites-enabled').readOnly!==true)return reply('MOUNT_CONTINUITY_MISMATCH');
     const ownerEnv=a.get('/app/.env').source,ownerArtifacts=a.get('/app/.artifacts').source;
     if(!ownerEnv.endsWith('/.env')||!ownerArtifacts.endsWith('/.artifacts')||path.posix.dirname(ownerEnv)!==path.posix.dirname(ownerArtifacts))return reply('MOUNT_CONTINUITY_MISMATCH');
     // A second submount can mask the preserved session even when the parent bind is correct.
     for(const target of a.keys()){
-      if(target.startsWith('/app/.artifacts/')||target.startsWith('/app/.env/'))return reply('UNREVIEWED_SHADOW_MOUNT');
+      if(['/app/.artifacts/','/app/.env/','/app/config/','/app/build/sites-enabled/'].some(prefix=>target.startsWith(prefix)))return reply('UNREVIEWED_SHADOW_MOUNT');
     }
-    if(n.get('/etc/nginx/conf.d/default.conf').source!==a.get('/app/config/default.production.conf').source)return reply('NGINX_API_CONFIG_SPLIT');
+    if(n.get('/etc/nginx/conf.d/default.conf').source!==a.get('/app/config').source+'/default.production.conf')return reply('NGINX_API_CONFIG_SPLIT');
+    if(n.get('/etc/nginx/conf.d/sites-enabled').source!==a.get('/app/build/sites-enabled').source)return reply('NGINX_API_ROUTES_SPLIT');
     // Structural correctness is never proof that these values are owner-approved.
     return reply('EFFECTIVE_COMPOSE_PLAN_ONLY');
   }catch{return reply('INVALID_EVIDENCE');}
