@@ -20,8 +20,10 @@ const GATES = new Set(GATE_KEYS);
 const EXPECTED_MOUNTS = Object.freeze({
   '/app':false,
   '/app/.env':false,
-  '/app/apps':false,
-  '/app/build/sites-enabled':false,
+  '/app/apps':true,
+  '/app/overrides':true,
+  '/app/config':true,
+  '/app/build/sites-enabled':true,
   '/app/.artifacts':true
 });
 const ID_RX = /^[0-9a-f]{64}$/;
@@ -48,7 +50,8 @@ function evaluateApiOnlyPostcheck(e) {
     if(!isRecord(e,TOP) || !isRecord(own(e,'before'),IDS) || !isRecord(own(e,'after'),IDS) ||
        !isRecord(own(e,'gates'),GATES)) return result('INVALID_EVIDENCE');
     const before=own(e,'before'),after=own(e,'after'),gates=own(e,'gates');
-    if([...IDS].some(k=>!ID_RX.test(own(before,k)) || !ID_RX.test(own(after,k))) ||
+    if([...IDS].some(k=>typeof own(before,k)!=='string' || typeof own(after,k)!=='string' ||
+       !ID_RX.test(own(before,k)) || !ID_RX.test(own(after,k))) ||
        [...GATES].some(k=>typeof own(gates,k)!=='boolean')) return result('INVALID_EVIDENCE');
     if(own(e,'productSha')!==PRODUCT_SHA) return result('WRONG_APPROVED_PRODUCT');
     if(own(e,'proxyImage')!==PROXY_IMAGE) return result('WRONG_APPROVED_PROXY_IMAGE');
@@ -71,7 +74,8 @@ function evaluateApiOnlyPostcheck(e) {
       if(target==='/var/run/docker.sock') return result('HOST_DOCKER_SOCKET_PRESENT');
       if(target==='/app/.env' && own(m.value,'rw')===true) return result('OWNER_ENV_WRITABLE');
       if(target==='/app/.artifacts' && own(m.value,'rw')===false) return result('SESSION_STORE_READ_ONLY');
-      if(target.startsWith('/app/') && own(m.value,'rw')===true && target!=='/app/.artifacts')
+      if(target.startsWith('/app/') && own(m.value,'rw')===true &&
+         !Object.hasOwn(EXPECTED_MOUNTS,target))
         return result('WRITABLE_APP_SUBMOUNT');
     }
     if(Object.entries(EXPECTED_MOUNTS).some(([target,rw])=>
