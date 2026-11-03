@@ -59,7 +59,7 @@ test('RW source + root + Docker socket is CRITICAL, including when socket mount 
  }
 });
 test('if inspect command fails, return redacted UNKNOWN instead of printing stderr/paths',()=>{
- const {result}=(()=>{const run=()=>{throw new Error('docker connect denied password=NEVER_SHOW_PRIVATE_HOST')}};return {result:auditDockerRuntime({run})}})();
+ const result=auditDockerRuntime({run:()=>{throw new Error('docker connect denied password=NEVER_SHOW_PRIVATE_HOST');}});
  assert.equal(result.state,'UNKNOWN');assert.equal(result.productionChangeAuthorized,false);
  assert.doesNotMatch(JSON.stringify(result),/password|NEVER_SHOW|PRIVATE_HOST/);
 });
