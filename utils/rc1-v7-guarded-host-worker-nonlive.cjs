@@ -76,13 +76,20 @@ function createGuardedNonliveHostWorker({
    const initial=await fs.lstat(markerPath,{bigint:true});
    const step=await runFixedSequence(signal,expectedCandidateSha256);
    if(step.phase==='pre'){
-    preReloadStatus=step.status;
-    // Benign pre-reload outcomes must not leave a durable crash fence.
+    // Only classify a validation rejection as safe AFTER successful and
+    // durably verified clearance of our original marker. Otherwise an
+    // attacker-replaced or unpersisted marker must remain indeterminate.
     await clearOwnedMarker(fenceDirectory,initial);
+    preReloadStatus=step.status;
     throw Object.assign(new Error('PRE_RELOAD_SAFE'),{code:'PRE_RELOAD_SAFE'});
    }
    if(step.phase!=='ok')throw Object.assign(new Error('POST_RELOAD_UNSAFE'),{code:'POST_RELOAD_UNSAFE'});
-   // Only a fully verified fixed-action result may clear the fence (via quarantine).
+   // Re-attest all three nginx config files BEFORE allowing the fence to
+   // clear. A successful HTTP route probe alone does not prove the candidate
+   // bytes still match the exact authenticated activation request.
+   const attested=await createCandidateManifest({approvedRoot});
+   if(attested.candidateSha256!==expectedCandidateSha256)
+    throw Object.assign(new Error('CANDIDATE_CHANGED_AFTER_RELOAD'),{code:'CANDIDATE_CHANGED_AFTER_RELOAD'});
    return GOOD;
   });
   if(preReloadStatus&&PRE_RELOAD.has(preReloadStatus))return preReloadStatus;
