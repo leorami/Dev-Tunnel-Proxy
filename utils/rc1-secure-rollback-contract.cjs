@@ -12,7 +12,8 @@ const FALLBACK=new Set(['sourceSha','proxyImageId','nginxConfigSha256',
   'routesSha256','mountsSha256','trustedOriginsSha256',
   'minimalHealth','routesPrivate','artifactsPrivate',
   'adminPasswordDisclosureAbsent','directApiLoopbackOnly','notificationsLoopbackOnly',
-  'browserOriginPolicyApplied','rollbackTestedWithinBudget','trustedReadOnlyRuntimeAttestation']);
+  'browserOriginPolicyApplied','rollbackTestedWithinBudget','trustedReadOnlyRuntimeAttestation',
+  'ownerAdminCredentialPreserved','activeSessionsPreserved']);
 const REQUIRED_CONTROLS=[...FALLBACK].filter(k=>!BASELINE.has(k));
 const TOP=new Set(['secureBaseline','proposedFallback','legacyImageId']);
 function plainData(value, keys){
