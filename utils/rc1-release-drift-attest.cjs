@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { assessReleaseMutationPlan, RELEASE_SHA } = require('./rc1-release-drift-policy.cjs');
+const { classifyManagementBindings } = require('./rc1-runtime-ports.cjs');
 
 const RC1_PROXY_IMAGE_PREFIX = '9b2ae98f11d8';
 const LIVE_PROJECT = 'dev-tunnel-proxy';
@@ -103,53 +104,76 @@ function classifyManagementPorts(name) {
   const raw = sh('docker', ['inspect', name]);
   if (!raw) return 'unknown';
   try {
-    const ports = JSON.parse(raw)[0].NetworkSettings?.Ports || {};
-    let saw = false;
-    let allIface = false;
-    for (const key of ['3001/tcp', '3002/tcp']) {
-      const binds = ports[key];
-      if (!binds) continue;
-      saw = true;
-      for (const b of binds) {
-        const hip = b.HostIp || '0.0.0.0';
-        if (hip === '0.0.0.0' || hip === '::' || hip === '') allIface = true;
-      }
-    }
-    if (!saw) return 'unknown';
-    return allIface ? 'all_interfaces' : 'loopback';
+    const ports = JSON.parse(raw)[0].NetworkSettings?.Ports;
+    return classifyManagementBindings(ports);
   } catch {
     return 'unknown';
   }
 }
 
-function httpProbe(port, urlPath) {
+// Local HTTP probe. Private routes are classified by HTTP STATUS ONLY;
+// never buffer an anonymous /routes.json response which may expose owner data.
+// Minimal-health bodies are capped at 4 KiB; oversize => full_report.
+function httpProbe(port, urlPath, collectBody = false) {
   return new Promise((resolve) => {
     const req = http.request(
       { host: '127.0.0.1', port, path: urlPath, method: 'GET', timeout: 4000 },
       (res) => {
+        const base = { status: res.statusCode || 0, body: '', location: res.headers.location || '', truncated: false };
+        res.on('error', () => resolve({ status: 0, body: '', location: '', truncated: false }));
+        res.on('close', () => resolve({ status: 0, body: '', location: '', truncated: false }));
+        if (!collectBody) {
+          resolve(base);
+          res.destroy();
+          return;
+        }
         const chunks = [];
-        res.on('data', (c) => chunks.push(c));
+        let bytes = 0;
+        res.on('data', (c) => {
+          bytes += c.length;
+          if (bytes > 4096) {
+            resolve({ ...base, truncated: true });
+            res.destroy();
+            return;
+          }
+          chunks.push(c);
+        });
         res.on('end', () => {
-          const body = Buffer.concat(chunks).toString('utf8');
-          resolve({ status: res.statusCode || 0, body, location: res.headers.location || '' });
+          if (bytes <= 4096) resolve({ ...base, body: Buffer.concat(chunks).toString('utf8') });
         });
       }
     );
-    req.on('error', () => resolve({ status: 0, body: '', location: '' }));
+    req.on('error', () => resolve({ status: 0, body: '', location: '', truncated: false }));
     req.on('timeout', () => {
       req.destroy();
-      resolve({ status: 0, body: '', location: '' });
+      resolve({ status: 0, body: '', location: '', truncated: false });
     });
     req.end();
   });
 }
 
+// A redirect to an arbitrary page is not proof that the route is protected.
+// No body access, no user or route names included in diagnostic output.
+function classifyAnonymousRouteResponse(result) {
+  try {
+    if (!result || typeof result !== 'object') return 'unknown';
+    const status = result.status;
+    if (status === 200) return 'open';
+    if (status === 401 || status === 403) return 'denied';
+    if ([301, 302, 303, 307, 308].includes(status) &&
+        typeof result.location === 'string' &&
+        (result.location === '/admin/login' || result.location.startsWith('/admin/login?'))) return 'denied';
+    return 'unknown';
+  } catch { return 'unknown'; }
+}
+
 async function classifyPublicSurface() {
   // Prefer published proxy port 8080 (RC1/dev mapping). Fall back unknown.
-  const health = await httpProbe(8080, '/health.json');
-  const routes = await httpProbe(8080, '/routes.json');
+  const health = await httpProbe(8080, '/health.json', true);
+  const routes = await httpProbe(8080, '/routes.json', false);
   let publicHealth = 'unknown';
-  if (health.status === 200) {
+  if (health.truncated) publicHealth = 'full_report';
+  else if (health.status === 200) {
     try {
       const j = JSON.parse(health.body);
       const keys = Object.keys(j || {});
@@ -162,12 +186,7 @@ async function classifyPublicSurface() {
   } else if (health.status === 503) {
     publicHealth = 'minimal'; // fail-closed missing report still RC1-shaped
   }
-  let anonymousRoutes = 'unknown';
-  if (routes.status === 200 && routes.body.trim().startsWith('{')) anonymousRoutes = 'open';
-  else if (routes.status === 302 || routes.status === 401 || (routes.status === 302)) anonymousRoutes = 'denied';
-  else if (routes.status === 302 || /login/i.test(routes.location)) anonymousRoutes = 'denied';
-  else if ([301, 302, 303, 307, 308].includes(routes.status)) anonymousRoutes = 'denied';
-  else if (routes.status === 401 || routes.status === 403) anonymousRoutes = 'denied';
+  const anonymousRoutes = classifyAnonymousRouteResponse(routes);
   return { publicHealth, anonymousRoutes };
 }
 
@@ -289,5 +308,5 @@ module.exports = {
   attestLive,
   runPremutationGuard,
   // test seams
-  _test: { classifyProxyImage, classifyDockerSock, classifyManagementPorts, classifyLiveSource },
+  _test: { classifyProxyImage, classifyDockerSock, classifyManagementPorts, classifyLiveSource, classifyAnonymousRouteResponse, httpProbe },
 };
