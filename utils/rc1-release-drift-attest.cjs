@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { assessReleaseMutationPlan, RELEASE_SHA } = require('./rc1-release-drift-policy.cjs');
+const { classifyManagementBindings } = require('./rc1-runtime-ports.cjs');
 
 const RC1_PROXY_IMAGE_PREFIX = '9b2ae98f11d8';
 const LIVE_PROJECT = 'dev-tunnel-proxy';
@@ -103,20 +104,8 @@ function classifyManagementPorts(name) {
   const raw = sh('docker', ['inspect', name]);
   if (!raw) return 'unknown';
   try {
-    const ports = JSON.parse(raw)[0].NetworkSettings?.Ports || {};
-    let saw = false;
-    let allIface = false;
-    for (const key of ['3001/tcp', '3002/tcp']) {
-      const binds = ports[key];
-      if (!binds) continue;
-      saw = true;
-      for (const b of binds) {
-        const hip = b.HostIp || '0.0.0.0';
-        if (hip === '0.0.0.0' || hip === '::' || hip === '') allIface = true;
-      }
-    }
-    if (!saw) return 'unknown';
-    return allIface ? 'all_interfaces' : 'loopback';
+    const ports = JSON.parse(raw)[0].NetworkSettings?.Ports;
+    return classifyManagementBindings(ports);
   } catch {
     return 'unknown';
   }
