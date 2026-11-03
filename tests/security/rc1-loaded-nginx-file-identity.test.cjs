@@ -117,3 +117,27 @@ test('runtime snapshot with unexpected directories is blocked, never grants live
   assert.equal(result.effectiveNginxConfigComplete,false);
  }finally{await f.cleanup();}
 });
+test('world-writable runtime nginx config must never be reported identity-safe',async()=>{
+ const f=await fixture();try{
+  await fs.chmod(path.join(f.live,'etc/nginx/conf.d/default.conf'),0o666);
+  assert.notEqual((await check(f)).code,'FIXED_NGINX_FILES_MATCH_REPORTED');
+ }finally{await f.cleanup();}
+});
+test('group-writable runtime config directory must fail closed',async()=>{
+ const f=await fixture();try{
+  await fs.chmod(path.join(f.live,'etc/nginx/conf.d'),0o770);
+  assert.notEqual((await check(f)).code,'FIXED_NGINX_FILES_MATCH_REPORTED');
+ }finally{await f.cleanup();}
+});
+test('world-writable approved candidate config must fail closed',async()=>{
+ const f=await fixture();try{
+  await fs.chmod(path.join(f.approved,'config/default.production.conf'),0o666);
+  assert.notEqual((await check(f)).code,'FIXED_NGINX_FILES_MATCH_REPORTED');
+ }finally{await f.cleanup();}
+});
+test('group-writable approved candidate root must fail closed',async()=>{
+ const f=await fixture();try{
+  await fs.chmod(f.approved,0o770);
+  assert.notEqual((await check(f)).code,'FIXED_NGINX_FILES_MATCH_REPORTED');
+ }finally{await f.cleanup();}
+});
