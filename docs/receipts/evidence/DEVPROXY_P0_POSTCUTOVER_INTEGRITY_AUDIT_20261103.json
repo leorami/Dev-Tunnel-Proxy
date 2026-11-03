@@ -1,0 +1,259 @@
+{
+  "audit_id": "DEVPROXY_P0_POSTCUTOVER_INTEGRITY_AUDIT_20261103",
+  "pinned_engineer_sha": "4fe5f78fd4a527e4ca71e42d7f311338b982367a",
+  "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+  "owner_go": "6595948888",
+  "cto_instruction": "6597244028",
+  "deploy_receipt_issue_comment": "6597177845",
+  "verdict_label": "DEPLOYED_WITH_SOURCE_MOUNT_DEVIATION",
+  "fully_secure_signed_off": false,
+  "live_ids_prefix": {
+    "proxy_id_prefix": "1932725ad746",
+    "api_id_prefix": "51bbafd0cf14",
+    "ngrok_id_prefix": "178b23cbdb9d"
+  },
+  "images": {
+    "proxy": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+    "api": "sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e",
+    "proxy_is_candidate": true,
+    "proxy_is_legacy": false
+  },
+  "flags": {
+    "APP_PARENT_IS_RW": true,
+    "DOTENV_IS_RO": true,
+    "API_RUNS_AS_ROOT": true,
+    "API_DOCKER_SOCK_PRESENT": false,
+    "PROXY_DOCKER_SOCK_PRESENT": false,
+    "API_PRIVILEGED_FLAG": false,
+    "PORTS_LOOPBACK_OK": true,
+    "CONFIDENTIALITY_HTTP_OK": true,
+    "APPS_17_OK": true,
+    "SESSION_0600_OK": true,
+    "PROXY_CANDIDATE_OK": true,
+    "NGROK_STABLE": true,
+    "APPROVED_APP_RO_VIOLATION": true,
+    "MATERIAL_SOURCE_INTEGRITY_RISK": true,
+    "DOCKER_SOCK_RISK": false
+  },
+  "probes_summary": {
+    "api_uid0": true,
+    "app_test_w": true,
+    "dotenv_test_w": true,
+    "apps_test_w": true,
+    "docker_sock_present": false,
+    "admin_password_absent_env": true,
+    "origins_count_3": true,
+    "nginx_t_ok": true,
+    "digest_prefix": [
+      "0c9bd6e23f60"
+    ]
+  },
+  "runtime_http_corrected": {
+    "health_minimal_ok": true,
+    "anon_check_401": true,
+    "artifacts_404": true,
+    "show_password_404": true,
+    "evil_origin_403": true,
+    "login_200": true,
+    "session_check_200_via_cookie_jar": true,
+    "session_check_urllib_false_negative_samesite": true
+  },
+  "write_semantics": {
+    "app_parent_mount_rw": true,
+    "app_actual_write_succeeds": true,
+    "dotenv_mount_ro": true,
+    "dotenv_actual_write_erofs": true,
+    "apps_mount_ro": true,
+    "apps_actual_write_erofs": true,
+    "test_w_unreliable_on_docker_desktop_ro": true
+  },
+  "api_mounts_redacted": [
+    {
+      "dest": "/app/.artifacts",
+      "rw": true,
+      "class": "artifacts",
+      "source_basename": ".artifacts"
+    },
+    {
+      "dest": "/app/apps",
+      "rw": false,
+      "class": "apps",
+      "source_basename": "apps"
+    },
+    {
+      "dest": "/app/build/sites-enabled",
+      "rw": false,
+      "class": "sites",
+      "source_basename": "sites-enabled"
+    },
+    {
+      "dest": "/app",
+      "rw": true,
+      "class": "product_tree",
+      "source_basename": "devproxy-p0-restore-disp-product"
+    },
+    {
+      "dest": "/app/.env",
+      "rw": false,
+      "class": "owner_env",
+      "source_basename": ".env"
+    },
+    {
+      "dest": "/app/config/default.production.conf",
+      "rw": false,
+      "class": "release_conf",
+      "source_basename": "default.production.conf"
+    }
+  ],
+  "privileges": {
+    "api_config_user": "root",
+    "api_privileged": false,
+    "api_docker_sock_count": 0,
+    "proxy_docker_sock_count": 0,
+    "api_uid0": true
+  },
+  "ports_api": {
+    "3001/tcp": {
+      "published": true,
+      "all_loopback": true,
+      "host_ips": [
+        "127.0.0.1"
+      ]
+    },
+    "3002/tcp": {
+      "published": true,
+      "all_loopback": true,
+      "host_ips": [
+        "127.0.0.1"
+      ]
+    }
+  },
+  "apps_count": 17,
+  "session_mode": "0o600",
+  "disposable_nested_mount_summary": [
+    {
+      "case": "A_no_dotenv_file_app_ro_env_ro",
+      "started": false,
+      "fail_reason": "EROFS_mountpoint",
+      "app_w": false,
+      "env_w": false,
+      "app_write_rc": null,
+      "env_write_rc": null,
+      "mounts": null
+    },
+    {
+      "case": "B_precreate_dotenv_file_app_ro_env_ro",
+      "started": true,
+      "fail_reason": "ok",
+      "app_w": true,
+      "env_w": true,
+      "app_write_rc": "1",
+      "env_write_rc": "1",
+      "mounts": [
+        {
+          "dest": "/app",
+          "rw": false,
+          "mode": "ro"
+        },
+        {
+          "dest": "/app/.env",
+          "rw": false,
+          "mode": "ro"
+        }
+      ]
+    },
+    {
+      "case": "C_control_app_rw_env_ro",
+      "started": true,
+      "fail_reason": "ok",
+      "app_w": true,
+      "env_w": true,
+      "app_write_rc": "0",
+      "env_write_rc": "1",
+      "mounts": [
+        {
+          "dest": "/app",
+          "rw": true,
+          "mode": ""
+        },
+        {
+          "dest": "/app/.env",
+          "rw": false,
+          "mode": "ro"
+        }
+      ]
+    },
+    {
+      "case": "D_app_ro_env_at_run_secrets",
+      "started": true,
+      "fail_reason": "ok",
+      "app_w": true,
+      "env_w": false,
+      "app_write_rc": "1",
+      "env_write_rc": "1",
+      "mounts": [
+        {
+          "dest": "/app",
+          "rw": false,
+          "mode": "ro"
+        },
+        {
+          "dest": "/run/secrets/dotenv",
+          "rw": false,
+          "mode": "ro"
+        }
+      ]
+    },
+    {
+      "case": "E_dotenv_is_dir_app_ro_env_ro",
+      "started": false,
+      "fail_reason": "other_fail",
+      "app_w": false,
+      "env_w": false,
+      "app_write_rc": null,
+      "env_write_rc": null,
+      "mounts": null
+    },
+    {
+      "case": "F_baked_dotenv_app_ro_no_nested",
+      "started": true,
+      "fail_reason": "ok",
+      "app_w": true,
+      "env_w": true,
+      "app_write_rc": "1",
+      "env_write_rc": "1",
+      "mounts": [
+        {
+          "dest": "/app",
+          "rw": false,
+          "mode": "ro"
+        }
+      ]
+    }
+  ],
+  "remedy_booleans": {
+    "precreate_dotenv_enables_app_ro_nested": true,
+    "live_style_rw_parent_works": true,
+    "missing_dotenv_file_fails_ro_parent": true,
+    "baked_no_nested_app_ro_works": true,
+    "non_nested_secret_path_app_ro_works": true
+  },
+  "proposed_scoped_correction": {
+    "do_not_execute_without_new_owner_go": true,
+    "steps_redacted": [
+      "Ensure product tree contains a regular-file placeholder at .env (empty or non-secret) BEFORE compose up",
+      "Restore API bind /app:ro while keeping owner .env nested :ro",
+      "Keep apps/sites :ro; artifacts rw; 3001/3002 loopback",
+      "Scoped force-recreate proxy-config-api then proxy only; verify mounts RW=false on /app"
+    ],
+    "disposable_proof_case": "B_precreate_dotenv_file_app_ro_env_ro"
+  },
+  "fail_closed_applied": false,
+  "production_recreate_performed": false,
+  "tests": {
+    "security_mjs": "106/106",
+    "exit_code": 0,
+    "command": "node --test tests/security/*.mjs",
+    "base_sha": "4fe5f78fd4a527e4ca71e42d7f311338b982367a"
+  }
+}
