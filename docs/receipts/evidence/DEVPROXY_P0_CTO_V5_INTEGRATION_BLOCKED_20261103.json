@@ -20,5 +20,6 @@
     "live_mutation": false
   },
   "missing_fact": "CTO v5 package bytes not on GitHub and not on owner Mac paths accessible to Engineer",
-  "receipt_sha": "f7ebbab092353b7ee668e17339530b0437181cb8"
+  "receipt_sha": "c7dab4fa70a1c58eaca38a0a19090c0a7ec35936",
+  "receipt_content_sha": "f7ebbab092353b7ee668e17339530b0437181cb8"
 }
