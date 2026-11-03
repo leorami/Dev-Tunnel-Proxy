@@ -11,7 +11,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const LEAF='host-operation-inflight';
 const VERIFIED=Object.freeze(['status','containerIdentityVerified','activeRouteVerified','candidateDigestVerified']);
-function outcome(status){return Object.freeze({status,productionChangeAuthorized:false,liveAttested:false,performedDockerAction:false});}
+function outcome(status){return Object.freeze({status,productionChangeAuthorized:false,liveAttested:false});}
 function validateDirectory(directory){
  return typeof directory==='string'&&path.isAbsolute(directory)&&path.normalize(directory)===directory&&
  directory!=='/'&&!directory.endsWith('/')&&!directory.includes('\0');
