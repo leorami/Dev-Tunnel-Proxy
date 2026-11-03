@@ -160,7 +160,7 @@ function classifyAnonymousRouteResponse(result) {
     if (status === 401 || status === 403) return 'denied';
     if ([301, 302, 303, 307, 308].includes(status) &&
         typeof result.location === 'string' &&
-        /^\\/admin\\/login(?:\\?|$)/.test(result.location)) return 'denied';
+        (result.location === '/admin/login' || result.location.startsWith('/admin/login?'))) return 'denied';
     return 'unknown';
   } catch { return 'unknown'; }
 }
