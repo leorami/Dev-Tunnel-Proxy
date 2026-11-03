@@ -1,0 +1,62 @@
+{
+  "label": "NONLIVE_API_HOST_SPOOL_INTEGRATION_VERIFIED",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "b32b42363a7b620518ffb1c23b9732caa0d1e9ed",
+    "cto_pr": 66,
+    "pr65_head": "adba833bb35ac6981b34b8b7f4754ad304d9616f",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "consumed_go": "6595948888"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "handoff_listed_plus_engineer_closeout": "101/101 exit 0 (--test-concurrency=1)",
+    "cto_cited_v6_plus_v8_plus_engineer": "75/75 exit 0",
+    "smart_build_test_unit_exit": 0,
+    "mac_note": "parallel run can flake timeoutMs=75 txn tests; concurrency=1 is authoritative on this Mac"
+  },
+  "did_not_wire_live_api": true,
+  "did_not_install_host_worker": true,
+  "did_not_repeat_mac_bind_or_socket_probes": true,
+  "changed_source_files": [
+    "utils/rc1-v8-api-host-closeout-nonlive.cjs",
+    "utils/rc1-v6-bind-ipc-nonlive.cjs",
+    "tests/security/rc1-v8-api-host-closeout-nonlive.test.cjs"
+  ],
+  "retained_cto_modules": [
+    "utils/rc1-v8-spool-activation-adapter.cjs",
+    "utils/rc1-v7-guarded-host-worker-nonlive.cjs",
+    "tests/security/rc1-v8-*.test.cjs"
+  ],
+  "remaining_gap": {
+    "description": "Candidate/config bytes can still change AFTER v7 fence clear + signed reply and BEFORE outer v8 adapter / v5 transaction post-check re-hash.",
+    "least_privileged_close": "Cross-process content lease or exclusive integrity lock acquired before reload attestation and held until outer post-check settles; or single atomic sign+attest transaction spanning host reply and API settle. Not implemented; requires separate owner authority for live worker/spool.",
+    "production_complete": false
+  },
+  "evidence_classes": {
+    "synthetic_fixture": true,
+    "mac_owner_transport": "MAC_SHARED_BIND_PENDING_unchanged",
+    "running_owner_origin_five": "all_unknown_not_pass"
+  },
+  "live_passive": {
+    "live_ids_prefix": {
+      "dev-proxy": "1932725ad746",
+      "dev-proxy-config-api": "51bbafd0cf14",
+      "dev-ngrok": "178b23cbdb9d"
+    },
+    "origin_five": {
+      "SOURCE_CURRENT": "unknown",
+      "SINGLE_RUNTIME": "unknown",
+      "NO_SHADOW_APPS": "unknown",
+      "REAL_APP_VERIFIED": "unknown",
+      "OWNER_WORK_PRESERVED": "unknown"
+    },
+    "owner_artifacts_written": false,
+    "api_spool_wired": false,
+    "host_worker_installed": false,
+    "specialists": "none"
+  },
+  "specialists": "none",
+  "receipt_content_sha": "b3565346cc071cbc15cdedaaf0c9ba18181c6eff"
+}
