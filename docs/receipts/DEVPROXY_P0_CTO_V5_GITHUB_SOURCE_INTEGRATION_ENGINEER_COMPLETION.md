@@ -17,7 +17,7 @@
 | Disposable proxy image | `sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Consumed GO | Issue #10 `6595948888` |
-| This receipt tip |  |
+| This receipt tip | `d8e6e52717d0759c1d35ca19810a7827d9013b49` |
 
 Companion evidence under `docs/receipts/evidence/DEVPROXY_P0_CTO_V5_GITHUB_SOURCE_*`.
 
@@ -54,5 +54,7 @@ Transactional rename and destructive cleanup remain fail-closed per CTO codemod;
 
 ## RETURNED
 **`DISPOSABLE_ROUTE_ACTIVATION_VERIFIED` / `NOT_DEPLOYED`.**
+
+**Authoritative receipt SHA:** `d8e6e52717d0759c1d35ca19810a7827d9013b49`
 
 **Specialists:** none. **Production mutate:** none.
