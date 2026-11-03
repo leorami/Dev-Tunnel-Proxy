@@ -616,6 +616,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "P0 resolved Compose confidentiality (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/p0-effective-compose-guard.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "P0 restoration evidence contract (fixtures only)" \
       "node --test '$ROOT_DIR/tests/security/p0-restoration-evidence.test.cjs'" || test_result=1
   fi
