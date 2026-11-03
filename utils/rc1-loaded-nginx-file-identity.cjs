@@ -31,14 +31,14 @@ function validRoot(root){return typeof root==='string'&&path.isAbsolute(root)&&
  path.normalize(root)===root&&root!=='/'&&!root.endsWith(path.sep)&&!root.includes('\0');}
 async function checkRoot(root){
  const stat=await fs.lstat(root);
- if(!stat.isDirectory()||stat.isSymbolicLink()||await fs.realpath(root)!==root)
+ if(!stat.isDirectory()||stat.isSymbolicLink()||(stat.mode&0o022)!==0||await fs.realpath(root)!==root)
   throw Error('LOADED_DIRECTORY_UNSAFE');
 }
 async function checkParents(root,relative){
  const segments=relative.split('/');let cur=root;
  for(const x of segments.slice(0,-1)){
   cur=path.join(cur,x);const st=await fs.lstat(cur);
-  if(!st.isDirectory()||st.isSymbolicLink()||await fs.realpath(cur)!==cur)
+  if(!st.isDirectory()||st.isSymbolicLink()||(st.mode&0o022)!==0||await fs.realpath(cur)!==cur)
    throw Error('LOADED_DIRECTORY_UNSAFE');
  }
 }
@@ -47,7 +47,7 @@ async function secureFile(root,relative){
  const file=path.join(root,relative);
  const before=await fs.lstat(file,{bigint:true});
  if(!before.isFile()||before.isSymbolicLink()||before.nlink!==1n||
-    before.size<1n||before.size>BigInt(limit))throw Error('LOADED_FILE_UNSAFE');
+    before.size<1n||before.size>BigInt(limit)||(before.mode&0o022n)!==0n)throw Error('LOADED_FILE_UNSAFE');
  const fd=await fs.open(file,constants.O_RDONLY|constants.O_NOFOLLOW);
  try{
   const opened=await fd.stat({bigint:true});
@@ -89,7 +89,8 @@ async function inspectLoadedNginxFileIdentity({approvedRoot,runtimeRoot}={}){
   for(const [candidate,loaded] of Object.entries(CANDIDATE_TO_LOADED)){
    const got=await secureFile(runtimeRoot,loaded);
    const expected=baseline.parts.find(x=>x.path===candidate)?.sha256;
-   if(expected!==got)return output('LOADED_CONFIG_BYTES_MISMATCH');
+   const approved=await secureFile(approvedRoot,candidate);
+   if(expected!==got||expected!==approved)return output('LOADED_CONFIG_BYTES_MISMATCH');
   }
   // Double-check around runtime read; not a lease against later mutations.
   const after=await createCandidateManifest({approvedRoot});
