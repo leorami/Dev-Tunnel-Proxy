@@ -1,0 +1,28 @@
+{
+  "label": "CTO_V4_INTEGRATION_BLOCKED_SOURCE_UNAVAILABLE",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "reimplementation_forbidden": true,
+  "pins": {
+    "pr55_sha": "beb845e84a9a82a5dea5b5329a97497422011f5e",
+    "requested_zip": "devproxy-cto-production-v4-104-tests.zip",
+    "requested_zip_sha256": "33b41a2e038dabcc905c308f60098ddc10b445e96ee3912f403a7241a79d4599",
+    "cto_comment_declaring_no_branch": "6611338058",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a"
+  },
+  "searched": [
+    "github_branches",
+    "icloud_downloads",
+    "desktop",
+    "private_tmp",
+    "cursor_agent_stores",
+    "development"
+  ],
+  "live_passive": {
+    "proxy": "1932725ad746",
+    "api": "51bbafd0cf14",
+    "ngrok": "178b23cbdb9d",
+    "live_mutation": false
+  },
+  "missing_fact": "CTO v4 package bytes not accessible to Engineer runtime"
+}
