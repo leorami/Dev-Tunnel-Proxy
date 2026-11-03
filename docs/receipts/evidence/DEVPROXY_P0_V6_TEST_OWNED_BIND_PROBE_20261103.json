@@ -1,0 +1,20 @@
+{
+  "probe_root": "/private/tmp/dpv6-bind-probe",
+  "owner_artifacts_touched": false,
+  "new_sidecar": false,
+  "docker_sock_mounted": false,
+  "network_listener": false,
+  "host_background_process": false,
+  "host_to_container_read": true,
+  "container_to_host_append_visible": true,
+  "container_fsync_file_visible_on_host": true,
+  "container_hardlink_publish_visible": true,
+  "conclusion": "test_owned_bind_file_ipc_feasible_on_docker_desktop",
+  "not_proven": [
+    "owner_.artifacts_ACL_UID_mapping",
+    "live_spool_under_owner_artifacts",
+    "host_worker_install",
+    "API_wired_to_spool"
+  ],
+  "mac_shared_bind_status": "MAC_SHARED_BIND_PENDING"
+}
