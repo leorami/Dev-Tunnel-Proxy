@@ -621,6 +621,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC1 security-safe rollback provenance (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc1-secure-rollback-contract.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "RC1 cutover preflight/parity/mount (fixtures only)" \
       "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs' '$ROOT_DIR/tests/security/rc1-config-parity.test.cjs' '$ROOT_DIR/tests/security/rc1-mount-continuity.test.cjs'" || test_result=1
   fi
