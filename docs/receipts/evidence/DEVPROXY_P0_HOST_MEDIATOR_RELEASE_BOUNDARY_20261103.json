@@ -1,0 +1,84 @@
+{
+  "label": "BLOCKED_HOST_TRANSPORT_CAPABILITY",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "6b34b7b4f110f0c30a8cb5add6f16e0759826e3d",
+    "cto_pr": 60,
+    "pr59_head": "2a5769bd1105543692c7a21a51919e93f03d52d5",
+    "pr59_receipt_content": "d8e6e52717d0759c1d35ca19810a7827d9013b49",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "consumed_go": "6595948888"
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "rc1_route_host_trust_gate": "29/29 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "did_not_repeat_pr59_disposable_docker": true,
+  "did_not_rebuild_v5_modules": true,
+  "config_edit": {
+    "DEVPROXY_ALLOW_CONFIG_EDIT_removed": true,
+    "allowConfigEdit": false,
+    "reason": "HMAC binds apps.generated.conf only; bare env flag is not live trust proof"
+  },
+  "architecture": {
+    "pr59_broker": "sidecar_with_docker_sock",
+    "required_by_gate": "host-process without docker.sock",
+    "mac_docker_desktop": "Linux VM; Mac-host Unix socket not reachable from API container"
+  },
+  "gate_classification": {
+    "pr59_sidecar": {
+      "code": "BROKER_DOCKER_PRIVILEGE_BLOCKED",
+      "productionChangeAuthorized": false,
+      "readyForOwnerUat": false,
+      "deployed": false,
+      "actualHostAttested": false,
+      "liveChangePerformed": false
+    },
+    "live_ro": {
+      "code": "API_UNEXPECTED_MOUNT",
+      "productionChangeAuthorized": false,
+      "readyForOwnerUat": false,
+      "deployed": false,
+      "actualHostAttested": false,
+      "liveChangePerformed": false
+    }
+  },
+  "host_transport_ro": {
+    "docker_desktop_engine_os": "linux",
+    "host_os": "darwin",
+    "observed_pr59_transport": "sidecar_linux_volume_unix_socket_plus_docker_sock_on_broker",
+    "mac_host_unix_socket_to_linux_container": "not_viable",
+    "alternatives_without_new_authority": {
+      "host_process_unix_socket_into_api_container": "blocked_by_desktop_vm_boundary",
+      "long_lived_broker_sidecar_with_docker_sock": "forbidden_by_handoff",
+      "new_network_listener_or_tunnel": "forbidden_without_separate_authority",
+      "mount_docker_sock_in_api": "forbidden"
+    },
+    "conclusion": "BLOCKED_HOST_TRANSPORT_CAPABILITY",
+    "single_minimal_decision_ready_option": "Authorize a host-process mediator design that Docker Desktop can actually carry (private IPC from Mac host broker to the existing API container) without a docker.sock sidecar and without an externally reachable listener; until that authority exists, do not promote PR #59 disposable sidecar evidence to live readiness."
+  },
+  "live_passive_redacted": {
+    "proxy_id_prefix": "1932725ad746",
+    "api_id_prefix": "51bbafd0cf14",
+    "ngrok_id_prefix": "178b23cbdb9d",
+    "proxy_has_docker_sock": false,
+    "api_has_docker_sock": false,
+    "api_app_rw": true,
+    "origin_five": "all_unknown_not_pass"
+  },
+  "single_minimal_decision_ready_option": "Authorize a host-process mediator design that Docker Desktop can actually carry (private IPC from Mac host broker to the existing API container) without a docker.sock sidecar and without an externally reachable listener; until that authority exists, do not promote PR #59 disposable sidecar evidence to live readiness.",
+  "deferred": [
+    "transactional_rename",
+    "destructive_cleanup",
+    "live_host_process_broker",
+    "config_edit_content_bound_attestation"
+  ],
+  "changed_source_files": [
+    "utils/proxyConfigAPI.js",
+    "utils/rc1-route-host-trust-gate.cjs",
+    "tests/security/rc1-route-host-trust-gate.test.cjs",
+    "docs/handoffs/DEVPROXY_P0_HOST_MEDIATOR_RELEASE_BOUNDARY.md"
+  ]
+}

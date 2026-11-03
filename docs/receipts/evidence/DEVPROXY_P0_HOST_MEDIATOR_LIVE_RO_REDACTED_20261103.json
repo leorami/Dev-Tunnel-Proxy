@@ -1,0 +1,157 @@
+{
+  "dev-proxy": {
+    "id_prefix": "1932725ad746",
+    "image": "rc1cutoverdisp-proxy:latest",
+    "image_id_prefix": "sha256:9b2ae98f11d8",
+    "mounts_redacted": [
+      {
+        "destination": "/entrypoint.sh",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/usr/share/nginx/html/.artifacts",
+        "rw": true,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/etc/nginx/certs",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/usr/share/nginx/html/status",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/usr/share/nginx/html/dashboard",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/etc/nginx/nginx.conf",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/etc/nginx/conf.d/default.conf",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/etc/nginx/conf.d/sites-enabled",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      }
+    ],
+    "ports_redacted": [
+      {
+        "container": "443/tcp",
+        "host_ip": "0.0.0.0",
+        "host_port": "443"
+      },
+      {
+        "container": "443/tcp",
+        "host_ip": "::",
+        "host_port": "443"
+      },
+      {
+        "container": "80/tcp",
+        "host_ip": "0.0.0.0",
+        "host_port": "8080"
+      },
+      {
+        "container": "80/tcp",
+        "host_ip": "::",
+        "host_port": "8080"
+      }
+    ],
+    "has_docker_sock": false
+  },
+  "dev-proxy-config-api": {
+    "id_prefix": "51bbafd0cf14",
+    "image": "node:18-alpine",
+    "image_id_prefix": "sha256:8d6421d663b4",
+    "mounts_redacted": [
+      {
+        "destination": "/app/build/sites-enabled",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/app",
+        "rw": true,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/app/.env",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/app/config/default.production.conf",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/app/.artifacts",
+        "rw": true,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/app/apps",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      }
+    ],
+    "ports_redacted": [
+      {
+        "container": "3001/tcp",
+        "host_ip": "127.0.0.1",
+        "host_port": "3001"
+      },
+      {
+        "container": "3002/tcp",
+        "host_ip": "127.0.0.1",
+        "host_port": "3002"
+      }
+    ],
+    "has_docker_sock": false
+  },
+  "dev-ngrok": {
+    "id_prefix": "178b23cbdb9d",
+    "image": "ngrok/ngrok:latest",
+    "image_id_prefix": "sha256:141f5645c298",
+    "mounts_redacted": [
+      {
+        "destination": "/entrypoint.sh",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      },
+      {
+        "destination": "/etc/ngrok.dynamic.yml",
+        "rw": false,
+        "type": "bind",
+        "source_kind": "owner_path_redacted"
+      }
+    ],
+    "ports_redacted": [],
+    "has_docker_sock": false
+  }
+}
