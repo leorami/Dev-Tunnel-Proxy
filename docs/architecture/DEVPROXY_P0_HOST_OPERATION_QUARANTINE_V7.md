@@ -80,7 +80,7 @@ No UI changed; do not claim a CTO pixel review or owner UAT.
 ## Verification and disposition
 
 CTO TDD: initial test runner failed on missing module (RED). After
-implementation and a corrected concurrent-test barrier, 16/16 native
+implementation and a corrected concurrent-test barrier, 17/17 native
 Node 22.16.0 regression tests pass, 0 skipped. Tests use only test-owned
 private temporary directories; no Docker, network, Mac owner services,
 credentials or real route files were touched.
