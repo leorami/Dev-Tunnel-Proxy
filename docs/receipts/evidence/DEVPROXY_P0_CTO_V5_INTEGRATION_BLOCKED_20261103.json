@@ -1,0 +1,23 @@
+{
+  "label": "CTO_V5_INTEGRATION_BLOCKED_SOURCE_UNAVAILABLE",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "reimplementation_forbidden": true,
+  "did_not_repeat_pr55_pr56_product_work": true,
+  "pins": {
+    "pr55_sha": "beb845e84a9a82a5dea5b5329a97497422011f5e",
+    "pr56_sha": "17b5053d6dd3803da57711730ed3f015835fad99",
+    "cto_comment": "6612140718",
+    "requested_zip": "devproxy-cto-v5-125-tests.zip",
+    "requested_zip_sha256": "171b504d146fe1f9fcaed8e13872d5a2499dc279476fb64acfee680755f6e915",
+    "handoff": "docs/handoffs/DEVPROXY_P0_CTO_V5_CONTENT_BOUND_ACTIVATION.md",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a"
+  },
+  "live_passive": {
+    "proxy_prefix": "1932725ad746",
+    "api_prefix": "51bbafd0cf14",
+    "ngrok_prefix": "178b23cbdb9d",
+    "live_mutation": false
+  },
+  "missing_fact": "CTO v5 package bytes not on GitHub and not on owner Mac paths accessible to Engineer"
+}
