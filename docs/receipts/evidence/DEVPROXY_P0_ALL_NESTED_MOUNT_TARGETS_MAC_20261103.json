@@ -1,0 +1,143 @@
+{
+  "audit_id": "DEVPROXY_P0_ALL_NESTED_MOUNT_TARGETS_MAC",
+  "label": "RO_ALL_MOUNTS_READY_OWNER_GO",
+  "not_deployed": true,
+  "production_recreate_performed": false,
+  "pins": {
+    "cto_handoff_sha": "b32004b50afab87f4c5d4734f0009361bc2bcbe8",
+    "cto_pr": 52,
+    "engineer_pr50_sha": "05659c927d19b9499469c44aabea97531cf4124a",
+    "product_sha": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "protected_master": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+    "prior_go_consumed": "6595948888",
+    "second_recreate_requires_new_go": true,
+    "blobs": {
+      "rc1_nested_mount_targets": "3315cb9ff298eee50f8d72bf95bb3a94511a4367",
+      "rc1_nested_mount_targets_test": "377ac7580d9c302665734d8ba4bd3cf9bbed4d26",
+      "rc1_empty_dotenv_target_mac": "aa691b831771cd7b0319d3cc6c20a514898869ce"
+    }
+  },
+  "tests": {
+    "node": "v22.19.0",
+    "focused_both": "21/21 exit 0",
+    "smart_build_test_unit_exit": 0
+  },
+  "parity_before": {
+    "product_head": "d89c962fb31a962a518f331bae458e63708e7e86",
+    "src_tree_sha256": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "cand_tree_sha256_before": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "parity_before": true,
+    "file_count": 270,
+    "cand_has_dotenv": false,
+    "cand_has_artifacts": false,
+    "cand_has_sites": false
+  },
+  "parity_after_product_files": {
+    "parity_after_placeholders_product_files": true,
+    "src": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "cand": "49567030e357501db8dd2f8a26b5692a292e4f79fca67157946447333adb8b97",
+    "count": 270
+  },
+  "nested_apply": {
+    "plan_code": "MISSING_PRIVATE_MOUNT_TARGETS",
+    "plan_missing": [
+      "ENV_FILE",
+      "ARTIFACTS_DIR",
+      "SITES_DIR"
+    ],
+    "plan_authorized": false,
+    "plan_secretBytesRead": false,
+    "apply_code": "STAGED_PRIVATE_MOUNT_TARGETS_ONLY",
+    "apply_missing": [],
+    "apply_authorized": false,
+    "idempotent_code": "ALREADY_STAGED_PRIVATE_MOUNT_TARGETS",
+    "dotenv": {
+      "exists": true,
+      "isFile": true,
+      "isDir": false,
+      "isSymlink": false,
+      "size": 0,
+      "mode": "600",
+      "nlink": 1
+    },
+    "artifacts": {
+      "exists": true,
+      "isFile": false,
+      "isDir": true,
+      "isSymlink": false,
+      "size": null,
+      "mode": "700",
+      "nlink": 2
+    },
+    "sites": {
+      "exists": true,
+      "isFile": false,
+      "isDir": true,
+      "isSymlink": false,
+      "size": null,
+      "mode": "700",
+      "nlink": 2
+    },
+    "default_conf_size": 18996
+  },
+  "disp_compose_gates": {
+    "admin_absent": true,
+    "origins_count": 3,
+    "app_ro": true,
+    "dotenv_ro": true,
+    "apps_ro": true,
+    "sites_ro": true,
+    "artifacts_rw": true,
+    "ports_loopback": true
+  },
+  "disp_runtime_proof": {
+    "api_running": true,
+    "mount_app_rw": false,
+    "mount_dotenv_rw": false,
+    "mount_apps_rw": false,
+    "mount_sites_rw": false,
+    "mount_artifacts_rw": true,
+    "digest_match": true,
+    "digest_prefix": "0c9bd6e23f60",
+    "apps_conf_count": 17,
+    "origins_count": 3,
+    "login_ok": true,
+    "check_authed": true,
+    "evil_http": "403",
+    "docker_sock": false,
+    "app_write_rc": "1",
+    "env_write_rc": "1",
+    "apps_write_rc": "1",
+    "sites_write_rc": "1",
+    "arts_write_rc": "0"
+  },
+  "live_passive": {
+    "proxy_id_prefix": "1932725ad746",
+    "api_id_prefix": "51bbafd0cf14",
+    "ngrok_id_prefix": "178b23cbdb9d",
+    "proxy_candidate_image": true,
+    "app_mount_rw": true,
+    "dotenv_mount_ro": true,
+    "ports_3001_loopback": true,
+    "ports_3002_loopback": true,
+    "apps_count": 17,
+    "apps_17": true,
+    "ngrok_unchanged": true,
+    "cto_probe_absent": true,
+    "live_mutation_this_turn": false,
+    "api_docker_sock": false
+  },
+  "owner_gated_recreate_plan": {
+    "requires_fresh_explicit_owner_go": true,
+    "scope": "API-only preferred; proxy only if necessary",
+    "fail_closed_no_bfc92bd8": true,
+    "preserve": [
+      "owner_credential",
+      "sessions",
+      "17_apps",
+      "ngrok",
+      "bridge",
+      "shared_nginx_api_config"
+    ]
+  }
+}
