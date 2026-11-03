@@ -7,11 +7,11 @@ function bind(source,target,read_only){return {type:'bind',source,target,read_on
 function candidate(){return {
   services:{
     proxy:{container_name:'dev-proxy',ports:[port('0.0.0.0',80,8080),port('0.0.0.0',443,443)],
-      volumes:[bind('/private/release/default.conf','/etc/nginx/conf.d/default.conf',true)]},
+      volumes:[bind('/private/release/default.production.conf','/etc/nginx/conf.d/default.conf',true),bind('/owner/build/sites-enabled','/etc/nginx/conf.d/sites-enabled',true),bind('/owner/.artifacts','/usr/share/nginx/html/.artifacts',false)]},
     'proxy-config-api':{container_name:'dev-proxy-config-api',
       environment:{DEVPROXY_TRUSTED_ORIGINS:'https://example.test http://127.0.0.1:8080',NODE_ENV:'production'},
       ports:[port('127.0.0.1',3001,3001),port('127.0.0.1',3002,3002)],
-      volumes:[bind('/candidate/source','/app',true),bind('/private/release/default.conf','/app/config/default.production.conf',true),
+      volumes:[bind('/candidate/source','/app',true),bind('/private/release','/app/config',false),bind('/owner/build/sites-enabled','/app/build/sites-enabled',false),
       bind('/owner/.env','/app/.env',true),bind('/owner/.artifacts','/app/.artifacts',false)],
     }
   }
@@ -61,7 +61,7 @@ test('source and owner private .env must remain RO, owner .artifacts RW',()=>{
   }
 });
 test('actual nginx config and API-visible config must use same host source',()=>{
-  const c=candidate();c.services['proxy-config-api'].volumes.find(x=>x.target==='/app/config/default.production.conf').source='/wrong/release.conf';
+  const c=candidate();c.services['proxy-config-api'].volumes.find(x=>x.target==='/app/config').source='/wrong/release';
   assert.equal(run(c).code,'NGINX_API_CONFIG_SPLIT');
 });
 test('proxy public ingress must remain only HTTP 8080 and HTTPS 443',()=>{
@@ -104,5 +104,14 @@ test('RED: any writable owner .env mount fails strict private-credential immutab
 });
 test('RED: nested extra binding at session file cannot shadow owner session mount',()=>{
   const c=candidate();c.services['proxy-config-api'].volumes.push(bind('/scratch/pretend-token-file','/app/.artifacts/admin-session.json',false));
+  assert.equal(run(c).code,'UNREVIEWED_SHADOW_MOUNT');
+});
+
+test('RED: route bundles on nginx and API must use same owner route directory',()=>{
+  const c=candidate();c.services['proxy-config-api'].volumes.find(x=>x.target==='/app/build/sites-enabled').source='/changed/routes';
+  assert.equal(run(c).code,'NGINX_API_ROUTES_SPLIT');
+});
+test('RED: nested API shadow over approved config root fails closed',()=>{
+  const c=candidate();c.services['proxy-config-api'].volumes.push(bind('/scratch/bad.conf','/app/config/default.production.conf',true));
   assert.equal(run(c).code,'UNREVIEWED_SHADOW_MOUNT');
 });
