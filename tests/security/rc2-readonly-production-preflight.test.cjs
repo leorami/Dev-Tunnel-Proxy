@@ -64,7 +64,7 @@ test('valid fixed Docker evidence is REVIEW_REQUIRED, never deployment authority
  assert.equal(result.deployed,false);
  assert.equal(result.runtimeAttested,false);
  assert.deepEqual(result.blockers,[]);
- assert.equal(t.called.length,14);
+ assert.equal(t.called.length,28);
  assert.ok(t.called.every(x=>x.args[0]==='inspect'&&x.args[1]==='--format'));
  assert.ok(t.called.every(x=>x.opts.shell===false));
  assert.equal(JSON.stringify(result).includes('/private/rc2/'),false);
@@ -141,5 +141,74 @@ test('proxy artifacts-only RW bind allowed when explicitly pinned; nginx still R
  const pre=createReadOnlyProductionPreflight({dockerBinary:'/usr/local/bin/docker',execFileImpl:fake,home:'/private/tmp',
   pins:{proxy:{containerId:ID.proxy,image:IMG.proxy,mounts},api:{containerId:ID.api,image:IMG.api,mounts:MOUNTS.api}}});
  const r=await pre.inspect();assert.equal(r.code,'EVIDENCE_FOR_INDEPENDENT_REVIEW_ONLY');
- assert.equal(calls.length,14);
+ assert.equal(calls.length,28);
+});
+
+// RC2 CTO independent source-hardening: these are RED-first against the
+// originally accepted PR #77 preflight, not synthetic claims about owner Mac.
+test('RED: a purported release manifest cannot approve RO API route data',()=>{
+ const original=structuredClone(MOUNTS);
+ for(const destination of ['/app/apps','/app/overrides','/app/build/sites-enabled','/app/.artifacts']){
+  const ro=structuredClone(original);
+  ro.api.find(x=>x.destination===destination).readOnly=true;
+  assert.throws(()=>createReadOnlyProductionPreflight({
+   dockerBinary:'/usr/local/bin/docker',execFileImpl:()=>{},home:'/tmp',
+   pins:{proxy:{containerId:ID.proxy,image:IMG.proxy,mounts:ro.proxy},
+    api:{containerId:ID.api,image:IMG.api,mounts:ro.api}}
+  }),/INVALID_RC2_PREFLIGHT/,`${destination} must be a writable data mount`);
+ }
+});
+
+test('RED: no production preflight review can result from one time-sliced Docker snapshot',async()=>{
+ const t=invoke();
+ const result=await t.run();
+ assert.equal(result.code,'EVIDENCE_FOR_INDEPENDENT_REVIEW_ONLY');
+ assert.equal(t.called.length,28,'two independently completed inspections of all 7 properties for both containers');
+});
+
+test('RED: Docker mount changes between complete inspection rounds block preflight',async()=>{
+ const t=invoke();
+ // Alter only after first full 14-call snapshot, matching the expected image
+ // and mount pins until just before the second inspection round.
+ const fake=(bin,args,opts,cb)=>{
+  const role=args[3]===ID.proxy?'proxy':'api';
+  const key=Object.keys(FORMAT).find(x=>FORMAT[x]===args[2]);
+  const result=structuredClone(t.records[role][key]);
+  t.called.push({bin,args:[...args],opts});
+  if(t.called.length===14){
+   t.records.proxy.mounts.push({Type:'bind',Source:'/private/rogue',Destination:'/etc/shadow',RW:false});
+  }
+  queueMicrotask(()=>cb(null,JSON.stringify(result)+'\n',''));
+ };
+ const pre=createReadOnlyProductionPreflight({
+  dockerBinary:'/usr/local/bin/docker',execFileImpl:fake,home:'/private/rc2/testing',
+  pins:{proxy:{containerId:ID.proxy,image:IMG.proxy,mounts:MOUNTS.proxy},
+   api:{containerId:ID.api,image:IMG.api,mounts:MOUNTS.api}}
+ });
+ const r=await pre.inspect();
+ assert.equal(r.code,'READ_ONLY_PREFLIGHT_BLOCKED');
+ assert.ok(r.blockers.includes('PROXY_MOUNTS_MISMATCH'),JSON.stringify(r.blockers));
+ assert.equal(r.productionChangeAuthorized,false);
+ assert.equal(JSON.stringify(r).includes('/private/rogue'),false);
+});
+
+test('RED: Docker container identity changes between rounds block even if both snapshots would independently parse',async()=>{
+ const t=invoke();
+ let calls=0;
+ const fake=(bin,args,opts,cb)=>{
+  const role=args[3]===ID.proxy?'proxy':'api';
+  const key=Object.keys(FORMAT).find(x=>FORMAT[x]===args[2]);
+  let value=t.records[role][key];
+  calls++;
+  if(calls===14)t.records.api.running=false;
+  queueMicrotask(()=>cb(null,JSON.stringify(value)+'\n',''));
+ };
+ const pre=createReadOnlyProductionPreflight({
+  dockerBinary:'/usr/local/bin/docker',execFileImpl:fake,home:'/private/rc2/testing',
+  pins:{proxy:{containerId:ID.proxy,image:IMG.proxy,mounts:MOUNTS.proxy},
+   api:{containerId:ID.api,image:IMG.api,mounts:MOUNTS.api}}
+ });
+ const r=await pre.inspect();
+ assert.equal(r.code,'READ_ONLY_PREFLIGHT_BLOCKED');
+ assert.ok(r.blockers.includes('API_NOT_RUNNING'),JSON.stringify(r.blockers));
 });

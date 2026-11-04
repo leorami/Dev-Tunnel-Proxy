@@ -23,6 +23,10 @@ const API_REQUIRED=Object.freeze([
 ]);
 const API_WRITABLE=new Set(['/app/apps','/app/overrides',
  '/app/build/sites-enabled','/app/.artifacts']);
+// These four directories MUST be RW or the real API silently loses route,
+// override, regenerated-bundle or session durability. Never permit an
+// operator-supplied pin to redefine a required data bind as read-only.
+const API_REQUIRED_RW=Object.freeze([...API_WRITABLE]);
 const PROXY_WRITABLE=new Set(['/usr/share/nginx/html/.artifacts']);
 const SOCKET=/(^|\/)docker\.sock($|\/)/;
 function safePath(p){return typeof p==='string'&&p.length<=1024&&p[0]==='/'&&p!=='/'&&
@@ -50,6 +54,8 @@ function cleanPins(input){
   if(item.mounts.some(m=>((role==='proxy'&&NGINX_REQUIRED.includes(m.destination))||
       (role==='api'&&(m.destination==='/app'||m.destination==='/app/.env')))&&!m.readOnly))
    return null;
+  if(role==='api'&&API_REQUIRED_RW.some(dest=>
+    !item.mounts.some(m=>m.destination===dest&&m.readOnly===false)))return null;
   normalized[role]=Object.freeze({id:item.containerId,image:item.image,mounts:item.mounts.map(m=>
    Object.freeze({destination:m.destination,source:m.source,readOnly:m.readOnly}))});
  }
@@ -112,7 +118,11 @@ function createReadOnlyProductionPreflight({dockerBinary,execFileImpl=execFile,p
    }catch{return finish({error:'INSPECT_FAILED'});}
   });
  }
- async function inspect(){
+ // Docker inspect returns separate fields at separate instants. The first
+ // apparently safe read cannot be the basis for an RC2 release: run a full
+ // second independent pass and require BOTH to conform to the same private
+ // pins. This still is NOT an atomic snapshot and cannot authorize deploy.
+ async function inspectRound(){
   const blockers=[];
   await Promise.all(['proxy','api'].map(async role=>{
    const pin=checked[role],result={};
@@ -136,7 +146,13 @@ function createReadOnlyProductionPreflight({dockerBinary,execFileImpl=execFile,p
       (!/^[1-9][0-9]*(?::[0-9]+)?$/.test(String(get('user'))) ||
       String(get('user')).split(':')[0]==='0'))blockers.push('API_ROOT_USER');
   }));
-  return outcome(blockers.sort());
+  return blockers;
+ }
+ async function inspect(){
+  const first=await inspectRound();
+  if(first.length)return outcome(first.sort());
+  const second=await inspectRound();
+  return outcome(second.sort());
  }
  return Object.freeze({inspect});
 }

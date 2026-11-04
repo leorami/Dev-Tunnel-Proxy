@@ -49,6 +49,26 @@ const {createProductionRouteMutationService} = require('./production-route-mutat
 const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
 const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
 const {createCrossProcessSettlementActivation} = require('./rc2-cross-process-settlement.cjs');
+/** Fail closed for unmediated Docker/self-heal when settlement is the authorized path
+ *  or production API has no docker.sock. Endpoints return an explicit unavailable
+ *  code instead of silently no-oping or shelling docker.
+ */
+function inlineHostDockerUnavailable(){
+  if(process.env.DEVPROXY_ALLOW_INLINE_DOCKER==='1')return false;
+  if(process.env.DEVPROXY_ACTIVATION_SPOOL_DIR)return true;
+  if(process.env.DEVPROXY_DENY_INLINE_DOCKER==='1')return true;
+  if(process.env.NODE_ENV==='production'){
+    try{if(!fs.existsSync('/var/run/docker.sock'))return true;}catch{return true;}
+  }
+  return false;
+}
+function refuseInlineDocker(res, action){
+  if(!inlineHostDockerUnavailable())return false;
+  send(res, 503, { ok:false, code:'BLOCKED_INLINE_DOCKER_UNAVAILABLE', action,
+    productionChangeAuthorized:false, liveAttested:false });
+  return true;
+}
+
 let routeManager = null;
 function loadActivationSecret(secretFile){
   if(typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
@@ -1157,6 +1177,7 @@ async function handle(req, res){
     // ======== AI Assistant (optional) ========
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
+        if (refuseInlineDocker(res, 'ai/health')) return;
         const enabled = Boolean(process.env.OPENAI_API_KEY);
         
         // Try to get static domain from logs for more reliable ngrok discovery
@@ -1233,6 +1254,7 @@ async function handle(req, res){
 
       // POST /api/ai/restart-containers { names?: string[], self?: boolean }
       if (req.method === 'POST' && u.pathname === apiPath('ai/restart-containers')){
+        if (refuseInlineDocker(res, 'ai/restart-containers')) return;
         try{
           const body = await parseBody(req);
           let names = Array.isArray(body && body.names) ? body.names.filter(Boolean) : [];
@@ -1260,6 +1282,7 @@ async function handle(req, res){
       // POST /api/ai/snapshot-analyze { containerName, srcPathInContainer, outName? }
       // Legacy name kept for compatibility; we refer to it as a "code review"
       if (req.method === 'POST' && u.pathname === apiPath('ai/snapshot-analyze')){
+        if (refuseInlineDocker(res, 'ai/snapshot-analyze')) return;
         try{
           const body = await parseBody(req);
           const containerName = body && body.containerName;
@@ -1378,6 +1401,7 @@ async function handle(req, res){
 
       // POST /api/ai/ask { query, ... } — now proactive: can invoke healing when user asks to heal
       if (req.method === 'POST' && u.pathname === apiPath('ai/ask')){
+        if (refuseInlineDocker(res, 'ai/ask')) return;
         const body = await parseBody(req);
         const query = (body && body.query || '').trim();
         const maxDocs = Math.max(1, Math.min(10, Number(body && body.maxDocs) || 6));
@@ -1913,6 +1937,7 @@ async function handle(req, res){
 
       // POST /api/ai/audit-and-heal { url, route?, maxPasses?, wait?, timeout? }
       if (req.method === 'POST' && u.pathname === apiPath('ai/audit-and-heal')){
+        if (refuseInlineDocker(res, 'ai/audit-and-heal')) return;
         try{
           const body = await parseBody(req);
           const urlToAudit = (body && body.url) || '';
@@ -1963,6 +1988,7 @@ async function handle(req, res){
 
       // POST /api/ai/self-check { heal?: boolean, hint?: string, route?: string, advanced?: boolean }
       if (req.method === 'POST' && u.pathname === apiPath('ai/self-check')){
+        if (refuseInlineDocker(res, 'ai/self-check')) return;
         const body = await parseBody(req);
         const heal = Boolean(body && body.heal);
         const hint = (body && body.hint) || '';
@@ -1992,6 +2018,7 @@ async function handle(req, res){
 
       // POST /api/ai/advanced-heal { route?: string, hint?: string }
       if (req.method === 'POST' && u.pathname === apiPath('ai/advanced-heal')){
+        if (refuseInlineDocker(res, 'ai/advanced-heal')) return;
         const body = await parseBody(req);
         const route = (body && body.route) || '';
         const hint = (body && body.hint) || '';
@@ -2363,6 +2390,9 @@ function quickDiagnostics(hint){
 }
 
 async function runSelfCheck(opts){
+    if (inlineHostDockerUnavailable()) {
+      return { ok:false, code:'BLOCKED_INLINE_DOCKER_UNAVAILABLE', heal:!!(opts&&opts.heal) };
+    }
   const result = { startedAt: new Date().toISOString(), steps: [], heal: !!opts.heal };
   try{
     // If advanced healing is requested, use the new system
