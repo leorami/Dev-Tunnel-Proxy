@@ -23,6 +23,7 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
+const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 
@@ -54,13 +55,12 @@ const {createCrossProcessSettlementActivation} = require('./rc2-cross-process-se
  *  code instead of silently no-oping or shelling docker.
  */
 function inlineHostDockerUnavailable(){
-  if(process.env.DEVPROXY_ALLOW_INLINE_DOCKER==='1')return false;
-  if(process.env.DEVPROXY_ACTIVATION_SPOOL_DIR)return true;
-  if(process.env.DEVPROXY_DENY_INLINE_DOCKER==='1')return true;
-  if(process.env.NODE_ENV==='production'){
-    try{if(!fs.existsSync('/var/run/docker.sock'))return true;}catch{return true;}
-  }
-  return false;
+  return require('./rc2-inline-docker-policy.cjs').shouldBlockInlineDocker({
+    spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+    denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER,
+    allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+    nodeEnv:process.env.NODE_ENV
+  });
 }
 function refuseInlineDocker(res, action){
   if(!inlineHostDockerUnavailable())return false;
@@ -717,6 +717,17 @@ async function handle(req, res){
     if (authBoundary.requiresAuth) {
       if (!requireAuth(req, res, u)) return;
     }
+    // Secure-spool and production mode deny legacy untransactional management
+    // actions AFTER user auth but BEFORE route handlers can mutate state.
+    const controlGate=classifySecureManagementOperation({
+      method:req.method,pathname:u.pathname,base:PROXY_API_BASE_PATH,
+      spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+      nodeEnv:process.env.NODE_ENV,
+      allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+      denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER
+    });
+    if(controlGate.blocked)return send(res,503,{ok:false,error:controlGate.code,
+      productionChangeAuthorized:false,liveAttested:false});
 
     // GET /api/ai/thoughts - Get streaming thought events (stub for now)
     if (req.method === 'GET' && u.pathname === apiPath('ai/thoughts')){
@@ -1177,12 +1188,12 @@ async function handle(req, res){
     // ======== AI Assistant (optional) ========
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
-        if (refuseInlineDocker(res, 'ai/health')) return;
+        // Health remains available without any privileged Docker access.
         const enabled = Boolean(process.env.OPENAI_API_KEY);
         
         // Try to get static domain from logs for more reliable ngrok discovery
         let staticNgrokDomain = null;
-        try {
+        if (!inlineHostDockerUnavailable()) try {
           const { execSync } = require('child_process');
           const logs = execSync('docker logs dev-ngrok 2>&1 | grep "ngrok: using static domain" || true', { stdio: ['ignore', 'pipe', 'pipe'] }).toString('utf8');
           const mStatic = logs.match(/ngrok:\s+using static domain '([^']+)'/i);
