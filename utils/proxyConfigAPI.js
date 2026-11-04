@@ -27,7 +27,7 @@ const {classifySecureManagementOperation}=require('./rc2-management-safety-polic
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
 const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
 const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
-const {runSecureSelfCheck}=require('./rc2-secure-self-check.cjs');
+const {runSecureSelfCheck,readSecureSelfCheckRequestBody}=require('./rc2-secure-self-check.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -746,9 +746,12 @@ async function handle(req, res){
       });
       return send(res,httpStatus,{...body,httpScan});
     }
-    // RC2_SECURE_SELF_CHECK: inventory (+ optional ?http=1 HEAD observations).
-    // Never runs Calliope Docker heal loops or browser audit.
+    // RC2 secure self-check: bounded request intent before any status claims.
+    // Explicit healing/targeting must fail, never become a silent HTTP 200 inventory.
     if (req.method==='POST' && u.pathname===apiPath('ai/self-check') && inlineHostDockerUnavailable()){
+      const request=await readSecureSelfCheckRequestBody(req);
+      if(!request.ok)return send(res,request.httpStatus,{ok:false,error:request.code,
+        healingPerformed:false,productionChangeAuthorized:false,liveAttested:false});
       const check=await runSecureSelfCheck({
         appsDir:APPS_DIR,
         diagnosticsFile:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json'),
