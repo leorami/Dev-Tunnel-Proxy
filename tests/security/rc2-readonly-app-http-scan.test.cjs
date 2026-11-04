@@ -126,3 +126,17 @@ test('RED: never count false 200/404 status claims as green',async()=>fixture(as
   assert.equal(r.httpGreen,0);assert.deepEqual(r.results.map(x=>x.code),[
     'LOCAL_HTTP_PROBE_UNAVAILABLE','LOCAL_HTTP_PROBE_UNAVAILABLE']);
 }));
+test('RED: bounded concurrent observations keep original route order and avoid serial 32x timeout',async()=>fixture(async({file,write})=>{
+  write(Array.from({length:8},(_,i)=>({kind:'app',pathSpec:'/route'+i+'/',source:'apps/r'+i+'.conf'})));
+  let active=0,maximum=0;
+  const r=await scanExistingAppHttpRoutes({diagnosticsFile:file,probe:{audit:async({url})=>{
+    active++;maximum=Math.max(maximum,active);
+    await new Promise(resolve=>setTimeout(resolve,8));
+    active--;
+    return {ok:true,code:'LOCAL_HTTP_OK',summary:{status:204}};
+  }}});
+  assert.ok(maximum>1,'a serial 3.5s HEAD per route can create a 112s request');
+  assert.ok(maximum<=4,'no more than four fixed-host HEADs at once');
+  assert.deepEqual(r.results.map(x=>x.route),Array.from({length:8},(_,i)=>'/route'+i+'/'));
+  assert.equal(r.httpGreen,8);
+}));
