@@ -14,7 +14,7 @@
 | Parent v86 | `docs/receipts/DEVPROXY_RC2_V86_LOCAL_AUDIT_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #86 (source only) |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `1becaee921a5af1343add00d20c950bd1a809989`* |
 
 ## STARTED
 Rechecked sole primary at v86 tip; no newer STARTED primary. Preserved v85 image/dind and v86 HEAD audit. **No** image re-export. Live RC1 IDs unchanged.
