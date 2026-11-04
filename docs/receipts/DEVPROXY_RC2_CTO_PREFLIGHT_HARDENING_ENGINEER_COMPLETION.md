@@ -15,7 +15,7 @@
 | Handoff | `docs/handoffs/DEVPROXY_RC2_CTO_PREFLIGHT_HARDENING.md` |
 | v13 settlement blob | unchanged `453c821489e188c9a4d9b601b8b606cfeb7e0e6b` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | see commit SHA after push |
+| This tip | e9b59aaa40740d71b4557b230e2f409937d5cecc |
 
 ## STARTED
 Rechecked lifecycle: master `62a4d7b…`; PR #76 preserved; PR #78 CTO hardening draft at `0dd5c35…`; existing owner-authorized RC2 assignment PR #79 continued (not replaced).
