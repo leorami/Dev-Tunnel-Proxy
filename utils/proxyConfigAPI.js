@@ -26,6 +26,7 @@ const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
 const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
+const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -731,12 +732,18 @@ async function handle(req, res){
       const {httpStatus,...auditResult}=auditObservation;
       return send(res,httpStatus,auditResult);
     }
-    // RC2_SECURE_APPS_INVENTORY: authenticated local apps/*.conf listing only.
-    // Does not spawn scanApps.js, Docker, or network probes.
+    // RC2_SECURE_APPS_INVENTORY: default remains authenticated, no-network
+    // local listing. Explicit ?http=1 adds bounded fixed-host HEAD evidence
+    // from EXISTING bundle diagnostics. Never resurrect legacy scanApps.js.
     if (req.method==='POST' && u.pathname===apiPath('apps/scan') && inlineHostDockerUnavailable()){
       const inv=listSecureAppsInventory({appsDir:APPS_DIR});
       const {httpStatus,...body}=inv;
-      return send(res,httpStatus,body);
+      if(!inv.ok||u.query?.http!=='1')return send(res,httpStatus,body);
+      const httpScan=await scanExistingAppHttpRoutes({
+        diagnosticsFile:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json'),
+        probe:rc2SafeLocalAudit
+      });
+      return send(res,httpStatus,{...body,httpScan});
     }
     // Secure-spool and production mode deny legacy untransactional management
     // actions AFTER user auth but BEFORE route handlers can mutate state.
