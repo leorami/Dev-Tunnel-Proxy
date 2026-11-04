@@ -48,19 +48,42 @@ const ROUTE_PROMOTIONS_FILE = path.join(ARTIFACTS_DIR, 'route-promotions.json');
 const {createProductionRouteMutationService} = require('./production-route-mutation.cjs');
 const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
 const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
+const {createCrossProcessSettlementActivation} = require('./rc2-cross-process-settlement.cjs');
 let routeManager = null;
+function loadActivationSecret(secretFile){
+  if(typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
+  const st=fs.lstatSync(secretFile);
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o077)!==0)return null;
+  const secret=fs.readFileSync(secretFile);
+  if(!Buffer.isBuffer(secret)||secret.length<32||secret.length>128)return null;
+  return secret;
+}
 function getRouteMutationService(){
   if(routeManager) return routeManager;
   try {
-    // All required values are operator-provisioned privately, never in Git.
+    // Prefer the reviewed HMAC file-spool + v13 settlement path. Unix-socket
+    // reload remains available only when spool is not provisioned (legacy).
+    // All secrets/paths are operator-provisioned privately, never in Git.
+    const spoolDir=process.env.DEVPROXY_ACTIVATION_SPOOL_DIR;
+    const settlementSecretFile=process.env.DEVPROXY_ACTIVATION_SECRET_FILE;
     const socket=process.env.DEVPROXY_RELOAD_SOCKET;
     const secretFile=process.env.DEVPROXY_RELOAD_SECRET_FILE;
     let activation=null;
-    if(socket||secretFile){
-      if(typeof socket!=='string'||typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
-      const st=fs.lstatSync(secretFile);
-      if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o077)!==0)return null;
-      const secret=fs.readFileSync(secretFile);
+    if(spoolDir||settlementSecretFile){
+      if(typeof spoolDir!=='string'||!path.isAbsolute(spoolDir)||path.normalize(spoolDir)!==spoolDir||
+         spoolDir==='/'||spoolDir.endsWith(path.sep))return null;
+      const secret=loadActivationSecret(settlementSecretFile);
+      if(!secret)return null;
+      const sd=fs.lstatSync(spoolDir);
+      if(!sd.isDirectory()||sd.isSymbolicLink()||(sd.mode&0o077)!==0||
+         (typeof process.getuid==='function'&&sd.uid!==process.getuid()))return null;
+      activation=createCrossProcessSettlementActivation({
+        approvedRoot:ROOT,spoolDirectory:spoolDir,secret
+      });
+    } else if(socket||secretFile){
+      if(typeof socket!=='string'||typeof secretFile!=='string')return null;
+      const secret=loadActivationSecret(secretFile);
+      if(!secret)return null;
       activation=createAuthenticatedReloadClient({socketPath:socket,secret});
     }
     // Create only this private owner-data lock leaf; never modify /app source.
