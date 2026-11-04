@@ -80,22 +80,31 @@ async function scanExistingAppHttpRoutes({diagnosticsFile,probe}={}){
     if(paths.length>=MAX_PROBES){truncated=true;skipped++;continue;}
     paths.push(route);
   }
-  const results=[];let httpGreen=0,httpNotGreen=0;
-  for(const route of paths){
-    let response;
-    try{response=await probe.audit({url:route});}catch{response=null;}
-    const valid=response&&typeof response==='object'&&
-      (response.code==='LOCAL_HTTP_OK'||response.code==='LOCAL_HTTP_NOT_GREEN')&&
-      typeof response.summary?.status==='number'&&
-      response.summary.status>=100&&response.summary.status<=599;
-    const green=valid&&response.code==='LOCAL_HTTP_OK'&&response.ok===true&&
-      response.summary.status>=200&&response.summary.status<300;
-    const notGreen=valid&&response.code==='LOCAL_HTTP_NOT_GREEN'&&response.ok===false&&
-      !(response.summary.status>=200&&response.summary.status<300);
-    const code=green?'LOCAL_HTTP_OK':notGreen?'LOCAL_HTTP_NOT_GREEN':'LOCAL_HTTP_PROBE_UNAVAILABLE';
-    if(green)httpGreen++;else httpNotGreen++;
-    results.push(Object.freeze({route,code,status:valid?response.summary.status:null}));
+  // Four independently bounded fixed-host HEADs avoid 32 x 3.5-second serial
+  // latency. Stable output ordering is preserved regardless of completion order.
+  const results=new Array(paths.length);let next=0;
+  async function worker(){
+    for(;;){
+      const index=next++;
+      if(index>=paths.length)return;
+      const route=paths[index];
+      let response;
+      try{response=await probe.audit({url:route});}catch{response=null;}
+      const valid=response&&typeof response==='object'&&
+        (response.code==='LOCAL_HTTP_OK'||response.code==='LOCAL_HTTP_NOT_GREEN')&&
+        typeof response.summary?.status==='number'&&
+        response.summary.status>=100&&response.summary.status<=599;
+      const green=valid&&response.code==='LOCAL_HTTP_OK'&&response.ok===true&&
+        response.summary.status>=200&&response.summary.status<300;
+      const notGreen=valid&&response.code==='LOCAL_HTTP_NOT_GREEN'&&response.ok===false&&
+        !(response.summary.status>=200&&response.summary.status<300);
+      const code=green?'LOCAL_HTTP_OK':notGreen?'LOCAL_HTTP_NOT_GREEN':'LOCAL_HTTP_PROBE_UNAVAILABLE';
+      results[index]=Object.freeze({route,code,status:valid?response.summary.status:null});
+    }
   }
+  await Promise.all(Array.from({length:Math.min(4,paths.length)},()=>worker()));
+  const httpGreen=results.filter(r=>r.code==='LOCAL_HTTP_OK').length;
+  const httpNotGreen=results.length-httpGreen;
   return Object.freeze({code:'READONLY_HTTP_SCAN_EVIDENCE_ONLY',observed:results.length,
     httpGreen,httpNotGreen,skipped,truncated,results:Object.freeze(results),...baseline});
 }
