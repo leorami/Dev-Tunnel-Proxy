@@ -1,6 +1,6 @@
 # RC2 v88: evidence-only, no-side-effect app route HTTP inventory
 
-Status: **INDEPENDENT CTO SOURCE ONLY. NOT INTEGRATED INTO API, NOT DEPLOYED.** This does not authorize new production changes, owner UAT, functional parity, or a second Cursor primary.
+Status: **ISOLATED CTO SOURCE WITH API WIRING, NOT MERGED INTO ENGINEER, NOT DEPLOYED.** This does not authorize new production changes, owner UAT, functional parity, or a second Cursor primary.
 
 ## Source-grounded failure
 
@@ -13,7 +13,7 @@ Status: **INDEPENDENT CTO SOURCE ONLY. NOT INTEGRATED INTO API, NOT DEPLOYED.** 
 - Reads *only the existing* `.artifacts/bundle-diagnostics.json` with `O_NOFOLLOW`, one regular hardlink, bounded 256-KiB payload, stable inode/mtime/ctime, and no group/world write. If missing or unsafe, it explicitly reports `READONLY_HTTP_SCAN_UNAVAILABLE`; it NEVER runs `generateAppsBundle.js` or creates a synthetic artifact.
 - Validates the actual `generateAppsBundle.js` schema: `included: [{kind:'app'|'override',pathSpec,source}]`, max 128 source rows. Rejects inconsistent source kind, unexpected file names, invalid object types, and invalid JSON. No source content or owner-private paths are ever reflected in HTTP results.
 - Converts **only literal** nginx location paths to safe route selectors: normal `/app/`, exact `= /app`, and `^~ /app/`. Excludes regex, root catch-alls, management/private prefixes, dot segments, URLs, encoded/query/fragment/duplicate-slash inputs. De-duplicates paths, limits network observations to 32, records skipped count and truncation.
-- Invokes the already tested `createConstrainedLocalHttpAudit()` instance from v86 only via injected `probe.audit({url:'/app/'})`: that adapter owns the fixed `HEAD dev-proxy:80`, no remote host, redirect or credentials. The scan itself creates **no direct sockets**; only the supplied existing fixed-host v86 audit adapter performs local HEAD requests. Neither path permits shell, Docker, file writes, route reload or source mutation.
+- Invokes the already tested `createConstrainedLocalHttpAudit()` instance from v86 only via injected `probe.audit({url:'/app/'})`: that adapter owns the fixed `HEAD dev-proxy:80`, no remote host, redirect or credentials. The scanner's direct operations create **no network sockets**; only the existing fixed-host v86 audit adapter performs local HEAD requests, with at most four concurrent HEADs (32 total). Neither path permits shell, Docker, file writes, route reload or source mutation.
 - Reports each bounded HTTP status, counts and `READONLY_HTTP_SCAN_EVIDENCE_ONLY`, with `browserAudited:false`, `healingPerformed:false`, `sourceCurrent:'UNKNOWN'`, `realAppVerified:'UNKNOWN'`, `deployed:false`, `ownerUatApproved:false`. An HTTP-200 is not a browser audit or a production Origin-five PASS. Any invalid/noisy probe response is recorded as unavailable, not green.
 
 ## RED-first evidence and future integration boundary
