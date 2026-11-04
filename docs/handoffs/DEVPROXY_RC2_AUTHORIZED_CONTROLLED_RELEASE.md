@@ -1,5 +1,10 @@
 # Dev Proxy RC2 -- controlled production release execution contract
 
+## Latest Engineer return (supersedes original branch-parent context)
+
+Engineer-I has now genuinely RETURNED PR #76 at `8859fca6af37f4b4796ff556e09d616975af5b8b`, adding the v13 signed-final smoke test and receipt. The v13 implementation source in this CTO PR is EXACTLY the same Git blob `453c821489e188c9a4d9b601b8b606cfeb7e0e6b` as Engineer PR #76. Because this isolated CTO branch was created before PR #76 appeared, the primary MUST begin its next integration from PR #76's full SHA, preserve its smoke test/receipt, and import only the additive CTO RC2 preflight, tests, docs and 14 regression harness from this branch. Do not replace or roll back Engineer's PR #76 return. Run the exact source and Mac tests. The earlier source branch base PR #75 is lineage, NOT the next Engineer checkout pin.
+
+
 ## Current verified lineage / authority
 
 Repository: leorami/Dev-Tunnel-Proxy.
