@@ -22,16 +22,14 @@ const RESOURCES_DIR = path.join(CALLIOPE_DIR, 'resources');
 const AUDIT_HISTORY_DIR = path.join(CALLIOPE_DIR, 'audit-history');
 
 function inlineDockerBlocked(){
-  // Spool-settlement activation forbids in-process docker exec/reload bypasses.
-  // Explicit deny also wins. Never auto-install a host worker from Calliope.
-  if(process.env.DEVPROXY_ALLOW_INLINE_DOCKER==='1')return false;
-  if(process.env.DEVPROXY_DENY_INLINE_DOCKER==='0')return false;
-  if(process.env.DEVPROXY_ACTIVATION_SPOOL_DIR||process.env.DEVPROXY_DENY_INLINE_DOCKER==='1')
-    return true;
-  if(process.env.NODE_ENV==='production'){
-    try{return !require('fs').existsSync('/var/run/docker.sock');}catch{return true;}
-  }
-  return false;
+  // Never allow environment opt-outs to bypass authenticated v13 spool or
+  // production-mode restriction. Source reviewed in RC2 CTO policy tests.
+  return require('./rc2-inline-docker-policy.cjs').shouldBlockInlineDocker({
+    spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+    denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER,
+    allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+    nodeEnv:process.env.NODE_ENV
+  });
 }
 function refuseInlineDocker(action){
   if(!inlineDockerBlocked())return;
