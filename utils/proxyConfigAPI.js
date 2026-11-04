@@ -24,8 +24,11 @@ const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
+const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
+// No network request occurs until an authenticated owner starts a bounded audit.
+const rc2SafeLocalAudit=createConstrainedLocalHttpAudit({trustedOrigins:TRUSTED_ORIGINS});
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -716,6 +719,16 @@ async function handle(req, res){
     const authBoundary = classifyManagementRequest(req.method, u.pathname, PROXY_API_BASE_PATH);
     if (authBoundary.requiresAuth) {
       if (!requireAuth(req, res, u)) return;
+    }
+    // RC2_SECURE_HTTP_AUDIT: authenticated only, no Docker/browser/external AI.
+    // The old legacy path stays guarded in production; this fixed-host HEAD
+    // implementation cannot execute a host action, follow redirects or heal.
+    if (req.method==='POST' && u.pathname===apiPath('ai/audit') && inlineHostDockerUnavailable()){
+      const rc2SafeAuditInput=await readBoundedAuditBody(req);
+      if(!rc2SafeAuditInput)return send(res,400,{ok:false,error:'INVALID_AUDIT_BODY'});
+      const auditObservation=await rc2SafeLocalAudit.audit(rc2SafeAuditInput);
+      const {httpStatus,...auditResult}=auditObservation;
+      return send(res,httpStatus,auditResult);
     }
     // Secure-spool and production mode deny legacy untransactional management
     // actions AFTER user auth but BEFORE route handlers can mutate state.
