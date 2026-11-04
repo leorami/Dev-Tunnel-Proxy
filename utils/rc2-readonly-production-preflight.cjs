@@ -21,12 +21,15 @@ const NGINX_REQUIRED=Object.freeze([
 const API_REQUIRED=Object.freeze([
  '/app','/app/.env','/app/apps','/app/overrides','/app/build/sites-enabled','/app/.artifacts'
 ]);
+const API_SPOOL='/app/.artifacts/rc2-spool';
+const API_SECRET='/app/.artifacts/rc2-activation.secret';
 const API_WRITABLE=new Set(['/app/apps','/app/overrides',
- '/app/build/sites-enabled','/app/.artifacts']);
+ '/app/build/sites-enabled','/app/.artifacts',API_SPOOL]);
 // These four directories MUST be RW or the real API silently loses route,
 // override, regenerated-bundle or session durability. Never permit an
 // operator-supplied pin to redefine a required data bind as read-only.
-const API_REQUIRED_RW=Object.freeze([...API_WRITABLE]);
+const API_REQUIRED_RW=Object.freeze(['/app/apps','/app/overrides',
+ '/app/build/sites-enabled','/app/.artifacts']);
 const PROXY_WRITABLE=new Set(['/usr/share/nginx/html/.artifacts']);
 const SOCKET=/(^|\/)docker\.sock($|\/)/;
 function safePath(p){return typeof p==='string'&&p.length<=1024&&p[0]==='/'&&p!=='/'&&
@@ -60,6 +63,26 @@ function cleanPins(input){
    Object.freeze({destination:m.destination,source:m.source,readOnly:m.readOnly}))});
  }
  if(normalized.proxy.id===normalized.api.id)return null;
+ // A v13 file-spool candidate needs BOTH a distinct owner-private writable
+ // spool and an immutable signed-secret file. The historical RC1 layout does
+ // not have either; it remains inspectable as BEFORE-state evidence only.
+ const apiMounts=normalized.api.mounts;
+ const spool=apiMounts.find(m=>m.destination===API_SPOOL);
+ const secret=apiMounts.find(m=>m.destination===API_SECRET);
+ if(Boolean(spool)!==Boolean(secret))return null;
+ if(spool){
+  if(spool.readOnly!==false||secret.readOnly!==true)return null;
+  const exposed=[...normalized.proxy.mounts,
+   ...apiMounts.filter(m=>m!==spool&&m!==secret)];
+  const inside=(child,parent)=>child===parent||child.startsWith(parent+'/');
+  // Neither host-worker IPC nor signing secret may be reachable through the
+  // proxy's shared artifacts or any other source/data bind. Caller-supplied
+  // private pins cannot override this confinement invariant.
+  for(const m of [spool,secret]){
+   if(exposed.some(x=>inside(m.source,x.source)||inside(x.source,m.source)))return null;
+  }
+  if(inside(spool.source,secret.source)||inside(secret.source,spool.source))return null;
+ }
  return Object.freeze(normalized);
 }
 function identicalMounts(input,expected){
