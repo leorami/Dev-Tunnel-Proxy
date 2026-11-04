@@ -14,7 +14,7 @@
 | Parent v83 receipt | comment `6640899155` |
 | Parallel CTO draft (not merged) | PR #83 @ `43a9d2c…` (based on `33b0365…`, does **not** contain v83 tip) |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled after commit)* |
+| This tip | `8f11e66111c05e73704edc6f69b88c49b8310e3c` |
 
 ## STARTED
 Fresh lifecycle: sole primary PR #79 at `098bf5d…`. Merged handoff-only commit `d54e7d5…`. Rechecked head; no newer STARTED primary. Preserved all v83 Mac evidence; did not relitigate disposable IPC. PR #83 reviewed as parallel hardening only — **not** imported (would reset/rebase off pre-v83 tip).
