@@ -6,7 +6,8 @@
 | Path | Capability |
 | --- | --- |
 | `POST ai/audit` | Authenticated HEAD-only to fixed `dev-proxy:80` (not browser audit) |
-| `POST apps/scan` | Authenticated local `apps/*.conf` inventory (not container/network scan) |
+| `POST apps/scan` | Local `apps/*.conf` inventory; `?http=1` adds diagnostics pathSpec HEAD evidence (not scanApps.js) |
+| `POST ai/self-check` | Inventory (+ optional `?http=1` observation) — not heal |
 | `apps/install`, `apps/create-route`, `overrides/promote` | HMAC settlement / production-route-mutation |
 
 ## Still blocked (owner-used heal / chat)

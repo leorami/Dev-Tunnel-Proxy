@@ -7,14 +7,15 @@
  * repeating a bare NO-GO with no corrective source.
  */
 const DEGRADED_POST=Object.freeze([
- 'ai/ask','ai/restart-containers','ai/audit-and-heal','ai/self-check',
+ 'ai/ask','ai/restart-containers','ai/audit-and-heal',
  'ai/advanced-heal','ai/fix-react-bundle','ai/fix-storybook-vite',
  'ai/fix-mxtk-api','ai/snapshot-analyze','ai/code-review-container',
  'ai/code-review','ai/review-code','ai/inspect-container'
 ]);
 const PARTIAL_SAFE_POST=Object.freeze([
  'ai/audit', // HEAD-only local reachability — not browser audit
- 'apps/scan' // local apps/*.conf inventory — not container/network scan
+ 'ai/self-check', // inventory (+ optional http observation) — not heal
+ 'apps/scan' // inventory (+ optional diagnostics HEAD scan) — not scanApps.js
 ]);
 const PRESERVED_TRANSACTIONAL_POST=Object.freeze([
  'apps/install','apps/create-route','apps/regenerate','overrides/promote'
@@ -26,7 +27,7 @@ function listAiHealDegradedScope(){
   degradedPostPaths:DEGRADED_POST,
   partialSafePostPaths:PARTIAL_SAFE_POST,
   preservedTransactionalPostPaths:PRESERVED_TRANSACTIONAL_POST,
-  safeReplacementStatus:'PARTIAL_HEAD_AUDIT_AND_LOCAL_APPS_INVENTORY_ONLY',
+  safeReplacementStatus:'PARTIAL_OBSERVATION_ONLY_HEAL_STILL_BLOCKED',
   productionChangeAuthorized:false,
   deployed:false,
   ownerUatApproved:false

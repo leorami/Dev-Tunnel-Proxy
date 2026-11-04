@@ -27,6 +27,7 @@ const {classifySecureManagementOperation}=require('./rc2-management-safety-polic
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
 const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
 const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
+const {runSecureSelfCheck}=require('./rc2-secure-self-check.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -744,6 +745,18 @@ async function handle(req, res){
         probe:rc2SafeLocalAudit
       });
       return send(res,httpStatus,{...body,httpScan});
+    }
+    // RC2_SECURE_SELF_CHECK: inventory (+ optional ?http=1 HEAD observations).
+    // Never runs Calliope Docker heal loops or browser audit.
+    if (req.method==='POST' && u.pathname===apiPath('ai/self-check') && inlineHostDockerUnavailable()){
+      const check=await runSecureSelfCheck({
+        appsDir:APPS_DIR,
+        diagnosticsFile:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json'),
+        probe:rc2SafeLocalAudit,
+        includeHttp:u.query?.http==='1'
+      });
+      const {httpStatus,...body}=check;
+      return send(res,httpStatus,body);
     }
     // Secure-spool and production mode deny legacy untransactional management
     // actions AFTER user auth but BEFORE route handlers can mutate state.
