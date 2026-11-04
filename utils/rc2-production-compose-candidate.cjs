@@ -93,7 +93,7 @@ function createProductionComposeCandidate(input){
   working_dir:'/app',
   // Preserve the preexisting production notification service. AUTO_SCAN is
   // explicitly OFF until a source/data-safe replacement is verified.
-  command:['sh','-ec','node utils/notificationsAPI.js & exec node utils/proxyConfigAPI.js'],
+  command:['sh','-ec','node scripts/rc2-create-api-spool.cjs; node utils/notificationsAPI.js & exec node utils/proxyConfigAPI.js'],
   env_file:[p.ownerEnvFile],
   environment:{
    NODE_ENV:'production',
@@ -103,7 +103,7 @@ function createProductionComposeCandidate(input){
    AUTO_SCAN_ENABLED:'0',
    DEVPROXY_DENY_INLINE_DOCKER:'1',
    DEVPROXY_ALLOW_INLINE_DOCKER:'0',
-   DEVPROXY_ACTIVATION_SPOOL_DIR:'/app/.artifacts/rc2-spool',
+   DEVPROXY_ACTIVATION_SPOOL_DIR:'/app/.artifacts/rc2-ipc/spool',
    DEVPROXY_ACTIVATION_SECRET_FILE:'/app/.artifacts/rc2-activation.secret'
   },
   ports:['127.0.0.1:3001:3001','127.0.0.1:3002:3002'],
@@ -114,7 +114,7 @@ function createProductionComposeCandidate(input){
    bind(p.overridesDir,'/app/overrides',false),
    bind(p.sitesDir,'/app/build/sites-enabled',false),
    bind(p.artifactsDir,'/app/.artifacts',false),
-   bind(p.spoolHostDir,'/app/.artifacts/rc2-spool',false),
+   bind(p.spoolHostDir,'/app/.artifacts/rc2-ipc',false),
    bind(p.secretHostFile,'/app/.artifacts/rc2-activation.secret')
   ],
   networks:['devproxy'],
