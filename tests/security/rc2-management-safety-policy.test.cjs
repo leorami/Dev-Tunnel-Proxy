@@ -38,6 +38,7 @@ for(const route of [
  '/ai/fix-react-bundle','/ai/fix-storybook-vite','/ai/fix-mxtk-api',
  '/ai/snapshot-analyze','/ai/code-review-container','/ai/code-review',
  '/ai/review-code','/ai/inspect-container','/ai/audit',
+ '/ai/reindex','/ai/thoughts/inject',
  '/apps/scan'
 ]) test(`deny legacy privileged or untransactional POST ${route} in spool mode`,()=>{
   const r=classify('POST',route);
@@ -58,7 +59,7 @@ for(const [method,route] of [
  ['POST','/apps/regenerate'],['POST','/overrides/promote'],
  ['POST','/config/example.conf'],['POST','/promotions'],
  ['POST','/settings/auto-scan'],['GET','/ai/thoughts'],
- ['POST','/ai/reindex'],['POST','/ai/cancel'],['GET','/config/example.conf']
+ ['POST','/ai/cancel'],['GET','/config/example.conf']
 ]) test(`retain ${method} ${route} if settled or nonprivileged`,()=>{
   assert.equal(classify(method,route).blocked,false);
 });
