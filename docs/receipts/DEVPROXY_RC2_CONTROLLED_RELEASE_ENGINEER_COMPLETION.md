@@ -14,7 +14,7 @@
 | v13 settlement blob (unchanged) | `453c821489e188c9a4d9b601b8b606cfeb7e0e6b` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 | Fresh owner production approval | 2026-11-04 project chat (RC2; not reuse of RC1 GO) |
-| This receipt branch | `engineer/devproxy-rc2-controlled-release-20261104` (see tip SHA after push) |
+| This receipt branch | `engineer/devproxy-rc2-controlled-release-20261104` b5b50e5395cd651bfd69ea8e5085298a78a811cc |
 
 ## STARTED
 Rechecked GitHub lifecycle: master `62a4d7b…`; PR #76 RETURNED at exact pin; PR #77 draft CTO tip; no other executing engineer release. Preserved PR #76 smoke test + completion receipt. Imported additive CTO RC2 preflight/tests/docs only (settlement not overwritten).
