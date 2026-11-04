@@ -24,6 +24,7 @@ const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
+const {readExistingBundleDiagnostics}=require('./rc2-readonly-bundle-diagnostics.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 
@@ -910,31 +911,20 @@ async function handle(req, res){
       }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
     }
 
-    // GET /api/apps/diagnostics → bundle-diagnostics.json (regenerate if missing)
+    // GET diagnostics: NEVER mutate route state while serving a read.
+    // Generating a bundle is a distinct authenticated transactional action.
     if (req.method === 'GET' && u.pathname === apiPath('apps/diagnostics')){
-      try{
-        const diagPath = path.join(ARTIFACTS_DIR, 'bundle-diagnostics.json');
-        if (!fs.existsSync(diagPath)){
-          spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        }
-        const exists = fs.existsSync(diagPath);
-        const payload = exists ? JSON.parse(fs.readFileSync(diagPath, 'utf8')) : { generatedAt: null, overrides: [], apps: [], included: [], skipped: [] };
-        return send(res, 200, { ok:true, ...payload });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+      const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code});
+      return send(res,200,{ok:true,...r.diagnostics});
     }
 
-    // GET /api/apps/active → active locations with ordering and source
+    // GET active: inspect exactly the existing, trusted diagnostics artifact.
     if (req.method === 'GET' && u.pathname === apiPath('apps/active')){
-      try{
-        const diagPath = path.join(ARTIFACTS_DIR, 'bundle-diagnostics.json');
-        if (!fs.existsSync(diagPath)){
-          spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        }
-        const data = fs.existsSync(diagPath) ? JSON.parse(fs.readFileSync(diagPath, 'utf8')) : { included: [] };
-        // Preserve order as generated
-        const active = Array.isArray(data.included) ? data.included : [];
-        return send(res, 200, { ok:true, active });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+      const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code});
+      const active=Array.isArray(r.diagnostics.included)?r.diagnostics.included:[];
+      return send(res,200,{ok:true,active});
     }
 
     // POST /api/apps/regenerate. Preserve generation-only parity without
