@@ -29,10 +29,15 @@ function abs(p){return typeof p==='string'&&p.startsWith('/')&&p.length>1&&p.len
  path.posix.normalize(p)===p&&!p.endsWith('/')&&!/[\x00-\x1f\x7f]/.test(p);}
 function own(st){return typeof process.getuid!=='function'||st.uid===BigInt(process.getuid());}
 function privateDirectory(p){
- let s;
+ let s,real,realStat;
  try{s=fs.lstatSync(p,{bigint:true});}catch{deny('RC2_PRIVATE_STAGE_UNSAFE');}
+ // Reject a symlink leaf. On macOS, /var/folders resolves through /var -> /private/var;
+ // require the same inode after realpath rather than identical path strings.
+ try{real=fs.realpathSync(p);realStat=fs.lstatSync(real,{bigint:true});}catch{deny('RC2_PRIVATE_STAGE_UNSAFE');}
  if(!s.isDirectory()||s.isSymbolicLink()||!own(s)||(s.mode&0o777n)!==0o700n||
-    fs.realpathSync(p)!==p)deny('RC2_PRIVATE_STAGE_UNSAFE');
+    !realStat.isDirectory()||realStat.isSymbolicLink()||realStat.dev!==s.dev||
+    realStat.ino!==s.ino||!own(realStat)||(realStat.mode&0o777n)!==0o700n)
+  deny('RC2_PRIVATE_STAGE_UNSAFE');
  return s;
 }
 function stable(a,b){return a.dev===b.dev&&a.ino===b.ino&&a.nlink===b.nlink&&
@@ -99,13 +104,15 @@ function exportPinnedCurrentImages({stageRoot,execute=false,spawnSyncImpl=spawnS
  if(fs.readdirSync(stageRoot).length!==1)deny('RC2_EXPORT_STAGE_NOT_EMPTY');
  const env=Object.freeze({HOME:home,PATH:'/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin'});
  const common=Object.freeze({shell:false,windowsHide:true,timeout:7000,maxBuffer:8192,env,
-  stdio:['ignore','pipe','pipe']});
+  encoding:'utf8',stdio:['ignore','pipe','pipe']});
  function query(args){
   let r;
   try{r=spawnSyncImpl(pin.dockerBinary,args,common);}catch{deny('RC2_IMAGE_IDENTITY_MISMATCH');}
-  if(r?.error||r?.status!==0||typeof r.stdout!=='string'||Buffer.byteLength(r.stdout)>8192)
+  // encoding:'utf8' yields a string; Buffer-only adapters (tests) are also accepted.
+  const out=typeof r?.stdout==='string'?r.stdout:Buffer.isBuffer(r?.stdout)?r.stdout.toString('utf8'):null;
+  if(r?.error||r?.status!==0||typeof out!=='string'||Buffer.byteLength(out)>8192)
    deny('RC2_IMAGE_IDENTITY_MISMATCH');
-  try{return JSON.parse(r.stdout.trim());}catch{deny('RC2_IMAGE_IDENTITY_MISMATCH');}
+  try{return JSON.parse(out.trim());}catch{deny('RC2_IMAGE_IDENTITY_MISMATCH');}
  }
  function verifyLive(){
   if(query(['info','--format','{{json .ID}}'])!==pin.dockerDaemonId)
