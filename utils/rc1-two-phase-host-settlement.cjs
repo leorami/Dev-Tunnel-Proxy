@@ -61,6 +61,61 @@ async function unlinkPinned(dir,leaf,identity){
 function preparedMAC(secret,item){return mac(secret,'devproxy-v12-host-prepared',[item.requestId,item.candidateSha256,item.challenge]);}
 function ackMAC(secret,ack){return mac(secret,'devproxy-v12-api-settle',[ack.requestId,ack.candidateSha256,ack.challenge,ack.preparedMac,String(ack.ts)]);}
 function finalMAC(secret,final){return mac(secret,'devproxy-v12-host-final',[final.status,final.requestId,final.candidateSha256,final.challenge,final.preparedMac]);}
+// The replay reservation is created and fsynced BEFORE the privileged host
+// action. Seal its existing 0600 inode with the final signed receipt BEFORE
+// clearing either host fence marker. This closes the crash window where the
+// host can finish but the API loses its reply and no durable final exists.
+async function persistFinalInReplay(directory,requestId,final){
+ const dir=path.join(directory,'replay');await privateDir(dir);
+ if(!ID.test(requestId))throw Error('INVALID_SETTLEMENT_ID');
+ const file=path.join(dir,requestId);
+ const before=await fs.lstat(file,{bigint:true});
+ if(!before.isFile()||before.isSymbolicLink()||before.nlink!==1n||
+    (before.mode&0o777n)!==0o600n||before.size!==0n)
+  throw Error('UNSAFE_FINAL_RECEIPT_RESERVATION');
+ const h=await fs.open(file,constants.O_WRONLY|constants.O_NOFOLLOW);
+ try{
+  const opened=await h.stat({bigint:true});
+  if(opened.dev!==before.dev||opened.ino!==before.ino||opened.nlink!==1n||
+     opened.size!==0n||(opened.mode&0o777n)!==0o600n)
+   throw Error('FINAL_RECEIPT_RESERVATION_CHANGED');
+  const body=JSON.stringify(final)+'\n';
+  if(Buffer.byteLength(body)>2048)throw Error('FINAL_RECEIPT_TOO_LARGE');
+  await h.writeFile(body);await h.sync();
+  const after=await h.stat({bigint:true});
+  const named=await fs.lstat(file,{bigint:true});
+  if(after.dev!==before.dev||after.ino!==before.ino||named.dev!==before.dev||
+     named.ino!==before.ino||after.size!==BigInt(Buffer.byteLength(body))||
+     named.size!==after.size||after.nlink!==1n||named.nlink!==1n)
+   throw Error('FINAL_RECEIPT_RESERVATION_CHANGED');
+ }finally{await h.close();}
+ await directorySync(dir);
+}
+function recoveryResult(code,recovered=false){return Object.freeze({code,recovered,
+ productionChangeAuthorized:false,liveAttested:false,ownerUatApproved:false,
+ actualHostAttested:false,deployed:false});}
+/** Read-only, DIAGNOSTIC evidence after a lost transport reply; never HTTP 200. */
+async function readVerifiedFinalSettlement({directory,approvedRoot,prepared,secret}={}){
+ try{ensureSecret(secret);}catch{return recoveryResult('UNTRUSTED_FINAL_RECOVERY');}
+ if(!validPrepared(prepared,secret)||!safeDirValue(directory)||!safeDirValue(approvedRoot))
+  return recoveryResult('UNTRUSTED_FINAL_RECOVERY');
+ try{
+  await privateDir(directory);await privateDir(path.join(directory,'replay'));
+  // If either fence survives, an emitted receipt cannot be treated as settled.
+  if(await pinRead(directory,INFLIGHT)||await pinRead(directory,PREPARED))
+   return recoveryResult('DURABLE_FINAL_RECEIPT_QUARANTINED');
+  const saved=await pinRead(path.join(directory,'replay'),prepared.requestId);
+  if(!saved)return recoveryResult('DURABLE_FINAL_RECEIPT_UNAVAILABLE');
+  if(!verifySignedFinalSettlement({response:saved.data,prepared,secret}).ok)
+   return recoveryResult('UNTRUSTED_DURABLE_FINAL_RECEIPT');
+  const manifest=await createCandidateManifest({approvedRoot});
+  if(!sameHex(manifest.candidateSha256,prepared.candidateSha256))
+   return recoveryResult('DURABLE_FINAL_RECEIPT_STALE_CONFIG');
+  if(await pinRead(directory,INFLIGHT)||await pinRead(directory,PREPARED))
+   return recoveryResult('DURABLE_FINAL_RECEIPT_QUARANTINED');
+  return recoveryResult('DURABLE_FINAL_RECEIPT_RECOVERED',true);
+ }catch{return recoveryResult('DURABLE_FINAL_RECEIPT_UNVERIFIABLE');}
+}
 function validPrepared(prepared,secret){
  if(!owned(prepared,['status','requestId','candidateSha256','challenge','preparedMac','productionChangeAuthorized','liveAttested'])||
   prepared.status!==PREP_STATUS||!ID.test(prepared.requestId)||!HEX64.test(prepared.candidateSha256)||!ID.test(prepared.challenge)||
@@ -147,12 +202,16 @@ function createTwoPhaseHostSettlement({directory,approvedRoot,secret,now=Date.no
     throw Error('HOST_SETTLEMENT_INDETERMINATE');
   const after=await createCandidateManifest({approvedRoot});
   if(!sameHex(after.candidateSha256,p.candidateSha256))throw Error('HOST_SETTLEMENT_CANDIDATE_CHANGED');
-  // No automated recovery. Failures during release leave marker quarantined.
-  await unlinkPinned(directory,PREPARED,saved);await unlinkPinned(directory,INFLIGHT,marker);
+  // Seal a signed final in the already-durable replay reservation FIRST.
+  // A crash before clearing the fence leaves recovery BLOCKED, not success.
   const r={status:FINAL_STATUS,requestId:p.requestId,candidateSha256:p.candidateSha256,challenge:p.challenge,
    preparedMac:p.preparedMac,productionChangeAuthorized:false,liveAttested:false};
-  return Object.freeze({...r,finalMac:finalMAC(secret,r)});
+  const final=Object.freeze({...r,finalMac:finalMAC(secret,r)});
+  await persistFinalInReplay(directory,p.requestId,final);
+  // No automated recovery. Failures during release leave marker quarantined.
+  await unlinkPinned(directory,PREPARED,saved);await unlinkPinned(directory,INFLIGHT,marker);
+  return final;
  }
  return Object.freeze({begin,prepare,settle});
 }
-module.exports={createTwoPhaseHostSettlement,createVerifiedApiSettlementAck,verifySignedFinalSettlement};
+module.exports={createTwoPhaseHostSettlement,createVerifiedApiSettlementAck,verifySignedFinalSettlement,readVerifiedFinalSettlement};
