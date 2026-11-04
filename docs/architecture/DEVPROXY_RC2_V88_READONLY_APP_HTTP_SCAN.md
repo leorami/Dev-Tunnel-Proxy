@@ -1,0 +1,23 @@
+# RC2 v88: evidence-only, no-side-effect app route HTTP inventory
+
+Status: **INDEPENDENT CTO SOURCE ONLY. NOT INTEGRATED INTO API, NOT DEPLOYED.** This does not authorize new production changes, owner UAT, functional parity, or a second Cursor primary.
+
+## Source-grounded failure
+
+`POST /devproxy/api/apps/scan` in the Engineer-I v86 source (SHA `1b8947ea83a5de44ab9370a4ec48bf1842715677`) still calls `spawnSync('node', test/scanApps.js)` with an owner-supplied `base` and an inherited environment. The script creates `.artifacts/reports`, reaches the ngrok-origin discovery layer, fetches HTML/JS/API candidates, attempts WebSocket upgrades, writes reports, and probes user-controlled URLs. Secure-mode `rc2-management-safety-policy.cjs` correctly blocks the legacy handler. **V87 now separately exposes an authenticated local `apps/*.conf` inventory**; it does NOT inspect actual Nginx `location` path specifications or probe HTTP status and instead derives display routes from filenames. Removing the legacy deny rule to recover deeper scan functionality would restore unbounded network/process/file effects and bypass the independent authenticated host worker.
+
+## Standalone implemented module
+
+`utils/rc2-readonly-app-http-scan.cjs` provides `readExistingRoutes`, `deriveSafeAuditRoute`, `scanExistingAppHttpRoutes`. The new module is reviewed separately. The v88 integration adds an authenticated **opt-in** HTTP observation to the existing safe v87 inventory; it never unblocks the legacy scanApps.js handler.
+
+- Reads *only the existing* `.artifacts/bundle-diagnostics.json` with `O_NOFOLLOW`, one regular hardlink, bounded 256-KiB payload, stable inode/mtime/ctime, and no group/world write. If missing or unsafe, it explicitly reports `READONLY_HTTP_SCAN_UNAVAILABLE`; it NEVER runs `generateAppsBundle.js` or creates a synthetic artifact.
+- Validates the actual `generateAppsBundle.js` schema: `included: [{kind:'app'|'override',pathSpec,source}]`, max 128 source rows. Rejects inconsistent source kind, unexpected file names, invalid object types, and invalid JSON. No source content or owner-private paths are ever reflected in HTTP results.
+- Converts **only literal** nginx location paths to safe route selectors: normal `/app/`, exact `= /app`, and `^~ /app/`. Excludes regex, root catch-alls, management/private prefixes, dot segments, URLs, encoded/query/fragment/duplicate-slash inputs. De-duplicates paths, limits network observations to 32, records skipped count and truncation.
+- Invokes the already tested `createConstrainedLocalHttpAudit()` instance from v86 only via injected `probe.audit({url:'/app/'})`: that adapter owns the fixed `HEAD dev-proxy:80`, no remote host, redirect or credentials. The scan itself creates **no direct sockets**; only the supplied existing fixed-host v86 audit adapter performs local HEAD requests. Neither path permits shell, Docker, file writes, route reload or source mutation.
+- Reports each bounded HTTP status, counts and `READONLY_HTTP_SCAN_EVIDENCE_ONLY`, with `browserAudited:false`, `healingPerformed:false`, `sourceCurrent:'UNKNOWN'`, `realAppVerified:'UNKNOWN'`, `deployed:false`, `ownerUatApproved:false`. An HTTP-200 is not a browser audit or a production Origin-five PASS. Any invalid/noisy probe response is recorded as unavailable, not green.
+
+## RED-first evidence and future integration boundary
+
+CTO isolated Node v22 suite deliberately failed RED when module was absent, then passed 12/12 source-only fixtures. Tests check fake routes, malicious URLs/metadata and admin prefixes, symlink/hardlink/unsafe ACL/oversize, missing artifact no writes, failure redaction, duplicate/regex skip, bounded request count and honest output flags. These are not a Mac native test or owner-route browser UAT. Primary v87 has now **RETURNED** at `ed77c656442534b8dec88c80fa362fa04e37a5d1`, source-reviewed. Its local inventory is preserved unchanged. V88 is based exactly on that return; optional `POST apps/scan?http=1` adds bounded HTTP HEAD observations for actual diagnostics paths only, preserving default inventory without network work. All paths are under existing authentication/Origin controls before the secure guard. Native canonical Mac build and owner authenticated API + UI compatibility must be verified by the next primary, which must start from the latest Engineer commit, import only v88 changed files, and produce one integrated receipt.
+
+Full legacy `scanApps.js` parity (HTML/JS/assets/WebSockets + ngrok) and safe AI healing remain **NOT IMPLEMENTED**. Owner's existing conditional production release gates remain unchanged.
