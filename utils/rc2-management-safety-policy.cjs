@@ -15,7 +15,10 @@ const UNSAFE_POST=Object.freeze(new Set([
  'ai/advanced-heal','ai/fix-react-bundle','ai/fix-storybook-vite',
  'ai/fix-mxtk-api','ai/snapshot-analyze','ai/code-review-container',
  'ai/code-review','ai/review-code','ai/inspect-container','ai/audit',
- 'apps/install','apps/create-route','apps/scan'
+ // apps/install and apps/create-route are restored: handlers use
+ // production-route-mutation + host activation, not write-before-reload.
+ // apps/scan remains blocked until a settlement-safe inventory path exists.
+ 'apps/scan'
 ]));
 const UNSAFE_GET=Object.freeze(new Set(['ai/inspect-container','ai/code-review-container']));
 const result=(blocked,code)=>Object.freeze({blocked,code,productionChangeAuthorized:false,

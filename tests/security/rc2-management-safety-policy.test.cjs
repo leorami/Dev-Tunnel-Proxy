@@ -38,11 +38,16 @@ for(const route of [
  '/ai/fix-react-bundle','/ai/fix-storybook-vite','/ai/fix-mxtk-api',
  '/ai/snapshot-analyze','/ai/code-review-container','/ai/code-review',
  '/ai/review-code','/ai/inspect-container','/ai/audit',
- '/apps/install','/apps/create-route','/apps/scan'
+ '/apps/scan'
 ]) test(`deny legacy privileged or untransactional POST ${route} in spool mode`,()=>{
   const r=classify('POST',route);
   assert.equal(r.blocked,true);assert.equal(r.productionChangeAuthorized,false);
 });
+for(const route of ['/apps/install','/apps/create-route'])
+ test(`retain transactional POST ${route} in spool mode`,()=>{
+  const r=classify('POST',route);
+  assert.equal(r.blocked,false);assert.equal(r.productionChangeAuthorized,false);
+ });
 test('deny inspect-container GET which also invokes privileged helper',()=>{
   assert.equal(classify('GET','/ai/inspect-container').blocked,true);
   assert.equal(classify('GET','/ai/code-review-container').blocked,true);
