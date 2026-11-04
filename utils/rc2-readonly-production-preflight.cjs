@@ -21,7 +21,8 @@ const NGINX_REQUIRED=Object.freeze([
 const API_REQUIRED=Object.freeze([
  '/app','/app/.env','/app/apps','/app/overrides','/app/build/sites-enabled','/app/.artifacts'
 ]);
-const API_SPOOL='/app/.artifacts/rc2-spool';
+// The bind is the IPC PARENT, never the API-owned 0700 spool child.
+const API_SPOOL='/app/.artifacts/rc2-ipc';
 const API_SECRET='/app/.artifacts/rc2-activation.secret';
 const API_WRITABLE=new Set(['/app/apps','/app/overrides',
  '/app/build/sites-enabled','/app/.artifacts',API_SPOOL]);
