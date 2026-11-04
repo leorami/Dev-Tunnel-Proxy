@@ -14,7 +14,7 @@
 | Parent v88 | `docs/receipts/DEVPROXY_RC2_V88_ROUTE_SCAN_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #88 |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `3fcf88af52244aea297b95d17c8892e1c281dadc`* |
 
 ## STARTED
 Rechecked sole primary at v88 tip; no interrupting STARTED peer. Preserved v85–v88 Mac recovery evidence (no image re-export).
