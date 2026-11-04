@@ -14,7 +14,7 @@
 | Parent v84 receipt | `docs/receipts/DEVPROXY_RC2_V84_RELEASE_CLOSEOUT_ENGINEER_COMPLETION.md` / comment `6641136083` |
 | Parallel CTO draft (deferred) | PR #83 @ `43a9d2c…`; PR #84 is this v85 source draft |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `05439830ec5a1d5c60c7e56887bc8ea6350c6cee`* |
 
 ## STARTED
 Sole primary: `engineer/devproxy-rc2-controlled-release-20261104` at `ad96dc6…`. Imported only the eight CTO v85 files from `12bfb7c…` (merge `c3533a7…`). Did not check out older CTO ancestry over primary. No newer STARTED primary on GitHub. Live identities unchanged throughout.
