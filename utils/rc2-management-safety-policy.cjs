@@ -3,8 +3,8 @@
  * Fail-closed routing boundary while HMAC settlement mode is configured.
  * Source-audited legacy API paths directly call Docker, rewrite nginx/config,
  * spawn arbitrary container-backed auditing, or write route files BEFORE
- * transactional activation. Blocking them makes the regression VISIBLE rather
- * than returning false HTTP 200s in a Dockerless immutable API.
+ * transactional activation. Blocking them makes the regression VISIBLE
+ * rather than returning false HTTP 200s in a Dockerless immutable API.
  *
  * This does not protect callers outside proxyConfigAPI, implement a safe chat
  * replacement, or authorize release. Engineer must restore functional parity
@@ -15,6 +15,9 @@ const UNSAFE_POST=Object.freeze(new Set([
  'ai/advanced-heal','ai/fix-react-bundle','ai/fix-storybook-vite',
  'ai/fix-mxtk-api','ai/snapshot-analyze','ai/code-review-container',
  'ai/code-review','ai/review-code','ai/inspect-container','ai/audit',
+ // Production has no owner consent for sending local documentation to remote embeddings,
+ // nor for injecting synthetic status/thought events into the management UI.
+ 'ai/reindex','ai/thoughts/inject',
  // apps/install and apps/create-route are restored: handlers use
  // production-route-mutation + host activation, not write-before-reload.
  // apps/scan remains blocked until a settlement-safe inventory path exists.
