@@ -45,7 +45,9 @@ function validateManifest(m,expectedRoutes){
    !Number.isFinite(f.mtimeMs)||f.mtimeMs<0||!SHA.test(f.sha256))return null;
   paths.add(f.path);bytes+=f.bytes;
   if(/^apps\/[^/]+\.conf$/.test(f.path))routes++;
-  if(/^\.env(?:\.[A-Za-z0-9_-]+)?$/.test(f.path)){
+  // Secret env files must be 0600. `.env.example` is public template material and
+  // is archived at 0644 on real owner trees — requiring 0600 false-fails Mac proof.
+  if(f.path==='.env'||(/^\.env\.[A-Za-z0-9_-]+$/.test(f.path)&&f.path!=='.env.example')){
    if(f.mode!==0o600)return null;envCount++;
   }
  }

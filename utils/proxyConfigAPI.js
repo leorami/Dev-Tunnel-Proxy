@@ -25,6 +25,7 @@ const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
+const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -729,6 +730,13 @@ async function handle(req, res){
       const auditObservation=await rc2SafeLocalAudit.audit(rc2SafeAuditInput);
       const {httpStatus,...auditResult}=auditObservation;
       return send(res,httpStatus,auditResult);
+    }
+    // RC2_SECURE_APPS_INVENTORY: authenticated local apps/*.conf listing only.
+    // Does not spawn scanApps.js, Docker, or network probes.
+    if (req.method==='POST' && u.pathname===apiPath('apps/scan') && inlineHostDockerUnavailable()){
+      const inv=listSecureAppsInventory({appsDir:APPS_DIR});
+      const {httpStatus,...body}=inv;
+      return send(res,httpStatus,body);
     }
     // Secure-spool and production mode deny legacy untransactional management
     // actions AFTER user auth but BEFORE route handlers can mutate state.
