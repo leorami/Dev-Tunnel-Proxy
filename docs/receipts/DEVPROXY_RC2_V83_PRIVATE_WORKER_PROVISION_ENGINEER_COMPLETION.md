@@ -14,7 +14,7 @@
 | Handoff | `docs/handoffs/DEVPROXY_RC2_V83_PRIVATE_WORKER_PROVISION_AND_IPC.md` |
 | V82 Mac fixes preserved | ctime tolerance + prepared poll continue + `ackTimeoutMs:20000` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled after commit)* |
+| This tip | `8f94974e589bf878246b604c4b23e646f937f499` |
 
 ## STARTED
 Fresh lifecycle: master `62a4d7b…`; sole primary PR #79 at `33b0365…` (receipt `6640238467`). Merged CTO `90b0ede…` onto assignment. No second primary. Live RC1 IDs unchanged.
