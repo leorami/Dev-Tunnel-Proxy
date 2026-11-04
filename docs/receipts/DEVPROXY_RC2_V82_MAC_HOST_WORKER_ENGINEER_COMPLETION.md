@@ -14,7 +14,7 @@
 | Handoff | `docs/handoffs/DEVPROXY_RC2_V82_MAC_HOST_WORKER_AND_IMAGE_PROVENANCE.md` |
 | PR #76 / v13 settlement | preserved |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `af2ef82f62c31108414893dfd0c9c30ea488e8e5` |
 
 ## STARTED
 Fresh lifecycle: master `62a4d7b…`; sole active primary PR #79 at `7ca399a…` (`NO-GO` receipt `6639554257`). CTO PR #81 tip `cc882ef…` imported by merge onto assignment. Live secure RC1 IDs unchanged throughout. No other engineer launched.
