@@ -14,7 +14,7 @@
 | Handoff | `docs/handoffs/DEVPROXY_RC2_V81_PINNED_TWO_SERVICE_RELEASE_CANDIDATE.md` |
 | PR #76 / v13 settlement | preserved `8859fca…` / blob `453c821…` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | see commit SHA after push |
+| This tip | ffd8246860981bba18e2a829d3f3a54b4cb022bf |
 
 ## STARTED
 Fresh lifecycle check: master `62a4d7b…`; PR #79 RETURNED NO-GO at `660fab4…` continued as sole primary. Merged CTO `03c7810…` into assignment (ort merge). Live secure RC1 IDs unchanged throughout.
