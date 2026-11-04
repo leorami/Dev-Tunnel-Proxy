@@ -15,7 +15,7 @@
 | Engineer-I PR #76 | preserved `8859fca6af37f4b4796ff556e09d616975af5b8b` |
 | v13 settlement blob | unchanged `453c821489e188c9a4d9b601b8b606cfeb7e0e6b` |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | see commit SHA after push |
+| This tip | 394078276fd35d664e5ef63c519cb014e4f419aa |
 
 ## STARTED
 Rechecked lifecycle: master `62a4d7b…`; PR #79 active RC2 assignment; PR #80 CTO lockdown draft at `dbd2fb6…`. Fast-forwarded assignment onto CTO tip (additive). Did **not** re-score live BEFORE containers with an AFTER-state preflight pin as the sole stop condition.
