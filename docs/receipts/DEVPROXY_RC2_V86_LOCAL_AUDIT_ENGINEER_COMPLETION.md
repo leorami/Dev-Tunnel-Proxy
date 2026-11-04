@@ -14,7 +14,7 @@
 | Parent v85 receipt | `docs/receipts/DEVPROXY_RC2_V85_CURRENT_IMAGE_RECOVERY_ENGINEER_COMPLETION.md` |
 | Parallel CTO drafts | PR #85 (this source); PR #83 deferred |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `4f5100c200989b46bf6f99abd2fa07fcd65aff12`* |
 
 ## STARTED
 Reverified sole primary at `ac7734b…` (GitHub + local). Preserved v85 current-image archive evidence; **no** re-export of images (no digest drift). Live RC1 proxy/API IDs unchanged. Imported **only** the six CTO v86 paths from `9384952…`.
