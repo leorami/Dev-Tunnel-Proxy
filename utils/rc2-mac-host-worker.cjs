@@ -92,7 +92,9 @@ function createMacHostSettlementWorkerFromPin(pin){
   secret:pin.secret,
   executeFixedHostAction,
   verifyHostPrepared,
-  verifyActiveRoute
+  verifyActiveRoute,
+  // Docker Desktop host↔container bind visibility can lag; keep ACK wait inside API budget.
+  ackTimeoutMs:20000
  });
  return Object.freeze({
   async processOne(id){return host.processOne(id);},

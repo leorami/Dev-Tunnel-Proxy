@@ -79,7 +79,8 @@ async function readPinnedJson(dir,id){
    throw Error('UNSAFE_SPOOL_MESSAGE');
   const data=await h.readFile();
   const b=await h.stat({bigint:true});
-  if(b.size!==BigInt(data.length)||b.ino!==st.ino||b.mtimeNs!==a.mtimeNs||b.ctimeNs!==a.ctimeNs)
+  // Bind inode + mtime + size; ignore ctime-only virtiofs/xattr bumps on Docker Desktop.
+  if(b.size!==BigInt(data.length)||b.ino!==st.ino||b.mtimeNs!==a.mtimeNs)
    throw Error('UNSAFE_SPOOL_MESSAGE');
   return JSON.parse(data.toString('utf8'));
  }catch(e){if(e instanceof SyntaxError)throw Error('INVALID_SPOOL_JSON');throw e;}
@@ -230,7 +231,12 @@ function createCrossProcessSettlementActivation({
    if(signal?.aborted)return result('HOST_OPERATION_INDETERMINATE');
    if(clock()-started>=timeoutMs)return result('HOST_OPERATION_INDETERMINATE');
    try{prepared=await bounded(()=>readPinnedJson(path.join(spoolDirectory,'prepared'),ticket.requestId));}
-   catch{return result('HOST_OPERATION_INDETERMINATE');}
+   catch(e){
+    // Keep polling through transient Docker Desktop bind instability; other failures stay terminal.
+    if(e?.message!=='UNSAFE_SPOOL_MESSAGE'&&e?.message!=='HOST_DEADLINE_EXPIRED')
+     return result('HOST_OPERATION_INDETERMINATE');
+    prepared=null;
+   }
    if(prepared)break;
    try{await bounded(()=>wait(pollMs));}catch{return result('HOST_OPERATION_INDETERMINATE');}
   }
