@@ -14,7 +14,7 @@
 | Parent v87 | `docs/receipts/DEVPROXY_RC2_V87_RESTORE_AND_AI_PARITY_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #87 |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `5b6e5d8e4ab6318be63a5c6993eedb8377e94058`* |
 
 ## STARTED
 Rechecked sole primary at v87 tip; no interrupting STARTED peer. Preserved v85–v87 Mac evidence (no image re-export / no archive redo without drift).
