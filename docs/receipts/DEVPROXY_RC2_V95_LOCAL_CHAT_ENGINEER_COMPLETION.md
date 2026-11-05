@@ -13,6 +13,8 @@
 | Handoff | `cto/devproxy-rc2-v95-local-chat-integrated-20261105@3521c969c3900a34982dffdddca462edb46a3109` |
 | Parent v94 | `docs/receipts/DEVPROXY_RC2_V94_BOUND_REVIEW_HEAL_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #95 |
+| Implementation tip | `97528b20658474a2e9d34c58f8a606c83cdea089` |
+| Branch HEAD | `97528b20658474a2e9d34c58f8a606c83cdea089` |
 | STARTED comment | `6667849205` |
 
 ## STARTED
