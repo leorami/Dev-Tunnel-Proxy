@@ -645,6 +645,13 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs' '$ROOT_DIR/tests/security/rc1-config-parity.test.cjs' '$ROOT_DIR/tests/security/rc1-mount-continuity.test.cjs'" || test_result=1
   fi
 
+  # RC2 owner-browser, public-health and cold-start regressions are source-only
+  # and DO NOT issue live HTTP, Docker, ngrok or Messages operations.
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 postcutover browser/privacy/restart source contracts (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-private-owner-browser-origin-parity.test.cjs' '$ROOT_DIR/tests/security/rc2-public-calliope-health-privacy.test.cjs' '$ROOT_DIR/tests/security/rc2-public-health-route-privacy-integration.test.cjs' '$ROOT_DIR/tests/security/rc2-cold-start-availability-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-isolated-nonroot-restore-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-production-compose-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-v83-production-compose-candidate.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
