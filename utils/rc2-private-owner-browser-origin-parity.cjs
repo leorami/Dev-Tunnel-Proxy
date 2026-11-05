@@ -26,8 +26,8 @@ function exact(o,keys){
   keys.includes(k)&&Object.hasOwn(Object.getOwnPropertyDescriptor(o,k),'value'));
 }
 const val=(o,k)=>Object.getOwnPropertyDescriptor(o,k).value;
-function origins(items){
- if(!Array.isArray(items)||items.length<3||items.length>12||
+function origins(items,min=1){
+ if(!Array.isArray(items)||items.length<min||items.length>12||
     Reflect.ownKeys(items).length!==items.length+1)return null;
  const out=new Set();
  for(let i=0;i<items.length;i++){
@@ -49,7 +49,7 @@ function assessPrivateOwnerBrowserOriginParity(input){
  try{
   if(!exact(input,TOP)||val(input,'protocol')!=='DEVPROXY_RC2_PRIVATE_BROWSER_ORIGINS_V1'||
       val(input,'remoteHttpsBrowserExpected')!==true)return BLOCKED;
-  const approved=origins(val(input,'approvedBrowserOrigins'));
+  const approved=origins(val(input,'approvedBrowserOrigins'),3);
   const configured=origins(val(input,'configuredOrigins'));
   if(!approved||!configured||LOCAL.some(x=>!approved.has(x)))return BLOCKED;
   const remote=[...approved].filter(x=>!LOCAL.includes(x));
