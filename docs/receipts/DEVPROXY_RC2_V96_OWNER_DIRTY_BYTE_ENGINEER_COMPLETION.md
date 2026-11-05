@@ -13,6 +13,8 @@
 | Handoff | `cto/devproxy-rc2-v96-owner-dirty-byte-proof-20261105@0baa3a39ca44ae3a07f3474053250726b14eb68f` |
 | Parent v95 | `docs/receipts/DEVPROXY_RC2_V95_LOCAL_CHAT_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #96 |
+| Implementation tip | `2f935b6864ce774d7c3bc5e18dedb289a8bc59db` |
+| Branch HEAD | `2f935b6864ce774d7c3bc5e18dedb289a8bc59db` |
 | STARTED comment | `6668216182` |
 | Owner checkout HEAD (dirty tree) | `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
 
