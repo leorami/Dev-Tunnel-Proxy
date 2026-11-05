@@ -59,7 +59,7 @@ test('RED: api is unprivileged, root filesystem read-only, has no container Dock
 });
 test('RED: app data and generated routes are writable, but code and .env are immutable',()=>{
  const a=volumes(p().compose.services['proxy-config-api']);
- for(const t of ['/app/apps','/app/overrides','/app/build/sites-enabled','/app/.artifacts'])
+ for(const t of ['/app/apps','/app/overrides','/app/build/sites-enabled','/app/.artifacts','/app/.artifacts/rc2-ipc'])
   assert.equal(a.get(t).read_only,false,t);
  for(const t of ['/app','/app/.env','/app/.artifacts/rc2-activation.secret'])
   assert.equal(a.get(t).read_only,true,t);
@@ -67,7 +67,8 @@ test('RED: app data and generated routes are writable, but code and .env are imm
 test('RED: API private spool and secret are not inherited by proxy artifacts',()=>{
  const c=p().compose;const a=volumes(c.services['proxy-config-api']);
  const n=volumes(c.services.proxy);
- assert.equal(a.get('/app/.artifacts/rc2-spool').source,base().paths.spoolHostDir);
+ assert.equal(a.get('/app/.artifacts/rc2-ipc').source,base().paths.spoolHostDir);
+ assert.equal(a.get('/app/.artifacts/rc2-ipc').read_only,false);
  assert.equal(a.get('/app/.artifacts/rc2-activation.secret').source,base().paths.secretHostFile);
  assert.equal(n.get('/usr/share/nginx/html/.artifacts').source,base().paths.artifactsDir);
  for(const v of n.values()) assert.ok(!v.source.startsWith('/private/devproxy/rc2/private/'));
@@ -91,7 +92,7 @@ test('RED: API preserves notifications and primary server, never packages Docker
  const a=p().compose.services['proxy-config-api'];
  assert.equal(a.environment.NODE_ENV,'production');
  assert.equal(a.environment.DEVPROXY_DENY_INLINE_DOCKER,'1');
- assert.equal(a.environment.DEVPROXY_ACTIVATION_SPOOL_DIR,'/app/.artifacts/rc2-spool');
+ assert.equal(a.environment.DEVPROXY_ACTIVATION_SPOOL_DIR,'/app/.artifacts/rc2-ipc/spool');
  assert.equal(a.environment.DEVPROXY_ACTIVATION_SECRET_FILE,'/app/.artifacts/rc2-activation.secret');
  assert.deepEqual(a.env_file,[base().paths.ownerEnvFile]);
  const command=JSON.stringify(a.command);

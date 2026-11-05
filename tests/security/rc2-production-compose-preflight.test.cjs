@@ -57,7 +57,7 @@ test('RED: exact source-pinned RC2 candidate with isolated RW spool can pass rea
  assert.equal(m.calls.length,28);
 });
 test('RED: RO spool mount is rejected for a signed settlement-enabled candidate',()=>{
- const p=pins();p.api.mounts.find(m=>m.destination==='/app/.artifacts/rc2-spool').readOnly=true;
+ const p=pins();p.api.mounts.find(m=>m.destination==='/app/.artifacts/rc2-ipc').readOnly=true;
  assert.throws(()=>read(p),/INVALID_RC2_PREFLIGHT/);
 });
 test('RED: RW secret exposure is rejected before Docker preflight',()=>{
@@ -69,7 +69,7 @@ test('RED: missing operator secret while spool exists is rejected at preflight c
  assert.throws(()=>read(p),/INVALID_RC2_PREFLIGHT/);
 });
 test('RED: missing spool when secret exists is rejected at preflight construction',()=>{
- const p=pins();p.api.mounts=p.api.mounts.filter(m=>m.destination!=='/app/.artifacts/rc2-spool');
+ const p=pins();p.api.mounts=p.api.mounts.filter(m=>m.destination!=='/app/.artifacts/rc2-ipc');
  assert.throws(()=>read(p),/INVALID_RC2_PREFLIGHT/);
 });
 test('RED: a worker private secret inside the proxy shared artifacts tree fails construction',()=>{
@@ -80,13 +80,13 @@ test('RED: a worker private secret inside the proxy shared artifacts tree fails 
 test('RED: spool must not point inside API source or any owner route data volume',()=>{
  for(const nested of ['/private/rc2-stage/source/rc2-spool','/private/rc2-stage/data/apps/.spool',
   '/private/rc2-stage/data/artifacts/.spool']){
-  const p=pins();p.api.mounts.find(m=>m.destination==='/app/.artifacts/rc2-spool').source=nested;
+  const p=pins();p.api.mounts.find(m=>m.destination==='/app/.artifacts/rc2-ipc').source=nested;
   assert.throws(()=>read(p),/INVALID_RC2_PREFLIGHT/,nested);
  }
 });
 test('RED: actual observed worker spool RW downgrade blocks postcutover',async()=>{
  const p=pins();const m=read(p,records=>{
-  records.api.mounts.find(x=>x.Destination==='/app/.artifacts/rc2-spool').RW=false;
+  records.api.mounts.find(x=>x.Destination==='/app/.artifacts/rc2-ipc').RW=false;
  });
  const r=await m.inspect();assert.equal(r.code,'READ_ONLY_PREFLIGHT_BLOCKED');
  assert.ok(r.blockers.includes('API_MOUNTS_MISMATCH'));
