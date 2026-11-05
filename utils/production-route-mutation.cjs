@@ -8,6 +8,7 @@
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const crypto=require('node:crypto');
+const {verifyApprovedOwnerPreimage}=require('./rc2-approved-owner-preimage.cjs');
 const NAME_RX=/^[A-Za-z0-9_-]{1,80}\.conf$/;
 const STATUS_OK='RELOAD_AND_VERIFICATION_REPORTED';
 const FILE_LIMIT=256*1024;
@@ -85,7 +86,11 @@ function createProductionRouteMutationService({root,activation,generateBundle,lo
   if(snapshot.present)await replace(file,snapshot.data,snapshot.mode);
   else {const now=await preimage(file);if(now.present){await fs.unlink(file);await syncDir(path.dirname(file));}}
  }
- async function mutate({kind,name,content,sourceApp}={}){
+ async function mutate({kind,name,content,sourceApp,expectedBeforeSha256}={}){
+  if(expectedBeforeSha256!==undefined&&
+     (kind!=='app'||sourceApp!==undefined||typeof expectedBeforeSha256!=='string'||
+      !/^[a-f0-9]{64}$/.test(expectedBeforeSha256)))
+    return out(400,'BLOCKED_INVALID_EXPECTED_PREIMAGE');
   if(!validateName(kind,name)||sourceApp!==undefined&&sourceApp!==null&&!validateName('app',sourceApp))
     return out(400,'BLOCKED_INVALID_ROUTE_NAME');
   if(content!==undefined&&(typeof content!=='string'||!content.length||Buffer.byteLength(content,'utf8')>FILE_LIMIT))
@@ -110,7 +115,16 @@ function createProductionRouteMutationService({root,activation,generateBundle,lo
     if(errors.length)throw Error('INCOMPLETE_ROUTE_ROLLBACK');
    }
    try{
-    oldTarget=await preimage(target);oldBundle=await preimage(bundlePath);
+    oldTarget=await preimage(target);
+    // Owner-approved bytes must still match INSIDE the cross-process lock,
+    // before any durable journal, route writes or HMAC host action.
+    if(expectedBeforeSha256!==undefined){
+      const check=verifyApprovedOwnerPreimage({expectedBeforeSha256,
+       currentBytes:oldTarget.present?oldTarget.data:null});
+      if(check.status!=='MATCH')return out(check.status==='INVALID'?400:409,
+       check.status==='INVALID'?'BLOCKED_INVALID_EXPECTED_PREIMAGE':'BLOCKED_STALE_APPROVED_PREIMAGE');
+    }
+    oldBundle=await preimage(bundlePath);
     for(const p of auxiliaryPaths)oldAuxiliary.push([p,await preimage(p)]);
     let body=content;
     if(sourceApp){const source=await preimage(path.join(dirs.app,sourceApp));
@@ -204,7 +218,20 @@ function createProductionRouteMutationService({root,activation,generateBundle,lo
   const canonical=name.endsWith('.conf')?name:name+'.conf';return mutate({kind:'app',name:canonical,content});}
  async function promote(name){return mutate({kind:'override',name,sourceApp:name});}
  async function editConfig(name,content){return mutate({kind:'config',name,content});}
- async function editApp(name,content){return mutate({kind:'app',name,content});}
+ async function editApp(name,content,options){
+  if(options!==undefined){
+   if(!options||typeof options!=='object'||Array.isArray(options)||
+      Object.getPrototypeOf(options)!==Object.prototype||
+      Reflect.ownKeys(options).length!==1||
+      !Object.hasOwn(options,'expectedBeforeSha256')||
+      !Object.hasOwn(Object.getOwnPropertyDescriptor(options,'expectedBeforeSha256'),'value')||
+      typeof options.expectedBeforeSha256!=='string'||
+      !/^[a-f0-9]{64}$/.test(options.expectedBeforeSha256))
+    return out(400,'BLOCKED_INVALID_EXPECTED_PREIMAGE');
+   return mutate({kind:'app',name,content,expectedBeforeSha256:options.expectedBeforeSha256});
+  }
+  return mutate({kind:'app',name,content});
+ }
  async function editOverride(name,content){return mutate({kind:'override',name,content});}
  return Object.freeze({install,promote,editConfig,editApp,editOverride,regenerate});
 }
