@@ -29,6 +29,8 @@ const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secu
 const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
 const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
 const {runSecureSelfCheck,readSecureSelfCheckRequestBody}=require('./rc2-secure-self-check.cjs');
+const {answerFromLocalProjectDocs,readBoundedLocalQuestionBody}=require('./rc2-local-calliope-evidence.cjs');
+const {explainLocalCalliopeCapability}=require('./rc2-local-calliope-observe-explain.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -729,6 +731,43 @@ async function handle(req, res){
     if (authBoundary.requiresAuth) {
       if (!requireAuth(req, res, u)) return;
     }
+    // RC2_V95_LOCAL_CHAT: existing Calliope Ask UI stays useful in secure
+    // nonroot mode without silently re-enabling Docker/self-heal/external AI.
+    // The session and trusted Origin gate above must run BEFORE this handler.
+    if(req.method==='POST'&&u.pathname===apiPath('ai/ask')&&inlineHostDockerUnavailable()){
+      const request=await readBoundedLocalQuestionBody(req);
+      if(!request.ok)return send(res,400,{ok:false,
+        answer:'I could not read that request. Please ask one shorter question.',
+        sources:[],mode:'local_documentation',error:request.code,
+        usedAI:false,healingPerformed:false,liveAttested:false,
+        executionAuthorized:false,productionChangeAuthorized:false,networkTransferAuthorized:false});
+      const explained=explainLocalCalliopeCapability(request.query);
+      if(explained.ok)return send(res,200,explained);
+      const answer=answerFromLocalProjectDocs({root:ROOT,query:request.query,maxDocs:request.maxDocs});
+      const code=answer.ok?200:(answer.code==='LOCAL_DOCUMENTATION_UNAVAILABLE'?503:400);
+      return send(res,code,answer);
+    }
+    // RC2_V95_LOCAL_CHAT health: secure mode must not hide behind OpenAI-only
+    // enabled flags, and must remain reachable before legacy mutation gates.
+    if(req.method==='GET'&&u.pathname===apiPath('ai/health')&&inlineHostDockerUnavailable()){
+      return send(res, 200, {
+        enabled: true,
+        mode: 'local_documentation',
+        model: null,
+        openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+        usedAI: false,
+        healingPerformed: false,
+        liveAttested: false,
+        staticNgrokDomain: null,
+        activity: currentActivity,
+        capabilities: Object.freeze([
+          'local_documentation_ask',
+          'local_observation_limits_explain',
+          'local_reviewed_heal_explain',
+          'owner_reviewed_nextjs_redirect_skill'
+        ])
+      });
+    }
     // RC2_SECURE_HTTP_AUDIT: authenticated only, no Docker/browser/external AI.
     // The old legacy path stays guarded in production; this fixed-host HEAD
     // implementation cannot execute a host action, follow redirects or heal.
@@ -1291,6 +1330,7 @@ async function handle(req, res){
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
         // Health remains available without any privileged Docker access.
+        // Secure-mode local_documentation health is handled before controlGate.
         const enabled = Boolean(process.env.OPENAI_API_KEY);
         
         // Try to get static domain from logs for more reliable ngrok discovery

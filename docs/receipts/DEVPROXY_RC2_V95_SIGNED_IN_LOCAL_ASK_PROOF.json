@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "mode": "disposable_signed_in_ask",
+  "port": 18795,
+  "origin": "http://127.0.0.1:18795",
+  "steps": {
+    "unauthenticatedAsk": 401,
+    "login": 200,
+    "crossOriginAsk": 403,
+    "oversizedAsk": 400,
+    "signedInHealExplain": {
+      "status": 200,
+      "mode": "local_reviewed_heal_explain",
+      "sources": [
+        "utils/rc2-owner-heal-proposal-ticket.cjs",
+        "utils/calliope-owner-nextjs-heal-skill.cjs",
+        "utils/rc2-approved-owner-preimage.cjs",
+        "status/common.js"
+      ]
+    },
+    "signedInObserveExplain": {
+      "status": 200,
+      "mode": "local_observation_limits",
+      "sources": [
+        "utils/rc2-secure-http-audit.cjs",
+        "utils/rc2-readonly-app-http-scan.cjs",
+        "utils/rc2-secure-self-check.cjs"
+      ]
+    },
+    "nonmatchingDocsGap": {
+      "status": 200,
+      "sources": []
+    },
+    "signedInDocsAsk": {
+      "status": 200,
+      "mode": "local_documentation",
+      "sources": [
+        "docs/CALLIOPE_ASSISTANT.md",
+        "docs/CONFIGURATION.md",
+        "README.md"
+      ]
+    },
+    "health": "local_documentation"
+  },
+  "usedAI": false,
+  "healingPerformed": false,
+  "liveAttested": false,
+  "liveContainersTouched": false
+}
