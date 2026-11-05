@@ -1,21 +1,10 @@
 'use strict';
 /**
- * Explicitly invoked Mac-host fixed-action settlement worker.
- * Reads operator-private pins from a 0600 JSON file (never from GitHub).
- * No network listener. No docker.sock mount. No automatic production GO.
- *
- * Pin file shape (paths redacted in receipts):
- * {
- *   "dockerBinary":"/usr/local/bin/docker",
- *   "proxyContainerId":"<64hex>",
- *   "proxyImage":"sha256:<64hex>",
- *   "expectedMounts":[{destination,source,readOnly}],
- *   "spoolDirectory":"/abs/private/spool",
- *   "leaseDirectory":"/abs/private/lease",
- *   "approvedRoot":"/abs/product-or-overlay-root",
- *   "secretFile":"/abs/private/secret",
- *   "authorizeFixedHostAction": true   // must be literal true in pin; still not owner GO
- * }
+ * Internal fixed-action Mac host settlement constructor, NOT an executable
+ * worker entrypoint and NOT a pin reader. The approved code path is
+ * scripts/rc2-supervised-mac-host-worker.cjs, which loads strictly verified
+ * private pins and holds the crash-durable exclusive singleton before scans.
+ * No network listener or docker.sock bind is created here.
  */
 const fsp=require('node:fs/promises');
 const path=require('node:path');
@@ -99,6 +88,6 @@ async function main(){
 
 module.exports={createMacHostSettlementWorkerFromPin,main};
 if(require.main===module){
-  process.stderr.write('HOST_WORKER_SUPERVISOR_REQUIRED\\n');
+  process.stderr.write('HOST_WORKER_SUPERVISOR_REQUIRED\n');
   process.exitCode=2;
 }
