@@ -13,7 +13,7 @@
 | Handoff | `cto/devproxy-rc2-v94-integrated-owner-heal-review-20261105@c74c4a99a0e8bd94fb9d479cdc03f37849a9acf5` |
 | Parent v93 | `docs/receipts/DEVPROXY_RC2_V93_TEACHING_ADMISSION_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #94 |
-| Implementation tip | *(filled at commit)* |
+| Implementation tip | `5e61290d9d0a5c4935c0a51740152a3eed8fb5da` |
 
 ## STARTED
 Sole primary RETURNED v93; no peer STARTED. Comment `6667327093`.
