@@ -1,0 +1,9 @@
+# V106 source-only architecture note
+
+Owner approval was provided explicitly on 2026-11-05 and durably recorded as PR #79 comment 6672650274. The current returned primary SHA is 150d0e792bfca886a1509d07618aa2c5eedd5500. The approved correction is limited to one API service replacement, an exact previously authorized HTTPS trusted-origin addition, and successful safety verification. The proxy service, host worker, routes, existing identity and all excluded systems remain unchanged.
+
+Important code-reading result: config/nginx.production.conf defines static nginx upstream names targeting dev-proxy-config-api. A Docker API container recreation might yield a different network address. A currently running nginx process might retain its old resolved upstream and lose access to login or Calliope endpoints. BEFORE recreating the API, the primary engineer must prove how the API backend remains reachable and how rollback can restore reachability without restarting or reloading the proxy. If this is unproven, stop before any live change and return a precise exception.
+
+Pure source review module utils/rc2-approved-api-only-postcheck.cjs checks a private before/after receipt for unchanged proxy identity, route data, worker and owner assets, and all mandatory API security, origin and reachability checks. A stale upstream is explicitly rejected. The module cannot execute commands or attest production. Its 11 focused source tests pass in an isolated V8 harness; native Node and Docker verification remain for primary Engineer-I.
+
+No live services have been changed by this CTO branch. A single pinned handoff owns private preflight, bounded execution, read-only before/after checks and one consolidated return. Authorization is distinct from authentication and a green source test is not deployment proof.
