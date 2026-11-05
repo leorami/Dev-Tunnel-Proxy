@@ -14,7 +14,7 @@
 | Parent v89 | `docs/receipts/DEVPROXY_RC2_V89_AI_CONSENT_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #89 |
 | Protected master | untouched `62a4d7babae986ade1feb0fd6dbe7dd32532523a` |
-| This tip | *(filled at commit)* |
+| This tip | `fe917083d5f896d2637a21113e891a57bc663903`* |
 
 ## STARTED
 Rechecked sole primary at v89 tip; no interrupting STARTED peer. Preserved v85–v89 recovery/consent evidence (no image re-export).
