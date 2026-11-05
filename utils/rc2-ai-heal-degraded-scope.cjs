@@ -18,7 +18,11 @@ const PARTIAL_SAFE_POST=Object.freeze([
  'apps/scan' // inventory (+ optional diagnostics HEAD scan) — not scanApps.js
 ]);
 const PRESERVED_TRANSACTIONAL_POST=Object.freeze([
- 'apps/install','apps/create-route','apps/regenerate','overrides/promote'
+ 'apps/install','apps/create-route','apps/regenerate','overrides/promote',
+ 'apps/propose-nextjs-redirect-heal','apps/apply-reviewed-nextjs-redirect'
+]);
+const HOST_MEDIATED_FIXED_ACTION=Object.freeze([
+ 'apps/apply-reviewed-nextjs-redirect' // CAS editApp + HMAC; not AI chat/docker.sock
 ]);
 function listAiHealDegradedScope(){
  return Object.freeze({
@@ -27,10 +31,11 @@ function listAiHealDegradedScope(){
   degradedPostPaths:DEGRADED_POST,
   partialSafePostPaths:PARTIAL_SAFE_POST,
   preservedTransactionalPostPaths:PRESERVED_TRANSACTIONAL_POST,
-  safeReplacementStatus:'PARTIAL_OBSERVATION_ONLY_HEAL_STILL_BLOCKED',
+  hostMediatedFixedActions:HOST_MEDIATED_FIXED_ACTION,
+  safeReplacementStatus:'PARTIAL_OBSERVATION_PLUS_ONE_REVIEWED_REDIRECT_SKILL',
   productionChangeAuthorized:false,
   deployed:false,
   ownerUatApproved:false
  });
 }
-module.exports={listAiHealDegradedScope,DEGRADED_POST,PARTIAL_SAFE_POST,PRESERVED_TRANSACTIONAL_POST};
+module.exports={listAiHealDegradedScope,DEGRADED_POST,PARTIAL_SAFE_POST,PRESERVED_TRANSACTIONAL_POST,HOST_MEDIATED_FIXED_ACTION};

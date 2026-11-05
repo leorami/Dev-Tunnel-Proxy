@@ -4,9 +4,14 @@
  * Proposals come from calliope-redirect-loop-proposal.cjs; writes go ONLY through
  * reviewed production-route-mutation.editApp + injected HMAC activation.
  * No shell, Docker, filesystem, or free-form model text execution here.
+ *
+ * V92: editApp receives {expectedBeforeSha256} so the mutation lock enforces CAS
+ * atomically. Client-supplied synthetic verify booleans cannot set healing or
+ * liveAttested; disposable real evidence uses nginx -t + recorded browser assessor.
  */
 const crypto=require('node:crypto');
 const {proposeNextjsRedirectLoopRepair}=require('./calliope-redirect-loop-proposal.cjs');
+const {assessRecordedBrowserHealEvidence}=require('./calliope-recorded-browser-heal-evidence.cjs');
 
 const HEAL_STATUS=Object.freeze({
   OBSERVED:'OBSERVED',
@@ -16,7 +21,8 @@ const HEAL_STATUS=Object.freeze({
   VERIFIED:'VERIFIED',
   FAILED:'FAILED',
   NOT_AVAILABLE:'NOT_AVAILABLE',
-  NEW_ABILITY_REQUESTED:'NEW_ABILITY_REQUESTED'
+  NEW_ABILITY_REQUESTED:'NEW_ABILITY_REQUESTED',
+  UNIT_SYNTHETIC_ONLY:'UNIT_SYNTHETIC_ONLY'
 });
 const APP=/^[A-Za-z0-9_-]{1,80}\.conf$/;
 const ROUTE=/^[a-z][a-z0-9-]{0,47}$/;
@@ -83,7 +89,8 @@ function approveProposedRepair(proposed,{ownerApproval}={}){
 
 /**
  * Apply an OWNER_APPROVED exact-diff through mutation.editApp only.
- * readCurrentSource() MUST return the live bytes at mutation time for TOCTOU.
+ * Early read detects obvious drift; CAS third-arg enforces the approved
+ * before SHA inside the mutation lock (atomic vs intervening writers).
  */
 async function applyApprovedRepair(approved,{mutation,readCurrentSource}={}){
  if(!approved||approved.status!==HEAL_STATUS.OWNER_APPROVED||approved.ownerApprovalGranted!==true)
@@ -107,39 +114,74 @@ async function applyApprovedRepair(approved,{mutation,readCurrentSource}={}){
     replay.candidateConfig!==approved.candidateConfig)
   return base(HEAL_STATUS.FAILED,{code:'PROPOSAL_REPLAY_REJECTED',route:approved.route});
  let result;
- try{result=await mutation.editApp(approved.appName,approved.candidateConfig);}
- catch{return base(HEAL_STATUS.FAILED,{code:'EDIT_APP_THREW',route:approved.route});}
+ try{
+  result=await mutation.editApp(approved.appName,approved.candidateConfig,{
+   expectedBeforeSha256:approved.beforeSha256
+  });
+ }catch{return base(HEAL_STATUS.FAILED,{code:'EDIT_APP_THREW',route:approved.route});}
  if(!result||result.ok!==true||result.httpStatus!==200)
   return base(HEAL_STATUS.FAILED,{
-   code:'EDIT_APP_REJECTED',route:approved.route,
+   code:result&&result.code==='BLOCKED_STALE_APPROVED_PREIMAGE'
+    ?'CAS_STALE_APPROVED_PREIMAGE':'EDIT_APP_REJECTED',
+   route:approved.route,
    mutationCode:result&&result.code,httpStatus:result&&result.httpStatus
   });
  return base(HEAL_STATUS.APPLIED,{
   route:approved.route,appName:approved.appName,beforeSha256:approved.beforeSha256,
   afterSha256:approved.afterSha256,ownerApprovalGranted:true,
-  mutationCode:result.code,issueType:'nextjs_redirect_loop'
+  mutationCode:result.code,issueType:'nextjs_redirect_loop',casEnforced:true
  });
 }
 
-async function verifyAppliedRepair(applied,{verify}={}){
+/**
+ * Synthetic unit probes are retained for unit tests only and NEVER set
+ * healingPerformed/liveAttested. Disposable real verification requires an
+ * nginx -t exit 0 record plus CTO recorded-browser assessment.
+ */
+async function verifyAppliedRepair(applied,{evidence}={}){
  if(!applied||applied.status!==HEAL_STATUS.APPLIED)
   return base(HEAL_STATUS.FAILED,{code:'APPLY_REQUIRED'});
- if(typeof verify!=='function')
-  return base(HEAL_STATUS.FAILED,{code:'VERIFIER_REQUIRED'});
- let report;
- try{report=await verify(applied);}catch{
-  return base(HEAL_STATUS.FAILED,{code:'VERIFIER_THREW',route:applied.route});
- }
- if(!exactPlain(report,['ok','nginxSyntaxOk','assetStatus','redirectLoop','unrelatedRoutesIntact'])||
-    report.ok!==true||report.nginxSyntaxOk!==true||report.assetStatus!==200||
-    report.redirectLoop!==false||report.unrelatedRoutesIntact!==true)
-  return base(HEAL_STATUS.FAILED,{
-   code:'VERIFICATION_FAILED',route:applied.route,report:report||null
+ if(evidence===null||typeof evidence!=='object'||Array.isArray(evidence)||
+    Object.getPrototypeOf(evidence)!==Object.prototype||
+    !Object.hasOwn(evidence,'evidenceClass')||
+    !Object.hasOwn(Object.getOwnPropertyDescriptor(evidence,'evidenceClass'),'value'))
+  return base(HEAL_STATUS.FAILED,{code:'EVIDENCE_REQUIRED'});
+ if(evidence.evidenceClass==='SYNTHETIC_UNIT')
+  return base(HEAL_STATUS.UNIT_SYNTHETIC_ONLY,{
+   code:'SYNTHETIC_NOT_LIVE_HEAL',route:applied.route,
+   healingPerformed:false,liveAttested:false
   });
+ if(evidence.evidenceClass!=='DISPOSABLE_REAL_BROWSER'||
+    !exactPlain(evidence,['evidenceClass','nginxSyntaxTest','browserBefore','browserAfter','unrelatedRoutesIntact']))
+  return base(HEAL_STATUS.FAILED,{code:'DISPOSABLE_REAL_EVIDENCE_REQUIRED'});
+ const ngx=evidence.nginxSyntaxTest;
+ if(!exactPlain(ngx,['ok','exitCode','engine'])||ngx.ok!==true||ngx.exitCode!==0||
+    ngx.engine!=='nginx-t-disposable')
+  return base(HEAL_STATUS.FAILED,{code:'NGINX_SYNTAX_NOT_PROVEN',route:applied.route});
+ if(evidence.unrelatedRoutesIntact!==true)
+  return base(HEAL_STATUS.FAILED,{code:'SIBLING_ROUTES_NOT_INTACT',route:applied.route});
+ const assessed=assessRecordedBrowserHealEvidence({
+  route:applied.route,before:evidence.browserBefore,after:evidence.browserAfter
+ });
+ if(assessed.status!=='RECORDED_REPAIR_NEEDS_LIVE_ATTESTATION'||
+    assessed.liveAttested!==false||assessed.healingPerformed!==false)
+  return base(HEAL_STATUS.FAILED,{
+   code:'BROWSER_EVIDENCE_INSUFFICIENT',route:applied.route,assessedStatus:assessed.status
+  });
+ // Disposable skill recovery: healingPerformed true for the taught skill record,
+ // but liveAttested remains false until production Origin attestation.
  return base(HEAL_STATUS.VERIFIED,{
   route:applied.route,appName:applied.appName,beforeSha256:applied.beforeSha256,
   afterSha256:applied.afterSha256,ownerApprovalGranted:true,healingPerformed:true,
-  issueType:'nextjs_redirect_loop',verification:Object.freeze({...report})
+  liveAttested:false,issueType:'nextjs_redirect_loop',
+  browserEvidenceDigest:assessed.evidenceDigest,
+  verification:Object.freeze({
+   evidenceClass:'DISPOSABLE_REAL_BROWSER',
+   nginxSyntaxOk:true,
+   recordedBrowserStatus:assessed.status,
+   lessonVerified:true,
+   lessonProductionLive:false
+  })
  });
 }
 

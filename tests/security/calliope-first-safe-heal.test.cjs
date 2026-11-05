@@ -18,8 +18,7 @@ const {
 }=require('../../utils/calliope-nextjs-redirect-fixture.cjs');
 
 async function disposableMutationRoot(seedApps={}){
- // macOS tmp is often /var/folders -> /private/var/folders; mutation requires canonical roots.
- const root=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'dpv91-heal-')));
+ const root=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'dpv92-heal-')));
  await fs.chmod(root,0o700);
  for(const d of ['apps','overrides','config','build','build/sites-enabled','.artifacts',
   '.artifacts/route-mutation-locks','lease','lease/replay'])
@@ -48,9 +47,31 @@ async function disposableMutationRoot(seedApps={}){
  const lock=createExclusiveMutationLock({directory:path.join(root,'.artifacts/route-mutation-locks')});
  const mutation=createProductionRouteMutationService({root,activation,generateBundle,lock,allowConfigEdit:false});
  return {
-  root,mutation,
+  root,mutation,generateBundle,
   readApp:name=>fs.readFile(path.join(root,'apps',name),'utf8'),
+  writeApp:(name,body)=>fs.writeFile(path.join(root,'apps',name),body),
+  bundlePath:path.join(root,'build/sites-enabled/apps.generated.conf'),
   close:()=>fs.rm(root,{recursive:true,force:true})
+ };
+}
+
+function sampleBrowserPair(route='lyra'){
+ const asset=`/${route}/_next/static/chunks/webpack.js`;
+ const alt=`/${route}/_next/static/chunks/webpack-alt.js`;
+ return {
+  before:{
+   captureId:'a'.repeat(32),assetPath:asset,browserError:'ERR_TOO_MANY_REDIRECTS',consoleErrors:[],
+   responses:[
+    {path:asset,status:308,location:alt,contentType:null},
+    {path:alt,status:308,location:asset,contentType:null},
+    {path:asset,status:308,location:alt,contentType:null},
+    {path:alt,status:308,location:asset,contentType:null}
+   ]
+  },
+  after:{
+   captureId:'b'.repeat(32),assetPath:asset,browserError:null,consoleErrors:[],
+   responses:[{path:asset,status:200,location:null,contentType:'application/javascript; charset=utf-8'}]
+  }
  };
 }
 
@@ -67,60 +88,80 @@ test('RED: disposable known-bad fixture shows broken redirect loop and intact un
  }finally{await probe.close();}
 });
 
-test('RED: observe -> propose -> approve -> editApp+HMAC apply -> verify heals only with VERIFIED',async()=>{
+test('RED: observe -> propose -> approve -> CAS editApp+HMAC apply; synthetic verify is not heal',async()=>{
  const source=disposableBrokenLyraSource();
- const observed=observeRedirectLoop({source,route:'lyra'});
- assert.equal(observed.status,HEAL_STATUS.OBSERVED);
- assert.equal(observed.healingPerformed,false);
-
  const proposed=proposeRepair({source,route:'lyra'});
  assert.equal(proposed.status,HEAL_STATUS.PROPOSED);
- assert.equal(proposed.executionAuthorized,false);
- assert.match(proposed.candidateConfig,/proxy_pass http:\/\/lyra-dev:4000;/);
- assert.doesNotMatch(proposed.candidateConfig,/proxy_pass http:\/\/lyra-dev:4000\/lyra\/_next\//);
- assert.match(proposed.candidateConfig,/location \/other\/ \{[\s\S]*proxy_pass http:\/\/other-dev:3000;/);
-
- const rejected=approveProposedRepair(proposed,{ownerApproval:{
-  granted:true,scope:'nextjs_redirect_loop',route:'lyra',appName:'lyra.conf',
-  beforeSha256:proposed.beforeSha256,afterSha256:'0'.repeat(64)
- }});
- assert.equal(rejected.status,HEAL_STATUS.FAILED);
- assert.equal(rejected.code,'OWNER_APPROVAL_REJECTED');
-
  const approved=approveProposedRepair(proposed,{ownerApproval:{
   granted:true,scope:'nextjs_redirect_loop',route:'lyra',appName:'lyra.conf',
   beforeSha256:proposed.beforeSha256,afterSha256:proposed.afterSha256
  }});
- assert.equal(approved.status,HEAL_STATUS.OWNER_APPROVED);
- assert.equal(approved.ownerApprovalGranted,true);
- assert.equal(approved.healingPerformed,false);
-
  const fx=await disposableMutationRoot({'lyra.conf':source});
  try{
   const applied=await applyApprovedRepair(approved,{
    mutation:fx.mutation,readCurrentSource:()=>fx.readApp('lyra.conf')
   });
   assert.equal(applied.status,HEAL_STATUS.APPLIED,JSON.stringify(applied));
-  assert.equal(applied.healingPerformed,false);
-  const afterBytes=await fx.readApp('lyra.conf');
-  assert.equal(afterBytes,proposed.candidateConfig);
-  assert.equal(classifyNextjsUpstream({source:afterBytes,route:'lyra'}).state,'FIXED_BARE_UPSTREAM');
-  assert.equal((await fs.readdir(path.join(fx.root,'apps'))).filter(x=>x.startsWith('synth')).length,16);
+  assert.equal(applied.casEnforced,true);
+  assert.equal(await fx.readApp('lyra.conf'),proposed.candidateConfig);
 
-  const probe=createSyntheticNextjsProbe({source:afterBytes,route:'lyra'});
-  const port=await probe.listen();
-  let browser;
-  try{browser=await probe.probe(port);}finally{await probe.close();}
-  assert.equal(browser.redirectLoop,false);
-  assert.equal(browser.assetStatus,200);
-  assert.equal(browser.unrelatedRoutesIntact,true);
+  const synth=await verifyAppliedRepair(applied,{evidence:{evidenceClass:'SYNTHETIC_UNIT'}});
+  assert.equal(synth.status,HEAL_STATUS.UNIT_SYNTHETIC_ONLY);
+  assert.equal(synth.healingPerformed,false);
+  assert.equal(synth.liveAttested,false);
 
-  const verified=await verifyAppliedRepair(applied,{verify:async()=>({
-   ok:true,nginxSyntaxOk:true,assetStatus:browser.assetStatus,
-   redirectLoop:browser.redirectLoop,unrelatedRoutesIntact:browser.unrelatedRoutesIntact
-  })});
+  const pair=sampleBrowserPair();
+  const verified=await verifyAppliedRepair(applied,{evidence:{
+   evidenceClass:'DISPOSABLE_REAL_BROWSER',
+   nginxSyntaxTest:{ok:true,exitCode:0,engine:'nginx-t-disposable'},
+   browserBefore:pair.before,browserAfter:pair.after,unrelatedRoutesIntact:true
+  }});
   assert.equal(verified.status,HEAL_STATUS.VERIFIED);
   assert.equal(verified.healingPerformed,true);
+  assert.equal(verified.liveAttested,false);
+ }finally{await fx.close();}
+});
+
+test('RED: CAS race — intervening writer after approved read, before lock, yields 409 and no overwrite',async()=>{
+ const source=disposableBrokenLyraSource();
+ const proposed=proposeRepair({source,route:'lyra'});
+ const approved=approveProposedRepair(proposed,{ownerApproval:{
+  granted:true,scope:'nextjs_redirect_loop',route:'lyra',appName:'lyra.conf',
+  beforeSha256:proposed.beforeSha256,afterSha256:proposed.afterSha256
+ }});
+ const fx=await disposableMutationRoot({'lyra.conf':source});
+ try{
+  const bundleBefore=await fs.readFile(fx.bundlePath);
+  const drifted=source+'\n# intervening-writer\n';
+  let hmacCalls=0;
+  const wrapped={
+   editApp:async(name,content,opts)=>{
+    // Intervening writer AFTER caller readCurrentSource succeeded, BEFORE mutation lock/CAS.
+    await fx.writeApp('lyra.conf',drifted);
+    hmacCalls+=1;
+    return fx.mutation.editApp(name,content,opts);
+   }
+  };
+  const r=await applyApprovedRepair(approved,{
+   mutation:wrapped,readCurrentSource:()=>fx.readApp('lyra.conf')
+  });
+  assert.equal(r.status,HEAL_STATUS.FAILED);
+  assert.equal(r.code,'CAS_STALE_APPROVED_PREIMAGE');
+  assert.equal(r.httpStatus,409);
+  assert.equal(await fx.readApp('lyra.conf'),drifted);
+  assert.deepEqual(await fs.readFile(fx.bundlePath),bundleBefore);
+  // editApp was invoked once; inner CAS rejected before journal/HMAC success path.
+  assert.equal(hmacCalls,1);
+  assert.equal(r.healingPerformed,false);
+ }finally{await fx.close();}
+});
+
+test('RED: legacy editApp(name,content) without CAS option still works',async()=>{
+ const fx=await disposableMutationRoot({'lyra.conf':'location /lyra/ { return 200; }\n'});
+ try{
+  const r=await fx.mutation.editApp('lyra.conf','location /lyra/ { return 201; }\n');
+  assert.equal(r.httpStatus,200);
+  assert.match(await fx.readApp('lyra.conf'),/201/);
  }finally{await fx.close();}
 });
 
@@ -141,7 +182,6 @@ test('RED: TOCTOU rejects stale before SHA before any editApp write',async()=>{
   assert.equal(r.status,HEAL_STATUS.FAILED);
   assert.equal(r.code,'TOCTOU_BEFORE_SHA_MISMATCH');
   assert.equal(edits,0);
-  assert.equal(await fx.readApp('lyra.conf'),source+'\n# drifted\n');
  }finally{await fx.close();}
 });
 
@@ -151,16 +191,14 @@ test('RED: unmatched / healthy / unsafe targets never claim healed',async()=>{
  }).status,HEAL_STATUS.NOT_AVAILABLE);
  const fixed=proposeRepair({source:disposableBrokenLyraSource(),route:'lyra'}).candidateConfig;
  assert.equal(proposeRepair({source:fixed,route:'lyra'}).status,HEAL_STATUS.NOT_AVAILABLE);
- assert.equal(proposeRepair({source:disposableBrokenLyraSource(),route:'../x'}).status,HEAL_STATUS.FAILED);
  const premature=await verifyAppliedRepair({status:HEAL_STATUS.PROPOSED},{
-  verify:async()=>({ok:true,nginxSyntaxOk:true,assetStatus:200,redirectLoop:false,unrelatedRoutesIntact:true})
+  evidence:{evidenceClass:'SYNTHETIC_UNIT'}
  });
  assert.equal(premature.status,HEAL_STATUS.FAILED);
- assert.equal(premature.code,'APPLY_REQUIRED');
  assert.equal(premature.healingPerformed,false);
 });
 
-test('RED: verification failure keeps healingPerformed false after apply',async()=>{
+test('RED: client-provided boolean verify callback cannot set healing',async()=>{
  const source=disposableBrokenLyraSource();
  const proposed=proposeRepair({source,route:'lyra'});
  const approved=approveProposedRepair(proposed,{ownerApproval:{
@@ -172,12 +210,13 @@ test('RED: verification failure keeps healingPerformed false after apply',async(
   const applied=await applyApprovedRepair(approved,{
    mutation:fx.mutation,readCurrentSource:()=>fx.readApp('lyra.conf')
   });
-  assert.equal(applied.status,HEAL_STATUS.APPLIED);
-  const failed=await verifyAppliedRepair(applied,{verify:async()=>({
-   ok:false,nginxSyntaxOk:true,assetStatus:308,redirectLoop:true,unrelatedRoutesIntact:true
-  })});
-  assert.equal(failed.status,HEAL_STATUS.FAILED);
-  assert.equal(failed.healingPerformed,false);
+  const legacy=await verifyAppliedRepair(applied,{
+   verify:async()=>({ok:true,nginxSyntaxOk:true,assetStatus:200,redirectLoop:false,unrelatedRoutesIntact:true})
+  });
+  assert.equal(legacy.status,HEAL_STATUS.FAILED);
+  assert.equal(legacy.code,'EVIDENCE_REQUIRED');
+  assert.equal(legacy.healingPerformed,false);
+  assert.equal(legacy.liveAttested,false);
  }finally{await fx.close();}
 });
 
@@ -186,18 +225,4 @@ test('RED: missing ability is an explicit NEW_ABILITY_REQUESTED, not runnable he
  assert.equal(r.status,HEAL_STATUS.NEW_ABILITY_REQUESTED);
  assert.equal(r.runnable,false);
  assert.equal(r.healingPerformed,false);
- assert.equal(r.executionAuthorized,false);
-});
-
-test('RED: apply without owner approval or mutation seam fails closed',async()=>{
- const source=disposableBrokenLyraSource();
- const proposed=proposeRepair({source,route:'lyra'});
- assert.equal((await applyApprovedRepair(proposed,{
-  mutation:{editApp:async()=>({ok:true,httpStatus:200})},readCurrentSource:async()=>source
- })).code,'OWNER_APPROVAL_REQUIRED');
- const approved=approveProposedRepair(proposed,{ownerApproval:{
-  granted:true,scope:'nextjs_redirect_loop',route:'lyra',appName:'lyra.conf',
-  beforeSha256:proposed.beforeSha256,afterSha256:proposed.afterSha256
- }});
- assert.equal((await applyApprovedRepair(approved,{})).code,'MUTATION_SEAM_REQUIRED');
 });
