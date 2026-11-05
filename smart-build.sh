@@ -657,6 +657,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc2-supervisor-only-direct-cli-guard.test.cjs' '$ROOT_DIR/tests/security/rc2-supervised-mac-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-private-host-worker-pin.test.cjs' '$ROOT_DIR/tests/security/rc2-exclusive-host-worker-service.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 approved API-only postcheck and static nginx DNS rollback (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-approved-api-only-postcheck.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
