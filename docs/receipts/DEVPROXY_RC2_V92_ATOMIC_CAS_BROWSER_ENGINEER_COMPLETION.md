@@ -13,7 +13,7 @@
 | Handoff | `cto/devproxy-rc2-v92-browser-trust-and-atomic-preimage-20261105@05d7b7b077531fd5d504de84da843edd8941227f` |
 | Parent v91 | `docs/receipts/DEVPROXY_RC2_V91_TEACHING_FIRST_SAFE_HEAL_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #92 |
-| Implementation tip | *(filled at commit)* |
+| Implementation tip | `97d2253d9d52cd880a5d42e27084cfac2a8f2c55` |
 
 ## STARTED
 Sole primary RETURNED v91; no peer STARTED. Comment `6665886742`.
