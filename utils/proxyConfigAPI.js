@@ -959,14 +959,17 @@ async function handle(req, res){
     // Route generation is exclusively an explicit authenticated POST transaction.
     if (req.method === 'GET' && u.pathname === apiPath('apps/diagnostics')){
       const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
-      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code});
+      // Never auto-regenerate from GET. Owner must call transactional POST apps/regenerate.
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code,
+        regenerateVia:'POST apps/regenerate',healingPerformed:false,routeModified:false});
       return send(res,200,{ok:true,...r.diagnostics});
     }
 
     // GET active retains generator ordering, without implicit route writes.
     if (req.method === 'GET' && u.pathname === apiPath('apps/active')){
       const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
-      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code});
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code,
+        regenerateVia:'POST apps/regenerate',healingPerformed:false,routeModified:false});
       return send(res,200,{ok:true,active:r.diagnostics.included});
     }
 

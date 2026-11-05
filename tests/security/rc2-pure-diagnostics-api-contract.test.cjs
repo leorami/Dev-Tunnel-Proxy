@@ -13,6 +13,8 @@ test('GET apps diagnostics and active use existing read-only artifact; no implic
  assert.equal((handlers.match(/readExistingBundleDiagnostics\(/g)||[]).length,2);
  assert.doesNotMatch(handlers,/generateAppsBundle|spawnSync|execSync|writeFileSync|unlinkSync|mkdirSync/);
  assert.match(handlers,/BUNDLE_DIAGNOSTICS_OK/);
- assert.match(handlers,/return send\(res,503,\{ok:false,error:r\.code\}\)/);
+ assert.match(handlers,/return send\(res,503,\{ok:false,error:r\.code/);
+ assert.match(handlers,/regenerateVia:'POST apps\/regenerate'/);
+ assert.doesNotMatch(handlers,/POST apps\/regenerate'\)/); // no auto-invocation from GET
  assert.match(source,/require\('\.\/rc2-readonly-bundle-diagnostics\.cjs'\)/);
 });
