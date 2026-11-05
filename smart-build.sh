@@ -652,6 +652,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc2-private-owner-browser-origin-parity.test.cjs' '$ROOT_DIR/tests/security/rc2-public-calliope-health-privacy.test.cjs' '$ROOT_DIR/tests/security/rc2-public-health-route-privacy-integration.test.cjs' '$ROOT_DIR/tests/security/rc2-cold-start-availability-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-isolated-nonroot-restore-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-production-compose-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-v83-production-compose-candidate.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 supervised-only Mac worker authorization (test-owned private fixtures)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-supervisor-only-direct-cli-guard.test.cjs' '$ROOT_DIR/tests/security/rc2-supervised-mac-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-private-host-worker-pin.test.cjs' '$ROOT_DIR/tests/security/rc2-exclusive-host-worker-service.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 
