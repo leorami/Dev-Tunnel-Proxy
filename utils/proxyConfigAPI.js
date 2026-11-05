@@ -1314,22 +1314,8 @@ async function handle(req, res){
     // ======== AI Assistant (optional) ========
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
-        // Health remains available without any privileged Docker access.
-        // Secure-mode local_documentation health is handled before controlGate.
-        const enabled = Boolean(process.env.OPENAI_API_KEY);
-        
-        // Try to get static domain from logs for more reliable ngrok discovery
-        let staticNgrokDomain = null;
-        if (!inlineHostDockerUnavailable()) try {
-          const { execSync } = require('child_process');
-          const logs = execSync('docker logs dev-ngrok 2>&1 | grep "ngrok: using static domain" || true', { stdio: ['ignore', 'pipe', 'pipe'] }).toString('utf8');
-          const mStatic = logs.match(/ngrok:\s+using static domain '([^']+)'/i);
-          if (mStatic && mStatic[1]) {
-            staticNgrokDomain = mStatic[1];
-          }
-        } catch (e) {}
-        
-        return send(res, 200, { enabled, model: process.env.OPENAI_MODEL || null, staticNgrokDomain, activity: currentActivity });
+        // Anonymous health never runs host Docker or reveals model/owner activity.
+        return send(res, 200, createMinimalPublicCalliopeHealth(), publicCalliopeHealthCacheHeaders());
       }
 
       // GET /api/ai/thoughts?since=timestamp - Get thinking events for UI
