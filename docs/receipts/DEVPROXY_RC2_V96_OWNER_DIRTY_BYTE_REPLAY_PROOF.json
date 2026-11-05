@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "code": "OWNER_DIRTY_BYTE_REPLAY_MATCHED",
+  "filesVerified": 8,
+  "archived": 6,
+  "supplemented": 2,
+  "sourceDirty": true,
+  "formalCleanPass": false,
+  "releaseAuthorized": false,
+  "cliExit": 0,
+  "sourceHeadPinned": "62a4d7babae986ade1feb0fd6dbe7dd32532523a",
+  "dirtyInventoryExhaustiveAttested": true,
+  "dirtyInventoryMethod": "git_status_porcelain_plus_untracked_file_walk",
+  "originalArchiveTarAttested": true,
+  "originalArchiveTarAttestationSource": "V87_PRIOR_RECEIPT_NO_DRIFT_RECHECK",
+  "secureNonrootCandidateRestoreAttested": false,
+  "preservationDecisionCode": "RECOVERABLE_DIRTY_SECURE_NONROOT_RESTORE_REQUIRED",
+  "pathsPublished": false,
+  "hashesPublished": false,
+  "liveContainersTouched": false
+}
