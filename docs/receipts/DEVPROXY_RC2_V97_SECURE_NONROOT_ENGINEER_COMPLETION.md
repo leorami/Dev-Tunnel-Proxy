@@ -14,6 +14,8 @@
 | Handoff | `cto/devproxy-rc2-v97-isolated-nonroot-recovery-20261105@f0bedfc71f03a71b31a12ee2eee74ef59614df38` |
 | Parent v96 | `docs/receipts/DEVPROXY_RC2_V96_OWNER_DIRTY_BYTE_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #97 |
+| Implementation tip | `87f6ab8b8c853f0ee4572c8060ca8d1eeebd8ad7` |
+| Branch HEAD | `87f6ab8b8c853f0ee4572c8060ca8d1eeebd8ad7` |
 | STARTED comment | `6668932493` |
 
 ## STARTED
