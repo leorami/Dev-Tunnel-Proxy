@@ -388,21 +388,23 @@
       if(!route)return;
       const appName=route.endsWith('.conf')?route:route+'.conf';
       const h0=loadChat();
-      h0.push({role:'assistant',content:`Proposing owner-reviewed redirect repair for ${appName}…`,ts:Date.now()});
+      h0.push({role:'assistant',content:`Proposing owner-reviewed redirect repair for ${appName} (one-use review ticket)…`,ts:Date.now()});
       saveChat(h0);renderChat();
       try{
         const p=await fetch('/devproxy/api/apps/propose-nextjs-redirect-heal',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({appName,route})});
         const pj=await p.json().catch(()=>({}));
-        if(!p.ok||!pj.ok||!pj.beforeSha256||!pj.afterSha256){
-          const h1=loadChat();h1.push({role:'assistant',content:`Propose failed: ${pj.error||pj.status||('HTTP '+p.status)}. No changes applied.`,ts:Date.now()});saveChat(h1);renderChat();return;
+        if(!p.ok||!pj.ok||!pj.beforeSha256||!pj.afterSha256||!pj.reviewTicket){
+          const h1=loadChat();h1.push({role:'assistant',content:`Propose failed: ${pj.error||pj.status||('HTTP '+p.status)}. No ticket issued; no changes applied.`,ts:Date.now()});saveChat(h1);renderChat();return;
         }
-        const ok=window.confirm(`Apply reviewed Next.js redirect fix?\n\napp: ${pj.appName}\nbefore: ${pj.beforeSha256.slice(0,12)}…\nafter: ${pj.afterSha256.slice(0,12)}…\n\nUses CAS editApp + HMAC only. liveAttested stays false until disposable browser proof.`);
-        if(!ok){const hC=loadChat();hC.push({role:'assistant',content:'Owner declined apply. No mutation.',ts:Date.now()});saveChat(hC);renderChat();return;}
-        const a=await fetch('/devproxy/api/apps/apply-reviewed-nextjs-redirect',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({appName:pj.appName,route:pj.route,beforeSha256:pj.beforeSha256,afterSha256:pj.afterSha256})});
+        // Keep ticket only in this closure — never localStorage/chat/analytics.
+        const reviewTicket=pj.reviewTicket;
+        const ok=window.confirm(`Apply reviewed Next.js redirect fix?\n\napp: ${pj.appName}\nroute: ${pj.route}\nbefore: ${pj.beforeSha256.slice(0,12)}…\nafter: ${pj.afterSha256.slice(0,12)}…\nchange: ${pj.changeType||'KNOWN_NEXTJS_UPSTREAM_PREFIX_REPAIR'}\n\nServer issued a one-use review ticket (expires ~${Math.round((pj.expiresInMs||120000)/1000)}s).\nThis proves propose+apply from your signed-in session — not cryptographic proof that a human clicked Confirm.\nCAS editApp + HMAC only. liveAttested stays false until disposable browser proof.`);
+        if(!ok){const hC=loadChat();hC.push({role:'assistant',content:'Owner declined apply. Ticket unused; no mutation.',ts:Date.now()});saveChat(hC);renderChat();return;}
+        const a=await fetch('/devproxy/api/apps/apply-reviewed-nextjs-redirect',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({appName:pj.appName,route:pj.route,beforeSha256:pj.beforeSha256,afterSha256:pj.afterSha256,reviewTicket})});
         const aj=await a.json().catch(()=>({}));
         const h2=loadChat();
-        if(!a.ok||aj.ok!==true){h2.push({role:'assistant',content:`Apply failed: ${aj.code||aj.error||('HTTP '+a.status)}. healingPerformed=${aj.healingPerformed===true}`,ts:Date.now()});}
-        else {h2.push({role:'assistant',content:`Owner-reviewed repair APPLIED (${aj.code}). CAS=${aj.casEnforced===true}. healingPerformed=${aj.healingPerformed===true} (browser/nginx proof still required). liveAttested=${aj.liveAttested===true}. lesson=${aj.lessonVerified}`,ts:Date.now()});}
+        if(!a.ok||aj.ok!==true){h2.push({role:'assistant',content:`Apply failed: ${aj.code||aj.error||('HTTP '+a.status)}. healingPerformed=${aj.healingPerformed===true}. Replay of the same ticket is rejected.`,ts:Date.now()});}
+        else {h2.push({role:'assistant',content:`Owner-reviewed repair APPLIED (${aj.code}). ticket=${aj.reviewTicketStatus||'CONSUMED'}. CAS=${aj.casEnforced===true}. healingPerformed=${aj.healingPerformed===true} (browser/nginx proof still required). liveAttested=${aj.liveAttested===true}.`,ts:Date.now()});}
         saveChat(h2);renderChat();
       }catch(e){const h3=loadChat();h3.push({role:'assistant',content:`Redirect heal error: ${e.message}`,ts:Date.now()});saveChat(h3);renderChat();}
     }); }

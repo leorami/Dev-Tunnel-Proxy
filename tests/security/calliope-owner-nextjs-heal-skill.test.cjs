@@ -45,7 +45,7 @@ test('RED: unauthenticated owner skill cannot apply',async()=>{
  assert.equal(r.ok,false);assert.equal(r.httpStatus,401);assert.equal(r.healingPerformed,false);
 });
 
-test('RED: authenticated owner skill applies CAS repair without claiming live heal',async()=>{
+test('RED: authenticated skill without reviewTicketConsumed is denied (V94)',async()=>{
  const source=disposableBrokenLyraSource();
  const proposed=proposeRepair({source,route:'lyra'});
  const fx=await rootWith(source);
@@ -53,6 +53,21 @@ test('RED: authenticated owner skill applies CAS repair without claiming live he
   const r=await runOwnerNextjsRedirectHealSkill({
    authenticated:true,appsDir:fx.appsDir,appName:'lyra.conf',route:'lyra',
    beforeSha256:proposed.beforeSha256,afterSha256:proposed.afterSha256,mutation:fx.mutation
+  });
+  assert.equal(r.code,'REVIEW_TICKET_REQUIRED');
+  assert.equal(r.httpStatus,403);
+ }finally{await fx.close();}
+});
+
+test('RED: authenticated owner skill applies CAS repair without claiming live heal',async()=>{
+ const source=disposableBrokenLyraSource();
+ const proposed=proposeRepair({source,route:'lyra'});
+ const fx=await rootWith(source);
+ try{
+  const r=await runOwnerNextjsRedirectHealSkill({
+   authenticated:true,appsDir:fx.appsDir,appName:'lyra.conf',route:'lyra',
+   beforeSha256:proposed.beforeSha256,afterSha256:proposed.afterSha256,mutation:fx.mutation,
+   reviewTicketConsumed:true
   });
   assert.equal(r.ok,true,JSON.stringify(r));
   assert.equal(r.casEnforced,true);

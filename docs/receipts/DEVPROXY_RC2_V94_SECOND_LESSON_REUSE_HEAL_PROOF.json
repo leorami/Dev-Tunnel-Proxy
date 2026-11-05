@@ -1,0 +1,27 @@
+{
+  "admit": "ADMITTED",
+  "recognition": "EQUIVALENT_FAILURE_OFFERS_REVIEWED_PROPOSE",
+  "offeredAbility": {
+    "id": "nginx.nextjs_redirect.propose",
+    "registryStatus": "CONTRACT_ONLY_NOT_INSTALLED",
+    "runnable": false
+  },
+  "lessonId": "v92-disposable-nextjs-redirect",
+  "secondFixture": "aurora",
+  "directApplyDenied": "REVIEW_TICKET_REQUIRED",
+  "reviewTicketStatus": "PROPOSAL_TICKET_CONSUMED",
+  "applyCode": "OWNER_REVIEWED_REPAIR_APPLIED",
+  "casEnforced": true,
+  "nginxSyntaxTest": {
+    "ok": true,
+    "exitCode": 0,
+    "engine": "nginx-t-disposable",
+    "code": "NGINX_SYNTAX_OK"
+  },
+  "unrelatedSynthRoutes": 16,
+  "beforeSha256": "bf875431f9f088801ee64dae03cd426654c7d6b8f9ed998fbe2b91492545353c",
+  "afterSha256": "610d4d8b00a4daefe76f8a714ad6461b9dea45508e2b8420af4a23b4ba2cc548",
+  "healingPerformed": false,
+  "liveAttested": false,
+  "note": "Second taught-lesson reuse reached reviewed application path with ticket+CAS+HMAC+nginx-t; not production liveAttested"
+}

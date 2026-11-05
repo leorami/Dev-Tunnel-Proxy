@@ -25,9 +25,13 @@ function deny(code,httpStatus=400){
 }
 
 async function runOwnerNextjsRedirectHealSkill({
- authenticated,appsDir,appName,route,beforeSha256,afterSha256,mutation
+ authenticated,appsDir,appName,route,beforeSha256,afterSha256,mutation,
+ reviewTicketConsumed
 }={}){
  if(authenticated!==true)return deny('OWNER_SESSION_REQUIRED',401);
+ // V94: server must have atomically consumed a session-bound proposal ticket
+ // before constructing ownerApproval. Missing consume = no editApp.
+ if(reviewTicketConsumed!==true)return deny('REVIEW_TICKET_REQUIRED',403);
  if(typeof appsDir!=='string'||!path.isAbsolute(appsDir)||!APP.test(appName)||!ROUTE.test(route)||
     typeof beforeSha256!=='string'||!SHA64.test(beforeSha256)||
     typeof afterSha256!=='string'||!SHA64.test(afterSha256)||

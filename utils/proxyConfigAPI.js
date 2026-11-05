@@ -56,6 +56,8 @@ const ROUTE_PROMOTIONS_FILE = path.join(ARTIFACTS_DIR, 'route-promotions.json');
 const {createProductionRouteMutationService} = require('./production-route-mutation.cjs');
 const {proposeRepair} = require('./calliope-first-safe-heal.cjs');
 const {runOwnerNextjsRedirectHealSkill} = require('./calliope-owner-nextjs-heal-skill.cjs');
+const {createOwnerHealReviewGate,readBoundedHealJsonBody} = require('./rc2-owner-heal-review-gate.cjs');
+const ownerHealReviewGate=createOwnerHealReviewGate();
 const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
 const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
 const {createCrossProcessSettlementActivation} = require('./rc2-cross-process-settlement.cjs');
@@ -681,6 +683,7 @@ async function handle(req, res){
         activeSessions.delete(token);
         saveSessions();
       }
+      try{ ownerHealReviewGate.revokeAll(); }catch{}
       
       res.writeHead(200, {
         'Content-Type': 'application/json',
@@ -1168,39 +1171,64 @@ async function handle(req, res){
       }
     }
     // GET /api/ai/thoughts moved to AI section below (line ~640) for 'since' param support
-    // Propose (no write) reviewed Next.js redirect-loop repair for owner confirmation.
+    // Propose (no write) + issue one-use session-bound review ticket (V94).
     if (req.method === 'POST' && u.pathname === apiPath('apps/propose-nextjs-redirect-heal')){
       try{
-        const body=await parseBody(req);
-        const appName=body&&body.appName, route=body&&body.route;
+        const parsed=await readBoundedHealJsonBody(req,{maxBytes:4096});
+        if(!parsed.ok)return send(res,400,{ok:false,error:parsed.code,healingPerformed:false});
+        const body=parsed.body||{};
+        const appName=body.appName, route=body.route;
         if(typeof appName!=='string'||typeof route!=='string')return send(res,400,{ok:false,error:'INVALID_PROPOSE_INPUT',healingPerformed:false});
         const file=path.join(APPS_DIR, appName.endsWith('.conf')?appName:appName+'.conf');
         const st=fs.lstatSync(file);
         if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||st.size>256*1024)return send(res,400,{ok:false,error:'UNSAFE_APP_TARGET',healingPerformed:false});
         const source=fs.readFileSync(file,'utf8');
         const proposed=proposeRepair({source,route});
-        return send(res, proposed.status==='PROPOSED'?200:422, {
-          ok:proposed.status==='PROPOSED', status:proposed.status,
+        if(proposed.status!=='PROPOSED')return send(res,422,{ok:false,status:proposed.status,healingPerformed:false,liveAttested:false,executionAuthorized:false});
+        const sessionBinding=extractSessionToken(req);
+        if(typeof sessionBinding!=='string')return send(res,401,{ok:false,error:'SESSION_BINDING_REQUIRED',healingPerformed:false});
+        const ticket=ownerHealReviewGate.issueReviewTicket({
+          sessionBinding, appName:path.basename(file), route:proposed.route,
+          beforeSha256:proposed.beforeSha256, afterSha256:proposed.afterSha256
+        });
+        if(!ticket.ok)return send(res,503,{ok:false,error:ticket.status||'PROPOSAL_TICKET_UNAVAILABLE',healingPerformed:false,liveAttested:false,executionAuthorized:false});
+        return send(res, 200, {
+          ok:true, status:proposed.status,
           route:proposed.route, appName:path.basename(file),
           beforeSha256:proposed.beforeSha256, afterSha256:proposed.afterSha256,
-          changeType:proposed.changeType, healingPerformed:false, liveAttested:false,
-          executionAuthorized:false, skill:'nginx.nextjs_redirect.propose'
+          changeType:proposed.changeType, reviewTicket:ticket.ticket, expiresInMs:ticket.expiresInMs,
+          healingPerformed:false, liveAttested:false, executionAuthorized:false,
+          ownerApprovalGranted:false, skill:'nginx.nextjs_redirect.propose',
+          humanReviewNote:'Ticket proves a prior propose in this API process, not that a human clicked Confirm'
         });
       }catch(e){return send(res,500,{ok:false,error:e.message||'PROPOSE_FAILED',healingPerformed:false});}
     }
-    // Owner-reviewed exact-diff apply via CAS editApp + HMAC settlement only.
+    // Consume session-bound ticket BEFORE ownerApproval / editApp (V94).
     if (req.method === 'POST' && u.pathname === apiPath('apps/apply-reviewed-nextjs-redirect')){
       try{
-        const body=await parseBody(req)||{};
+        const parsed=await readBoundedHealJsonBody(req,{maxBytes:8192});
+        if(!parsed.ok)return send(res,400,{ok:false,error:parsed.code,healingPerformed:false,liveAttested:false});
+        const body=parsed.body||{};
         const manager=getRouteMutationService();
         if(!manager)return send(res,503,{ok:false,error:'ROUTE_ACTIVATION_UNAVAILABLE',healingPerformed:false,liveAttested:false});
         const appName=typeof body.appName==='string'&&body.appName.endsWith('.conf')?body.appName:(typeof body.appName==='string'?body.appName+'.conf':body.appName);
+        const sessionBinding=extractSessionToken(req);
+        if(typeof sessionBinding!=='string')return send(res,401,{ok:false,error:'SESSION_BINDING_REQUIRED',healingPerformed:false});
+        const consumed=ownerHealReviewGate.consumeReviewTicket({
+          sessionBinding, appName, route:body.route,
+          beforeSha256:body.beforeSha256, afterSha256:body.afterSha256,
+          reviewTicket:body.reviewTicket
+        });
+        if(!consumed.ok)return send(res,403,{ok:false,error:consumed.status||'PROPOSAL_TICKET_REJECTED',
+          healingPerformed:false,liveAttested:false,executionAuthorized:false,
+          reviewTicketConsumed:false});
         const result=await runOwnerNextjsRedirectHealSkill({
           authenticated:true, appsDir:APPS_DIR, appName, route:body.route,
-          beforeSha256:body.beforeSha256, afterSha256:body.afterSha256, mutation:manager
+          beforeSha256:body.beforeSha256, afterSha256:body.afterSha256, mutation:manager,
+          reviewTicketConsumed:true
         });
         const {httpStatus,...rest}=result;
-        return send(res, httpStatus||500, rest);
+        return send(res, httpStatus||500, {...rest, reviewTicketConsumed:true, reviewTicketStatus:consumed.status});
       }catch(e){return send(res,500,{ok:false,error:e.message||'APPLY_FAILED',healingPerformed:false,liveAttested:false});}
     }
 
