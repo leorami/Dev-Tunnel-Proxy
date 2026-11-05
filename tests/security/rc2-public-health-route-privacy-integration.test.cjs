@@ -31,3 +31,14 @@ test('RED: health helper must not leak owner values via static code hook',()=>{
  for(const unsafe of ['process.env','req.headers','execSync','writeFile','requestCancel','setActivity'])
   assert.equal(code.includes(unsafe),false,unsafe);
 });
+
+test('RED: fallback public health must never spawn Docker logs or reveal model/activity/domain',()=>{
+ const i=SRC.indexOf("if (req.method === 'GET' && u.pathname === apiPath('ai/health')){");
+ const j=SRC.indexOf('      // GET /api/ai/thoughts',i);
+ assert.ok(i>=0&&j>i);
+ const block=SRC.slice(i,j);
+ assert.match(block,/createMinimalPublicCalliopeHealth\(\)/);
+ assert.match(block,/publicCalliopeHealthCacheHeaders\(\)/);
+ for(const leak of ['process.env.OPENAI_API_KEY','process.env.OPENAI_MODEL','currentActivity','docker logs',
+   'execSync','staticNgrokDomain','mStatic'])assert.equal(block.includes(leak),false,leak);
+});
