@@ -25,8 +25,8 @@ const PROXY_TARGETS=['/etc/nginx/nginx.conf','/etc/nginx/conf.d/default.conf',
 const API_TARGETS=['/app','/app/.env','/app/apps','/app/overrides',
  '/app/build/sites-enabled','/app/.artifacts','/app/.artifacts/rc2-ipc',
  '/app/.artifacts/rc2-activation.secret'];
-const PROXY_FIELDS=['image','container_name','privileged','ports','volumes','networks','command','healthcheck'];
-const API_FIELDS=['image','container_name','user','privileged','read_only','cap_drop','security_opt','tmpfs','working_dir','command','env_file','environment','ports','volumes','networks','depends_on'];
+const PROXY_FIELDS=['image','container_name','privileged','ports','volumes','networks','depends_on','restart','command','healthcheck'];
+const API_FIELDS=['image','container_name','user','privileged','read_only','cap_drop','security_opt','tmpfs','working_dir','command','env_file','environment','ports','volumes','networks','restart'];
 const PROXY_REQUIRED=['/etc/nginx/nginx.conf','/etc/nginx/conf.d/default.conf',
  '/etc/nginx/conf.d/sites-enabled','/entrypoint.sh'];
 function bad(){throw Error(KEY);}
@@ -75,7 +75,8 @@ function createIsolatedNonrootRestoreCandidate(options={}){
  if(!exactKeys(proxy,PROXY_FIELDS)||!exactKeys(api,API_FIELDS)||
   JSON.stringify(proxy.command)!=='["sh","/entrypoint.sh"]'||
   JSON.stringify(api.command)!=='["sh","-ec","node scripts/rc2-create-api-spool.cjs; node utils/notificationsAPI.js & exec node utils/proxyConfigAPI.js"]'||
-  JSON.stringify(api.depends_on)!=='["proxy"]'||
+  JSON.stringify(proxy.depends_on)!=='["proxy-config-api"]'||
+  proxy.restart!=='unless-stopped'||api.restart!=='unless-stopped'||
   JSON.stringify(api.tmpfs)!=='["/tmp:rw,nosuid,nodev,size=64m"]'||
   api.working_dir!=='/app'||
   !IMAGE.test(proxy.image)||!IMAGE.test(api.image)||
