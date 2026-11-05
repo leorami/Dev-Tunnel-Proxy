@@ -13,7 +13,7 @@
 | Handoff | `cto/devproxy-rc2-v93-verified-teaching-admission-20261105@98366d08d0d9485b53e8a30275672501023ecd94` |
 | Parent v92 | `docs/receipts/DEVPROXY_RC2_V92_ATOMIC_CAS_BROWSER_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #93 (handoff-only; CTO compiler sources were **not** published — implemented in-repo) |
-| Implementation tip |  |
+| Implementation tip | `82436d2553ffd631f88981f0630563e2ccd4de77` |
 
 ## STARTED
 Sole primary RETURNED v92; no peer STARTED. Comment `6666353945`.
