@@ -14,7 +14,7 @@
 | Parent v90 | `docs/receipts/DEVPROXY_RC2_V90_GET_PURITY_ENGINEER_COMPLETION.md` |
 | CTO draft | PR #90 |
 | Protected master | untouched |
-| This tip | *(see git tip at RETURNED)* |
+| This tip | `69d4ac1c7ab4abdaa3449fd8a4beb008992fa35a` |
 
 ## STARTED
 Sole primary on PR #79; no peer STARTED. Comment `6665558592`.
