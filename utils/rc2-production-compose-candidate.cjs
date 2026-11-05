@@ -77,6 +77,10 @@ function createProductionComposeCandidate(input){
    bind(p.dashboardDir,'/usr/share/nginx/html/dashboard')
   ],
   networks:['devproxy'],
+  // nginx resolves the API upstream at startup; attach its container first.
+  // Old reverse API -> proxy dependency caused first-start DNS failures.
+  depends_on:['proxy-config-api'],
+  restart:'unless-stopped',
   command:['sh','/entrypoint.sh'],
   healthcheck:{test:['CMD','wget','-qO-','http://127.0.0.1/health.json'],
    interval:'30s',timeout:'5s',retries:5}
@@ -118,7 +122,7 @@ function createProductionComposeCandidate(input){
    bind(p.secretHostFile,'/app/.artifacts/rc2-activation.secret')
   ],
   networks:['devproxy'],
-  depends_on:['proxy']
+  restart:'unless-stopped'
  };
  const compose={name:'dev-tunnel-proxy',services:{proxy,'proxy-config-api':api},
   networks:{devproxy:{external:true,name:'devproxy'}}};
