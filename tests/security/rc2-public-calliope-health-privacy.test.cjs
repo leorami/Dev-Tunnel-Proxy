@@ -3,7 +3,8 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {
  createMinimalPublicCalliopeHealth,
- assessPublicCalliopeHealthReply
+ assessPublicCalliopeHealthReply,
+ publicCalliopeHealthCacheHeaders
 }=require('../../utils/rc2-public-calliope-health-privacy.cjs');
 const FIELDS=['enabled','mode','usedAI','healingPerformed','liveAttested'];
 const EXPECTED={enabled:true,mode:'local_documentation',usedAI:false,
@@ -76,4 +77,15 @@ test('RED: assessor rejects circular structures without JSON serialization or th
  const circular={...EXPECTED};circular.loop=circular;
  const r=assessPublicCalliopeHealthReply(circular);
  assert.equal(r.privacyVerified,false);
+});
+
+test('RED: public health should never be cached with authenticated browser artifacts',()=>{
+ const h=publicCalliopeHealthCacheHeaders();
+ assert.deepEqual(h,{'Cache-Control':'no-store','Pragma':'no-cache'});
+ assert.equal(Object.isFrozen(h),true);
+});
+test('RED: policy is immutable and cannot be changed by user-provided headers',()=>{
+ const a=publicCalliopeHealthCacheHeaders();
+ try{a['Cache-Control']='public, max-age=86400';}catch{}
+ assert.equal(publicCalliopeHealthCacheHeaders()['Cache-Control'],'no-store');
 });
