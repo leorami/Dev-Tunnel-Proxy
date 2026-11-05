@@ -31,6 +31,7 @@ const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
 const {runSecureSelfCheck,readSecureSelfCheckRequestBody}=require('./rc2-secure-self-check.cjs');
 const {answerFromLocalProjectDocs,readBoundedLocalQuestionBody}=require('./rc2-local-calliope-evidence.cjs');
 const {explainLocalCalliopeCapability}=require('./rc2-local-calliope-observe-explain.cjs');
+const {createMinimalPublicCalliopeHealth,publicCalliopeHealthCacheHeaders}=require('./rc2-public-calliope-health-privacy.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
 // No network request occurs until an authenticated owner starts a bounded audit.
@@ -750,23 +751,7 @@ async function handle(req, res){
     // RC2_V95_LOCAL_CHAT health: secure mode must not hide behind OpenAI-only
     // enabled flags, and must remain reachable before legacy mutation gates.
     if(req.method==='GET'&&u.pathname===apiPath('ai/health')&&inlineHostDockerUnavailable()){
-      return send(res, 200, {
-        enabled: true,
-        mode: 'local_documentation',
-        model: null,
-        openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
-        usedAI: false,
-        healingPerformed: false,
-        liveAttested: false,
-        staticNgrokDomain: null,
-        activity: currentActivity,
-        capabilities: Object.freeze([
-          'local_documentation_ask',
-          'local_observation_limits_explain',
-          'local_reviewed_heal_explain',
-          'owner_reviewed_nextjs_redirect_skill'
-        ])
-      });
+      return send(res, 200, createMinimalPublicCalliopeHealth(), publicCalliopeHealthCacheHeaders());
     }
     // RC2_SECURE_HTTP_AUDIT: authenticated only, no Docker/browser/external AI.
     // The old legacy path stays guarded in production; this fixed-host HEAD
