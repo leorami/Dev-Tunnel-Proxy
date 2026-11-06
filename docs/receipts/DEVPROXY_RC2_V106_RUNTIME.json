@@ -1,0 +1,40 @@
+{
+  "assignment": "V106",
+  "returnLabel": "API_ONLY_UPSTREAM_DNS_RECOVERY_NOT_PROVEN",
+  "ownerActionGate": "GRANTED / BLOCKED",
+  "liveApply": false,
+  "authorizationComment": 6672650274,
+  "startedComment": 6673622918,
+  "handoff": "cto/devproxy-rc2-v106-approved-api-only-live-apply-20261105@790ab6d1124aaac2df57ae6b0c9c3e192f60dd16",
+  "parentSha": "150d0e792bfca886a1509d07618aa2c5eedd5500",
+  "focusedTests": {
+    "v106Postcheck": "11/11",
+    "v103Seven": "93/93",
+    "v105Four": "53/53",
+    "smartBuildUnitExit": 0
+  },
+  "before": {
+    "proxyIdPrefix": "d5b71dc13699",
+    "apiIdPrefix": "b93e19d7ea9d",
+    "proxyStatus": "exited",
+    "apiStatus": "exited",
+    "cutoverStageExists": false,
+    "proxyOverlayBindsExist": false,
+    "trustedOriginsCount": 2,
+    "hostWorkerRunning": false,
+    "loopback8080": "refused"
+  },
+  "isolatedDnsProof": {
+    "changedIpWithoutReload": "502",
+    "sameIpRollbackWithoutReload": "200",
+    "unapprovedReloadControl": "200",
+    "conclusion": "API_ONLY_UPSTREAM_DNS_RECOVERY_NOT_PROVEN"
+  },
+  "originFive": {
+    "singleRuntime": "FAIL",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
