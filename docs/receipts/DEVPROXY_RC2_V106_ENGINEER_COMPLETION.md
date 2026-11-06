@@ -14,7 +14,7 @@
 | Handoff | `cto/devproxy-rc2-v106-approved-api-only-live-apply-20261105@790ab6d1124aaac2df57ae6b0c9c3e192f60dd16` |
 | Owner grant | PR #79 comment **6672650274** |
 | Parent V105 RETURNED | `150d0e792bfca886a1509d07618aa2c5eedd5500` (#6672331087) |
-| Engineer tip (this RETURNED) | `3f6ec14be0c8802b5f3e9cf80ad192a8c93b09a6` |
+| Engineer tip (this RETURNED) | `defe5f0539f9e3554fcc6647e6e9975614a79eb8` |
 | Import | **only** V106 additive paths (postcheck, 11 tests, smart-build hook, architecture note, handoff, this receipt) |
 | Protected master | untouched |
 
