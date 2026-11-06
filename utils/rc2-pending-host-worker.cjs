@@ -52,9 +52,16 @@ function createPendingOnlyHostWorker({spoolDirectory,leaseDirectory,worker}={}){
    if(await existence(path.join(replay,id)))throw Error('HOST_WORKER_UNRESOLVED_REPLAY');
    let result;
    try{result=await worker.processOne(id);}catch{throw Error('HOST_WORKER_INDETERMINATE');}
+   // A content-digest refusal is terminal BEFORE settlement.begin or any host
+   // action. Do not turn a signed, durable no-action reply into a worker crash.
+   // However, a replay marker means begin() may have executed: quarantine.
+   const digestMismatch=result?.status==='CONFIG_SET_DIGEST_MISMATCH';
    if(!result||result.code!=='HOST_PROCESSED'||
-     !['RELOAD_AND_VERIFICATION_REPORTED','NGINX_VALIDATION_FAILED'].includes(result.status)||
+     !['RELOAD_AND_VERIFICATION_REPORTED','NGINX_VALIDATION_FAILED',
+       'CONFIG_SET_DIGEST_MISMATCH'].includes(result.status)||
      !await existence(path.join(responses,id+'.json')))
+    throw Error('HOST_WORKER_INDETERMINATE');
+   if(digestMismatch&&await existence(path.join(replay,id)))
     throw Error('HOST_WORKER_INDETERMINATE');
    outcomes.push(Object.freeze({code:result.code,status:result.status}));
   }
