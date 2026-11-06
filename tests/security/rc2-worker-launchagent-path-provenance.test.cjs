@@ -120,3 +120,21 @@ test('RED: all public results are redacted and frozen, including the invalid-inp
   }
  }finally{await f.close()}
 });
+test('RED: private pin/logs or Node binary inside mutable product source are never accepted',async()=>{
+ for(const variant of ['pin','logs','node']){
+  const f=await fixture();try{
+   if(variant==='pin'){
+    await fs.mkdir(path.join(f.args.productRoot,'.private'),{mode:0o700});
+    f.args.privatePinFile=path.join(f.args.productRoot,'.private','worker.pin.json');
+    await fs.writeFile(f.args.privatePinFile,'SECRET-NEVER-READ',{mode:0o600});
+   }else if(variant==='logs'){
+    f.args.privateLogDirectory=path.join(f.args.productRoot,'.private-logs');
+    await fs.mkdir(f.args.privateLogDirectory,{mode:0o700});
+   }else{
+    f.args.nodeExecutable=path.join(f.args.productRoot,'scripts/node');
+    await fs.writeFile(f.args.nodeExecutable,NODE_BYTES,{mode:0o755});
+   }
+   assert.equal((await inspect(f)).code,'LAUNCHAGENT_PATH_TRUST_BLOCKED',variant);
+  }finally{await f.close()}
+ }
+});
