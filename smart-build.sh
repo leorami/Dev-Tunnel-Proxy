@@ -662,6 +662,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc2-approved-api-only-postcheck.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 live durable mount source protections (source-only, no Mac actions)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-live-durable-mount-paths.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 

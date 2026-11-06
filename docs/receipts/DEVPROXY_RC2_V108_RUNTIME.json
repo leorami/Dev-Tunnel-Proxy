@@ -1,0 +1,46 @@
+{
+  "assignment": "V108",
+  "returnLabel": "UNRECOVERABLE_ORIGINAL_HMAC_MATERIAL",
+  "ownerActionGate": "GRANTED / BLOCKED",
+  "liveApply": false,
+  "authorizationComment": 6673992882,
+  "priorHttpsPrivacyGrant": 6672650274,
+  "startedComment": 6674068959,
+  "implementingComment": 6674072477,
+  "handoff": "cto/devproxy-rc2-v108-durable-recovery-20261105@8ab5796b779572252c1c5e6a14f69faa557adc83",
+  "parentSha": "f3dd8ffc4cafd7023ecc140a6793c1eceb2a6468",
+  "stopCause": "owner_confirmed_laptop_reboot",
+  "p2DeferredIssue": 109,
+  "focusedTests": {
+    "v108DurableMounts": "9/9",
+    "v106Postcheck": "11/11",
+    "v103Seven": "93/93",
+    "v105Four": "53/53",
+    "smartBuildUnitExit": 0
+  },
+  "inventory": {
+    "proxyIdPrefix": "d5b71dc13699",
+    "apiIdPrefix": "b93e19d7ea9d",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "proxyImagePresent": true,
+    "apiImagePresent": true,
+    "ephemeralBindSourcesMissing": true,
+    "reviewedNginxBytesRecoverableFromSource": true,
+    "authenticHmacSecretFound": false,
+    "workerPinFound": false,
+    "hostShareFound": false,
+    "routesConfigured": 17
+  },
+  "pathReview": {
+    "durableManifestCode": "DURABLE_MOUNTS_SOURCE_REVIEW_ONLY",
+    "ephemeralLegacyCode": "EPHEMERAL_LIVE_BIND_SOURCE",
+    "nativeDiskAttestation": false
+  },
+  "originFive": {
+    "singleRuntime": "FAIL",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
