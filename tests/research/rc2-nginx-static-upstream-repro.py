@@ -11,6 +11,7 @@ Requirements: local nginx, Python 3.8+, 127.0.0.2 loopback alias supported.
 """
 import http.server
 import pathlib
+import re
 import socket
 import subprocess
 import tempfile
@@ -35,9 +36,26 @@ def free_port():
         sock.bind(('127.0.0.1', 0))
         return sock.getsockname()[1]
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Even a local fixture must never follow a remote Location.
+        return None
+
 def status(url):
+    # Never accept an arbitrary URL: this research tool may only contact its
+    # two exact loopback fixtures, on unprivileged ports, at the fixed path.
+    if not isinstance(url, str):
+        return 'NON_LOOPBACK_DENIED'
+    match = re.fullmatch(r'http://127\\.0\\.0\\.[12]:([0-9]{4,5})/api', url)
+    if not match or not 1024 <= int(match.group(1)) <= 65535:
+        return 'NON_LOOPBACK_DENIED'
+    # urllib.request.urlopen() obeys HTTP(S)_PROXY. A misleading global
+    # proxy could otherwise route our supposed local-only probe externally.
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}), NoRedirect()
+    )
     try:
-        with urllib.request.urlopen(url, timeout=2) as response:
+        with opener.open(url, timeout=2) as response:
             return response.status
     except urllib.error.HTTPError as error:
         return error.code
