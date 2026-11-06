@@ -46,7 +46,7 @@ def status(url):
     # two exact loopback fixtures, on unprivileged ports, at the fixed path.
     if not isinstance(url, str):
         return 'NON_LOOPBACK_DENIED'
-    match = re.fullmatch(r'http://127\\.0\\.0\\.[12]:([0-9]{4,5})/api', url)
+    match = re.fullmatch(r'http://127[.]0[.]0[.][12]:([0-9]{4,5})/api', url)
     if not match or not 1024 <= int(match.group(1)) <= 65535:
         return 'NON_LOOPBACK_DENIED'
     # urllib.request.urlopen() obeys HTTP(S)_PROXY. A misleading global
