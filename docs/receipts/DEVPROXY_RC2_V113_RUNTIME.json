@@ -1,0 +1,48 @@
+{
+  "assignment": "V113",
+  "returnLabel": "WORKER_SINGLETON_CRASH_QUARANTINE",
+  "ownerActionGate": "NONE",
+  "workerRestartAuthorized": false,
+  "lockClearAuthorized": false,
+  "liveMutation": false,
+  "startedComment": 6676605504,
+  "trackingIssue": 112,
+  "handoff": "cto/devproxy-rc2-v113-worker-lock-evidence-20261106@ed2846cfb5656e90b92b59ba5b46f84a3bc235da",
+  "parentSha": "4525186a9b2c4aab138dc43448f0fa3c13a56efc",
+  "focusedTests": {
+    "hostWorkerSingletonInspection": "12/12",
+    "smartBuildUnitExit": 0
+  },
+  "inspection": {
+    "code": "WORKER_SINGLETON_CRASH_QUARANTINE",
+    "workerRunningVerified": false,
+    "durableSupervisorVerified": false,
+    "lockPresent": true,
+    "lockMode0600": true,
+    "lockPidAlive": false,
+    "pgrepMatches": 0,
+    "launchAgentMatches": 0,
+    "spoolPrepared": 0,
+    "spoolAcks": 0,
+    "inflightLeaseFiles": 0,
+    "pinMatchesLiveProxy": true
+  },
+  "proxyReverify": {
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "health": 200,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginHttpsNeg": 401,
+    "signedInAsk": 200,
+    "routesConfigured": 17
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  },
+  "nextGateIfDesired": "OWNER ACTION GATE: APPROVAL REQUIRED — scoped worker-only recovery"
+}
