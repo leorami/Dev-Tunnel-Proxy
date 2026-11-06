@@ -54,9 +54,27 @@ class SafeLocalNginxResearch(unittest.TestCase):
         for url in disallowed:
             with self.subTest(url=url):
                 self.assertEqual(REPRO.status(url),"NON_LOOPBACK_DENIED")
+    def test_red_refuses_to_follow_even_local_http_redirects(self):
+        class Redirect(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(302)
+                self.send_header("Location","http://127.0.0.1:9/api")
+                self.end_headers()
+            def log_message(self,*args):
+                return
+        server=http.server.ThreadingHTTPServer(("127.0.0.1",0),Redirect)
+        worker=threading.Thread(target=server.serve_forever,daemon=True)
+        worker.start()
+        try:
+            self.assertEqual(REPRO.status("http://127.0.0.1:%d/api"%server.server_address[1]),302)
+        finally:
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=2)
     def test_red_never_invokes_urlopen_proxy_aware_global_helper(self):
-        with mock.patch("urllib.request.urlopen",side_effect=AssertionError("untrusted proxy")):
+        with mock.patch("urllib.request.urlopen",side_effect=AssertionError("untrusted proxy")) as global_open:
             self.assertNotEqual(REPRO.status("http://127.0.0.1:18888/api"),"NON_LOOPBACK_DENIED")
+            self.assertEqual(global_open.call_count,0,"global urlopen may honor host proxy variables")
 
 if __name__=="__main__":
     unittest.main()
