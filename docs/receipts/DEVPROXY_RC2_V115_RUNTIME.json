@@ -1,0 +1,72 @@
+{
+  "assignment": "V115",
+  "returnLabel": "WORKER_ONLY_RECOVERY_EXECUTED",
+  "ownerActionGate": "GRANTED_EXECUTED",
+  "authorization": {
+    "issue112Comment": 6676775635,
+    "pr79Comment": 6676792335,
+    "startedComment": 6677104438
+  },
+  "handoff": "cto/devproxy-rc2-v115-scoped-host-worker-recovery-20261106@14182f4d5f21c0bd96e0d03c781b8e18b2d563d3",
+  "parentSha": "7a4c320ab8e583a90211e1e87b976a08f36981c0",
+  "notExecuted": [
+    "newHmacEpoch",
+    "dockerRecreate",
+    "ngrokChange",
+    "launchAgentInstall",
+    "masterMerge",
+    "ownerAppHeal",
+    "v114LiveProductSync"
+  ],
+  "native": {
+    "focusedSingletonPlusPreflight": "27/27",
+    "smartBuildUnitExit": 0
+  },
+  "before": {
+    "singletonCode": "WORKER_SINGLETON_CRASH_QUARANTINE",
+    "workerCountServe": 0,
+    "stalePidAlive": false,
+    "spoolEmpty": true,
+    "preflight1": "WORKER_ONLY_PREFLIGHT_SATISFIED",
+    "preflight2": "WORKER_ONLY_PREFLIGHT_SATISFIED",
+    "lockUnchangedAcrossPreflights": true,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "epoch": "OWNER_APPROVED_NEW_HMAC_EPOCH"
+  },
+  "mutation": {
+    "immediatePreflight": "WORKER_ONLY_PREFLIGHT_SATISFIED",
+    "lockClearedOnce": true,
+    "onlyLockUnlinked": true,
+    "startedVia": "detached_node_spawn_durable_product",
+    "aliveAfter60s": true,
+    "workerCountAfter60s": 1,
+    "newLockMode": "0o600",
+    "secondInstance": "HOST_WORKER_ALREADY_ACTIVE",
+    "spoolStillEmpty": true
+  },
+  "after": {
+    "sameContainerIds": true,
+    "workerCountServe": 1,
+    "pidAlive": true,
+    "lockMode": "0o600",
+    "singletonCode": "WORKER_SINGLETON_PID_PRESENT_UNVERIFIED",
+    "appsListedInGeneratedConf": 17,
+    "health": 200,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginHttpsNeg": 401,
+    "loginOk": 200,
+    "ask": 200,
+    "pinImageExactMatch": true,
+    "pinIdExactMatch": true
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
