@@ -1,0 +1,46 @@
+{
+  "assignment": "V110",
+  "returnLabel": "OWNER_APPROVED_NEW_HMAC_EPOCH",
+  "ownerActionGateNewHmac": "GRANTED / EXECUTED",
+  "authorizationComment": 6674322106,
+  "priorGrants": [6673992882, 6672650274],
+  "startedComment": 6674333983,
+  "implementingComment": 6674374075,
+  "handoff": "cto/devproxy-rc2-v110-key-loss-recovery-20261106@ed938c0e2294d7dd983ec2bd8d8aa51e38f670a5",
+  "parentSha": "de001e1d4f665f1bdc41241db826cb5010c55a54",
+  "authenticOriginalRecovered": false,
+  "focusedTests": {
+    "v110Continuity": "11/11",
+    "smartBuildUnitExit": 0,
+    "smartBuildUnchangedForV110": true
+  },
+  "after": {
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "apiProductBindDurable": true,
+    "ephemeralTmpBindsOnProxyApiFinal": 0,
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "proxyRestart": "unless-stopped",
+    "apiRestart": "unless-stopped",
+    "apiUser": "504:20",
+    "apiReadonly": true,
+    "ephemeralTmpBindsOnProxyApi": 0,
+    "workerServeRunning": true,
+    "trustedOriginsCount": 3,
+    "trustedOriginsHasHttps": true,
+    "healthMinimizedNoStore": true,
+    "loginLocalNegPassword": 401,
+    "loginForeignOrigin": 403,
+    "loginApprovedHttpsNegPassword": 401,
+    "signedInAsk": 200,
+    "routesConfigured": 17,
+    "rollbackContainersRetained": ["dev-proxy-v108-rollback", "dev-proxy-config-api-v108-rollback"]
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
