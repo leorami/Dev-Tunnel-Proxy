@@ -669,7 +669,7 @@ cmd_test_unit() {
 
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "P2 configured app backend DNS startup hypothesis (source-only, no owner data)" \
-      "node --test '$ROOT_DIR/tests/security/rc2-nginx-startup-dns-exposure.test.cjs'" || test_result=1
+      "node --test '$ROOT_DIR/tests/security/rc2-nginx-startup-dns-exposure.test.cjs' '$ROOT_DIR/tests/security/rc2-generated-offline-app-bundle.test.cjs'" || test_result=1
   fi
 
   if [ $test_result -eq 0 ]; then
