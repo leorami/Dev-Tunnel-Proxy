@@ -52,6 +52,11 @@ test('native nginx: static missing hostname rejects cold-start config', {skip:!a
  assert.notEqual(r.status,0,'nginx -t must not silently accept unresolved static hostname');
  assert.match(r.stderr,/host not found in upstream/i);
 });
+test('native nginx: resolved hostname with stopped process is not itself a startup DNS failure', {skip:!available}, async t=>{
+ const root=await setup("events {}\nhttp { server { listen 127.0.0.1:12454; location /offline/ { proxy_pass http://127.0.0.1:20424; } } }\n");
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ assert.equal(nginxCheck(root).status,0);
+});
 test('native nginx: absent, delayed, returning backend affects route, never nginx master', {skip:!available,timeout:15000}, async t=>{
  const [proxyPort,backendPort]=await Promise.all([freePort(),freePort()]);
  const root=await setup(`events { worker_connections 64; }\nhttp { server { listen 127.0.0.1:${proxyPort}; location = /health { return 200 'ok'; } location /delayed/ { set $dynamic_backend 127.0.0.1:${backendPort}; proxy_pass http://$dynamic_backend; proxy_connect_timeout 1s; } } }\n`);
