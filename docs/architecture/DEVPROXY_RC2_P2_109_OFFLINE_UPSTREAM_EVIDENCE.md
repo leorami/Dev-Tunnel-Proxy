@@ -1,0 +1,25 @@
+# RC2 P2 #109 — absent app upstreams and nginx cold-start (evidence, not deployment)
+
+## Primary-agent boundary
+One primary V115 genuinely RETURNED at `engineer/devproxy-rc2-controlled-release-20261104@d2e06f40087ab4769af77daf0523b0d0e137534b` (PR #79 #6677176553); read-only V115 receipts report worker-only recovery, 27/27 native focused, canonical unit exit0, one Mac worker alive after 60 seconds, two Docker services/ngrok unchanged. CTO inspected the exact V114→V115 seven-file committed diff and receipts. This P2 research was prepared independently on a dedicated branch from previously RETURNED V114 SHA `7a4c320ab8e583a90211e1e87b976a08f36981c0`; do not import stale ancestry wholesale. This source-only P2 investigation neither redirects V115 nor authorizes production changes.
+
+## Evidence from actual source
+- Owner observation issue #109: after laptop reboot some already configured app backends are down; proxy **sometimes** fails Nginx startup but succeeds on retry. Observation does **not** establish that absent app DNS was the cause.
+- `scripts/nginx-entrypoint.sh` calls `nginx -t`; if it fails, it attempts to rename `/etc/nginx/conf.d/sites-enabled/apps.generated.conf`, but the reviewed RC2 proxy candidate mounts that directory **read-only**. A failed rename is correctly a fatal startup gate, to prevent unsafe fallback. Do not disable that security boundary to mask DNS errors.
+- `config/nginx.production.conf` includes a static `upstream config_api_upstream` using a named API container; `utils/rc2-production-compose-candidate.cjs` starts API container before proxy (V103 correction). Source examples `examples/next/myapp.conf`, `examples/api-with-prefix.conf` and repo override `overrides/mxtk.conf` already use `resolver 127.0.0.11` + variable `proxy_pass http://$...`, which defers *app* DNS until request time. **Actual owner-private 17 app route files were not available in this repository; cannot claim they all follow the examples.**
+
+## CTO native independent investigation (isolated, not owner Mac)
+On Node22/Linux with nginx **1.26.3**, with entirely disposable Nginx configs:
+1. A simple `proxy_pass http://missing-r4ck-8493.invalid:8080` returned **Nginx config test FAIL** (`host not found in upstream`).
+2. Same absent backend represented via `resolver 127.0.0.11` and `proxy_pass http://$offline_upstream` returned **Nginx config test PASS**.
+3. Started the variable form on an isolated loopback port; `GET /health` **200**, `GET /offline/` **502**, and the nginx master remained running. Stopped fixture afterward. No owner containers/app/network changed.
+
+These prove a plausible **Nginx engine-level mechanism**, NOT that the missing app caused the reported Dev Proxy production crash. Dynamic proxy URI expansion can change path-rewriting semantics; do NOT automatically convert existing app configs to variables without per-route tests.
+
+## CTO-first source tool (no side effects)
+`utils/rc2-nginx-startup-dns-exposure.cjs` classifies supplied Nginx snippets without reading files/network/secret/state, returning only counts: static hostname, literal address, variable runtime references, group upstream references, includes and unknown schemes. Always `rootCauseVerified:false`, `sourceClosureVerified:false`, `nginxStartupTested:false`, `productionChangeAuthorized:false`. No hostnames/owner paths or source bytes in result. Ten RED-first tests were committed **before** source, then native Node **22.16.0** focused **10/10 PASS**. GitHub source/test Git blob SHA matched the exact locally tested files: `cbbaf983a966bb791a5769384d14378948a3543b` and `8663f0c3708537f6cca55e447f758f06d4ea0c5c`. No canonical full unit run; no production change.
+
+## Next actual acceptance boundary (issue #109, deferred until safe primary handoff)
+Using a fully isolated, test-owned Docker network, with current reviewed proxy image and **representative** current route configs, test backends permanently absent, delayed, and subsequently healthy. Verify Nginx exact `-T` closed include graph and `-t`, startup exit/health, app-specific HTTP status and preserved admin/auth/UI routes; distinguish API service DNS from app DNS and any missing mount. Do not post raw `nginx -T`, private routes or environment. If a static app name is truly forcing startup DNS failure, implement RED-first minimum route-generation correction preserving URI/basePath, websockets, safe HMAC digest and all 17 routes; reject unsafe changes and do not ship/redeploy automatically. If not proven, report alternative evidence and **do not** invent a fix.
+
+**Owner action gate: NONE for this read-only source and disposable reproduction.** No live Docker restart, no master/credential/ngrok/app change. P1 durable Mac worker supervision is separately issue #116.
