@@ -7,7 +7,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const {compareRecoveredActivationSecret}=require('../../utils/rc2-recovered-activation-secret-continuity.cjs');
 function fixture(t){
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'rc2-key-continuity-test-'));
+ const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'rc2-key-continuity-test-')));
  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
  const backup=path.join(root,'backup'),restored=path.join(root,'restored');
  for(const p of [backup,restored])fs.mkdirSync(p,{mode:0o700});
