@@ -1,0 +1,21 @@
+# V116 — test owner-safe, source-only macOS LaunchAgent candidate; NO INSTALL
+
+## Authority and real continuity
+**OWNER ACTION GATE: NONE for SOURCE/TEST/READ-ONLY; LaunchAgent installation, worker stop/cutover or restart NOT AUTHORIZED.** Existing issue #112 one-time worker-only recovery was owner-approved and **successfully executed** in V115; do not request or repeat it. Genuine sole primary V115 RETURNED PR #79 #6677176553 at `engineer/devproxy-rc2-controlled-release-20261104@d2e06f40087ab4769af77daf0523b0d0e137534b`. CTO reviewed the exact V114→V115 one-commit seven-path diff, preflight source, native receipts. V115 Mac worker runs one `--serve` with 0600 singleton and remained alive ≥60 sec, same proxy/API/ngrok full IDs/17 routes; no owner app mutation, HMAC rekey, LaunchAgent, Docker restart/recreate, or source sync. `realAppVerified` remains PARTIAL.
+
+Before acting, **fresh check PR #79 primary lifecycle/head/receipts**. If newer primary STARTED, preserve it, do NOT displace. Work on the genuine V115 RETURNED exact SHA, import **only these five V116 paths** from pinned CTO branch:
+- `tests/security/rc2-macos-worker-launchagent-candidate.test.cjs` (ten RED-first cases)
+- `utils/rc2-macos-worker-launchagent-candidate.cjs` (pure XML candidate)
+- `smart-build.sh` (unit hook only)
+- `docs/architecture/DEVPROXY_RC2_V116_USER_LAUNCHAGENT_SOURCE_ONLY.md`
+- this handoff.
+
+## One bounded sole-primary Engineer-I task
+1. Code-review `scripts/rc2-supervised-mac-host-worker.cjs` exact argument order (`--serve <privatePinPath>`), exclusive singleton and SIGTERM shutdown behavior. Compare with Apple's user `launchd` semantics: `RunAtLoad:true`, `KeepAlive:false` **is one login start, not after-crash retry**. Never add `KeepAlive:true`, timed relaunch, auto-unlink, old ticket replay, privilege/UID overrides or shell interpolation.
+2. Run native Mac Node22 `node --test tests/security/rc2-macos-worker-launchagent-candidate.test.cjs`, `node --check`, and **`./smart-build.sh test:unit`** without piping/truncating logs. Native `plutil -lint` on a **disposable, test-owned generated plist** only (never install). Tests for path validation including MAC symlink/canonicalism, XML escaping, fixed label, exact argv and source-only flags. Reject any code/test that claims live install from a test.
+3. Read-only inspect current V115 worker still alive, count exactly one process, exclusive 0600 lock and same pin/epoch/proxy ID/image, without exposing private file paths or credentials. Observe existing user launchd job/label status **read-only** and report conflicts, never `launchctl bootstrap/kickstart/bootout` or write `~/Library/LaunchAgents`. Do not unlink/restart current worker or modify owner app routes, Docker, ngrok, private live stage, master or bridge. Do not print generated XML/private paths into GitHub.
+4. Give one source-only readiness report: generated candidate `plutil -lint` yes/no, safe login once behavior, explicit residual when Docker not ready at login, no automatic crash recovery, private log/symlink/ownership/cutover checks still required, and one **decision-ready future authorization scope** for a later owner-approved user LaunchAgent installation/cutover (not requested or executed in V116). Current working proxy/UI/Ask owner UAT should remain available independently.
+5. Return ONE consolidated PR #79 genuine STARTED→VERIFYING→RETURNED receipt at exact full 40-hex engineer SHA with only five imported source paths plus receipts; list native focused/canonical status, read-only Mac worker evidence, plist validation (without bytes) and unchanged Origin-five. Specialist only optional for read-only macOS compatibility research, never live state writes. No protected merge.
+
+## Done, and stop
+V116 is DONE when source-only plist candidate natively verified and Mac install/cutover constraints accurately evidenced, without touching V115 live worker or the OS. Do not delay Owner UAT. Any future source sync into V115 durable product or LaunchAgent install remains a **distinct owner-only privilege gate**, not implied by this instruction. P2 app backend issue #109 remains independent research (#117), and no new primary Engineer is spawned by a GitHub comment.
