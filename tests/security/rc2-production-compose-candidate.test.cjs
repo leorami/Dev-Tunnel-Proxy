@@ -158,3 +158,37 @@ test('RED: preserve verified Mac candidate nonroot UID 504 / group 20 without re
  const a=base();a.apiUid=504;a.apiGid=20;
  const c=createProductionComposeCandidate(a);assert.equal(c.compose.services['proxy-config-api'].user,'504:20');
 });
+
+test('RED: production Compose candidate must reject ALL temporary host source roots, not just secret paths',()=>{
+ const names=Object.keys(base().paths);
+ const temp=['/tmp','/private/tmp','/var/tmp','/private/var/tmp',
+   '/var/folders','/private/var/folders','/dev/shm','/run/user'];
+ for(const root of temp){
+  for(const key of names){
+   const f=base();f.paths[key]=root+'/lost-after-reboot/'+key;
+   assert.throws(()=>createProductionComposeCandidate(f),/INVALID_RC2_CANDIDATE/,root+' '+key);
+  }
+ }
+});
+test('RED: casefolded temporary host mounts must not silently pass on case-insensitive Macs',()=>{
+ for(const root of ['/PRIVATE/TMP','/Var/Folders','/TMP','/private/VAR/TMP']){
+  for(const key of ['sourceRoot','ownerEnvFile','spoolHostDir','secretHostFile',
+    'nginxConf','nginxEntrypoint']){
+   const f=base();f.paths[key]=root+'/rc2-persistent-looking/'+key;
+   assert.throws(()=>createProductionComposeCandidate(f),/INVALID_RC2_CANDIDATE/,root+' '+key);
+  }
+ }
+});
+test('RED: temporary names that are NOT temporary directory components remain valid',()=>{
+ for(const pathRoot of ['/private/tmp-persistent', '/Users/owner/tmp-project']){
+  const f=base();f.paths.nginxConf=pathRoot+'/nginx.production.conf';
+  assert.equal(createProductionComposeCandidate(f).deployed,false);
+ }
+});
+test('RED: Docker internal tmpfs is permitted; only ephemeral HOST bind sources denied',()=>{
+ const c=p().compose;
+ assert.ok(c.services['proxy-config-api'].tmpfs.includes('/tmp:rw,nosuid,nodev,size=64m'));
+ assert.ok([...c.services.proxy.volumes,...c.services['proxy-config-api'].volumes]
+  .every(v=>!['/tmp','/private/tmp','/var/tmp','/var/folders'].some(root=>
+    v.source===root||v.source.startsWith(root+'/'))));
+});

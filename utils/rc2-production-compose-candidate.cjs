@@ -11,6 +11,16 @@
 const path=require('node:path');
 const IMAGE=/^[a-z0-9][a-z0-9._/-]{1,160}@sha256:[0-9a-f]{64}$/;
 const SOCKET=/(^|\/)docker\.sock($|\/)/;
+// Host bind sources must survive a Mac reboot. Docker's internal tmpfs
+// remains allowed: this guard applies ONLY to host paths in the manifest.
+const TEMP_HOST_ROOTS=Object.freeze([
+ '/tmp','/private/tmp','/var/tmp','/private/var/tmp',
+ '/var/folders','/private/var/folders','/dev/shm','/run/user'
+]);
+function isEphemeralHostSource(value){
+ const p=value.toLowerCase();
+ return TEMP_HOST_ROOTS.some(root=>p===root||p.startsWith(root+'/'));
+}
 const PATH_KEYS=Object.freeze([
  'sourceRoot','ownerEnvFile','secretHostFile','spoolHostDir',
  'appsDir','overridesDir','sitesDir','artifactsDir',
@@ -27,7 +37,7 @@ function plain(o,keys){
 function validPath(p){
  return typeof p==='string'&&p.length>1&&p.length<1025&&p[0]==='/'&&
   p!=='/'&&!p.endsWith('/')&&path.posix.normalize(p)===p&&
-  !/[\x00-\x1f\x7f]/.test(p)&&!SOCKET.test(p);
+  !/[\x00-\x1f\x7f]/.test(p)&&!SOCKET.test(p)&&!isEphemeralHostSource(p);
 }
 function inside(p,dir){return p===dir||p.startsWith(dir+'/');}
 function validInputs(input){
