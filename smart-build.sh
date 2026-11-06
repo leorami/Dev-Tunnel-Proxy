@@ -659,7 +659,7 @@ cmd_test_unit() {
 
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "RC2 pending host worker deterministic refusal and crash quarantine (test-owned only)" \
-      "node --test '$ROOT_DIR/tests/security/rc2-pending-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-pending-terminal-refusal.test.cjs'" || test_result=1
+      "node --test '$ROOT_DIR/tests/security/rc2-pending-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-pending-terminal-refusal.test.cjs' '$ROOT_DIR/tests/security/rc2-worker-only-recovery-preflight.test.cjs'" || test_result=1
   fi
 
   if [ $test_result -eq 0 ]; then
