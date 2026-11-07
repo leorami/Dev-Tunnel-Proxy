@@ -1,0 +1,42 @@
+{
+  "label": "SOURCE_PREPARED_V103_BROWSER_PRIVACY_COLDSTART",
+  "liveApplied": false,
+  "proxyId": "d5b71dc13699508cdfa44d14bc6a03300a28b2c73c40e30c0289d473bb173549",
+  "apiId": "b93e19d7ea9d8e4eaa18f7bbe64eaeb121095c078143309b6e2467ee8c391a85",
+  "hostWorkerPid": 96350,
+  "hostWorkerSingleton": true,
+  "appsConf": 17,
+  "health": 200,
+  "restartPolicyLive": "no",
+  "trustedOriginsLiveCount": 2,
+  "trustedOriginsLiveHasHttps": false,
+  "originParityCode": "OWNER_HTTPS_BROWSER_ORIGIN_MISSING",
+  "httpsLoginStatus": 403,
+  "loopbackLoginBadPasswordStatus": 401,
+  "loopbackWithHttpsOriginStatus": 403,
+  "liveEnvWritten": false,
+  "disposableTrustedOriginsStaged": true,
+  "liveAnonHealthPrivacy": "LEAKAGE",
+  "sourceHealthPrivacy": "MINIMIZED",
+  "focusedTests": "93/93",
+  "unitTestsExit": 0,
+  "disposableColdStart": {
+    "apiBeforeProxy": true,
+    "nginxT": true,
+    "upstreamDns": true,
+    "apiUser": "504:20",
+    "apps": 17,
+    "restartRecovery": true,
+    "liveUntouched": true,
+    "tornDown": true
+  },
+  "originFive": {
+    "sourceCurrent": "PASS",
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "realAppVerified": "PARTIAL",
+    "ownerWorkPreserved": "PASS"
+  },
+  "ownerDecisionRequired": "LIVE_HTTPS_ORIGIN_APPEND_AND_BOUNDED_API_RECREATE_FOR_PRIVACY_RESTART",
+  "ngrokBridgeMaster": "unchanged"
+}

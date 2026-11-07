@@ -23,8 +23,19 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
+const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
+const {readExistingBundleDiagnostics}=require('./rc2-readonly-bundle-diagnostics.cjs');
+const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
+const {listSecureAppsInventory}=require('./rc2-secure-apps-inventory.cjs');
+const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
+const {runSecureSelfCheck,readSecureSelfCheckRequestBody}=require('./rc2-secure-self-check.cjs');
+const {answerFromLocalProjectDocs,readBoundedLocalQuestionBody}=require('./rc2-local-calliope-evidence.cjs');
+const {explainLocalCalliopeCapability}=require('./rc2-local-calliope-observe-explain.cjs');
+const {createMinimalPublicCalliopeHealth,publicCalliopeHealthCacheHeaders}=require('./rc2-public-calliope-health-privacy.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
+// No network request occurs until an authenticated owner starts a bounded audit.
+const rc2SafeLocalAudit=createConstrainedLocalHttpAudit({trustedOrigins:TRUSTED_ORIGINS});
 
 const ROOT = path.resolve(__dirname, '..');
 const APPS_DIR = path.join(ROOT, 'apps');
@@ -46,21 +57,67 @@ const SESSION_FILE = path.join(ARTIFACTS_DIR, 'admin-session.json');
 const AUTO_SCAN_SETTINGS_FILE = path.join(ARTIFACTS_DIR, 'auto-scan-settings.json');
 const ROUTE_PROMOTIONS_FILE = path.join(ARTIFACTS_DIR, 'route-promotions.json');
 const {createProductionRouteMutationService} = require('./production-route-mutation.cjs');
+const {proposeRepair} = require('./calliope-first-safe-heal.cjs');
+const {runOwnerNextjsRedirectHealSkill} = require('./calliope-owner-nextjs-heal-skill.cjs');
+const {createOwnerHealReviewGate,readBoundedHealJsonBody} = require('./rc2-owner-heal-review-gate.cjs');
+const ownerHealReviewGate=createOwnerHealReviewGate();
 const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
 const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
+const {createCrossProcessSettlementActivation} = require('./rc2-cross-process-settlement.cjs');
+/** Fail closed for unmediated Docker/self-heal when settlement is the authorized path
+ *  or production API has no docker.sock. Endpoints return an explicit unavailable
+ *  code instead of silently no-oping or shelling docker.
+ */
+function inlineHostDockerUnavailable(){
+  return require('./rc2-inline-docker-policy.cjs').shouldBlockInlineDocker({
+    spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+    denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER,
+    allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+    nodeEnv:process.env.NODE_ENV
+  });
+}
+function refuseInlineDocker(res, action){
+  if(!inlineHostDockerUnavailable())return false;
+  send(res, 503, { ok:false, code:'BLOCKED_INLINE_DOCKER_UNAVAILABLE', action,
+    productionChangeAuthorized:false, liveAttested:false });
+  return true;
+}
+
 let routeManager = null;
+function loadActivationSecret(secretFile){
+  if(typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
+  const st=fs.lstatSync(secretFile);
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o077)!==0)return null;
+  const secret=fs.readFileSync(secretFile);
+  if(!Buffer.isBuffer(secret)||secret.length<32||secret.length>128)return null;
+  return secret;
+}
 function getRouteMutationService(){
   if(routeManager) return routeManager;
   try {
-    // All required values are operator-provisioned privately, never in Git.
+    // Prefer the reviewed HMAC file-spool + v13 settlement path. Unix-socket
+    // reload remains available only when spool is not provisioned (legacy).
+    // All secrets/paths are operator-provisioned privately, never in Git.
+    const spoolDir=process.env.DEVPROXY_ACTIVATION_SPOOL_DIR;
+    const settlementSecretFile=process.env.DEVPROXY_ACTIVATION_SECRET_FILE;
     const socket=process.env.DEVPROXY_RELOAD_SOCKET;
     const secretFile=process.env.DEVPROXY_RELOAD_SECRET_FILE;
     let activation=null;
-    if(socket||secretFile){
-      if(typeof socket!=='string'||typeof secretFile!=='string'||!path.isAbsolute(secretFile))return null;
-      const st=fs.lstatSync(secretFile);
-      if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||(st.mode&0o077)!==0)return null;
-      const secret=fs.readFileSync(secretFile);
+    if(spoolDir||settlementSecretFile){
+      if(typeof spoolDir!=='string'||!path.isAbsolute(spoolDir)||path.normalize(spoolDir)!==spoolDir||
+         spoolDir==='/'||spoolDir.endsWith(path.sep))return null;
+      const secret=loadActivationSecret(settlementSecretFile);
+      if(!secret)return null;
+      const sd=fs.lstatSync(spoolDir);
+      if(!sd.isDirectory()||sd.isSymbolicLink()||(sd.mode&0o077)!==0||
+         (typeof process.getuid==='function'&&sd.uid!==process.getuid()))return null;
+      activation=createCrossProcessSettlementActivation({
+        approvedRoot:ROOT,spoolDirectory:spoolDir,secret
+      });
+    } else if(socket||secretFile){
+      if(typeof socket!=='string'||typeof secretFile!=='string')return null;
+      const secret=loadActivationSecret(secretFile);
+      if(!secret)return null;
       activation=createAuthenticatedReloadClient({socketPath:socket,secret});
     }
     // Create only this private owner-data lock leaf; never modify /app source.
@@ -629,6 +686,7 @@ async function handle(req, res){
         activeSessions.delete(token);
         saveSessions();
       }
+      try{ ownerHealReviewGate.revokeAll(); }catch{}
       
       res.writeHead(200, {
         'Content-Type': 'application/json',
@@ -674,6 +732,76 @@ async function handle(req, res){
     if (authBoundary.requiresAuth) {
       if (!requireAuth(req, res, u)) return;
     }
+    // RC2_V95_LOCAL_CHAT: existing Calliope Ask UI stays useful in secure
+    // nonroot mode without silently re-enabling Docker/self-heal/external AI.
+    // The session and trusted Origin gate above must run BEFORE this handler.
+    if(req.method==='POST'&&u.pathname===apiPath('ai/ask')&&inlineHostDockerUnavailable()){
+      const request=await readBoundedLocalQuestionBody(req);
+      if(!request.ok)return send(res,400,{ok:false,
+        answer:'I could not read that request. Please ask one shorter question.',
+        sources:[],mode:'local_documentation',error:request.code,
+        usedAI:false,healingPerformed:false,liveAttested:false,
+        executionAuthorized:false,productionChangeAuthorized:false,networkTransferAuthorized:false});
+      const explained=explainLocalCalliopeCapability(request.query);
+      if(explained.ok)return send(res,200,explained);
+      const answer=answerFromLocalProjectDocs({root:ROOT,query:request.query,maxDocs:request.maxDocs});
+      const code=answer.ok?200:(answer.code==='LOCAL_DOCUMENTATION_UNAVAILABLE'?503:400);
+      return send(res,code,answer);
+    }
+    // RC2_V95_LOCAL_CHAT health: secure mode must not hide behind OpenAI-only
+    // enabled flags, and must remain reachable before legacy mutation gates.
+    if(req.method==='GET'&&u.pathname===apiPath('ai/health')&&inlineHostDockerUnavailable()){
+      return send(res, 200, createMinimalPublicCalliopeHealth(), publicCalliopeHealthCacheHeaders());
+    }
+    // RC2_SECURE_HTTP_AUDIT: authenticated only, no Docker/browser/external AI.
+    // The old legacy path stays guarded in production; this fixed-host HEAD
+    // implementation cannot execute a host action, follow redirects or heal.
+    if (req.method==='POST' && u.pathname===apiPath('ai/audit') && inlineHostDockerUnavailable()){
+      const rc2SafeAuditInput=await readBoundedAuditBody(req);
+      if(!rc2SafeAuditInput)return send(res,400,{ok:false,error:'INVALID_AUDIT_BODY'});
+      const auditObservation=await rc2SafeLocalAudit.audit(rc2SafeAuditInput);
+      const {httpStatus,...auditResult}=auditObservation;
+      return send(res,httpStatus,auditResult);
+    }
+    // RC2_SECURE_APPS_INVENTORY: default remains authenticated, no-network
+    // local listing. Explicit ?http=1 adds bounded fixed-host HEAD evidence
+    // from EXISTING bundle diagnostics. Never resurrect legacy scanApps.js.
+    if (req.method==='POST' && u.pathname===apiPath('apps/scan') && inlineHostDockerUnavailable()){
+      const inv=listSecureAppsInventory({appsDir:APPS_DIR});
+      const {httpStatus,...body}=inv;
+      if(!inv.ok||u.query?.http!=='1')return send(res,httpStatus,body);
+      const httpScan=await scanExistingAppHttpRoutes({
+        diagnosticsFile:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json'),
+        probe:rc2SafeLocalAudit
+      });
+      return send(res,httpStatus,{...body,httpScan});
+    }
+    // RC2 secure self-check: bounded request intent before any status claims.
+    // Explicit healing/targeting must fail, never become a silent HTTP 200 inventory.
+    if (req.method==='POST' && u.pathname===apiPath('ai/self-check') && inlineHostDockerUnavailable()){
+      const request=await readSecureSelfCheckRequestBody(req);
+      if(!request.ok)return send(res,request.httpStatus,{ok:false,error:request.code,
+        healingPerformed:false,productionChangeAuthorized:false,liveAttested:false});
+      const check=await runSecureSelfCheck({
+        appsDir:APPS_DIR,
+        diagnosticsFile:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json'),
+        probe:rc2SafeLocalAudit,
+        includeHttp:u.query?.http==='1'
+      });
+      const {httpStatus,...body}=check;
+      return send(res,httpStatus,body);
+    }
+    // Secure-spool and production mode deny legacy untransactional management
+    // actions AFTER user auth but BEFORE route handlers can mutate state.
+    const controlGate=classifySecureManagementOperation({
+      method:req.method,pathname:u.pathname,base:PROXY_API_BASE_PATH,
+      spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+      nodeEnv:process.env.NODE_ENV,
+      allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+      denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER
+    });
+    if(controlGate.blocked)return send(res,503,{ok:false,error:controlGate.code,
+      productionChangeAuthorized:false,liveAttested:false});
 
     // GET /api/ai/thoughts - Get streaming thought events (stub for now)
     if (req.method === 'GET' && u.pathname === apiPath('ai/thoughts')){
@@ -856,31 +984,22 @@ async function handle(req, res){
       }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
     }
 
-    // GET /api/apps/diagnostics → bundle-diagnostics.json (regenerate if missing)
+    // GET is observational: only an existing bounded diagnostics artifact.
+    // Route generation is exclusively an explicit authenticated POST transaction.
     if (req.method === 'GET' && u.pathname === apiPath('apps/diagnostics')){
-      try{
-        const diagPath = path.join(ARTIFACTS_DIR, 'bundle-diagnostics.json');
-        if (!fs.existsSync(diagPath)){
-          spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        }
-        const exists = fs.existsSync(diagPath);
-        const payload = exists ? JSON.parse(fs.readFileSync(diagPath, 'utf8')) : { generatedAt: null, overrides: [], apps: [], included: [], skipped: [] };
-        return send(res, 200, { ok:true, ...payload });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+      const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
+      // Never auto-regenerate from GET. Owner must call transactional POST apps/regenerate.
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code,
+        regenerateVia:'POST apps/regenerate',healingPerformed:false,routeModified:false});
+      return send(res,200,{ok:true,...r.diagnostics});
     }
 
-    // GET /api/apps/active → active locations with ordering and source
+    // GET active retains generator ordering, without implicit route writes.
     if (req.method === 'GET' && u.pathname === apiPath('apps/active')){
-      try{
-        const diagPath = path.join(ARTIFACTS_DIR, 'bundle-diagnostics.json');
-        if (!fs.existsSync(diagPath)){
-          spawnSync('node', [path.join(__dirname, 'generateAppsBundle.js')], { cwd: ROOT, encoding: 'utf8' });
-        }
-        const data = fs.existsSync(diagPath) ? JSON.parse(fs.readFileSync(diagPath, 'utf8')) : { included: [] };
-        // Preserve order as generated
-        const active = Array.isArray(data.included) ? data.included : [];
-        return send(res, 200, { ok:true, active });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+      const r=readExistingBundleDiagnostics({file:path.join(ARTIFACTS_DIR,'bundle-diagnostics.json')});
+      if(r.code!=='BUNDLE_DIAGNOSTICS_OK')return send(res,503,{ok:false,error:r.code,
+        regenerateVia:'POST apps/regenerate',healingPerformed:false,routeModified:false});
+      return send(res,200,{ok:true,active:r.diagnostics.included});
     }
 
     // POST /api/apps/regenerate. Preserve generation-only parity without
@@ -1076,6 +1195,67 @@ async function handle(req, res){
       }
     }
     // GET /api/ai/thoughts moved to AI section below (line ~640) for 'since' param support
+    // Propose (no write) + issue one-use session-bound review ticket (V94).
+    if (req.method === 'POST' && u.pathname === apiPath('apps/propose-nextjs-redirect-heal')){
+      try{
+        const parsed=await readBoundedHealJsonBody(req,{maxBytes:4096});
+        if(!parsed.ok)return send(res,400,{ok:false,error:parsed.code,healingPerformed:false});
+        const body=parsed.body||{};
+        const appName=body.appName, route=body.route;
+        if(typeof appName!=='string'||typeof route!=='string')return send(res,400,{ok:false,error:'INVALID_PROPOSE_INPUT',healingPerformed:false});
+        const file=path.join(APPS_DIR, appName.endsWith('.conf')?appName:appName+'.conf');
+        const st=fs.lstatSync(file);
+        if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||st.size>256*1024)return send(res,400,{ok:false,error:'UNSAFE_APP_TARGET',healingPerformed:false});
+        const source=fs.readFileSync(file,'utf8');
+        const proposed=proposeRepair({source,route});
+        if(proposed.status!=='PROPOSED')return send(res,422,{ok:false,status:proposed.status,healingPerformed:false,liveAttested:false,executionAuthorized:false});
+        const sessionBinding=extractSessionToken(req);
+        if(typeof sessionBinding!=='string')return send(res,401,{ok:false,error:'SESSION_BINDING_REQUIRED',healingPerformed:false});
+        const ticket=ownerHealReviewGate.issueReviewTicket({
+          sessionBinding, appName:path.basename(file), route:proposed.route,
+          beforeSha256:proposed.beforeSha256, afterSha256:proposed.afterSha256
+        });
+        if(!ticket.ok)return send(res,503,{ok:false,error:ticket.status||'PROPOSAL_TICKET_UNAVAILABLE',healingPerformed:false,liveAttested:false,executionAuthorized:false});
+        return send(res, 200, {
+          ok:true, status:proposed.status,
+          route:proposed.route, appName:path.basename(file),
+          beforeSha256:proposed.beforeSha256, afterSha256:proposed.afterSha256,
+          changeType:proposed.changeType, reviewTicket:ticket.ticket, expiresInMs:ticket.expiresInMs,
+          healingPerformed:false, liveAttested:false, executionAuthorized:false,
+          ownerApprovalGranted:false, skill:'nginx.nextjs_redirect.propose',
+          humanReviewNote:'Ticket proves a prior propose in this API process, not that a human clicked Confirm'
+        });
+      }catch(e){return send(res,500,{ok:false,error:e.message||'PROPOSE_FAILED',healingPerformed:false});}
+    }
+    // Consume session-bound ticket BEFORE ownerApproval / editApp (V94).
+    if (req.method === 'POST' && u.pathname === apiPath('apps/apply-reviewed-nextjs-redirect')){
+      try{
+        const parsed=await readBoundedHealJsonBody(req,{maxBytes:8192});
+        if(!parsed.ok)return send(res,400,{ok:false,error:parsed.code,healingPerformed:false,liveAttested:false});
+        const body=parsed.body||{};
+        const manager=getRouteMutationService();
+        if(!manager)return send(res,503,{ok:false,error:'ROUTE_ACTIVATION_UNAVAILABLE',healingPerformed:false,liveAttested:false});
+        const appName=typeof body.appName==='string'&&body.appName.endsWith('.conf')?body.appName:(typeof body.appName==='string'?body.appName+'.conf':body.appName);
+        const sessionBinding=extractSessionToken(req);
+        if(typeof sessionBinding!=='string')return send(res,401,{ok:false,error:'SESSION_BINDING_REQUIRED',healingPerformed:false});
+        const consumed=ownerHealReviewGate.consumeReviewTicket({
+          sessionBinding, appName, route:body.route,
+          beforeSha256:body.beforeSha256, afterSha256:body.afterSha256,
+          reviewTicket:body.reviewTicket
+        });
+        if(!consumed.ok)return send(res,403,{ok:false,error:consumed.status||'PROPOSAL_TICKET_REJECTED',
+          healingPerformed:false,liveAttested:false,executionAuthorized:false,
+          reviewTicketConsumed:false});
+        const result=await runOwnerNextjsRedirectHealSkill({
+          authenticated:true, appsDir:APPS_DIR, appName, route:body.route,
+          beforeSha256:body.beforeSha256, afterSha256:body.afterSha256, mutation:manager,
+          reviewTicketConsumed:true
+        });
+        const {httpStatus,...rest}=result;
+        return send(res, httpStatus||500, {...rest, reviewTicketConsumed:true, reviewTicketStatus:consumed.status});
+      }catch(e){return send(res,500,{ok:false,error:e.message||'APPLY_FAILED',healingPerformed:false,liveAttested:false});}
+    }
+
     if (req.method === 'POST' && u.pathname === apiPath('ai/thoughts/clear')){
       drainThoughts();
       return send(res, 200, { ok:true });
@@ -1134,20 +1314,8 @@ async function handle(req, res){
     // ======== AI Assistant (optional) ========
     if (u.pathname.startsWith(apiPath('ai/'))){
       if (req.method === 'GET' && u.pathname === apiPath('ai/health')){
-        const enabled = Boolean(process.env.OPENAI_API_KEY);
-        
-        // Try to get static domain from logs for more reliable ngrok discovery
-        let staticNgrokDomain = null;
-        try {
-          const { execSync } = require('child_process');
-          const logs = execSync('docker logs dev-ngrok 2>&1 | grep "ngrok: using static domain" || true', { stdio: ['ignore', 'pipe', 'pipe'] }).toString('utf8');
-          const mStatic = logs.match(/ngrok:\s+using static domain '([^']+)'/i);
-          if (mStatic && mStatic[1]) {
-            staticNgrokDomain = mStatic[1];
-          }
-        } catch (e) {}
-        
-        return send(res, 200, { enabled, model: process.env.OPENAI_MODEL || null, staticNgrokDomain, activity: currentActivity });
+        // Anonymous health never runs host Docker or reveals model/owner activity.
+        return send(res, 200, createMinimalPublicCalliopeHealth(), publicCalliopeHealthCacheHeaders());
       }
 
       // GET /api/ai/thoughts?since=timestamp - Get thinking events for UI
@@ -1210,6 +1378,7 @@ async function handle(req, res){
 
       // POST /api/ai/restart-containers { names?: string[], self?: boolean }
       if (req.method === 'POST' && u.pathname === apiPath('ai/restart-containers')){
+        if (refuseInlineDocker(res, 'ai/restart-containers')) return;
         try{
           const body = await parseBody(req);
           let names = Array.isArray(body && body.names) ? body.names.filter(Boolean) : [];
@@ -1237,6 +1406,7 @@ async function handle(req, res){
       // POST /api/ai/snapshot-analyze { containerName, srcPathInContainer, outName? }
       // Legacy name kept for compatibility; we refer to it as a "code review"
       if (req.method === 'POST' && u.pathname === apiPath('ai/snapshot-analyze')){
+        if (refuseInlineDocker(res, 'ai/snapshot-analyze')) return;
         try{
           const body = await parseBody(req);
           const containerName = body && body.containerName;
@@ -1355,6 +1525,7 @@ async function handle(req, res){
 
       // POST /api/ai/ask { query, ... } — now proactive: can invoke healing when user asks to heal
       if (req.method === 'POST' && u.pathname === apiPath('ai/ask')){
+        if (refuseInlineDocker(res, 'ai/ask')) return;
         const body = await parseBody(req);
         const query = (body && body.query || '').trim();
         const maxDocs = Math.max(1, Math.min(10, Number(body && body.maxDocs) || 6));
@@ -1890,6 +2061,7 @@ async function handle(req, res){
 
       // POST /api/ai/audit-and-heal { url, route?, maxPasses?, wait?, timeout? }
       if (req.method === 'POST' && u.pathname === apiPath('ai/audit-and-heal')){
+        if (refuseInlineDocker(res, 'ai/audit-and-heal')) return;
         try{
           const body = await parseBody(req);
           const urlToAudit = (body && body.url) || '';
@@ -1940,6 +2112,7 @@ async function handle(req, res){
 
       // POST /api/ai/self-check { heal?: boolean, hint?: string, route?: string, advanced?: boolean }
       if (req.method === 'POST' && u.pathname === apiPath('ai/self-check')){
+        if (refuseInlineDocker(res, 'ai/self-check')) return;
         const body = await parseBody(req);
         const heal = Boolean(body && body.heal);
         const hint = (body && body.hint) || '';
@@ -1969,6 +2142,7 @@ async function handle(req, res){
 
       // POST /api/ai/advanced-heal { route?: string, hint?: string }
       if (req.method === 'POST' && u.pathname === apiPath('ai/advanced-heal')){
+        if (refuseInlineDocker(res, 'ai/advanced-heal')) return;
         const body = await parseBody(req);
         const route = (body && body.route) || '';
         const hint = (body && body.hint) || '';
@@ -2340,6 +2514,9 @@ function quickDiagnostics(hint){
 }
 
 async function runSelfCheck(opts){
+    if (inlineHostDockerUnavailable()) {
+      return { ok:false, code:'BLOCKED_INLINE_DOCKER_UNAVAILABLE', heal:!!(opts&&opts.heal) };
+    }
   const result = { startedAt: new Date().toISOString(), steps: [], heal: !!opts.heal };
   try{
     // If advanced healing is requested, use the new system

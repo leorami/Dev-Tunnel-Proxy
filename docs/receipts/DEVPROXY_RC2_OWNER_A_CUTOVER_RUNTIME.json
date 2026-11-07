@@ -1,0 +1,30 @@
+{
+  "deployed": true,
+  "scope": "OWNER_A_TWO_SERVICE",
+  "featureScope": "local_docs_ask_plus_ticketed_nextjs_heal",
+  "externalModelChat": "disabled",
+  "dockerSockHeal": "disabled",
+  "proxyId": "d5b71dc13699508cdfa44d14bc6a03300a28b2c73c40e30c0289d473bb173549",
+  "proxyImage": "sha256:9b2ae98f11d8fee29d1f62e7eb08b0a3f2a43cae081b081fb48740154636f0b1",
+  "apiId": "b93e19d7ea9d8e4eaa18f7bbe64eaeb121095c078143309b6e2467ee8c391a85",
+  "apiImage": "sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e",
+  "apiUser": "504:20",
+  "apiReadOnly": "true",
+  "health": "200",
+  "aiHealthMode": "local_documentation",
+  "askSmoke": "local_reviewed_heal_explain",
+  "appsConf": 17,
+  "ngrokId": "178b23cbdb9d8aaf447d4f9bb8613393e32054733ed0ecb63d075bafe20d17f9",
+  "ngrokStatus": "running",
+  "ngrokNote": "was Exited(255) for ~22h before cutover; restarted same container id; no config/credential change",
+  "trustedOrigins": "appended http://127.0.0.1:8080,http://localhost:8080 to owner .env (was missing; required for CSRF)",
+  "hostWorkerLive": "NOT_INSTALLED",
+  "proxyStartRace": "nginx upstream DNS; fixed by start-after-API",
+  "originFive": {
+    "sourceCurrent": "PARTIAL",
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "realAppVerified": "PARTIAL",
+    "ownerWorkPreserved": "PASS"
+  }
+}

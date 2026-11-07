@@ -1,0 +1,49 @@
+{
+  "assignment": "V117",
+  "returnLabel": "HYPOTHESIS_DISPROVED_OR_UNVERIFIED",
+  "ownerActionGate": "NONE",
+  "liveMutation": false,
+  "sourceFixApplied": false,
+  "startedComment": 6677821024,
+  "trackingIssue": 109,
+  "handoff": "cto/devproxy-rc2-v117-app-offline-coldstart-isolation-20261106@8244ceaf9d65764a86fc421c0c546f7bc3a8fe6f",
+  "parentSha": "10aef4fdc53593ce84e0ac1cd7645048b0326dc4",
+  "importedPaths": 7,
+  "native": {
+    "classifierPlusGeneratedBundle": "12/12",
+    "hostNginxBinary": "unavailable",
+    "disposableDockerNginx1263Integration": "3/3",
+    "smartBuildUnitExit": 0
+  },
+  "liveBundleCounts": {
+    "code": "NO_OBVIOUS_STATIC_DNS_IN_SUPPLIED_TEXT",
+    "staticDnsReferences": 0,
+    "variableProxyReferences": 37,
+    "resolverDirectivesSeen": 38,
+    "appsListed": 17,
+    "upstreamStaticServersInFullConfig": 2
+  },
+  "isolatedDocker": {
+    "imageIdPrefix": "sha256:9b2ae98f11d8",
+    "variableOfflineAppsDoNotBlockColdStart": true,
+    "delayedAppAffectsRouteOnly": true,
+    "staticAppHostnameFailsConfigTest": true,
+    "seventeenRoutesPreservedInFixture": true
+  },
+  "macReadonly": {
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "workerServe": 1,
+    "nginxTestStatus": 0,
+    "startupEmergIn2000LogLines": 0,
+    "hostNotFoundInUpstreamIn2000LogLines": 0,
+    "restartCount": 0
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}

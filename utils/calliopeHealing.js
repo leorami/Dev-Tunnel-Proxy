@@ -21,8 +21,24 @@ const AUDITS_DIR = path.join(ARTIFACTS_DIR, 'audits');
 const RESOURCES_DIR = path.join(CALLIOPE_DIR, 'resources');
 const AUDIT_HISTORY_DIR = path.join(CALLIOPE_DIR, 'audit-history');
 
+function inlineDockerBlocked(){
+  // Never allow environment opt-outs to bypass authenticated v13 spool or
+  // production-mode restriction. Source reviewed in RC2 CTO policy tests.
+  return require('./rc2-inline-docker-policy.cjs').shouldBlockInlineDocker({
+    spoolDirectory:process.env.DEVPROXY_ACTIVATION_SPOOL_DIR,
+    denyFlag:process.env.DEVPROXY_DENY_INLINE_DOCKER,
+    allowFlag:process.env.DEVPROXY_ALLOW_INLINE_DOCKER,
+    nodeEnv:process.env.NODE_ENV
+  });
+}
+function refuseInlineDocker(action){
+  if(!inlineDockerBlocked())return;
+  throw new Error('BLOCKED_INLINE_DOCKER:'+action);
+}
+
 // Regenerate nginx bundle and reload - ensures Calliope's fixes take effect
 async function regenerateNginxBundle() {
+  refuseInlineDocker('regenerateNginxBundle');
   try {
     console.log('🔧 Regenerating nginx bundle...');
     // Prefer running directly inside this container (volume already mounted at /app)
@@ -30,6 +46,7 @@ async function regenerateNginxBundle() {
       execSync('node utils/generateAppsBundle.js', { cwd: ROOT, encoding: 'utf8' });
     } catch (e) {
       // Fallback to docker-run only if direct node execution is unavailable
+      refuseInlineDocker('docker-run-generate');
       execSync('docker run --rm --network devproxy -v "' + ROOT + ':/app" -w /app node:18-alpine node utils/generateAppsBundle.js', { 
         encoding: 'utf8' 
       });
@@ -37,19 +54,23 @@ async function regenerateNginxBundle() {
 
     // Test the new configuration
     console.log('🧪 Testing nginx configuration...');
+    refuseInlineDocker('nginx-t');
     execSync('docker exec dev-proxy nginx -t', { encoding: 'utf8' });
 
     // Reload nginx to apply changes
     console.log('🔄 Reloading nginx...');
+    refuseInlineDocker('nginx-reload');
     execSync('docker exec dev-proxy nginx -s reload', { encoding: 'utf8' });
 
     console.log('✅ Nginx bundle regenerated and reloaded successfully');
     return true;
   } catch (error) {
     console.error('❌ Failed to regenerate nginx bundle:', error.message);
+    if(String(error.message||'').startsWith('BLOCKED_INLINE_DOCKER:'))throw error;
     // Soft reload fallback to keep healthy endpoints online
     try {
       console.log('🩹 Attempting soft reload to preserve healthy routes...');
+      refuseInlineDocker('nginx-soft-reload');
       execSync('docker exec dev-proxy nginx -s reload', { encoding: 'utf8' });
       console.log('💫 Soft reload completed');
       return false;

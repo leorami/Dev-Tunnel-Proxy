@@ -1,0 +1,44 @@
+{
+  "assignment": "V112",
+  "returnLabel": "SOURCE_GUARD_INTEGRATED_LIVE_REOBSERVED",
+  "ownerActionGate": "NONE",
+  "liveMutation": false,
+  "startedComment": 6674624816,
+  "handoff": "cto/devproxy-rc2-v112-durable-compose-runtime-handoff-20261106@5b6a3ae508b31bb2c405646d7166e77af46fdf1a",
+  "parentSha": "97b51c75963b3cc53b5115103bff19b19147d5fe",
+  "focusedTests": {
+    "productionComposeCandidate": "23/23",
+    "smartBuildUnitExit": 0
+  },
+  "liveReobserve": {
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "idsMatchV110Receipt": true,
+    "proxyEphemeralBinds": 0,
+    "apiEphemeralBinds": 0,
+    "apiUser": "504:20",
+    "apiReadonly": true,
+    "apiDockerSock": false,
+    "restartPolicy": "unless-stopped",
+    "routesConfigured": 17,
+    "trustedOriginsCount": 3,
+    "workerProcessRunning": false,
+    "singletonLockPresent": true,
+    "pinMatchesLiveProxy": true,
+    "health": 200,
+    "healthMinimizedNoStore": true,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginHttpsNeg": 401,
+    "signedInAsk": 200
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  },
+  "newOwnerDecisionIfDesired": "scoped_worker_only_restart_stale_lock"
+}

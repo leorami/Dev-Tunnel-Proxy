@@ -1,0 +1,59 @@
+{
+  "candidateStatus": "REVIEW_REQUIRED",
+  "provenanceVerified": true,
+  "lessonFingerprint": "22b44de611504ab1a14524442b079421e585831e3ea3bd7a9a9338832025ad05",
+  "admit": {
+    "ok": true,
+    "code": "ADMITTED",
+    "lessonId": "v92-disposable-nextjs-redirect",
+    "healingPerformed": false,
+    "overwrote": false
+  },
+  "recog": {
+    "status": "EQUIVALENT_FAILURE_OFFERS_REVIEWED_PROPOSE",
+    "healingPerformed": false,
+    "executionAuthorized": false,
+    "ownerApprovalGranted": false,
+    "offeredAbility": {
+      "id": "nginx.nextjs_redirect.propose",
+      "registryStatus": "CONTRACT_ONLY_NOT_INSTALLED",
+      "runnable": false
+    },
+    "matchedLessonIds": [
+      "v92-disposable-nextjs-redirect"
+    ],
+    "beforeSha256": "1ca9ab9aadb0a762065c19adc2e726ec07496dd4f264af0438194c76a5bfece4",
+    "afterSha256": "a255a8fee093d7321352b423b50ccd46ff59ac85dda021532a635bd75f676d71",
+    "requires": [
+      "exact_target_hash",
+      "authenticated_owner_review",
+      "v92_locked_cas",
+      "real_browser_host_verify"
+    ],
+    "note": "Recognition is not autonomous heal; owner review + CAS still required"
+  },
+  "missing": {
+    "ok": true,
+    "status": "NEW_ABILITY_REQUEST_NOT_IMPLEMENTED",
+    "requestedAbilityId": "nginx.x_forwarded_proto.propose",
+    "runnable": false,
+    "executionAuthorized": false,
+    "healingPerformed": false,
+    "ownerApprovalGranted": false,
+    "note": "Missing ability is a review request only; never self-grants privileges"
+  },
+  "quarantine": {
+    "ok": true,
+    "code": "LEGACY_KB_QUARANTINED_READONLY",
+    "patternCount": 2,
+    "inventoryFingerprint": "0517867cf77162ce6706fcc1f558933ed6c997977a8770fa99a74376a9e8491f",
+    "abilityRequestCount": 4,
+    "regexpExecuted": false,
+    "kbMutated": false
+  },
+  "evidenceBeforeSha": "fcd658234ff412271504edcd3bac48fa6a8008810b8d8af513a0f222a6de0555",
+  "evidenceAfterSha": "8d49e5ca3188c90f22ce6c4e38dd6a09d36cb0fb2651b39989f4bee7691d3f4b",
+  "browserEvidenceDigest": "033c3e3954f3ef4b09ccdf244cb019d1bb28158687ca992b1a54da02c257d9c7",
+  "githubCommitAttested": "93962a98a5213b1ff4f4749928673839f0383e32",
+  "note": "Non-executable REVIEW_REQUIRED lesson + reuse offer; not production heal"
+}

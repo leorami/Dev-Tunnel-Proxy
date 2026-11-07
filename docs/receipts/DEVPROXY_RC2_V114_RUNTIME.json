@@ -1,0 +1,44 @@
+{
+  "assignment": "V114",
+  "returnLabel": "TERMINAL_SIGNED_REFUSAL_NONFATAL_SOURCE",
+  "ownerActionGate": "NONE",
+  "workerRestartAuthorized": false,
+  "lockClearAuthorized": false,
+  "liveMutation": false,
+  "startedComment": 6676752873,
+  "trackingIssue": 112,
+  "handoff": "cto/devproxy-rc2-v114-terminal-rejection-does-not-crash-worker-20261106@b6ec0e38ec7619ed8904c49c79423cc025512b53",
+  "parentSha": "2979a3a2eed64eb79ec3272e9dfcc9c7181206f1",
+  "focusedTests": {
+    "pendingPlusTerminalRefusal": "18/18",
+    "smartBuildUnitExit": 0
+  },
+  "disposableProof": {
+    "signedMismatchVerified": true,
+    "fixedActionOnMismatch": 0,
+    "replayOnMismatch": false,
+    "continuedWithValidRequest": true,
+    "quarantinePathsPreserved": true,
+    "liveSpoolUntouched": true
+  },
+  "liveReobserve": {
+    "singletonCode": "WORKER_SINGLETON_CRASH_QUARANTINE",
+    "workerRunning": false,
+    "lockPresent": true,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "health": 200,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginHttpsNeg": 401,
+    "signedInAsk": 200
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}

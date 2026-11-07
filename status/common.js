@@ -120,6 +120,7 @@
       '      <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>'+
       '      <button class="btn" id="aiAskBtn">Ask</button>'+
       '      <button class="btn" id="aiHealBtn" data-role="selfcheck" title="Self‑Check" aria-label="Self‑Check">Self‑Check</button>'+
+      '      <button class="btn" id="aiRedirectHealBtn" data-role="reviewed-redirect-heal" title="Apply owner-reviewed Next.js /_next/ redirect fix" aria-label="Apply reviewed redirect heal">Fix /_next/ loop</button>'+
       '    </div>'+
       '  </div>'+
       '</div>'
@@ -380,7 +381,33 @@
     const copyBtn = drawer.querySelector('#aiCopyBtn');
     if (copyBtn){ copyBtn.addEventListener('click', ()=>{ try{ const c = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); navigator.clipboard.writeText(c.map(m=>`[${m.role}] ${m.content}`).join('\n')); copyBtn.textContent='Copied'; setTimeout(()=> copyBtn.textContent='Copy', 1200); }catch{} }); }
     const healBtn = drawer.querySelector('#aiHealBtn');
-    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running self-check…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/devproxy/api/ai/self-check', { method:'POST' }); const j = await r.json(); const h2 = loadChat(); h2.push({ role:'assistant', content: String(j&&j.message||'Self-check complete'), ts:Date.now() }); saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
+    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running local observation self-check (healing unavailable)…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/devproxy/api/ai/self-check', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:false }) }); const j = await r.json().catch(()=>({})); const h2 = loadChat(); if(!r.ok || j.ok===false || j.healingPerformed===true){ h2.push({ role:'assistant', content: `Self-check unavailable: ${j.error||j.code||('HTTP '+r.status)}. Healing is not enabled in secure mode.`, ts:Date.now() }); } else { h2.push({ role:'assistant', content: `Local observation only (${j.code||'SELF_CHECK_INVENTORY_ONLY'}). Healing was not performed.`, ts:Date.now() }); } saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
+    const redirectHealBtn = drawer.querySelector('#aiRedirectHealBtn');
+    if (redirectHealBtn){ redirectHealBtn.addEventListener('click', async ()=>{
+      const route=(window.prompt('Route slug for reviewed Next.js /_next/ redirect heal (e.g. lyra)','lyra')||'').trim();
+      if(!route)return;
+      const appName=route.endsWith('.conf')?route:route+'.conf';
+      const h0=loadChat();
+      h0.push({role:'assistant',content:`Proposing owner-reviewed redirect repair for ${appName} (one-use review ticket)…`,ts:Date.now()});
+      saveChat(h0);renderChat();
+      try{
+        const p=await fetch('/devproxy/api/apps/propose-nextjs-redirect-heal',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({appName,route})});
+        const pj=await p.json().catch(()=>({}));
+        if(!p.ok||!pj.ok||!pj.beforeSha256||!pj.afterSha256||!pj.reviewTicket){
+          const h1=loadChat();h1.push({role:'assistant',content:`Propose failed: ${pj.error||pj.status||('HTTP '+p.status)}. No ticket issued; no changes applied.`,ts:Date.now()});saveChat(h1);renderChat();return;
+        }
+        // Keep ticket only in this closure — never localStorage/chat/analytics.
+        const reviewTicket=pj.reviewTicket;
+        const ok=window.confirm(`Apply reviewed Next.js redirect fix?\n\napp: ${pj.appName}\nroute: ${pj.route}\nbefore: ${pj.beforeSha256.slice(0,12)}…\nafter: ${pj.afterSha256.slice(0,12)}…\nchange: ${pj.changeType||'KNOWN_NEXTJS_UPSTREAM_PREFIX_REPAIR'}\n\nServer issued a one-use review ticket (expires ~${Math.round((pj.expiresInMs||120000)/1000)}s).\nThis proves propose+apply from your signed-in session — not cryptographic proof that a human clicked Confirm.\nCAS editApp + HMAC only. liveAttested stays false until disposable browser proof.`);
+        if(!ok){const hC=loadChat();hC.push({role:'assistant',content:'Owner declined apply. Ticket unused; no mutation.',ts:Date.now()});saveChat(hC);renderChat();return;}
+        const a=await fetch('/devproxy/api/apps/apply-reviewed-nextjs-redirect',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({appName:pj.appName,route:pj.route,beforeSha256:pj.beforeSha256,afterSha256:pj.afterSha256,reviewTicket})});
+        const aj=await a.json().catch(()=>({}));
+        const h2=loadChat();
+        if(!a.ok||aj.ok!==true){h2.push({role:'assistant',content:`Apply failed: ${aj.code||aj.error||('HTTP '+a.status)}. healingPerformed=${aj.healingPerformed===true}. Replay of the same ticket is rejected.`,ts:Date.now()});}
+        else {h2.push({role:'assistant',content:`Owner-reviewed repair APPLIED (${aj.code}). ticket=${aj.reviewTicketStatus||'CONSUMED'}. CAS=${aj.casEnforced===true}. healingPerformed=${aj.healingPerformed===true} (browser/nginx proof still required). liveAttested=${aj.liveAttested===true}.`,ts:Date.now()});}
+        saveChat(h2);renderChat();
+      }catch(e){const h3=loadChat();h3.push({role:'assistant',content:`Redirect heal error: ${e.message}`,ts:Date.now()});saveChat(h3);renderChat();}
+    }); }
     // Placeholder UX: show placeholder only; never prefill user box
     try{
       const textarea = document.getElementById('aiQuery');
