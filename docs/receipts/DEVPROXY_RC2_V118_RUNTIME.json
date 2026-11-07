@@ -1,0 +1,97 @@
+{
+  "assignment": "V118",
+  "returnLabel": "STAGE_FILE_MISMATCH_PROCESS_CODE_LOADED_UNVERIFIED",
+  "ownerActionGate": "FUTURE_REQUIRED_PRODUCT_SOURCE_CUTOVER",
+  "ownerActionGateExecuted": false,
+  "liveMutation": false,
+  "startedComment": 6699562650,
+  "trackingIssue": 121,
+  "relatedIssues": [121, 116, 109],
+  "handoff": "cto/devproxy-rc2-v118-worker-source-stage-evidence-20261106@c99b91cfc06484fa68d5663a01db9b4098fea2d5",
+  "parentSha": "6cb77b039c0c40612a8d04a9e2655043e0cfe2a1",
+  "importedPaths": 7,
+  "reviewedPendingWorkerGitBlob": "6a084d5f697e999219de5bd078032cbe8fde1536",
+  "native": {
+    "node": "v22.19.0",
+    "focusedStagePlusProvenance": "22/22",
+    "nodeCheckStageModule": "OK",
+    "nodeCheckLaunchAgentProvenanceModule": "OK",
+    "smartBuildUnitExit": 0,
+    "importedHelperBlobs": {
+      "utils/rc2-reviewed-worker-source-stage.cjs": "55a7bc4a179c68021e82a33a1caf191e4ef442e1",
+      "tests/security/rc2-reviewed-worker-source-stage.test.cjs": "f984a2c4f9131a7e2093a00bdb27108b5178ceae",
+      "utils/rc2-worker-launchagent-path-provenance.cjs": "14821c6c98c99add02125c9379ff105a5c1d023f",
+      "tests/security/rc2-worker-launchagent-path-provenance.test.cjs": "e591f16ee1b18f858e9e78abee685bcd3a1ae07c"
+    }
+  },
+  "macReadonly": {
+    "workerServeCount": 1,
+    "processIdentity": "ONE_SERVE_PIN_BOUND",
+    "cwdEqualsApprovedRoot": true,
+    "pinMode": "0o600",
+    "lockMode": "0o600",
+    "spoolTicketFiles": 0,
+    "spoolStructuralDirs": 5,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "appsListedInGeneratedHeader": 17,
+    "nginxTestStatus": 0,
+    "healthJson": 200,
+    "healthJsonCacheControl": "no-store",
+    "healthJsonKeys": 1,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginPage": 200,
+    "askUnauthenticated": 401,
+    "launchAgentsMatching": 0,
+    "launchctlLabelPresent": false
+  },
+  "stageDiagnosis": {
+    "helperCode": "REVIEWED_STAGE_MODULE_MISMATCH",
+    "STAGE_FILE": "STAGE_FILE_MISMATCH",
+    "PROCESS_CODE_LOADED": "PROCESS_CODE_LOADED_UNVERIFIED",
+    "processIdentityAttested": false,
+    "liveLoadedCodeVerified": false,
+    "productionChangeAuthorized": false,
+    "durablePendingContainsV114DigestMismatchMarker": false,
+    "engineerTreePendingClass": "MATCH_REVIEWED_V114",
+    "durableApprovedRootPendingClass": "MISMATCH",
+    "serveImportRequiresPending": true
+  },
+  "launchAgentPathTrust": {
+    "code": "LAUNCHAGENT_PATH_TRUST_UNKNOWN",
+    "reason": "no_owner_approved_external_sha256_without_circular_self_hash",
+    "installed": false,
+    "mutationAttempted": false,
+    "procNodeSymlinkHops": 0
+  },
+  "futureOwnerGate": {
+    "required": true,
+    "title": "Narrowly scoped durable worker product-source cutover",
+    "authorizedNow": false,
+    "mustInclude": [
+      "single-process clean stop of current --serve",
+      "replay/lock quarantine preserved",
+      "sync fully versioned reviewed product utils/rc2-pending-host-worker.cjs (blob 6a084d5f697e999219de5bd078032cbe8fde1536) plus entire transitive dependency manifest",
+      "signed no-action CONFIG_SET_DIGEST_MISMATCH regression on live worker after cutover",
+      "HMAC epoch/pin continuity (no rekey unless separately granted)",
+      "private rollback of prior durable product bytes",
+      "optional separately scoped LaunchAgent install only if justified after path trust with external reviewed digests"
+    ],
+    "explicitlyExcluded": [
+      "reuse of consumed V115 stale-lock recovery authorization",
+      "Docker/ngrok/proxy recreate",
+      "master merge",
+      "owner-app heal",
+      "KeepAlive:true or auto lock-clear"
+    ]
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
