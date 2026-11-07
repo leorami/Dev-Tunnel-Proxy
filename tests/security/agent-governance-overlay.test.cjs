@@ -38,7 +38,7 @@ test('specialists do not broker owner actions or expand authority', () => {
   assert.match(a, /primary.*owner.only decisions/i);
   assert.match(a, /no credentials.*GitHub/i);
   assert.match(a, /no.*(merge|deploy).*without.*owner/i);
-  assert.match(a, /\b\.cursorrules\b/);
+  assert.match(a, /\.cursorrules\b/);
 });
 
 test('public policy remains a local overlay, not an unauthorized copy of private Origin', () => {
