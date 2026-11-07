@@ -1,0 +1,31 @@
+# DEVPROXY RC2 V119 — verified complete worker source release, offline only
+
+**OWNER ACTION GATE: NONE for source/test-only integration and private disposable candidate construction.** **NOT AUTHORIZED:** stop/signal/restart/replace the existing live `--serve`; copy source into its durable product; remove/clear/recreate the 0600 singleton; write/replay signed tickets; install/enable `launchd`; alter Docker/ngrok/bridge/proxy/apps/HMAC/key/credentials; merge `master`. The specific V115 worker-recovery authorization is ALREADY CONSUMED. Owner UAT of currently working proxy and Calliope Ask remains independent.
+
+## Genuine lifecycle and exact starting truth
+
+Before any work, re-read primary [PR #79](https://github.com/leorami/Dev-Tunnel-Proxy/pull/79) for genuine STARTED/RETURNED and full SHA. Sole primary V118 **RETURNED** #6699650892 at `engineer/devproxy-rc2-controlled-release-20261104@20427efaf372d19f341d39c84e21139e9413a907`, exact one-commit nine-file source diff from V117. Focused Node22 22/22 and canonical `./smart-build.sh test:unit` exit0 per Mac receipt. Mac stage module **MISMATCHES** reviewed fixed V114 blob `6a084d5f697e999219de5bd078032cbe8fde1536`; `PROCESS_CODE_LOADED_UNVERIFIED`. One original worker alive, private lock 0600, zero spool tickets, proxy/API/ngrok and 17 apps unchanged. No reason to re-run V118's old investigation or to invent another cause of historical P2 #109.
+
+This isolated CTO branch is based exactly on the V118 RETURNED SHA. Import ONLY these **four** CTO paths:
+1. `tests/security/rc2-worker-release-closure.test.cjs`
+2. `utils/rc2-worker-release-closure.cjs`
+3. `docs/architecture/DEVPROXY_RC2_V119_WORKER_RELEASE_CLOSURE.md`
+4. This `docs/handoffs/DEVPROXY_RC2_V119_WORKER_RELEASE_CLOSURE_OFFLINE.md`.
+
+## CTO code already written and locally RED/GREEN tested
+
+`inspectReviewedWorkerReleaseClosure({approvedRoot,reviewedCommitSha})` pins exact V118 commit `20427efaf372d19f341d39c84e21139e9413a907` and all twelve transitive local worker source Git blobs. It only reads files and ancestor metadata, rejects suspicious links/writable directories, and outputs redacted source-only statuses. It cannot run or authorize a worker. A separate function is explicitly `TEST_ONLY` for synthetic fixtures and never creates owner approval. The CTO independently resolved the actual 12-file Node require closure on GitHub and ran Linux Node22 **10/10 synthetic fixture cases PASS** after establishing RED from missing helper. Exact local test/source hashes matched GitHub. No native Mac full canonical yet.
+
+## Remaining work for ONE primary Cursor Engineer-I
+
+1. Import the four paths only into the existing single primary Engineer branch. Do not touch unowned dirty owner files, overwrite V118 evidence, update the live durable source, or merge governance PR #123.
+2. Native `node --test tests/security/rc2-worker-release-closure.test.cjs` and `node --check utils/rc2-worker-release-closure.cjs`; add the *narrow* unit-test hook in `smart-build.sh` and execute complete `./smart-build.sh test:unit`. If any test fails, fix the relevant source/test root cause within this assignment; don't fragment into serial remediation plans.
+3. Independently prove the exact **12-file** local `require()` dependency closure of `scripts/rc2-supervised-mac-host-worker.cjs` on the V118 pinned source. Ensure every literal relative dependency resolves to exactly one pinned file; all external imports are Node built-ins; unexpected dynamic imports/external packages fail closed. Do not broaden scope by assuming omitted files are safe. Preserve a redacted, GitHub-linked path-count/hash result.
+4. Build a **test-owned private temporary offline product candidate**, byte-exact copy from the reviewed current Engineer source, of only the twelve pinned JS modules. Never copy any owner pin/HMAC, route, env, app file or private code artifact. This candidate must be outside the live durable stage and must not start a second app, worker, service or Docker stack. Run `inspectReviewedWorkerReleaseClosure` against it (positive source-file match only); mutate a **test-owned** dependency to show MISMATCH; symlink/hardlink and nonsticky-writable-ancestor tests show UNSAFE; verify cleanup. If staging requires unreviewed modules or cannot safely isolate temp files, RETURN `BLOCKED_OFFLINE_RELEASE_PROVENANCE` with the exact redacted gap; no live fallback.
+5. Verify no attempt to use test-only manifest input as an approval proof; ensure `runningProcessAttested:false` and `productionChangeAuthorized:false` on every output. Do not equate a matched offline candidate with the running Mac worker. No worker stop, sync or LaunchAgent install in this assignment.
+6. Read-only confirm latest original single-worker/0600 lock/empty queue and proxy/API/ngrok identities unchanged if accessible safely; distinguish current observation from historical V118 receipt. Do not issue any signed live ticket or check host privileges through mutation.
+7. Produce **ONE** consolidated STARTED → VERIFYING → RETURNED receipt on PR #79, exact full 40-character commit and the actual changed-path count (four imports, the unit hook, any justified in-scope offline fixture/source, and two receipts; never guess the count). Include native test outputs, independently checked Git blob list, offline source-match/mismatch tests, state of real worker, specialist `SPAWNED` identities or truthful `NOT_SPAWNED_*`, all unauthorized/unperformed actions, and **one** decision-ready proposal for the previously identified owner-only worker *product-source cutover*. Do not claim a live deployment or owner UAT.
+
+## Integration and stop
+
+One primary Engineer-I remains integration owner; specialist work is optional only if genuinely independent, isolated and actually launchable, with observed run identity. Do not invent children or require owner to broker them. This is a bounded substantive **V119 source-readiness** assignment, not a production fix. Successful source completion should produce **one** coherent future owner decision, not repeated safety-planning cycles. No new Engineer assignment until this primary genuinely returns and CTO reviews committed diff. Do not interrupt working owner UAT.
