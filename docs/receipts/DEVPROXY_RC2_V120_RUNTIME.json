@@ -1,0 +1,97 @@
+{
+  "assignment": "V120",
+  "returnLabel": "WORKER_SOURCE_CUTOVER_DEPLOYED_AND_VERIFIED",
+  "ownerActionGate": "GRANTED_EXECUTED",
+  "authorization": {
+    "ownerPhrase": "i authorize the narrowly scoped worker product-source cutover described above",
+    "issueComment": 6713687575,
+    "prComment": 6713719403,
+    "askedAgain": false
+  },
+  "liveMutation": true,
+  "startedComment": 6714173254,
+  "trackingIssue": 121,
+  "handoff": "cto/devproxy-rc2-v120-owner-approved-worker-cutover-20261107@efb3f3b37d4fe6419bff127279ec38f56b8b8e2d",
+  "parentSha": "58e099881709b032f44e8b75b0e87413871b583d",
+  "reviewedReleaseCommit": "20427efaf372d19f341d39c84e21139e9413a907",
+  "changedPathCount": 6,
+  "specialists": "NOT_SPAWNED",
+  "native": {
+    "node": "v22.19.0",
+    "focusedV120PlusPendingSupervisorClosureSerial": "39/39",
+    "smartBuildUnitExit": 0,
+    "unitHookAdded": true
+  },
+  "before": {
+    "workerServeCount": 1,
+    "lockMode": "0o600",
+    "spoolTicketFiles": 0,
+    "replayFiles": 0,
+    "durableClosure": "REVIEWED_WORKER_CLOSURE_MISMATCH",
+    "durableMismatchPaths": ["utils/rc2-pending-host-worker.cjs"],
+    "durableMismatchCount": 1,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d"
+  },
+  "mutation": {
+    "immutableStage": "REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY",
+    "rollbackPrepared": true,
+    "rollbackLeaf": "v120-rollback-1794092513272",
+    "stop": "SIGTERM_ONLY_COOPERATIVE",
+    "lockClearedByWorker": true,
+    "syncedPaths": ["utils/rc2-pending-host-worker.cjs"],
+    "postSyncClosure": "REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY",
+    "pendingBlob": "6a084d5f697e999219de5bd078032cbe8fde1536",
+    "restart": "detached_same_node_durable_product_serve",
+    "candidateBindingRestored": {
+      "pathClass": "build/sites-enabled/apps.generated.conf",
+      "reason": "preexisting_empty_sites_enabled_blocked_createCandidateManifest",
+      "bytesIdenticalToLiveNginxMountSource": true,
+      "routeContentChanged": false
+    }
+  },
+  "after": {
+    "workerServeCount": 1,
+    "newProcessAfterSourceInstall": true,
+    "lockMode": "0o600",
+    "closure": "REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY",
+    "pendingBlobMatch": true,
+    "signedRefusal": {
+      "status": "CONFIG_SET_DIGEST_MISMATCH",
+      "verifiedOk": true,
+      "hostPreparedCount": 0,
+      "replayCount": 0,
+      "workerStillSole": true,
+      "productionChangeAuthorized": false,
+      "durableReplyPreservedAsAudit": true
+    },
+    "stability60s": true,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "appsListed": 17,
+    "healthJson": 200,
+    "healthStatus": "ok",
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "askUnauthenticated": 401
+  },
+  "unauthorizedNotPerformed": [
+    "launchctlInstall",
+    "KeepAliveTrue",
+    "autoLockClear",
+    "SIGKILL",
+    "hmacRotation",
+    "dockerNgrokProxyRestart",
+    "masterMerge",
+    "reusedV115LockDeletion"
+  ],
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}
