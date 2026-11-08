@@ -1598,7 +1598,7 @@
 
           const title = document.createElement('div');
           title.className = 'title';
-          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${source} • <span style="font-family:var(--mono, monospace)">${route}</span></small>`;
+          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${escapeHtml(source)} • <span style="font-family:var(--mono, monospace)">${escapeHtml(route)}</span></small>`;
           header.appendChild(title);
 
           const actions = document.createElement('div');
@@ -2560,7 +2560,12 @@
             // Config file header
             const configHeader = document.createElement('div');
             configHeader.className = 'config-group-header';
-            configHeader.innerHTML = `<h2>${source.replace(/\.conf$/, '')}</h2><span class="config-route-count">${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}</span>`;
+            const configTitle = document.createElement('h2');
+            configTitle.textContent = source.replace(/\.conf$/, '');
+            const configCount = document.createElement('span');
+            configCount.className = 'config-route-count';
+            configCount.textContent = `${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}`;
+            configHeader.append(configTitle, configCount);
             configCard.appendChild(configHeader);
             
             // Routes container within this config
