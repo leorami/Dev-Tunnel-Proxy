@@ -3,7 +3,7 @@
  * RED-first P0 browser-side trust contract. Source-only: no actual CDN,
  * pairing secret, localhost bridge, Messages, or service calls are made.
  * This test is intentionally NOT wired to canonical tests until a separate,
- * reviewed status-UI correction satisfies it; V121 remains read-only.
+ * reviewed status-UI correction satisfies it; V122 emergency bridge containment is separately active and must not be interrupted.
  */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -17,7 +17,11 @@ function scripts(html){
  }).filter(x=>x.src);
 }
 function trustedScript({src,attrs}){
- if(!/^https?:\/\//i.test(src))return true; // reviewed first-party bundle
+ if(typeof src!=='string'||typeof attrs!=='string')return false;
+ // A privileged page must not treat //cdn, data:, blob: or javascript: as local.
+ if(/^\/status\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_.-]+\.js$/.test(src)&&
+    !src.split('/').includes('..'))return true;
+ if(!/^https:\/\//i.test(src))return false;
  const immutable=/[@/]\d+\.\d+\.\d+(?:\/|$)/.test(src);
  const sri=/\bintegrity\s*=\s*(['"])sha(?:256|384|512)-[a-z0-9+/=]+\1/i.test(attrs);
  const cors=/\bcrossorigin\s*=\s*(['"])anonymous\1/i.test(attrs);
@@ -33,6 +37,12 @@ test('negative controls: mutable, floating or unhashed CDN JS cannot be trusted 
   {src:'https://unpkg.com/lucide@latest',attrs:'src="https://unpkg.com/lucide@latest"'},
   {src:'https://cdn.example/pkg@1.2.3/ui.js',attrs:'src="https://cdn.example/pkg@1.2.3/ui.js"'},
   {src:'https://cdn.example/pkg@1.2.3/ui.js',attrs:'src="https://cdn.example/pkg@1.2.3/ui.js" integrity="sha384-aGVsbG8="'},
+  {src:'//malicious.example/script.js',attrs:'src="//malicious.example/script.js"'},
+  {src:'data:text/javascript,alert(1)',attrs:'src="data:text/javascript,alert(1)"'},
+  {src:'blob:https://devproxy.example/uuid',attrs:'src="blob:https://devproxy.example/uuid"'},
+  {src:'javascript:alert(1)',attrs:'src="javascript:alert(1)"'},
+  {src:'/status/../malicious.js',attrs:'src="/status/../malicious.js"'},
+  {src:'http://cdn.example/pkg@1.2.3/ui.js',attrs:'src="http://cdn.example/pkg@1.2.3/ui.js" integrity="sha384-aGVsbG8=" crossorigin="anonymous"'},
  ])assert.equal(trustedScript(item),false);
 });
 test('RED: status paired bridge bearer is never exposed to unaudited third-party script execution',()=>{
