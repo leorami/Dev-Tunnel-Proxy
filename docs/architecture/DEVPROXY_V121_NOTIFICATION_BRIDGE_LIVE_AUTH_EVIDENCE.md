@@ -1,0 +1,21 @@
+# DEVPROXY V121 — establish the actual localhost notification-bridge security state
+
+## Existing evidence and project independence
+
+The previous highest-priority worker source gap #121 is **fixed and CTO source/evidence accepted**: sole primary V120 RETURNED on PR #79 at `engineer/devproxy-rc2-controlled-release-20261104@7da2026a9b1bfd1cd2dacecc335bfaecb6788f62`. Exact six-path diff, 12/12 Git worker-source blobs, native 39/39 and original-mac signed-refusal proof are recorded in PR #79 comments #6714253018 and #6715139259. Issue #121 closed; original owner grant consumed. The owner UAT and separately authorized per-user worker LaunchAgent #116 remain distinct. Do not repeat V120 or mutate worker, key, proxy or Docker.
+
+**More serious unclosed P0 #8:** `macos/notifications-bridge.js` on the current accepted source branch is patched (reviewed Git blob `6bf5a1a973d6806e9ddbd05c932ef9cedee424c6`) and requires `macos/notifications-bridge-auth.cjs` (blob `b7bf100ab54d97b21057f1b630906483a188c103`). That pure auth gate denies unpaired privileged GET, untrusted Origin, and forged Host; accepted/source-tested in older Issue #8 / PR #11. **BUT** the owner Mac previously had a loopback listener 127.0.0.1:17888 whose *live-loaded* code was NOT updated or independently attested. Its current existence and authorization behavior are **unknown**. Neither checked-in fixes nor an older exposed listener prove today's exposure. Treat as a genuine P0 **evidence gap**, not as a proven active compromise or new deployment authorization.
+
+## The exact CTO-built safe diagnostic
+
+`utils/notification-bridge-readonly-policy-probe.cjs` executes only four **GET** requests to fixed `127.0.0.1:17888`: GET health, GET unpaired `/service/status`, GET the same status with an untrusted Origin, and GET health with a forged Host. Every request has no credentials, no body, no POST, no arbitrary host/port, no runtime shell effects. The client discards response bodies and returns a frozen status-only classification. The P0 risky class is an unauthenticated 200 from privileged status, hostile Origin or forged Host. A protected response pattern is 200/401/403/403. A missing listener means offline only, not fixed source. Any ambiguity is UNVERIFIED; it cannot be silently declared safe.
+
+Test code is in `tests/security/notification-bridge-readonly-policy-probe.test.cjs` with simulated transport only. CTO Node 22.16.0 native **5/5 GREEN** after one test-only comment-matching RED correction; source `node --check` GREEN. Additionally a disposable loopback HTTP wire fixture bound 127.0.0.1:17888 **PASS** with 200/401/403/403; no owner Mac/real bridge accessed. Exact independently computed Git blob SHA for implementation `50c383e807b53ea45cb5cf3c039c99f9c895e9bf` and test `de7538c521302fccf4bbdab85cb84801670abd86`, both read back byte-identical on CTO GitHub branch.
+
+## Action boundary and dispositions
+
+The primary Engineer-I uses the existing Mac environment for native/canonical tests and **read-only** bridge policy/provenance diagnosis. It must not invoke the bridge's `/test`, `/service/install` or `/service/uninstall` routes; send Messages; start/stop/restart bridge or LaunchAgents; read pairing tokens; change owner app, nginx, Docker, HMAC, ngrok, routes or master. No local token or path in GitHub.
+
+`BRIDGE_POLICY_OBSERVED_SOURCE_UNVERIFIED` is not proof of loaded source/process identity. Correlate a live loopback listener only with read-only PID/start/executable/source path metadata and independently reviewed checked-in auth blobs; explicitly distinguish on-disk source from loaded process code. If the old vulnerable behavior is observed, report **P0 LIVE CONTROL EXPOSURE — OWNER ACTION REQUIRED**, with one next narrowly scoped bridge cutover/containment proposal; **DO NOT** self-authorize a live stop or Messages/LaunchAgent mutation. If offline, report `BRIDGE_NOT_RUNNING`, preserve it and investigate no further until owner need. If protected, report observed policy but do not certify source load or owner UAT without evidence. Never run broader actions just to force a positive classification.
+
+This assignment is useful now because the security source was previously accepted **without a live deployment**. It does not manufacture another worker hardening sprint or delay the repaired Dev Proxy core UAT.
