@@ -53,6 +53,12 @@ test('RED: status paired bridge bearer is never exposed to unaudited third-party
  assert.deepEqual(unsafe.map(x=>x.src),[],
   'paired bridge bearer shares origin with unsigned/unversioned third-party JS');
 });
+test('RED: route and config identifiers are never inserted as unescaped executable markup',()=>{
+ // These values flow from the route/config models. A text node preserves display
+ // without granting markup execution, regardless of the producer's trust level.
+ assert.doesNotMatch(page,/title\\.innerHTML\\s*=\\s*\`[^\`]*\\$\\{source\\}[^\`]*\\$\\{route\\}[^\`]*\`/s);
+ assert.doesNotMatch(page,/configHeader\\.innerHTML\\s*=\\s*\`[^\`]*\\$\\{source\\.replace\\(/s);
+});
 test('control: paired bearer is not deliberately persisted in localStorage',()=>{
  assert.doesNotMatch(page,/localStorage\.setItem\(NOTIF_BRIDGE_PAIR_KEY\s*,/);
 });
