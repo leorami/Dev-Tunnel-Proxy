@@ -17,6 +17,12 @@ The checked-in `config/nginx.production.conf` does not add an explicit CSP heade
 
 The preferred repair is to ship vetted, version-pinned JavaScript locally as part of the trusted app artifact, then independently verify its digest, immutable delivery and browser behavior. As an alternative, exact immutable CDN URLs with independently verified SRI/crossorigin may satisfy the narrow test, but they still place third-party code in the origin; CSP, XSS hardening and least-privileged pairing lifecycle merit a holistic design review. Do not falsely certify SRI alone as complete browser authorization.
 
+## Additional source-verified potential DOM injection sinks
+
+Exact V121-returned `status/status.html` Git blob `3a9eb28d3489f73ebf335ef937f9efbec2b0a319` uses `title.innerHTML` to interpolate **raw `source` and `route`** into the Notifications Settings header (line ~1601), and `configHeader.innerHTML` to interpolate `source.replace(/\\.conf$/, '')` into grouped config headings (line ~2563). The same codebase's regular route-card title correctly uses `document.createTextNode(displayRoute)` (line ~2251), demonstrating a small viable rendering alternative.
+
+This is an **unsafe source-level DOM HTML sink** if any affected identifier can carry attacker-controlled markup. Whether a remote adversary can actually influence those values in the live deployment **has not been established**. The RED-first test now independently asserts these two interpolations must be removed/replaced by text-node rendering before calling the privileged page safe; no malicious payload was executed, no browser or owner page modified. Other `innerHTML` sinks exist and must be audited if the UI remediation is authorized. SRI is **not a substitute** for DOM XSS protection, and a protected bridge must still authenticate every privileged operation.
+
 ## Independent parallelism / noninterference
 
 Primary Engineer-I is **genuinely STARTED on V121**, GitHub PR #79 #6715181825, to perform only the owner-Mac read-only bridge authority check from CTO PR #126; it must not be interrupted, re-scoped, or given this draft as another prompt. This branch touches only an additional test file and this documentation. `status/status.html`, `smart-build.sh`, bridge auth, MAC state, route configs, passwords/keys, workers, LaunchAgents, Docker and nginx remain untouched.
