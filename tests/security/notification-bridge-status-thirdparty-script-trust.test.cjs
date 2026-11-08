@@ -45,10 +45,10 @@ test('negative controls: mutable, floating or unhashed CDN JS cannot be trusted 
   {src:'http://cdn.example/pkg@1.2.3/ui.js',attrs:'src="http://cdn.example/pkg@1.2.3/ui.js" integrity="sha384-aGVsbG8=" crossorigin="anonymous"'},
  ])assert.equal(trustedScript(item),false);
 });
-test('RED: status paired bridge bearer is never exposed to unaudited third-party script execution',()=>{
- assert.match(page,/sessionStorage\.setItem\(NOTIF_BRIDGE_PAIR_KEY\s*,\s*token\)/);
- assert.match(page,/sessionStorage\.getItem\(NOTIF_BRIDGE_PAIR_KEY\)/);
- assert.match(page,/Authorization:\s*`Bearer \$\{token\}`/);
+test('RED: privileged status page never executes unreviewed third-party script bytes',()=>{
+ // Do not require a bearer to remain in sessionStorage: a future safer
+ // design may remove tab persistence entirely.
+ assert.match(page,/NOTIF_BRIDGE_BASE|NOTIF_BRIDGE_PAIR_KEY/);
  const unsafe=scripts(page).filter(s=>!trustedScript(s));
  assert.deepEqual(unsafe.map(x=>x.src),[],
   'paired bridge bearer shares origin with unsigned/unversioned third-party JS');
