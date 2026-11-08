@@ -14,6 +14,10 @@ Import ONLY these four additive paths, based on the actual V121 returned SHA:
 
 The CTO wrote genuine RED-first tests then the pure containment identity/policy gates, and on isolated Linux Node **v22.16.0** observed initial RED (module missing), then `node --check` green and focused **8/8** PASS. Independently validated exact Git blob identities: test `19494ed4e5035850ee676294a88f77f81f49a011`; source `cd20524d3849665b2efa56861d3984c4b2866615`. Tests themselves are test-only; the pure module performs **no** stop, disable, shell, HTTP, file, secret or runtime action. Native owner-Mac test integration and exact observed-state checks are still your responsibility.
 
+## Expected, authorized service impact — disclose it
+
+CTO independently inspected `macos/notifications-engine.js` current Git blob `7d82db79a2a8cae1de0d6f9e1fb8e29eb58839ba`: its outgoing notification code sends `POST /test` to `127.0.0.1:17888`. **A contained bridge means outgoing notification delivery will be unavailable**, even if the separate Notifications Engine process/job remains alive. This security containment deliberately favors ending an observed unauthenticated local OS-control exposure over preserving the insecure notification transport. **Do not claim notifications functionality remains operational**, send a live Messages test, change Notifications Engine, or undo containment to restore delivery. Preserve that engine's runtime/configuration and report the exact expected owner-visible limitation. A later secured bridge redeployment requires its own independent owner decision.
+
 ## One substantive implementation and live containment
 
 1. **Fresh lifecycle and authority gate:** reread all current PR #79 lifecycle evidence and exact Engineer branch/full SHA before start; if another primary is already STARTED or a V122 return exists, **do not start/repeat**. Preserve working tree/dirty owner files. Publish genuine STARTED only after your actual primary launch, not from this comment.
