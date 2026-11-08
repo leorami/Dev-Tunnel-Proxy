@@ -16,6 +16,10 @@ The module demands exactly one verified `127.0.0.1:17888` TCP listener; same obs
 
 On isolated CTO Linux Node v22.16.0, the initial RED test failed from missing helper (true RED); after implementation `node --check` passed and **8/8 focused tests passed**. Exact source/test Git blob IDs checked locally and matched GitHub: module `cd20524d3849665b2efa56861d3984c4b2866615`, test `19494ed4e5035850ee676294a88f77f81f49a011`. Native owner-Mac canonical unit and live containment remain primary Engineer-I responsibilities.
 
+## Confirmed functional tradeoff: notifications cannot be delivered while bridge is contained
+
+Independent CTO source review of `macos/notifications-engine.js` at V121 Git blob `7d82db79a2a8cae1de0d6f9e1fb8e29eb58839ba` confirms that its outgoing notification path sends an unauthenticated `POST /test` to `127.0.0.1:17888`. **Containing the bridge deliberately interrupts outbound notification delivery**, even if the separate notifications-engine *process* and its LaunchAgent remain running. This is an expected security containment consequence, **not** proof that the engine's notification functionality remains healthy. Do not falsely report notification delivery continuity, alter the engine or attempt a real Messages send. Record this limited service impact in the final owner-facing receipt. Future bridge redeployment or restoration of notifications requires its own separately scoped approval.
+
 ## Narrow native transaction, preserving all other services
 
 1. Before any live action, independently confirm the existing one-time owner grant, sole primary V121 return/source SHA and this exact tested gate. Capture nonsecret private BEFORE evidence: one loopback listener identity, PID birth, executable, source script identity, owner UID and matching launchd job/loaded PID or **verified absence** of supervision. Inspect both loaded job and persistent bridge service configuration when deciding whether the listener could automatically restart. No pairing token reads.
