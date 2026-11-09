@@ -105,8 +105,8 @@
       '<div class="ai-header">'+
       '  <h2><span class="icon-steth-header" aria-hidden="true"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;"></span>Calliope</h2>'+
       '  <div class="ai-meta">'+
-      '    <span class="ai-healing-history" id="aiHealingHistory"><span class="ai-healing-history-label">🧪 Healing History</span></span>'+
-      '    <span class="ai-healing-status" id="aiHealingStatus"><span class="pulse"></span><span class="ai-healing-status-label" id="aiHealingStatusLabel">🩺 Healing</span><span class="ai-healing-count" style="display:none" id="aiHealingCount"></span></span>'+
+      '    <span class="ai-healing-history" id="aiHealingHistory"><span class="ai-healing-history-label">Recent activity</span></span>'+
+      '    <span class="ai-healing-status" id="aiHealingStatus"><span class="pulse"></span><span class="ai-healing-status-label" id="aiHealingStatusLabel">Local-only</span><span class="ai-healing-count" style="display:none" id="aiHealingCount"></span></span>'+
       '  </div>'+
       '</div>'+
       '<div class="ai-content">'+
@@ -129,6 +129,8 @@
     // legacy tab is suppressed; rely on header button
     // Chat persistence helpers
     const LS_KEY = 'dtpCalliopeChat';
+    // Independent shared-page controller: one pending Ask, one view epoch.
+    let sharedViewEpoch = 0;
     const safe = (s)=> String(s||'').replace(/[<>&]/g, m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
     function loadChat(){ try{ const j = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); return Array.isArray(j)? j : []; }catch{ return []; } }
     function saveChat(arr){ try{ localStorage.setItem(LS_KEY, JSON.stringify(arr.slice(-200))); }catch{} }
@@ -141,15 +143,7 @@
       }).join('');
       chat.scrollTop = chat.scrollHeight;
     }
-    // Ensure friendly greeting exists once per session
-    (function ensureGreeting(){
-      const h = loadChat();
-      const hasGreeting = h.some(m => m.role==='assistant');
-      if (!hasGreeting){
-        h.push({ role:'assistant', content: 'Heya! I\'m Calliope. How can I help your dev proxy today?', ts: Date.now() });
-        saveChat(h);
-      }
-    })();
+    // Render existing local history without generating an unsolicited assistant message.
     renderChat();
     
     // Progress polling for background operations
@@ -205,170 +199,128 @@
     }
     
     const ask = drawer.querySelector('#aiAskBtn');
+    let sharedAskInFlight = false;
+    let sharedAskController = null;
+
     async function submitQuery(){
+      // Disallow a second network request while the first is unsettled;
+      // retain any newly typed input rather than silently duplicating it.
+      if (sharedAskInFlight) return;
       const textarea = document.getElementById('aiQuery');
       const q = (textarea && textarea.value || '').trim();
       if (!q) return;
-      
-      // Show user message
-      const hist = loadChat(); 
-      hist.push({ role:'user', content:q, ts:Date.now() }); 
-      saveChat(hist); 
-      renderChat();
-      
-      // Clear input immediately
-      if (textarea) textarea.value='';
-      
-      // Show thinking indicator
+
+      sharedAskInFlight = true;
+      const controller = new AbortController();
+      sharedAskController = controller;
+      const requestEpoch = sharedViewEpoch;
+      const startTime = Date.now();
+      const askBtn = document.getElementById('aiAskBtn');
+      const stopBtn = document.getElementById('aiStopBtn');
       const chat = document.getElementById('aiChat');
       const thinkingBubble = document.createElement('div');
       thinkingBubble.className = 'bubble assistant thinking';
       thinkingBubble.innerHTML = '<div class="bubble-title">🩺 Calliope</div><div class="bubble-content thinking-dots">thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-      chat.appendChild(thinkingBubble);
-      chat.scrollTop = chat.scrollHeight;
-      
-      // Disable ask button, enable stop button
-      const askBtn = document.getElementById('aiAskBtn');
-      const stopBtn = document.getElementById('aiStopBtn');
-      if (askBtn) {
-        askBtn.disabled = true;
-        askBtn.textContent = 'Thinking…';
+
+      const hist = loadChat();
+      hist.push({ role:'user', content:q, ts:startTime });
+      saveChat(hist);
+      renderChat();
+      if (textarea) textarea.value = '';
+      if (chat){
+        chat.appendChild(thinkingBubble);
+        chat.scrollTop = chat.scrollHeight;
       }
-      if (stopBtn) {
-        stopBtn.style.display = 'inline-block';
-      }
-      
-      // Start progress polling
-      startProgressPolling();
-      
-      // Poll for completed responses in chat history
-      const chatPollStartTime = Date.now();
-      const chatPoller = setInterval(async () => {
-        try {
-          const chatData = await fetch('/devproxy/api/ai/chat-history', { cache: 'no-cache' }).then(r => r.json());
-          const messages = (chatData && chatData.messages) || [];
-          const lastMsg = messages[messages.length - 1];
-          
-          // If there's a new assistant message after we started, operation is complete
-          if (lastMsg && lastMsg.role === 'assistant' && new Date(lastMsg.ts).getTime() > chatPollStartTime) {
-            // Stop polling
-            clearInterval(chatPoller);
-            stopProgressPolling();
-            
-            // Remove thinking indicator
-            if (thinkingBubble && thinkingBubble.parentNode) {
-              thinkingBubble.remove();
-            }
-            
-            // Reload and render chat
-            renderChat();
-            
-            // Re-enable ask button, hide stop button
-            if (askBtn) {
-              askBtn.disabled = false;
-              askBtn.textContent = 'Ask';
-            }
-            if (stopBtn) {
-              stopBtn.style.display = 'none';
-            }
-          }
-        } catch (e) {
-          console.error('Chat polling error:', e);
-        }
-      }, 1000);
-      
+      if (askBtn){askBtn.disabled=true;askBtn.textContent='Thinking…';}
+      // A server-verified Stop implementation does not exist in secure mode.
+      if (stopBtn) stopBtn.style.display='none';
+
       try{
-        const r = await fetch('/devproxy/api/ai/ask', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ query: q }) });
-        const j = await r.json();
-        const ans = j && (j.answer || j.message || '');
-        
-        // If response is immediate (not background), stop polling
-        if (!j.accepted) {
-          clearInterval(chatPoller);
-          stopProgressPolling();
-          
-          // Remove thinking indicator
-          if (thinkingBubble && thinkingBubble.parentNode) {
-            thinkingBubble.remove();
+        const response = await fetch('/devproxy/api/ai/ask', {
+          method:'POST', credentials:'include',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({query:q}),
+          signal:controller.signal
+        });
+        const result = await response.json().catch(()=>null);
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        if (!response.ok || !result || result.ok===false){
+          throw Error('Local Ask unavailable (HTTP '+response.status+'). No action was taken.');
+        }
+        let answer = result && typeof result.answer==='string' ? result.answer.trim() : '';
+
+        // The secure local-doc backend answers synchronously. Legacy accepted
+        // jobs may return later, so poll *only after* explicit acceptance.
+        // Never race the immediate reply with a history-poll assistant bubble.
+        if (result.accepted===true){
+          startProgressPolling();
+          let confirmed = false;
+          for (let attempt=0; attempt<20; attempt++){
+            await new Promise(resolve=>setTimeout(resolve,1000));
+            if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+            try{
+              const resp = await fetch('/devproxy/api/ai/chat-history',{
+                method:'GET',credentials:'include',cache:'no-cache',
+                signal:controller.signal
+              });
+              if (!resp.ok) continue;
+              const data = await resp.json().catch(()=>null);
+              const messages = data && Array.isArray(data.messages) ? data.messages : [];
+              const latest = messages[messages.length-1];
+              if (latest && latest.role==='assistant' &&
+                  Date.parse(latest.ts)>startTime &&
+                  typeof latest.content==='string' && latest.content.trim()){
+                answer=latest.content;
+                confirmed=true;
+                break;
+              }
+            }catch(e){
+              if (controller.signal.aborted) return;
+            }
           }
-          
-          const hist2 = loadChat(); 
-          hist2.push({ role:'assistant', content: String(ans||'(no answer)'), ts:Date.now() }); 
-          saveChat(hist2); 
-          renderChat();
-          
-          // Re-enable ask button, hide stop button
-          if (askBtn) {
-            askBtn.disabled = false;
-            askBtn.textContent = 'Ask';
-          }
-          if (stopBtn) {
-            stopBtn.style.display = 'none';
+          if (!confirmed){
+            answer='No verified background reply arrived in this view. Server work was not confirmed stopped.';
           }
         }
-      }catch(e){ 
-        // Stop polling on error
-        clearInterval(chatPoller);
-        stopProgressPolling();
-        
-        // Remove thinking indicator on error too
-        if (thinkingBubble && thinkingBubble.parentNode) {
-          thinkingBubble.remove();
-        }
-        
-        const h = loadChat(); 
-        h.push({ role:'assistant', content: `Error: ${e.message}`, ts:Date.now() }); 
-        saveChat(h); 
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        const messages = loadChat();
+        messages.push({role:'assistant',
+          content:answer||'No verified local answer was available. No action was taken.',
+          ts:Date.now()});
+        saveChat(messages);
         renderChat();
-        
-        // Re-enable ask button, hide stop button
-        if (askBtn) {
-          askBtn.disabled = false;
-          askBtn.textContent = 'Ask';
-        }
-        if (stopBtn) {
-          stopBtn.style.display = 'none';
+      }catch(e){
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        const messages = loadChat();
+        messages.push({role:'assistant',
+          content:'Local Ask could not be completed. '+String(e.message||'No changes were made.'),
+          ts:Date.now()});
+        saveChat(messages);
+        renderChat();
+      }finally{
+        try{thinkingBubble.remove();}catch{}
+        stopProgressPolling();
+        if (sharedAskController===controller){
+          sharedAskInFlight=false;
+          sharedAskController=null;
+          if (askBtn){askBtn.disabled=false;askBtn.textContent='Ask';}
         }
       }
     }
-    ask.addEventListener('click', submitQuery);
+    if (ask) ask.addEventListener('click', submitQuery);
     const textareaEvt = drawer.querySelector('#aiQuery');
-    if (textareaEvt){ textareaEvt.addEventListener('keydown', (ev)=>{ if (ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); submitQuery(); } }); }
-    
-    // Stop button functionality
-    const stopBtn = drawer.querySelector('#aiStopBtn');
-    if (stopBtn) {
-      stopBtn.addEventListener('click', async () => {
-        try {
-          // Request cancellation via API
-          await fetch('/devproxy/api/ai/cancel', { method: 'POST' });
-          
-          // Stop polling
-          stopProgressPolling();
-          
-          // Remove thinking bubble
-          const thinkingBubble = document.querySelector('#aiChat .bubble.assistant.thinking');
-          if (thinkingBubble) thinkingBubble.remove();
-          
-          // Add cancellation message
-          const h = loadChat();
-          h.push({ role:'assistant', content: 'Operation stopped by user.', ts:Date.now() });
-          saveChat(h);
-          renderChat();
-          
-          // Re-enable ask button, hide stop button
-          const askBtn = document.getElementById('aiAskBtn');
-          if (askBtn) {
-            askBtn.disabled = false;
-            askBtn.textContent = 'Ask';
-          }
-          stopBtn.style.display = 'none';
-        } catch (e) {
-          console.error('Stop error:', e);
-        }
+    if (textareaEvt){
+      textareaEvt.addEventListener('keydown', ev=>{
+        if(ev.key==='Enter' && !ev.shiftKey){ev.preventDefault();submitQuery();}
       });
     }
-    
+
+    // Legacy ai/cancel only acknowledges a flag for the older healing loop.
+    // In secure read-only mode it cannot stop Ask/HEAD and must never claim success.
+    // Do not expose a fake Stop action; the status-page Clear view has its own abort.
+    const stopBtn = drawer.querySelector('#aiStopBtn');
+    if (stopBtn) stopBtn.style.display = 'none';
+
     const clearBtn = drawer.querySelector('#aiClearBtn');
     clearBtn.addEventListener('click', async ()=>{ 
       const confirmed = await window.DTP.showDialog({
@@ -376,12 +328,67 @@
         title: 'Clear History',
         message: 'Clear Calliope chat history?'
       });
-      if (confirmed){ try{ localStorage.removeItem(LS_KEY); }catch{} renderChat(); } 
+      if (confirmed){
+        // Clear invalidates both pending Ask and Self-Check terminal responses.
+        // Aborting the browser wait is not proof that server work was stopped.
+        sharedViewEpoch++;
+        if (sharedAskController) sharedAskController.abort();
+        try{ localStorage.removeItem(LS_KEY); }catch{}
+        renderChat();
+      } 
     });
     const copyBtn = drawer.querySelector('#aiCopyBtn');
     if (copyBtn){ copyBtn.addEventListener('click', ()=>{ try{ const c = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); navigator.clipboard.writeText(c.map(m=>`[${m.role}] ${m.content}`).join('\n')); copyBtn.textContent='Copied'; setTimeout(()=> copyBtn.textContent='Copy', 1200); }catch{} }); }
     const healBtn = drawer.querySelector('#aiHealBtn');
-    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running local observation self-check (healing unavailable)…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/devproxy/api/ai/self-check', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:false }) }); const j = await r.json().catch(()=>({})); const h2 = loadChat(); if(!r.ok || j.ok===false || j.healingPerformed===true){ h2.push({ role:'assistant', content: `Self-check unavailable: ${j.error||j.code||('HTTP '+r.status)}. Healing is not enabled in secure mode.`, ts:Date.now() }); } else { h2.push({ role:'assistant', content: `Local observation only (${j.code||'SELF_CHECK_INVENTORY_ONLY'}). Healing was not performed.`, ts:Date.now() }); } saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
+    let sharedSelfCheckInFlight = false;
+    if (healBtn){
+      healBtn.addEventListener('click', async ()=>{
+        if (sharedSelfCheckInFlight) return;
+        sharedSelfCheckInFlight = true;
+        const requestEpoch = sharedViewEpoch;
+        healBtn.disabled = true;
+        healBtn.textContent = 'Checking…';
+        let reply = 'Local HTTP observation unavailable. No repair was attempted.';
+        try{
+          const response = await fetch('/devproxy/api/ai/self-check?http=1',{
+            method:'POST',credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({heal:false})
+          });
+          const data = await response.json().catch(()=>null);
+          if (data && (data.healingPerformed===true || data.routeModified===true)){
+            reply='Unexpected action flags were returned. Observation unverified; no repair is claimed.';
+          } else if (response.ok && data && data.ok===true &&
+                     data.code==='SELF_CHECK_INVENTORY_AND_HTTP_OBSERVATION' &&
+                     data.httpScan && data.httpScan.code==='READONLY_HTTP_SCAN_EVIDENCE_ONLY'){
+            const observed = Number(data.httpScan.observed)||0;
+            const green = Number(data.httpScan.httpGreen)||0;
+            const notGreen = Number(data.httpScan.httpNotGreen)||0;
+            const skipped = Number(data.httpScan.skipped)||0;
+            reply='Local-only HTTP HEAD observation: '+observed+' routes checked; '+
+              green+' returned 2xx and '+notGreen+' were not green or unavailable.'+
+              (skipped?' '+skipped+' routes were not probed.':'')+
+              ' Browser behavior is not verified; no repairs were attempted.';
+          } else if (response.status===401 || response.status===403){
+            reply='Sign in to Dev Proxy before running the local observation. No repairs were attempted.';
+          } else {
+            reply='Local HTTP observation unavailable. Health is unverified; no repairs were attempted.';
+          }
+        }catch(_error){
+          reply='Could not reach the local observation. Health remains unverified; no repairs were attempted.';
+        }finally{
+          sharedSelfCheckInFlight=false;
+          healBtn.disabled=false;
+          healBtn.textContent='Self-Check';
+          if (requestEpoch===sharedViewEpoch){
+            const messages=loadChat();
+            messages.push({role:'assistant',content:reply,ts:Date.now()});
+            saveChat(messages);
+            renderChat();
+          }
+        }
+      });
+    }
     const redirectHealBtn = drawer.querySelector('#aiRedirectHealBtn');
     if (redirectHealBtn){ redirectHealBtn.addEventListener('click', async ()=>{
       const route=(window.prompt('Route slug for reviewed Next.js /_next/ redirect heal (e.g. lyra)','lyra')||'').trim();
