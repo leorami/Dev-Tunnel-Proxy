@@ -4475,27 +4475,47 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
 
         // Expose a stable, globally callable Self‑Check routine to avoid race conditions
+        // Secure self-check reports verified local inventory/HTTP evidence only.
+        // A spinner is never persisted after either success or failure.
+        let selfCheckInFlight = false;
         async function greetAndSelfCheck(){
+          if (selfCheckInFlight) return;
+          selfCheckInFlight = true;
           ensureAiOpen();
-          chatEngaged = true; hasUserMessage = true;
-          // If there is already a thinking bubble, don't add another
-          const alreadyThinking = !!document.querySelector('#aiChat .bubble.assistant.thinking');
-          if (!alreadyThinking) appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
-          const thinking = alreadyThinking ? document.querySelector('#aiChat .bubble.assistant.thinking') : appendThinking();
+          chatEngaged = true;
+          const thinking = appendThinking();
+          let reply = 'Local observation unavailable. Health remains unverified; no repairs were attempted.';
           try{
-            const r = await fetch(window.DTP.config.apiPath('ai/self-check'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:false }) });
-            const j = await r.json().catch(()=>({}));
-            if (!r.ok || j.ok===false){
-              appendBubble('assistant', `I can only do a local inventory observation right now (${j.error||j.code||('HTTP '+r.status)}). Automated healing is unavailable in secure mode.`);
-            } else if (j.healingPerformed===true){
-              appendBubble('assistant', 'Unexpected healingPerformed=true from observation-only self-check — treating as error.');
+            const response = await fetch(window.DTP.config.apiPath('ai/self-check') + '?http=1', {
+              method:'POST', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({heal:false})
+            });
+            const data = await response.json().catch(()=>null);
+            if (data && (data.healingPerformed===true || data.routeModified===true)){
+              reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
+            } else if (response.ok && data && data.ok===true &&
+                       data.code==='SELF_CHECK_INVENTORY_AND_HTTP_OBSERVATION' &&
+                       data.httpScan && data.httpScan.code==='READONLY_HTTP_SCAN_EVIDENCE_ONLY'){
+              const count = Number(data.httpScan.observed)||0;
+              const green = Number(data.httpScan.httpGreen)||0;
+              const notGreen = Number(data.httpScan.httpNotGreen)||0;
+              const skipped = Number(data.httpScan.skipped)||0;
+              reply = 'Local-only observation: ' + count + ' routes checked by HTTP HEAD; ' +
+                green + ' returned 2xx, ' + notGreen + ' not green or unavailable.' +
+                (skipped ? ' ' + skipped + ' were not probed.' : '') +
+                ' This is not a browser test. No repairs were attempted.';
+            } else if (response.status===401 || response.status===403) {
+              reply = 'Please sign in to Dev Proxy before running a local observation. No repairs were attempted.';
             } else {
-              appendBubble('assistant', `Local observation only (${j.code||'SELF_CHECK_INVENTORY_ONLY'}). I did not heal anything.`);
+              reply = 'HTTP observation unavailable. Route health was not verified, and no repairs were attempted.';
             }
-          }catch(e){
-            appendBubble('assistant', `Self-check error: ${e && e.message ? e.message : e}`);
-          } finally{
-            // Keep the thinking bubble visible until next assistant message arrives; do not auto-remove here
+          }catch(_error){
+            reply = 'Could not reach the local observation endpoint. Health is unverified; no repairs were attempted.';
+          }finally{
+            thinking.remove();
+            selfCheckInFlight = false;
+            appendBubble('assistant', reply);
           }
         }
         try{
