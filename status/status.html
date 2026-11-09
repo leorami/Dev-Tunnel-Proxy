@@ -637,7 +637,7 @@
               <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
                 <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
                   <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
-                  <span style="font-weight: 600; font-size: 13px;">On</span>
+                  <span id="autoScanEnabledLabel" style="font-weight: 600; font-size: 13px;">On</span>
                 </label>
                 
                 <div class="chip" style="font-size: 13px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
@@ -4821,6 +4821,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         if (!enabledCheckbox || !intervalInput || !saveBtn) return;
         
         const currentEnabled = enabledCheckbox.checked;
+        const enabledLabel = document.getElementById('autoScanEnabledLabel');
+        if (enabledLabel) enabledLabel.textContent = currentEnabled ? 'On' : 'Off';
         const currentInterval = parseInt(intervalInput.value, 10);
         
         const hasChanges = currentEnabled !== originalAutoScanSettings.enabled || 
