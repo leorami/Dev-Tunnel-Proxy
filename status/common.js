@@ -129,6 +129,8 @@
     // legacy tab is suppressed; rely on header button
     // Chat persistence helpers
     const LS_KEY = 'dtpCalliopeChat';
+    // Independent shared-page controller: one pending Ask, one view epoch.
+    let sharedViewEpoch = 0;
     const safe = (s)=> String(s||'').replace(/[<>&]/g, m=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
     function loadChat(){ try{ const j = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); return Array.isArray(j)? j : []; }catch{ return []; } }
     function saveChat(arr){ try{ localStorage.setItem(LS_KEY, JSON.stringify(arr.slice(-200))); }catch{} }
@@ -197,135 +199,122 @@
     }
     
     const ask = drawer.querySelector('#aiAskBtn');
+    let sharedAskInFlight = false;
+    let sharedAskController = null;
+
     async function submitQuery(){
+      // Disallow a second network request while the first is unsettled;
+      // retain any newly typed input rather than silently duplicating it.
+      if (sharedAskInFlight) return;
       const textarea = document.getElementById('aiQuery');
       const q = (textarea && textarea.value || '').trim();
       if (!q) return;
-      
-      // Show user message
-      const hist = loadChat(); 
-      hist.push({ role:'user', content:q, ts:Date.now() }); 
-      saveChat(hist); 
-      renderChat();
-      
-      // Clear input immediately
-      if (textarea) textarea.value='';
-      
-      // Show thinking indicator
+
+      sharedAskInFlight = true;
+      const controller = new AbortController();
+      sharedAskController = controller;
+      const requestEpoch = sharedViewEpoch;
+      const startTime = Date.now();
+      const askBtn = document.getElementById('aiAskBtn');
+      const stopBtn = document.getElementById('aiStopBtn');
       const chat = document.getElementById('aiChat');
       const thinkingBubble = document.createElement('div');
       thinkingBubble.className = 'bubble assistant thinking';
       thinkingBubble.innerHTML = '<div class="bubble-title">🩺 Calliope</div><div class="bubble-content thinking-dots">thinking<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>';
-      chat.appendChild(thinkingBubble);
-      chat.scrollTop = chat.scrollHeight;
-      
-      // Disable ask button, enable stop button
-      const askBtn = document.getElementById('aiAskBtn');
-      const stopBtn = document.getElementById('aiStopBtn');
-      if (askBtn) {
-        askBtn.disabled = true;
-        askBtn.textContent = 'Thinking…';
+
+      const hist = loadChat();
+      hist.push({ role:'user', content:q, ts:startTime });
+      saveChat(hist);
+      renderChat();
+      if (textarea) textarea.value = '';
+      if (chat){
+        chat.appendChild(thinkingBubble);
+        chat.scrollTop = chat.scrollHeight;
       }
-      // Secure shared drawer has no server-verified cancellation action.
-      if (stopBtn) stopBtn.style.display = 'none';
-      
-      // Start progress polling
-      startProgressPolling();
-      
-      // Poll for completed responses in chat history
-      const chatPollStartTime = Date.now();
-      const chatPoller = setInterval(async () => {
-        try {
-          const chatData = await fetch('/devproxy/api/ai/chat-history', { cache: 'no-cache' }).then(r => r.json());
-          const messages = (chatData && chatData.messages) || [];
-          const lastMsg = messages[messages.length - 1];
-          
-          // If there's a new assistant message after we started, operation is complete
-          if (lastMsg && lastMsg.role === 'assistant' && new Date(lastMsg.ts).getTime() > chatPollStartTime) {
-            // Stop polling
-            clearInterval(chatPoller);
-            stopProgressPolling();
-            
-            // Remove thinking indicator
-            if (thinkingBubble && thinkingBubble.parentNode) {
-              thinkingBubble.remove();
-            }
-            
-            // Reload and render chat
-            renderChat();
-            
-            // Re-enable ask button, hide stop button
-            if (askBtn) {
-              askBtn.disabled = false;
-              askBtn.textContent = 'Ask';
-            }
-            if (stopBtn) {
-              stopBtn.style.display = 'none';
-            }
-          }
-        } catch (e) {
-          console.error('Chat polling error:', e);
-        }
-      }, 1000);
-      
+      if (askBtn){askBtn.disabled=true;askBtn.textContent='Thinking…';}
+      // A server-verified Stop implementation does not exist in secure mode.
+      if (stopBtn) stopBtn.style.display='none';
+
       try{
-        const r = await fetch('/devproxy/api/ai/ask', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ query: q }) });
-        const j = await r.json();
-        const ans = j && (j.answer || j.message || '');
-        
-        // If response is immediate (not background), stop polling
-        if (!j.accepted) {
-          clearInterval(chatPoller);
-          stopProgressPolling();
-          
-          // Remove thinking indicator
-          if (thinkingBubble && thinkingBubble.parentNode) {
-            thinkingBubble.remove();
+        const response = await fetch('/devproxy/api/ai/ask', {
+          method:'POST', credentials:'include',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({query:q}),
+          signal:controller.signal
+        });
+        const result = await response.json().catch(()=>null);
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        if (!response.ok || !result || result.ok===false){
+          throw Error('Local Ask unavailable (HTTP '+response.status+'). No action was taken.');
+        }
+        let answer = result && typeof result.answer==='string' ? result.answer.trim() : '';
+
+        // The secure local-doc backend answers synchronously. Legacy accepted
+        // jobs may return later, so poll *only after* explicit acceptance.
+        // Never race the immediate reply with a history-poll assistant bubble.
+        if (result.accepted===true){
+          startProgressPolling();
+          let confirmed = false;
+          for (let attempt=0; attempt<20; attempt++){
+            await new Promise(resolve=>setTimeout(resolve,1000));
+            if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+            try{
+              const resp = await fetch('/devproxy/api/ai/chat-history',{
+                method:'GET',credentials:'include',cache:'no-cache',
+                signal:controller.signal
+              });
+              if (!resp.ok) continue;
+              const data = await resp.json().catch(()=>null);
+              const messages = data && Array.isArray(data.messages) ? data.messages : [];
+              const latest = messages[messages.length-1];
+              if (latest && latest.role==='assistant' &&
+                  Date.parse(latest.ts)>startTime &&
+                  typeof latest.content==='string' && latest.content.trim()){
+                answer=latest.content;
+                confirmed=true;
+                break;
+              }
+            }catch(e){
+              if (controller.signal.aborted) return;
+            }
           }
-          
-          const hist2 = loadChat(); 
-          hist2.push({ role:'assistant', content: String(ans||'(no answer)'), ts:Date.now() }); 
-          saveChat(hist2); 
-          renderChat();
-          
-          // Re-enable ask button, hide stop button
-          if (askBtn) {
-            askBtn.disabled = false;
-            askBtn.textContent = 'Ask';
-          }
-          if (stopBtn) {
-            stopBtn.style.display = 'none';
+          if (!confirmed){
+            answer='No verified background reply arrived in this view. Server work was not confirmed stopped.';
           }
         }
-      }catch(e){ 
-        // Stop polling on error
-        clearInterval(chatPoller);
-        stopProgressPolling();
-        
-        // Remove thinking indicator on error too
-        if (thinkingBubble && thinkingBubble.parentNode) {
-          thinkingBubble.remove();
-        }
-        
-        const h = loadChat(); 
-        h.push({ role:'assistant', content: `Error: ${e.message}`, ts:Date.now() }); 
-        saveChat(h); 
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        const messages = loadChat();
+        messages.push({role:'assistant',
+          content:answer||'No verified local answer was available. No action was taken.',
+          ts:Date.now()});
+        saveChat(messages);
         renderChat();
-        
-        // Re-enable ask button, hide stop button
-        if (askBtn) {
-          askBtn.disabled = false;
-          askBtn.textContent = 'Ask';
-        }
-        if (stopBtn) {
-          stopBtn.style.display = 'none';
+      }catch(e){
+        if (requestEpoch!==sharedViewEpoch || controller.signal.aborted) return;
+        const messages = loadChat();
+        messages.push({role:'assistant',
+          content:'Local Ask could not be completed. '+String(e.message||'No changes were made.'),
+          ts:Date.now()});
+        saveChat(messages);
+        renderChat();
+      }finally{
+        try{thinkingBubble.remove();}catch{}
+        stopProgressPolling();
+        if (sharedAskController===controller){
+          sharedAskInFlight=false;
+          sharedAskController=null;
+          if (askBtn){askBtn.disabled=false;askBtn.textContent='Ask';}
         }
       }
     }
-    ask.addEventListener('click', submitQuery);
+    if (ask) ask.addEventListener('click', submitQuery);
     const textareaEvt = drawer.querySelector('#aiQuery');
-    if (textareaEvt){ textareaEvt.addEventListener('keydown', (ev)=>{ if (ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); submitQuery(); } }); }
-    
+    if (textareaEvt){
+      textareaEvt.addEventListener('keydown', ev=>{
+        if(ev.key==='Enter' && !ev.shiftKey){ev.preventDefault();submitQuery();}
+      });
+    }
+
     // Legacy ai/cancel only acknowledges a flag for the older healing loop.
     // In secure read-only mode it cannot stop Ask/HEAD and must never claim success.
     // Do not expose a fake Stop action; the status-page Clear view has its own abort.
