@@ -85,10 +85,11 @@ test('a different route must not be dropped while another route is being observe
     'let chatEpoch=0,chatEngaged=false;\n' + handlerSource + '\nreturn runCalliopeHealth;');
   const diagnose=make(fetch,window,document,()=>{},()=>({remove(){}}),()=>{});
   const one=diagnose('/oauth');
-  const two=diagnose('/tigerslam');
+  const repeated=diagnose('/oauth'); // repeated same route must coalesce
+  const two=diagnose('/tigerslam'); // distinct route must not disappear
   const observed=calls.slice();
   resolveFirst(good);
-  await Promise.all([one,two]);
+  await Promise.all([one,repeated,two]);
   assert.deepEqual(observed,['/oauth','/tigerslam'],
     'Global diagnosisInFlight silently discarded a distinct second route');
 });
