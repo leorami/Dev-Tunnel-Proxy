@@ -105,8 +105,8 @@
       '<div class="ai-header">'+
       '  <h2><span class="icon-steth-header" aria-hidden="true"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;"></span>Calliope</h2>'+
       '  <div class="ai-meta">'+
-      '    <span class="ai-healing-history" id="aiHealingHistory"><span class="ai-healing-history-label">🧪 Healing History</span></span>'+
-      '    <span class="ai-healing-status" id="aiHealingStatus"><span class="pulse"></span><span class="ai-healing-status-label" id="aiHealingStatusLabel">🩺 Healing</span><span class="ai-healing-count" style="display:none" id="aiHealingCount"></span></span>'+
+      '    <span class="ai-healing-history" id="aiHealingHistory"><span class="ai-healing-history-label">Recent activity</span></span>'+
+      '    <span class="ai-healing-status" id="aiHealingStatus"><span class="pulse"></span><span class="ai-healing-status-label" id="aiHealingStatusLabel">Local-only</span><span class="ai-healing-count" style="display:none" id="aiHealingCount"></span></span>'+
       '  </div>'+
       '</div>'+
       '<div class="ai-content">'+
