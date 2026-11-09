@@ -4059,17 +4059,21 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
         // Persisted chat history loader
         async function loadChatHistory(){
+          // The initial history request can outlive Clear view or a new Ask.
+          // Never resurrect old messages into a conversation the user replaced.
+          const historyEpoch = chatEpoch;
           try{
             const resp = await fetch(window.DTP.config.apiPath('ai/chat-history'), { credentials: 'include' });
-            if (!resp.ok) return;
+            if (!resp.ok || historyEpoch !== chatEpoch || chatEngaged) return;
             const data = await resp.json().catch(()=>null);
-            const messages = (data && data.messages) || [];
-            // Render last 100 to keep UI snappy
+            if (historyEpoch !== chatEpoch || chatEngaged) return;
+            const messages = (data && Array.isArray(data.messages)) ? data.messages : [];
             const recent = messages.slice(-100);
-            recent.forEach(m => {
-              const who = (m.role === 'assistant') ? 'assistant' : 'user';
-              appendBubble(who, m.content||'');
-            });
+            for (const message of recent){
+              if (historyEpoch !== chatEpoch || chatEngaged) break;
+              const who = message && message.role === 'assistant' ? 'assistant' : 'user';
+              appendBubble(who, message && message.content || '');
+            }
           }catch{}
         }
 
@@ -4781,16 +4785,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         startThoughtsPolling();
         startHealthPolling();
 
-        // Allow user to stop current work by clicking the status chip
-        const statusChip = document.getElementById('aiHealingStatus');
-        statusChip.addEventListener('click', async ()=>{
-          try{
-            const r = await fetch(window.DTP.config.apiPath('ai/cancel'), { method:'POST' });
-            if (r.ok){
-              appendBubble('assistant', "Oops, I\'ll pause now — my hyper‑focus ran away with me! 💫 I\'ve stopped and I\'m ready to help however you like next.");
-            }
-          }catch{}
-        });
+        // The secure status chip is informational, not a Cancel control.
+        // Legacy ai/cancel acknowledges a flag for an unrelated old heal loop;
+        // it cannot attest that local Ask / HTTP HEAD work was stopped.
+        // The existing Clear view action aborts the in-flight local Ask.
 
         // Wire global diagnose button to focus the first SDK group or fallback to /sdk
         const bindDiag = (el)=>{
