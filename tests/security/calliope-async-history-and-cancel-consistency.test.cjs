@@ -66,7 +66,7 @@ test('idle status chip cannot claim it stopped work merely because cancel endpoi
 
 
 test('a different route must not be dropped while another route is being observed', async () => {
-  const handlerSource = sourceBetween('let diagnosisInFlight = false;', '// Expose for inline handlers');
+  const handlerSource = sourceBetween('// Only session-gated fixed-host HEAD observations, never audit-and-heal.', '// Expose for inline handlers');
   const calls = [];
   let resolveFirst;
   const first = new Promise(resolve => {resolveFirst=resolve;});
