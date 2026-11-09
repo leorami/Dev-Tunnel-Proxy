@@ -44,10 +44,10 @@ test('history response arriving after Clear view must not resurrect old bubbles'
 });
 
 test('idle status chip cannot claim it stopped work merely because cancel endpoint answered HTTP 200', async () => {
-  const handlerSource = sourceBetween(
-    '// Allow user to stop current work by clicking the status chip',
-    '// Wire global diagnose button'
-  );
+  const cancelSectionStart = html.includes('// The secure status chip is informational, not a Cancel control.')
+    ? '// The secure status chip is informational, not a Cancel control.'
+    : '// Allow user to stop current work by clicking the status chip';
+  const handlerSource = sourceBetween(cancelSectionStart, '// Wire global diagnose button');
   const displayed = [];
   let clickHandler = null;
   const statusChip = {addEventListener: (event, fn) => {
