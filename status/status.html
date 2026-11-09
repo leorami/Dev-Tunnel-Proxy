@@ -4144,7 +4144,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const health = await fetch(window.DTP.config.apiPath('ai/health'));
             if (!health.ok) throw new Error('disabled');
             const healthJson = await health.json();
-            if (statusEl) statusEl.textContent = healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Disabled (no key)';
+            const localOnly = healthJson.mode === 'local_documentation';
+            if (statusEl) statusEl.textContent = localOnly ? 'Local documentation' :
+              (healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Unavailable');
             // Toggle UI affordances when Calliope is enabled
             const calliopeEnabled = healthJson.enabled; // Only enable Calliope when API key is present
             window.__calliopeEnabled = calliopeEnabled;
@@ -4164,7 +4166,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             };
 
             if (!healthJson.enabled || healthJson.healthy===false){
-              setState('status-offline','🫥 AFK');
+              setState('status-offline','Unavailable');
+            } else if (localOnly){
+              setState('status-ready','Local-only');
             } else {
               // Prefer explicit activity if provided by API
               const activity = (healthJson.activity||'').toLowerCase();
@@ -4545,6 +4549,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             if (label) label.textContent = title;
           };
           let reply = 'Local-only observation unavailable. No repair was attempted.';
+          let observationVerified = false;
           try{
             changeStatus('status-auditing','Checking');
             const valid = route.length>1 && route.length<=256 && route[0]==='/' &&
@@ -4564,10 +4569,12 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                 reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
               } else if (response.ok && result && result.code==='LOCAL_HTTP_OK' &&
                          Number.isInteger(status) && status>=200 && status<300){
+                observationVerified = true;
                 reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
                   ' (reachable). Browser behavior is not verified. No repair was attempted.';
               } else if (response.ok && result && result.code==='LOCAL_HTTP_NOT_GREEN' &&
                          Number.isInteger(status)){
+                observationVerified = true;
                 reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
                   ' (not green). Redirects were not followed. No repair was attempted.';
               } else if (response.status===401 || response.status===403){
@@ -4582,7 +4589,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               'Health remains unverified; no changes were made.';
           }finally{
             thinking.remove();
-            changeStatus('status-ready', 'Local-only');
+            changeStatus(observationVerified ? 'status-ready' : 'status-offline',
+              observationVerified ? 'Observed' : 'Unavailable');
             diagnosisInFlight = false;
             appendBubble('assistant', reply);
           }
