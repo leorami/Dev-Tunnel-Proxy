@@ -4525,102 +4525,66 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
         }catch{}
 
+        // Only session-gated fixed-host HEAD observations, never audit-and-heal.
+        let diagnosisInFlight = false;
         async function runCalliopeHealth(routeKey){
-          try{
-            if (window.__pendingDiagnoseRoute){ delete window.__pendingDiagnoseRoute; }
-          }catch{}
-          chatEngaged = true;
+          if (diagnosisInFlight) return;
+          diagnosisInFlight = true;
+          try { delete window.__pendingDiagnoseRoute; } catch {}
           ensureAiOpen();
-          // First message - acknowledgment (append after recording engagement but before server work)
-          appendBubble('assistant', `Heya! ✨ One sec while I listen to ${routeKey}…`);
-          
-          // Show thinking indicator briefly while we kick off background audit+heal
-          let thinking = appendThinking();
-          // Immediately reflect active state in the status chip
-          try {
-            const statusChip = document.getElementById('aiHealingStatus');
-            const labelEl = document.getElementById('aiHealingStatusLabel');
-            statusChip.classList.remove('status-ready','status-offline');
-            statusChip.classList.add('status-auditing');
-            labelEl.textContent = '🔬 Auditing';
-          } catch {}
-          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 900));
-          
+          chatEngaged = true;
+          const route = typeof routeKey==='string' ? routeKey.trim() : '';
+          const thinking = appendThinking();
+          const chip = document.getElementById('aiHealingStatus');
+          const label = document.getElementById('aiHealingStatusLabel');
+          const changeStatus = (state, title) => {
+            if (chip){
+              chip.classList.remove('status-ready','status-offline','status-auditing','status-healing','status-coding');
+              chip.classList.add(state);
+            }
+            if (label) label.textContent = title;
+          };
+          let reply = 'Local-only observation unavailable. No repair was attempted.';
           try{
-            // Use container-reachable base; prefer ngrok origin if present, else dev-proxy
-            const origin = window.location.origin || '';
-            let baseForAudit = 'http://dev-proxy';
-            try { const h = (new URL(origin)).hostname||''; if (/\.ngrok\.app$/i.test(h)) baseForAudit = origin; } catch {}
-            const cleanRoute = routeKey.endsWith('/') ? routeKey : (routeKey + '/');
-            const urlToAudit = (baseForAudit.replace(/\/$/, '')) + cleanRoute;
-            // Secure mode: do not request heal/target self-check or imply audit-and-heal works.
-            const selfCheck = (async ()=>{
-              try{
-                return await fetch(window.DTP.config.apiPath('ai/self-check'), {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ heal: false })
-                });
-              }catch(e){ return null; }
-            })();
-            const [resp, , selfResp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/audit-and-heal'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlToAudit, route: routeKey, maxPasses: 3, wait: 1500, timeout: 45000 })
-              }),
-              minThinkingTime,
-              selfCheck
-            ]);
-            thinking.remove();
-            if (!resp.ok){
-              let selfNote='';
-              try{
-                if (selfResp){
-                  const sj = await selfResp.json().catch(()=>({}));
-                  if (selfResp.ok && sj.ok!==false && sj.healingPerformed!==true){
-                    selfNote = `\nLocal inventory observation completed (${sj.code||'SELF_CHECK_INVENTORY_ONLY'}) — healing was not performed.`;
-                  } else {
-                    selfNote = `\nSelf-check heal/target requests are unavailable in secure mode (${(sj&& (sj.error||sj.code))||('HTTP '+(selfResp&&selfResp.status))}).`;
-                  }
-                }
-              }catch{}
-              const friendly = `\nAutomated audit-and-heal is unavailable here (HTTP ${resp.status}).${selfNote}\n`+
-                `Secure mode blocks Docker-backed healing and unapproved external AI. Owner scope decision is still required for heal parity.`;
-              appendBubble('assistant', friendly);
-              // reset chip back to ready so UI doesn't look stuck on Auditing
-              try{
-                const statusChip = document.getElementById('aiHealingStatus');
-                const labelEl = document.getElementById('aiHealingStatusLabel');
-                statusChip.classList.remove('status-auditing','status-healing','status-coding');
-                statusChip.classList.add('status-ready');
-                labelEl.textContent = '😊 Happy';
-              }catch{}
-              return;
-            }
-            const data = await resp.json().catch(()=>null);
-            if (data && data.ok){
-              appendBubble('assistant', 'Working my magic… I\'ll stream each step as it happens. ✨');
+            changeStatus('status-auditing','Checking');
+            const valid = route.length>1 && route.length<=256 && route[0]==='/' &&
+              Array.from(route).every(ch=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~/-'.includes(ch)) &&
+              !route.includes('//') && !route.includes('/./') && !route.includes('/../');
+            if (!valid){
+              reply = 'Choose a supported application route to observe. No changes were made.';
             } else {
-              const msg = (data && data.result && data.result.message) ? data.result.message : 'Couldn\'t proceed with audit+heal just now.';
-              appendBubble('assistant', `⚠️ ${msg}`);
+              const response = await fetch(window.DTP.config.apiPath('ai/audit'), {
+                method:'POST', credentials:'include',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({url:route})
+              });
+              const result = await response.json().catch(()=>null);
+              const status = result && result.summary && result.summary.status;
+              if (result && (result.healingPerformed===true || result.routeModified===true)){
+                reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
+              } else if (response.ok && result && result.code==='LOCAL_HTTP_OK' &&
+                         Number.isInteger(status) && status>=200 && status<300){
+                reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
+                  ' (reachable). Browser behavior is not verified. No repair was attempted.';
+              } else if (response.ok && result && result.code==='LOCAL_HTTP_NOT_GREEN' &&
+                         Number.isInteger(status)){
+                reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
+                  ' (not green). Redirects were not followed. No repair was attempted.';
+              } else if (response.status===401 || response.status===403){
+                reply = 'Sign in to Dev Proxy to observe ' + route + '. No changes were made.';
+              } else {
+                reply = 'Route ' + route + ': local HTTP observation unavailable. ' +
+                  'Health remains unverified; no repair was attempted.';
+              }
             }
-            // Thoughts polling is active and will stream intermediate steps
-          } catch(e){
-            try { thinking.remove(); } catch{}
-            const friendly = `\nOops, my ears got tangled while starting the check: ${e.message}.`+
-              `\nTry asking: \`Audit and heal /sdk; add Storybook/Vite proxy guards and host allowances.\``+
-              `\nPeek at my thoughts: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
-            appendBubble('assistant', friendly);
-            try{
-              const statusChip = document.getElementById('aiHealingStatus');
-              const labelEl = document.getElementById('aiHealingStatusLabel');
-              statusChip.classList.remove('status-auditing','status-healing','status-coding');
-              statusChip.classList.add('status-ready');
-              labelEl.textContent = '😊 Happy';
-            }catch{}
+          }catch(_error){
+            reply = 'Route ' + route + ': local HTTP observation unavailable. ' +
+              'Health remains unverified; no changes were made.';
+          }finally{
+            thinking.remove();
+            changeStatus('status-ready', 'Local-only');
+            diagnosisInFlight = false;
+            appendBubble('assistant', reply);
           }
         }
 
