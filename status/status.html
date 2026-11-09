@@ -4029,6 +4029,23 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         if (!drawer || !chatEl || !askBtn || !clearBtn || !copyBtn || !queryEl) return;
         if (window.__devproxyCalliopeInitBound) return;
         window.__devproxyCalliopeInitBound = true;
+        // One request at a time; Clear invalidates and aborts any older reply.
+        let nextAskSeq = 0;
+        let activeAskSeq = 0;
+        let activeAskAbort = null;
+        let chatEpoch = 0;
+        function clearChat(){
+          chatEpoch++;
+          nextAskSeq++;
+          activeAskSeq = 0;
+          if (activeAskAbort) activeAskAbort.abort();
+          activeAskAbort = null;
+          chatEl.replaceChildren();
+          queryEl.value = '';
+          queryEl.focus();
+          askBtn.disabled = false;
+          askBtn.textContent = 'Ask';
+        }
         // Persisted chat history loader
         async function loadChatHistory(){
           try{
@@ -4308,37 +4325,51 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }, true);
 
         async function onAsk(){
+          if (activeAskSeq !== 0) return;
           const q = (queryEl.value||'').trim();
-          if (!q){ return; }
-          // Mark user engagement BEFORE any possible assistant thought rendering
-          if (!hasUserMessage) hasUserMessage = true;
+          if (!q) return;
+          const sequence = ++nextAskSeq;
+          activeAskSeq = sequence;
+          activeAskAbort = new AbortController();
+          const controller = activeAskAbort;
+          const epoch = chatEpoch;
+          hasUserMessage = true;
           chatEngaged = true;
-          askBtn.disabled = true; askBtn.textContent = 'Thinking…';
-          // Clear the input immediately so the user can type next question
+          askBtn.disabled = true;
+          askBtn.textContent = 'Thinking…';
           queryEl.value = '';
-          
-          // Append user bubble first so it appears before any thinking indicator
-          const firstUser = appendBubble('user', q);
-          // Now show thinking animation for at least a short time
+          appendBubble('user', q);
           const thinking = appendThinking();
-          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 800));
-          
           try{
-            const [resp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/ask'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
-              minThinkingTime
-            ]);
-            
-            try{ thinking.remove(); }catch{}
-            if (!resp.ok){ appendBubble('assistant', `HTTP ${resp.status}`); return; }
-            const data = await resp.json().catch(()=>({ ok:false }));
-            if (data && data.ok && data.answer){ appendBubble('assistant', data.answer); }
-            else { appendBubble('assistant', 'Something went sideways — I could not think of a good answer.'); }
-          }catch(e){
-            try{ thinking.remove(); }catch{}
-            appendBubble('assistant', `Request failed: ${e.message}`); 
+            const response = await fetch(window.DTP.config.apiPath('ai/ask'), {
+              method:'POST', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({query:q}),
+              signal:controller.signal
+            });
+            if (activeAskSeq !== sequence || epoch !== chatEpoch) return;
+            if (!response.ok){
+              appendBubble('assistant', 'Local Ask is unavailable (HTTP ' + response.status + '). No action was taken.');
+              return;
+            }
+            const data = await response.json().catch(()=>({ok:false}));
+            if (activeAskSeq !== sequence || epoch !== chatEpoch) return;
+            if (data && data.ok && typeof data.answer==='string' && data.answer.trim()){
+              appendBubble('assistant', data.answer);
+            } else {
+              appendBubble('assistant', 'No verified local answer was available. No action was taken.');
+            }
+          }catch(error){
+            if (activeAskSeq !== sequence || epoch !== chatEpoch || controller.signal.aborted) return;
+            appendBubble('assistant', 'Local Ask could not be reached. No action was taken.');
           }finally{
-            askBtn.disabled = false; askBtn.textContent = 'Ask';
+            thinking.remove();
+            if (activeAskSeq===sequence){
+              activeAskSeq = 0;
+              activeAskAbort = null;
+              askBtn.disabled = false;
+              askBtn.textContent = 'Ask';
+            }
           }
         }
 
@@ -4618,7 +4649,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         try { window.runCalliopeHealth = runCalliopeHealth; } catch {}
 
         try{ askBtn && askBtn.addEventListener('click', onAsk); }catch{}
-        try{ clearBtn && clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; if(queryEl){ queryEl.value=''; queryEl.focus(); } }); }catch{}
+        try{ clearBtn && clearBtn.addEventListener('click', clearChat); }catch{}
         try{ copyBtn && copyBtn.addEventListener('click', onCopy); }catch{}
         try{ queryEl && queryEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); } }); }catch{}
         
