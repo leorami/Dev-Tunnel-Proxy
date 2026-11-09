@@ -2938,13 +2938,16 @@
         // Add global conflict status indicator
         updateGlobalConflictIndicator(routes);
 
+          // Start one Calliope instance without waiting for the route grid.
+          // It binds chat handlers synchronously before its first await.
+          const calliopeReady = initAiAssistant();
           rebuildApps();
           
           // Apply masonry layout after grid is built
           setTimeout(() => applyMasonryLayout(), 100);
 
           // No manual ordering; default sort is by status
-          try { await initAiAssistant(); } catch (e) { /* non-fatal */ }
+          try { await calliopeReady; } catch (e) { /* non-fatal */ }
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
@@ -4043,6 +4046,14 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           chatEl.replaceChildren();
           queryEl.value = '';
           queryEl.focus();
+          // Clearing an observation must also clear its transient "Checking" state.
+          const statusChip = document.getElementById('aiHealingStatus');
+          const statusLabel = document.getElementById('aiHealingStatusLabel');
+          if (statusChip){
+            statusChip.classList.remove('status-auditing','status-healing','status-coding','status-offline');
+            statusChip.classList.add('status-ready');
+          }
+          if (statusLabel) statusLabel.textContent = 'Local-only';
           askBtn.disabled = false;
           askBtn.textContent = 'Ask';
         }
