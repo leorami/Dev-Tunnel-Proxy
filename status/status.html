@@ -4595,14 +4595,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }catch{}
 
         // Only session-gated fixed-host HEAD observations, never audit-and-heal.
-        let diagnosisInFlight = false;
+        let diagnosisInFlight = new Set();
         async function runCalliopeHealth(routeKey){
-          if (diagnosisInFlight) return;
-          diagnosisInFlight = true;
+          const route = typeof routeKey==='string' ? routeKey.trim() : '';
+          // Coalesce repeated clicks for the same route; never silently drop
+          // a different route's observation while the first is pending.
+          if (diagnosisInFlight.has(route)) return;
+          diagnosisInFlight.add(route);
           try { delete window.__pendingDiagnoseRoute; } catch {}
           ensureAiOpen();
           chatEngaged = true;
-          const route = typeof routeKey==='string' ? routeKey.trim() : '';
           const epoch = chatEpoch;
           const thinking = appendThinking();
           const chip = document.getElementById('aiHealingStatus');
@@ -4655,10 +4657,14 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               'Health remains unverified; no changes were made.';
           }finally{
             thinking.remove();
-            if (epoch === chatEpoch) changeStatus(observationVerified ? 'status-ready' : 'status-offline',
-              observationVerified ? 'Observed' : 'Unavailable');
-            diagnosisInFlight = false;
-            if (epoch === chatEpoch) appendBubble('assistant', reply);
+            diagnosisInFlight.delete(route);
+            if (epoch === chatEpoch){
+              const otherRoutePending = diagnosisInFlight.size > 0;
+              changeStatus(otherRoutePending ? 'status-auditing' :
+                  (observationVerified ? 'status-ready' : 'status-offline'),
+                otherRoutePending ? 'Checking' : (observationVerified ? 'Observed' : 'Unavailable'));
+              appendBubble('assistant', reply);
+            }
           }
         }
 
