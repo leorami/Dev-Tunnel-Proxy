@@ -94,3 +94,8 @@ test('rapid Enter is single-flight and Clear suppresses stale or aborted replies
   assert.match(init(), /function clearChat\(\)/);
   assert.match(init(), /activeAskAbort\.abort\(\)/);
 });
+
+test('Auto-Scan toggle text follows the actual saved or unsaved checkbox state', () => {
+  assert.match(page, /id="autoScanEnabledLabel"/);
+  assert.match(page, /enabledLabel\.textContent\s*=\s*currentEnabled\s*\?\s*'On'\s*:\s*'Off'/);
+});
