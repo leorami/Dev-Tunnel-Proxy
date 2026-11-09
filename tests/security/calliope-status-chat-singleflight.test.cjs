@@ -85,3 +85,12 @@ test('mobile drawer dedicates meaningful space to chat and keeps composer in vie
   assert.match(page, /#aiDrawer\.ai-drawer\s*\{[^}]*88dvh/s);
   assert.match(page, /\.ai-chat\s*\{[^}]*min-height:\s*0/s);
 });
+
+test('rapid Enter is single-flight and Clear suppresses stale or aborted replies', () => {
+  const ask = section('async function onAsk(){', 'async function onReindex(){');
+  assert.match(ask, /activeAskSeq/);
+  assert.match(ask, /AbortController/);
+  assert.match(ask, /activeAskSeq\s*!==\s*sequence/);
+  assert.match(init(), /function clearChat\(\)/);
+  assert.match(init(), /activeAskAbort\.abort\(\)/);
+});
