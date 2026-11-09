@@ -45,9 +45,14 @@ test('cross-page Ask single-flight prevents duplicate request while earlier Ask 
   const loadChat=()=>history.slice(),saveChat=messages=>{history.splice(0,history.length,...messages)};
   const startProgressPolling=()=>events.push('started'),stopProgressPolling=()=>events.push('stopped');
   const fn=new Function('drawer','document','fetch','loadChat','saveChat','renderChat','startProgressPolling',
-    'stopProgressPolling','setInterval','clearInterval',code+'\nreturn submitQuery;');
+    'stopProgressPolling','setInterval','clearInterval','AbortController',
+    'let sharedViewEpoch=0;\n'+code+'\nreturn submitQuery;');
+  const AbortController=class {
+    constructor(){this.signal={aborted:false};}
+    abort(){this.signal.aborted=true;}
+  };
   const submit=fn(drawer,document,fetch,loadChat,saveChat,()=>{},startProgressPolling,
-    stopProgressPolling,()=>1,()=>{});
+    stopProgressPolling,()=>1,()=>{},AbortController);
   const first=submit();
   textarea.value='Second question while first pending';
   const second=submit();
@@ -64,7 +69,8 @@ test('cross-page Self-Check is one read-only HTTP observation, with one terminal
   const loadChat=()=>messages.slice(),saveChat=m=>{messages=m.slice()};
   let resolve;const waiting=new Promise(r=>resolve=r);
   const fetch=(url,opts)=>{requested.push({url,opts});return waiting};
-  new Function('drawer','loadChat','saveChat','renderChat','fetch',code)(
+  new Function('drawer','loadChat','saveChat','renderChat','fetch',
+    'let sharedViewEpoch=0;\n'+code)(
     drawer,loadChat,saveChat,()=>{},fetch);
   assert.equal(typeof handler,'function');
   const a=handler(),b=handler();
