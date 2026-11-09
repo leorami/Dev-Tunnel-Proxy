@@ -536,6 +536,24 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
+    
+      /* V124 P1: prevent clipping/overlap; make chat the drawer's priority. */
+      .settings-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%, 320px),1fr))}
+      #autoScanSubcard .settings-row{flex-wrap:wrap !important;justify-content:flex-start !important}
+      #autoScanSubcard .settings-row > div:last-of-type{margin-left:0 !important;flex-wrap:wrap}
+      #autoScanSubcard .compact-input{min-width:48px;max-width:72px}
+      .route-header{flex-wrap:wrap;align-items:flex-start;min-width:0;gap:8px}
+      .route-title{min-width:0;flex:1 1 120px}
+      .route-name{min-width:0;overflow-wrap:anywhere}
+      .action-buttons-container{flex:0 0 auto;flex-wrap:wrap;max-width:100%;justify-content:flex-end}
+      #aiDrawer .ai-content{min-height:0;flex:1 1 auto}
+      #aiDrawer .ai-chat{min-height:0;flex:1 1 auto}
+      #aiDrawer .ai-input{flex:0 0 auto}
+      #aiDrawer .ai-actions{flex-wrap:wrap}
+      @media(max-width:768px){
+        #aiDrawer.ai-drawer{height:min(88dvh, calc(100dvh - 80px));max-height:calc(100dvh - 12px)}
+        #aiDrawer .ai-chat{min-height:0;flex:1 1 auto;max-height:none !important}
+      }
     </style>
     <link rel="stylesheet" href="/status/common.css" />
     <script src="/status/config.js"></script>
