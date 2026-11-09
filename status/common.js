@@ -141,15 +141,7 @@
       }).join('');
       chat.scrollTop = chat.scrollHeight;
     }
-    // Ensure friendly greeting exists once per session
-    (function ensureGreeting(){
-      const h = loadChat();
-      const hasGreeting = h.some(m => m.role==='assistant');
-      if (!hasGreeting){
-        h.push({ role:'assistant', content: 'Heya! I\'m Calliope. How can I help your dev proxy today?', ts: Date.now() });
-        saveChat(h);
-      }
-    })();
+    // Render existing local history without generating an unsolicited assistant message.
     renderChat();
     
     // Progress polling for background operations
@@ -234,9 +226,8 @@
         askBtn.disabled = true;
         askBtn.textContent = 'Thinking…';
       }
-      if (stopBtn) {
-        stopBtn.style.display = 'inline-block';
-      }
+      // Secure shared drawer has no server-verified cancellation action.
+      if (stopBtn) stopBtn.style.display = 'none';
       
       // Start progress polling
       startProgressPolling();
@@ -335,40 +326,12 @@
     const textareaEvt = drawer.querySelector('#aiQuery');
     if (textareaEvt){ textareaEvt.addEventListener('keydown', (ev)=>{ if (ev.key==='Enter' && !ev.shiftKey){ ev.preventDefault(); submitQuery(); } }); }
     
-    // Stop button functionality
+    // Legacy ai/cancel only acknowledges a flag for the older healing loop.
+    // In secure read-only mode it cannot stop Ask/HEAD and must never claim success.
+    // Do not expose a fake Stop action; the status-page Clear view has its own abort.
     const stopBtn = drawer.querySelector('#aiStopBtn');
-    if (stopBtn) {
-      stopBtn.addEventListener('click', async () => {
-        try {
-          // Request cancellation via API
-          await fetch('/devproxy/api/ai/cancel', { method: 'POST' });
-          
-          // Stop polling
-          stopProgressPolling();
-          
-          // Remove thinking bubble
-          const thinkingBubble = document.querySelector('#aiChat .bubble.assistant.thinking');
-          if (thinkingBubble) thinkingBubble.remove();
-          
-          // Add cancellation message
-          const h = loadChat();
-          h.push({ role:'assistant', content: 'Operation stopped by user.', ts:Date.now() });
-          saveChat(h);
-          renderChat();
-          
-          // Re-enable ask button, hide stop button
-          const askBtn = document.getElementById('aiAskBtn');
-          if (askBtn) {
-            askBtn.disabled = false;
-            askBtn.textContent = 'Ask';
-          }
-          stopBtn.style.display = 'none';
-        } catch (e) {
-          console.error('Stop error:', e);
-        }
-      });
-    }
-    
+    if (stopBtn) stopBtn.style.display = 'none';
+
     const clearBtn = drawer.querySelector('#aiClearBtn');
     clearBtn.addEventListener('click', async ()=>{ 
       const confirmed = await window.DTP.showDialog({
