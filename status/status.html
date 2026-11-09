@@ -2920,9 +2920,6 @@
         // Add global conflict status indicator
         updateGlobalConflictIndicator(routes);
 
-          // Start Calliope UI immediately so Diagnose clicks work even while apps load
-          try { initAiAssistant(); } catch (e) { /* non-fatal */ }
-
           rebuildApps();
           
           // Apply masonry layout after grid is built
@@ -4010,6 +4007,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const copyBtn = document.getElementById('aiCopyBtn');
         const healBtn = document.getElementById('aiHealBtn');
         const queryEl = document.getElementById('aiQuery');
+        // Own chat handlers and timers exactly once for the lifetime of this page.
+        if (!drawer || !chatEl || !askBtn || !clearBtn || !copyBtn || !queryEl) return;
+        if (window.__devproxyCalliopeInitBound) return;
+        window.__devproxyCalliopeInitBound = true;
         // Persisted chat history loader
         async function loadChatHistory(){
           try{
@@ -4631,65 +4632,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
           }
         }
-        if (tab) {
-          try {
-            tab.addEventListener('click', ()=>{
-          try{
-            const isCollapsed = drawer.classList.contains('collapsed');
-            if (isCollapsed){
-              drawer.classList.remove('collapsed');
-              document.body.classList.add('ai-open');
-              // Save state
-              try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
-              chatEngaged = true;
-              try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! ✨ One sec while I listen…'); }catch{}
-              try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
-              setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
-            } else {
-              drawer.classList.add('collapsed');
-              document.body.classList.remove('ai-open');
-              // Save state
-              try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
-            }
-            // Update button state
-            const nowOpen = !drawer.classList.contains('collapsed');
-            tab.classList.toggle('active', nowOpen);
-            tab.setAttribute('aria-pressed', String(nowOpen));
-            tab.setAttribute('title', nowOpen ? 'Close Calliope' : 'Open Calliope');
-          }catch{}
-            });
-          } catch (e) {
-            console.error('Error attaching click handler:', e);
-          }
-        }
-        askBtn.addEventListener('click', onAsk);
-        clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
-        copyBtn.addEventListener('click', onCopy);
-        queryEl.addEventListener('keydown', (e)=>{
-          if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); }
-        });
-        
-        // Copy conversation to clipboard
-        async function onCopy(){
-          const bubbles = chatEl.querySelectorAll('.bubble');
-          let conversation = '';
-          bubbles.forEach(bubble => {
-            const title = bubble.querySelector('.bubble-title')?.textContent || '';
-            const content = bubble.querySelector('.bubble-content')?.textContent || bubble.textContent;
-            conversation += `${title}\n${content}\n\n`;
-          });
-          
-          try {
-            await navigator.clipboard.writeText(conversation);
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
-          } catch (err) {
-            console.error('Failed to copy:', err);
-            copyBtn.textContent = 'Failed';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
-          }
-        }
-        
         // Restore Calliope state from localStorage
         try {
           const wasOpen = localStorage.getItem('dtpCalliopeOpen') === 'true';
