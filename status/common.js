@@ -328,12 +328,67 @@
         title: 'Clear History',
         message: 'Clear Calliope chat history?'
       });
-      if (confirmed){ try{ localStorage.removeItem(LS_KEY); }catch{} renderChat(); } 
+      if (confirmed){
+        // Clear invalidates both pending Ask and Self-Check terminal responses.
+        // Aborting the browser wait is not proof that server work was stopped.
+        sharedViewEpoch++;
+        if (sharedAskController) sharedAskController.abort();
+        try{ localStorage.removeItem(LS_KEY); }catch{}
+        renderChat();
+      } 
     });
     const copyBtn = drawer.querySelector('#aiCopyBtn');
     if (copyBtn){ copyBtn.addEventListener('click', ()=>{ try{ const c = JSON.parse(localStorage.getItem(LS_KEY)||'[]'); navigator.clipboard.writeText(c.map(m=>`[${m.role}] ${m.content}`).join('\n')); copyBtn.textContent='Copied'; setTimeout(()=> copyBtn.textContent='Copy', 1200); }catch{} }); }
     const healBtn = drawer.querySelector('#aiHealBtn');
-    if (healBtn){ healBtn.addEventListener('click', async ()=>{ const h = loadChat(); h.push({ role:'assistant', content:'Running local observation self-check (healing unavailable)…', ts:Date.now() }); saveChat(h); renderChat(); try{ const r = await fetch('/devproxy/api/ai/self-check', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:false }) }); const j = await r.json().catch(()=>({})); const h2 = loadChat(); if(!r.ok || j.ok===false || j.healingPerformed===true){ h2.push({ role:'assistant', content: `Self-check unavailable: ${j.error||j.code||('HTTP '+r.status)}. Healing is not enabled in secure mode.`, ts:Date.now() }); } else { h2.push({ role:'assistant', content: `Local observation only (${j.code||'SELF_CHECK_INVENTORY_ONLY'}). Healing was not performed.`, ts:Date.now() }); } saveChat(h2); renderChat(); }catch(e){ const h3 = loadChat(); h3.push({ role:'assistant', content:`Self-check error: ${e.message}`, ts:Date.now() }); saveChat(h3); renderChat(); } }); }
+    let sharedSelfCheckInFlight = false;
+    if (healBtn){
+      healBtn.addEventListener('click', async ()=>{
+        if (sharedSelfCheckInFlight) return;
+        sharedSelfCheckInFlight = true;
+        const requestEpoch = sharedViewEpoch;
+        healBtn.disabled = true;
+        healBtn.textContent = 'Checking…';
+        let reply = 'Local HTTP observation unavailable. No repair was attempted.';
+        try{
+          const response = await fetch('/devproxy/api/ai/self-check?http=1',{
+            method:'POST',credentials:'include',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({heal:false})
+          });
+          const data = await response.json().catch(()=>null);
+          if (data && (data.healingPerformed===true || data.routeModified===true)){
+            reply='Unexpected action flags were returned. Observation unverified; no repair is claimed.';
+          } else if (response.ok && data && data.ok===true &&
+                     data.code==='SELF_CHECK_INVENTORY_AND_HTTP_OBSERVATION' &&
+                     data.httpScan && data.httpScan.code==='READONLY_HTTP_SCAN_EVIDENCE_ONLY'){
+            const observed = Number(data.httpScan.observed)||0;
+            const green = Number(data.httpScan.httpGreen)||0;
+            const notGreen = Number(data.httpScan.httpNotGreen)||0;
+            const skipped = Number(data.httpScan.skipped)||0;
+            reply='Local-only HTTP HEAD observation: '+observed+' routes checked; '+
+              green+' returned 2xx and '+notGreen+' were not green or unavailable.'+
+              (skipped?' '+skipped+' routes were not probed.':'')+
+              ' Browser behavior is not verified; no repairs were attempted.';
+          } else if (response.status===401 || response.status===403){
+            reply='Sign in to Dev Proxy before running the local observation. No repairs were attempted.';
+          } else {
+            reply='Local HTTP observation unavailable. Health is unverified; no repairs were attempted.';
+          }
+        }catch(_error){
+          reply='Could not reach the local observation. Health remains unverified; no repairs were attempted.';
+        }finally{
+          sharedSelfCheckInFlight=false;
+          healBtn.disabled=false;
+          healBtn.textContent='Self-Check';
+          if (requestEpoch===sharedViewEpoch){
+            const messages=loadChat();
+            messages.push({role:'assistant',content:reply,ts:Date.now()});
+            saveChat(messages);
+            renderChat();
+          }
+        }
+      });
+    }
     const redirectHealBtn = drawer.querySelector('#aiRedirectHealBtn');
     if (redirectHealBtn){ redirectHealBtn.addEventListener('click', async ()=>{
       const route=(window.prompt('Route slug for reviewed Next.js /_next/ redirect heal (e.g. lyra)','lyra')||'').trim();
