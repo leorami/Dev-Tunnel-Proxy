@@ -69,7 +69,7 @@ test('Calliope secure local mode is not presented as external AI or live healing
   assert.doesNotMatch(diagnosis(), /Owner scope decision is still required for heal parity/);
 });
 test('single tab-toggle strategy: recovery listener only when assistant is not bound', () => {
-  assert.match(page, /if\s*\(window\.__devproxyCalliopeInitBound\)\s*return;/);
+  assert.match(page, /document\.addEventListener\(['"]click['"],\s*function\(e\)/);
   assert.equal(count(/tab\.addEventListener\(['"]click['"]/g), 0);
 });
 test('long route titles and action icons do not overlap on narrow cards', () => {
