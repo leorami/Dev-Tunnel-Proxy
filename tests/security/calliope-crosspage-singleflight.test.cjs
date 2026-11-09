@@ -31,7 +31,7 @@ test('cross-page Stop never claims server cancellation based on legacy cancel en
   assert.doesNotMatch(shared,/['"]\/devproxy\/api\/ai\/cancel['"]/);
 });
 test('cross-page Ask single-flight prevents duplicate request while earlier Ask is pending',async()=>{
-  const code=section("const ask = drawer.querySelector('#aiAskBtn');","// Stop button functionality");
+  const code=section("const ask = drawer.querySelector('#aiAskBtn');","const clearBtn = drawer.querySelector('#aiClearBtn');");
   const events=[],requests=[],history=[];
   const textarea={value:'First question',addEventListener(){}};
   const askBtn={disabled:false,textContent:'Ask',addEventListener(){}};
