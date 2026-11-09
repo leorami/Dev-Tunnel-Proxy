@@ -698,6 +698,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Paired status page script trust and safe HTML sinks" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "RC2 approved API-only postcheck and static nginx DNS rollback (source-only)" \
       "node --test '$ROOT_DIR/tests/security/rc2-approved-api-only-postcheck.test.cjs'" || test_result=1
   fi

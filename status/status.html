@@ -12,7 +12,7 @@
       window.__calliopeEnabled = false;
     </script>
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/status/vendor/lucide.min.js"></script>
     <style>
       :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px}
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
@@ -750,8 +750,8 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="/status/vendor/marked.min.js"></script>
+    <script src="/status/vendor/purify.min.js"></script>
     <script>
       // Debug logging setup (must be defined before any function uses it)
       const DEBUG = (function(){
@@ -1598,7 +1598,7 @@
 
           const title = document.createElement('div');
           title.className = 'title';
-          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${source} • <span style="font-family:var(--mono, monospace)">${route}</span></small>`;
+          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${escapeHtml(source)} • <span style="font-family:var(--mono, monospace)">${escapeHtml(route)}</span></small>`;
           header.appendChild(title);
 
           const actions = document.createElement('div');
@@ -2560,7 +2560,12 @@
             // Config file header
             const configHeader = document.createElement('div');
             configHeader.className = 'config-group-header';
-            configHeader.innerHTML = `<h2>${source.replace(/\.conf$/, '')}</h2><span class="config-route-count">${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}</span>`;
+            const configTitle = document.createElement('h2');
+            configTitle.textContent = source.replace(/\.conf$/, '');
+            const configCount = document.createElement('span');
+            configCount.className = 'config-route-count';
+            configCount.textContent = `${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}`;
+            configHeader.append(configTitle, configCount);
             configCard.appendChild(configHeader);
             
             // Routes container within this config
