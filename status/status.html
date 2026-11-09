@@ -4537,6 +4537,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           ensureAiOpen();
           chatEngaged = true;
           const thinking = appendThinking();
+          const epoch = chatEpoch;
           let reply = 'Local observation unavailable. Health remains unverified; no repairs were attempted.';
           try{
             const response = await fetch(window.DTP.config.apiPath('ai/self-check') + '?http=1', {
@@ -4568,7 +4569,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }finally{
             thinking.remove();
             selfCheckInFlight = false;
-            appendBubble('assistant', reply);
+            if (epoch === chatEpoch) appendBubble('assistant', reply);
           }
         }
         try{
@@ -4587,6 +4588,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           ensureAiOpen();
           chatEngaged = true;
           const route = typeof routeKey==='string' ? routeKey.trim() : '';
+          const epoch = chatEpoch;
           const thinking = appendThinking();
           const chip = document.getElementById('aiHealingStatus');
           const label = document.getElementById('aiHealingStatusLabel');
@@ -4638,10 +4640,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               'Health remains unverified; no changes were made.';
           }finally{
             thinking.remove();
-            changeStatus(observationVerified ? 'status-ready' : 'status-offline',
+            if (epoch === chatEpoch) changeStatus(observationVerified ? 'status-ready' : 'status-offline',
               observationVerified ? 'Observed' : 'Unavailable');
             diagnosisInFlight = false;
-            appendBubble('assistant', reply);
+            if (epoch === chatEpoch) appendBubble('assistant', reply);
           }
         }
 
