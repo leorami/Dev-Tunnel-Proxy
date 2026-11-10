@@ -18,6 +18,8 @@
 const http = require('http');
 const url = require('url');
 const fs = require('fs');
+const { listReportsCatalog } = require('./reports-list-catalog.cjs');
+
 const path = require('path');
 const { spawnSync } = require('child_process');
 const crypto = require('crypto');
@@ -827,32 +829,30 @@ async function handle(req, res){
     // Query params: page (default 1), limit (default 10)
     if (req.method === 'GET' && u.pathname === apiPath('reports/list')){
       try{
-        fs.mkdirSync(REPORTS_DIR, { recursive: true });
-        const allItems = fs.readdirSync(REPORTS_DIR).map(name=>{
-          const p = path.join(REPORTS_DIR, name);
-          const st = fs.statSync(p);
-          return { name, size: st.size, mtimeMs: st.mtimeMs };
-        }).sort((a,b)=> b.mtimeMs - a.mtimeMs); // Sort by newest first
-        
-        // Pagination
-        const page = parseInt(u.query.page) || 1;
-        const limit = parseInt(u.query.limit) || 10;
-        const startIndex = (page - 1) * limit;
-        const endIndex = startIndex + limit;
-        const items = allItems.slice(startIndex, endIndex);
-        
-        return send(res, 200, { 
-          ok: true, 
-          items,
-          pagination: {
-            page,
-            limit,
-            total: allItems.length,
-            totalPages: Math.ceil(allItems.length / limit),
-            hasMore: endIndex < allItems.length
-          }
+        // V138: read-only async bounded catalog — no GET mkdir / Sync metadata walk.
+        const catalog = await listReportsCatalog({
+          reportsDir: REPORTS_DIR,
+          query: u.query || {},
         });
-      }catch(e){ return send(res, 500, { ok:false, error: e.message }); }
+        if (!catalog.ok) {
+          const status = catalog.code === 'REPORTS_LIST_BUSY' ? 503 : 500;
+          return send(res, status, {
+            ok: false,
+            error: catalog.error || 'reports_list_failed',
+            code: catalog.code,
+            incomplete: catalog.incomplete || undefined,
+            failedCount: catalog.failedCount || undefined,
+          });
+        }
+        return send(res, 200, {
+          ok: true,
+          items: catalog.items,
+          pagination: catalog.pagination,
+        });
+      }catch(e){
+        // V138 corrective: fixed nonsecret public error; never echo raw fs paths.
+        return send(res, 500, { ok:false, error: 'reports_list_failed', code: 'REPORTS_LIST_EXCEPTION' });
+      }
     }
 
     // POST /api/reports/prune { olderThanDays?: number, keepLatestPerKind?: boolean }
