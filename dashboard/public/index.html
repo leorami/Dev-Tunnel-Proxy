@@ -1205,17 +1205,23 @@
           showResult(res, 'success');
           showToast('Knowledge base reindexed successfully', 'success');
         } catch (e) {
+          // Secure/spool mode refuses unapproved external AI egress — surface honestly.
           showError(e);
+          showToast('Reindex blocked in secure mode (no unapproved external AI egress)', 'error');
         }
       };
       
-      // Self-Check
+      // Self-Check — observation only in secure mode (never claim heal).
       document.getElementById('btnSelfCheck').onclick = async () => {
         try {
-          showLoading('Running self-check...');
-          const res = await post('ai/self-check', { heal: true });
+          showLoading('Running local observation self-check...');
+          const res = await post('ai/self-check', { heal: false });
+          if (res && res.healingPerformed === true) {
+            showError(new Error('Unexpected healingPerformed=true from observation-only self-check'));
+            return;
+          }
           showResult(res, 'success');
-          showToast('Self-check complete', 'success');
+          showToast(res && res.code ? `Self-check: ${res.code} (healing unavailable)` : 'Local inventory observation only (healing unavailable)', 'info');
         } catch (e) {
           showError(e);
         }

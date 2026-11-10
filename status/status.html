@@ -12,7 +12,7 @@
       window.__calliopeEnabled = false;
     </script>
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="/status/vendor/lucide.min.js"></script>
     <style>
       :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px}
       :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
@@ -536,6 +536,24 @@
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
+    
+      /* V124 P1: prevent clipping/overlap; make chat the drawer's priority. */
+      .settings-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%, 320px),1fr))}
+      #autoScanSubcard .settings-row{flex-wrap:wrap !important;justify-content:flex-start !important}
+      #autoScanSubcard .settings-row > div:last-of-type{margin-left:0 !important;flex-wrap:wrap}
+      #autoScanSubcard .compact-input{min-width:48px;max-width:72px}
+      .route-header{flex-wrap:wrap;align-items:flex-start;min-width:0;gap:8px}
+      .route-title{min-width:0;flex:1 1 120px}
+      .route-name{min-width:0;overflow-wrap:anywhere}
+      .action-buttons-container{flex:0 0 auto;flex-wrap:wrap;max-width:100%;justify-content:flex-end}
+      #aiDrawer .ai-content{min-height:0;flex:1 1 auto}
+      #aiDrawer .ai-chat{min-height:0;flex:1 1 auto}
+      #aiDrawer .ai-input{flex:0 0 auto}
+      #aiDrawer .ai-actions{flex-wrap:wrap}
+      @media(max-width:768px){
+        #aiDrawer.ai-drawer{height:min(88dvh, calc(100dvh - 80px));max-height:calc(100dvh - 12px)}
+        #aiDrawer .ai-chat{min-height:0;flex:1 1 auto;max-height:none !important}
+      }
     </style>
     <link rel="stylesheet" href="/status/common.css" />
     <script src="/status/config.js"></script>
@@ -619,7 +637,7 @@
               <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
                 <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
                   <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
-                  <span style="font-weight: 600; font-size: 13px;">On</span>
+                  <span id="autoScanEnabledLabel" style="font-weight: 600; font-size: 13px;">On</span>
                 </label>
                 
                 <div class="chip" style="font-size: 13px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
@@ -679,7 +697,7 @@
               <textarea id="aiQuery" class="hover-scroll" rows="3" placeholder="Ask about proxy/network issues" style="padding: 12px;"></textarea>
               <div class="ai-actions">
                 <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
-                <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>
+                <button class="btn" id="aiClearBtn" title="Clear visible messages; saved history is unchanged">Clear view</button>
                 <button class="btn" id="aiAskBtn">Ask</button>
                 <button class="btn" id="aiHealBtn" data-role="selfcheck" title="Self-Check" aria-label="Self-Check">Self‑Check</button>
               </div>
@@ -750,8 +768,8 @@
       </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="/status/vendor/marked.min.js"></script>
+    <script src="/status/vendor/purify.min.js"></script>
     <script>
       // Debug logging setup (must be defined before any function uses it)
       const DEBUG = (function(){
@@ -1598,7 +1616,7 @@
 
           const title = document.createElement('div');
           title.className = 'title';
-          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${source} • <span style="font-family:var(--mono, monospace)">${route}</span></small>`;
+          title.innerHTML = `<h2 style="margin:0">Notification Settings</h2><small>${escapeHtml(source)} • <span style="font-family:var(--mono, monospace)">${escapeHtml(route)}</span></small>`;
           header.appendChild(title);
 
           const actions = document.createElement('div');
@@ -2560,7 +2578,12 @@
             // Config file header
             const configHeader = document.createElement('div');
             configHeader.className = 'config-group-header';
-            configHeader.innerHTML = `<h2>${source.replace(/\.conf$/, '')}</h2><span class="config-route-count">${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}</span>`;
+            const configTitle = document.createElement('h2');
+            configTitle.textContent = source.replace(/\.conf$/, '');
+            const configCount = document.createElement('span');
+            configCount.className = 'config-route-count';
+            configCount.textContent = `${grouped[source].length} route${grouped[source].length !== 1 ? 's' : ''}`;
+            configHeader.append(configTitle, configCount);
             configCard.appendChild(configHeader);
             
             // Routes container within this config
@@ -2915,16 +2938,16 @@
         // Add global conflict status indicator
         updateGlobalConflictIndicator(routes);
 
-          // Start Calliope UI immediately so Diagnose clicks work even while apps load
-          try { initAiAssistant(); } catch (e) { /* non-fatal */ }
-
+          // Start one Calliope instance without waiting for the route grid.
+          // It binds chat handlers synchronously before its first await.
+          const calliopeReady = initAiAssistant();
           rebuildApps();
           
           // Apply masonry layout after grid is built
           setTimeout(() => applyMasonryLayout(), 100);
 
           // No manual ordering; default sort is by status
-          try { await initAiAssistant(); } catch (e) { /* non-fatal */ }
+          try { await calliopeReady; } catch (e) { /* non-fatal */ }
       })().catch(err => {
         document.getElementById('apps').textContent = 'Error: '+err.message;
       });
@@ -4005,19 +4028,52 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const copyBtn = document.getElementById('aiCopyBtn');
         const healBtn = document.getElementById('aiHealBtn');
         const queryEl = document.getElementById('aiQuery');
+        // Own chat handlers and timers exactly once for the lifetime of this page.
+        if (!drawer || !chatEl || !askBtn || !clearBtn || !copyBtn || !queryEl) return;
+        if (window.__devproxyCalliopeInitBound) return;
+        window.__devproxyCalliopeInitBound = true;
+        // One request at a time; Clear invalidates and aborts any older reply.
+        let nextAskSeq = 0;
+        let activeAskSeq = 0;
+        let activeAskAbort = null;
+        let chatEpoch = 0;
+        function clearChat(){
+          chatEpoch++;
+          nextAskSeq++;
+          activeAskSeq = 0;
+          if (activeAskAbort) activeAskAbort.abort();
+          activeAskAbort = null;
+          chatEl.replaceChildren();
+          queryEl.value = '';
+          queryEl.focus();
+          // Clearing an observation must also clear its transient "Checking" state.
+          const statusChip = document.getElementById('aiHealingStatus');
+          const statusLabel = document.getElementById('aiHealingStatusLabel');
+          if (statusChip){
+            statusChip.classList.remove('status-auditing','status-healing','status-coding','status-offline');
+            statusChip.classList.add('status-ready');
+          }
+          if (statusLabel) statusLabel.textContent = 'Local-only';
+          askBtn.disabled = false;
+          askBtn.textContent = 'Ask';
+        }
         // Persisted chat history loader
         async function loadChatHistory(){
+          // The initial history request can outlive Clear view or a new Ask.
+          // Never resurrect old messages into a conversation the user replaced.
+          const historyEpoch = chatEpoch;
           try{
             const resp = await fetch(window.DTP.config.apiPath('ai/chat-history'), { credentials: 'include' });
-            if (!resp.ok) return;
+            if (!resp.ok || historyEpoch !== chatEpoch || chatEngaged) return;
             const data = await resp.json().catch(()=>null);
-            const messages = (data && data.messages) || [];
-            // Render last 100 to keep UI snappy
+            if (historyEpoch !== chatEpoch || chatEngaged) return;
+            const messages = (data && Array.isArray(data.messages)) ? data.messages : [];
             const recent = messages.slice(-100);
-            recent.forEach(m => {
-              const who = (m.role === 'assistant') ? 'assistant' : 'user';
-              appendBubble(who, m.content||'');
-            });
+            for (const message of recent){
+              if (historyEpoch !== chatEpoch || chatEngaged) break;
+              const who = message && message.role === 'assistant' ? 'assistant' : 'user';
+              appendBubble(who, message && message.content || '');
+            }
           }catch{}
         }
 
@@ -4138,7 +4194,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             const health = await fetch(window.DTP.config.apiPath('ai/health'));
             if (!health.ok) throw new Error('disabled');
             const healthJson = await health.json();
-            if (statusEl) statusEl.textContent = healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Disabled (no key)';
+            const localOnly = healthJson.mode === 'local_documentation';
+            if (statusEl) statusEl.textContent = localOnly ? 'Local documentation' :
+              (healthJson.enabled ? `Enabled${healthJson.model?` (${healthJson.model})`:''}` : 'Unavailable');
             // Toggle UI affordances when Calliope is enabled
             const calliopeEnabled = healthJson.enabled; // Only enable Calliope when API key is present
             window.__calliopeEnabled = calliopeEnabled;
@@ -4158,7 +4216,9 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             };
 
             if (!healthJson.enabled || healthJson.healthy===false){
-              setState('status-offline','🫥 AFK');
+              setState('status-offline','Unavailable');
+            } else if (localOnly){
+              setState('status-ready','Local-only');
             } else {
               // Prefer explicit activity if provided by API
               const activity = (healthJson.activity||'').toLowerCase();
@@ -4280,37 +4340,51 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }, true);
 
         async function onAsk(){
+          if (activeAskSeq !== 0) return;
           const q = (queryEl.value||'').trim();
-          if (!q){ return; }
-          // Mark user engagement BEFORE any possible assistant thought rendering
-          if (!hasUserMessage) hasUserMessage = true;
+          if (!q) return;
+          const sequence = ++nextAskSeq;
+          activeAskSeq = sequence;
+          activeAskAbort = new AbortController();
+          const controller = activeAskAbort;
+          const epoch = chatEpoch;
+          hasUserMessage = true;
           chatEngaged = true;
-          askBtn.disabled = true; askBtn.textContent = 'Thinking…';
-          // Clear the input immediately so the user can type next question
+          askBtn.disabled = true;
+          askBtn.textContent = 'Thinking…';
           queryEl.value = '';
-          
-          // Append user bubble first so it appears before any thinking indicator
-          const firstUser = appendBubble('user', q);
-          // Now show thinking animation for at least a short time
+          appendBubble('user', q);
           const thinking = appendThinking();
-          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 800));
-          
           try{
-            const [resp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/ask'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ query: q }) }),
-              minThinkingTime
-            ]);
-            
-            try{ thinking.remove(); }catch{}
-            if (!resp.ok){ appendBubble('assistant', `HTTP ${resp.status}`); return; }
-            const data = await resp.json().catch(()=>({ ok:false }));
-            if (data && data.ok && data.answer){ appendBubble('assistant', data.answer); }
-            else { appendBubble('assistant', 'Something went sideways — I could not think of a good answer.'); }
-          }catch(e){
-            try{ thinking.remove(); }catch{}
-            appendBubble('assistant', `Request failed: ${e.message}`); 
+            const response = await fetch(window.DTP.config.apiPath('ai/ask'), {
+              method:'POST', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({query:q}),
+              signal:controller.signal
+            });
+            if (activeAskSeq !== sequence || epoch !== chatEpoch) return;
+            if (!response.ok){
+              appendBubble('assistant', 'Local Ask is unavailable (HTTP ' + response.status + '). No action was taken.');
+              return;
+            }
+            const data = await response.json().catch(()=>({ok:false}));
+            if (activeAskSeq !== sequence || epoch !== chatEpoch) return;
+            if (data && data.ok && typeof data.answer==='string' && data.answer.trim()){
+              appendBubble('assistant', data.answer);
+            } else {
+              appendBubble('assistant', 'No verified local answer was available. No action was taken.');
+            }
+          }catch(error){
+            if (activeAskSeq !== sequence || epoch !== chatEpoch || controller.signal.aborted) return;
+            appendBubble('assistant', 'Local Ask could not be reached. No action was taken.');
           }finally{
-            askBtn.disabled = false; askBtn.textContent = 'Ask';
+            thinking.remove();
+            if (activeAskSeq===sequence){
+              activeAskSeq = 0;
+              activeAskAbort = null;
+              askBtn.disabled = false;
+              askBtn.textContent = 'Ask';
+            }
           }
         }
 
@@ -4469,17 +4543,48 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }
 
         // Expose a stable, globally callable Self‑Check routine to avoid race conditions
+        // Secure self-check reports verified local inventory/HTTP evidence only.
+        // A spinner is never persisted after either success or failure.
+        let selfCheckInFlight = false;
         async function greetAndSelfCheck(){
+          if (selfCheckInFlight) return;
+          selfCheckInFlight = true;
           ensureAiOpen();
-          chatEngaged = true; hasUserMessage = true;
-          // If there is already a thinking bubble, don't add another
-          const alreadyThinking = !!document.querySelector('#aiChat .bubble.assistant.thinking');
-          if (!alreadyThinking) appendBubble('assistant', 'Heya! One sec while I listen to /api/...');
-          const thinking = alreadyThinking ? document.querySelector('#aiChat .bubble.assistant.thinking') : appendThinking();
+          chatEngaged = true;
+          const thinking = appendThinking();
+          const epoch = chatEpoch;
+          let reply = 'Local observation unavailable. Health remains unverified; no repairs were attempted.';
           try{
-            await fetch(window.DTP.config.apiPath('ai/self-check'), { method:'POST', credentials: 'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ heal:true }) });
-          }catch{} finally{
-            // Keep the thinking bubble visible until next assistant message arrives; do not auto-remove here
+            const response = await fetch(window.DTP.config.apiPath('ai/self-check') + '?http=1', {
+              method:'POST', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({heal:false})
+            });
+            const data = await response.json().catch(()=>null);
+            if (data && (data.healingPerformed===true || data.routeModified===true)){
+              reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
+            } else if (response.ok && data && data.ok===true &&
+                       data.code==='SELF_CHECK_INVENTORY_AND_HTTP_OBSERVATION' &&
+                       data.httpScan && data.httpScan.code==='READONLY_HTTP_SCAN_EVIDENCE_ONLY'){
+              const count = Number(data.httpScan.observed)||0;
+              const green = Number(data.httpScan.httpGreen)||0;
+              const notGreen = Number(data.httpScan.httpNotGreen)||0;
+              const skipped = Number(data.httpScan.skipped)||0;
+              reply = 'Local-only observation: ' + count + ' routes checked by HTTP HEAD; ' +
+                green + ' returned 2xx, ' + notGreen + ' not green or unavailable.' +
+                (skipped ? ' ' + skipped + ' were not probed.' : '') +
+                ' This is not a browser test. No repairs were attempted.';
+            } else if (response.status===401 || response.status===403) {
+              reply = 'Please sign in to Dev Proxy before running a local observation. No repairs were attempted.';
+            } else {
+              reply = 'HTTP observation unavailable. Route health was not verified, and no repairs were attempted.';
+            }
+          }catch(_error){
+            reply = 'Could not reach the local observation endpoint. Health is unverified; no repairs were attempted.';
+          }finally{
+            thinking.remove();
+            selfCheckInFlight = false;
+            if (epoch === chatEpoch) appendBubble('assistant', reply);
           }
         }
         try{
@@ -4489,93 +4594,77 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }
         }catch{}
 
+        // Only session-gated fixed-host HEAD observations, never audit-and-heal.
+        let diagnosisInFlight = new Set();
         async function runCalliopeHealth(routeKey){
-          try{
-            if (window.__pendingDiagnoseRoute){ delete window.__pendingDiagnoseRoute; }
-          }catch{}
-          chatEngaged = true;
+          const route = typeof routeKey==='string' ? routeKey.trim() : '';
+          // Coalesce repeated clicks for the same route; never silently drop
+          // a different route's observation while the first is pending.
+          if (diagnosisInFlight.has(route)) return;
+          diagnosisInFlight.add(route);
+          try { delete window.__pendingDiagnoseRoute; } catch {}
           ensureAiOpen();
-          // First message - acknowledgment (append after recording engagement but before server work)
-          appendBubble('assistant', `Heya! ✨ One sec while I listen to ${routeKey}…`);
-          
-          // Show thinking indicator briefly while we kick off background audit+heal
-          let thinking = appendThinking();
-          // Immediately reflect active state in the status chip
-          try {
-            const statusChip = document.getElementById('aiHealingStatus');
-            const labelEl = document.getElementById('aiHealingStatusLabel');
-            statusChip.classList.remove('status-ready','status-offline');
-            statusChip.classList.add('status-auditing');
-            labelEl.textContent = '🔬 Auditing';
-          } catch {}
-          const minThinkingTime = new Promise(resolve => setTimeout(resolve, 900));
-          
+          chatEngaged = true;
+          const epoch = chatEpoch;
+          const thinking = appendThinking();
+          const chip = document.getElementById('aiHealingStatus');
+          const label = document.getElementById('aiHealingStatusLabel');
+          const changeStatus = (state, title) => {
+            if (chip){
+              chip.classList.remove('status-ready','status-offline','status-auditing','status-healing','status-coding');
+              chip.classList.add(state);
+            }
+            if (label) label.textContent = title;
+          };
+          let reply = 'Local-only observation unavailable. No repair was attempted.';
+          let observationVerified = false;
           try{
-            // Use container-reachable base; prefer ngrok origin if present, else dev-proxy
-            const origin = window.location.origin || '';
-            let baseForAudit = 'http://dev-proxy';
-            try { const h = (new URL(origin)).hostname||''; if (/\.ngrok\.app$/i.test(h)) baseForAudit = origin; } catch {}
-            const cleanRoute = routeKey.endsWith('/') ? routeKey : (routeKey + '/');
-            const urlToAudit = (baseForAudit.replace(/\/$/, '')) + cleanRoute;
-            const selfCheck = (async ()=>{
-              try{
-                await fetch(window.DTP.config.apiPath('ai/self-check'), {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ heal: true, route: routeKey, hint: `Focus on route ${routeKey} and its children.` })
-                });
-              }catch{}
-            })();
-            const [resp] = await Promise.all([
-              fetch(window.DTP.config.apiPath('ai/audit-and-heal'), {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: urlToAudit, route: routeKey, maxPasses: 3, wait: 1500, timeout: 45000 })
-              }),
-              minThinkingTime,
-              selfCheck
-            ]);
-            thinking.remove();
-            if (!resp.ok){
-              const friendly = `\nI hit a little hiccup starting my check (HTTP ${resp.status}).\n`+
-                `Here's what I'd try next:`+
-                `\n- Click "Ask" with: 
-\`Please audit and heal /sdk (and give yourself the Storybook/Vite knowledge you need).\``+
-                `\n- Or open my thinking stream: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
-              appendBubble('assistant', friendly);
-              // reset chip back to ready so UI doesn't look stuck on Auditing
-              try{
-                const statusChip = document.getElementById('aiHealingStatus');
-                const labelEl = document.getElementById('aiHealingStatusLabel');
-                statusChip.classList.remove('status-auditing','status-healing','status-coding');
-                statusChip.classList.add('status-ready');
-                labelEl.textContent = '😊 Happy';
-              }catch{}
-              return;
-            }
-            const data = await resp.json().catch(()=>null);
-            if (data && data.ok){
-              appendBubble('assistant', 'Working my magic… I\'ll stream each step as it happens. ✨');
+            changeStatus('status-auditing','Checking');
+            const valid = route.length>1 && route.length<=256 && route[0]==='/' &&
+              Array.from(route).every(ch=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~/-'.includes(ch)) &&
+              !route.includes('//') && !route.includes('/./') && !route.includes('/../');
+            if (!valid){
+              reply = 'Choose a supported application route to observe. No changes were made.';
             } else {
-              const msg = (data && data.result && data.result.message) ? data.result.message : 'Couldn\'t proceed with audit+heal just now.';
-              appendBubble('assistant', `⚠️ ${msg}`);
+              const response = await fetch(window.DTP.config.apiPath('ai/audit'), {
+                method:'POST', credentials:'include',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({url:route})
+              });
+              const result = await response.json().catch(()=>null);
+              const status = result && result.summary && result.summary.status;
+              if (result && (result.healingPerformed===true || result.routeModified===true)){
+                reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
+              } else if (response.ok && result && result.code==='LOCAL_HTTP_OK' &&
+                         Number.isInteger(status) && status>=200 && status<300){
+                observationVerified = true;
+                reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
+                  ' (reachable). Browser behavior is not verified. No repair was attempted.';
+              } else if (response.ok && result && result.code==='LOCAL_HTTP_NOT_GREEN' &&
+                         Number.isInteger(status)){
+                observationVerified = true;
+                reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
+                  ' (not green). Redirects were not followed. No repair was attempted.';
+              } else if (response.status===401 || response.status===403){
+                reply = 'Sign in to Dev Proxy to observe ' + route + '. No changes were made.';
+              } else {
+                reply = 'Route ' + route + ': local HTTP observation unavailable. ' +
+                  'Health remains unverified; no repair was attempted.';
+              }
             }
-            // Thoughts polling is active and will stream intermediate steps
-          } catch(e){
-            try { thinking.remove(); } catch{}
-            const friendly = `\nOops, my ears got tangled while starting the check: ${e.message}.`+
-              `\nTry asking: \`Audit and heal /sdk; add Storybook/Vite proxy guards and host allowances.\``+
-              `\nPeek at my thoughts: <a href="/api/ai/thoughts" target="_blank" rel="noopener">/api/ai/thoughts</a>`;
-            appendBubble('assistant', friendly);
-            try{
-              const statusChip = document.getElementById('aiHealingStatus');
-              const labelEl = document.getElementById('aiHealingStatusLabel');
-              statusChip.classList.remove('status-auditing','status-healing','status-coding');
-              statusChip.classList.add('status-ready');
-              labelEl.textContent = '😊 Happy';
-            }catch{}
+          }catch(_error){
+            reply = 'Route ' + route + ': local HTTP observation unavailable. ' +
+              'Health remains unverified; no changes were made.';
+          }finally{
+            thinking.remove();
+            diagnosisInFlight.delete(route);
+            if (epoch === chatEpoch){
+              const otherRoutePending = diagnosisInFlight.size > 0;
+              changeStatus(otherRoutePending ? 'status-auditing' :
+                  (observationVerified ? 'status-ready' : 'status-offline'),
+                otherRoutePending ? 'Checking' : (observationVerified ? 'Observed' : 'Unavailable'));
+              appendBubble('assistant', reply);
+            }
           }
         }
 
@@ -4583,7 +4672,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         try { window.runCalliopeHealth = runCalliopeHealth; } catch {}
 
         try{ askBtn && askBtn.addEventListener('click', onAsk); }catch{}
-        try{ clearBtn && clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; if(queryEl){ queryEl.value=''; queryEl.focus(); } }); }catch{}
+        try{ clearBtn && clearBtn.addEventListener('click', clearChat); }catch{}
         try{ copyBtn && copyBtn.addEventListener('click', onCopy); }catch{}
         try{ queryEl && queryEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); } }); }catch{}
         
@@ -4607,65 +4696,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
           }
         }
-        if (tab) {
-          try {
-            tab.addEventListener('click', ()=>{
-          try{
-            const isCollapsed = drawer.classList.contains('collapsed');
-            if (isCollapsed){
-              drawer.classList.remove('collapsed');
-              document.body.classList.add('ai-open');
-              // Save state
-              try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
-              chatEngaged = true;
-              try{ const chat=document.getElementById('aiChat'); if (chat && chat.children.length===0) appendBubble('assistant', 'Heya! ✨ One sec while I listen…'); }catch{}
-              try{ const ask=document.getElementById('aiAskBtn'); if(ask && ask.scrollIntoView) ask.scrollIntoView({ block:'end' }); }catch{}
-              setTimeout(()=>{ const q=document.getElementById('aiQuery'); if(q) q.focus(); }, 50);
-            } else {
-              drawer.classList.add('collapsed');
-              document.body.classList.remove('ai-open');
-              // Save state
-              try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
-            }
-            // Update button state
-            const nowOpen = !drawer.classList.contains('collapsed');
-            tab.classList.toggle('active', nowOpen);
-            tab.setAttribute('aria-pressed', String(nowOpen));
-            tab.setAttribute('title', nowOpen ? 'Close Calliope' : 'Open Calliope');
-          }catch{}
-            });
-          } catch (e) {
-            console.error('Error attaching click handler:', e);
-          }
-        }
-        askBtn.addEventListener('click', onAsk);
-        clearBtn.addEventListener('click', ()=>{ chatEl.innerHTML=''; queryEl.value=''; queryEl.focus(); });
-        copyBtn.addEventListener('click', onCopy);
-        queryEl.addEventListener('keydown', (e)=>{
-          if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); }
-        });
-        
-        // Copy conversation to clipboard
-        async function onCopy(){
-          const bubbles = chatEl.querySelectorAll('.bubble');
-          let conversation = '';
-          bubbles.forEach(bubble => {
-            const title = bubble.querySelector('.bubble-title')?.textContent || '';
-            const content = bubble.querySelector('.bubble-content')?.textContent || bubble.textContent;
-            conversation += `${title}\n${content}\n\n`;
-          });
-          
-          try {
-            await navigator.clipboard.writeText(conversation);
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
-          } catch (err) {
-            console.error('Failed to copy:', err);
-            copyBtn.textContent = 'Failed';
-            setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
-          }
-        }
-        
         // Restore Calliope state from localStorage
         try {
           const wasOpen = localStorage.getItem('dtpCalliopeOpen') === 'true';
@@ -4761,16 +4791,10 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         startThoughtsPolling();
         startHealthPolling();
 
-        // Allow user to stop current work by clicking the status chip
-        const statusChip = document.getElementById('aiHealingStatus');
-        statusChip.addEventListener('click', async ()=>{
-          try{
-            const r = await fetch(window.DTP.config.apiPath('ai/cancel'), { method:'POST' });
-            if (r.ok){
-              appendBubble('assistant', "Oops, I\'ll pause now — my hyper‑focus ran away with me! 💫 I\'ve stopped and I\'m ready to help however you like next.");
-            }
-          }catch{}
-        });
+        // The secure status chip is informational, not a Cancel control.
+        // Legacy ai/cancel acknowledges a flag for an unrelated old heal loop;
+        // it cannot attest that local Ask / HTTP HEAD work was stopped.
+        // The existing Clear view action aborts the in-flight local Ask.
 
         // Wire global diagnose button to focus the first SDK group or fallback to /sdk
         const bindDiag = (el)=>{
@@ -4801,6 +4825,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         if (!enabledCheckbox || !intervalInput || !saveBtn) return;
         
         const currentEnabled = enabledCheckbox.checked;
+        const enabledLabel = document.getElementById('autoScanEnabledLabel');
+        if (enabledLabel) enabledLabel.textContent = currentEnabled ? 'On' : 'Off';
         const currentInterval = parseInt(intervalInput.value, 10);
         
         const hasChanges = currentEnabled !== originalAutoScanSettings.enabled || 

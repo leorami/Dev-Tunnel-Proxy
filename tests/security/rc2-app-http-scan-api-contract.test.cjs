@@ -1,0 +1,22 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const api=()=>fs.readFileSync(path.join(__dirname,'../../utils/proxyConfigAPI.js'),'utf8');
+test('RED: authenticated POST scan default preserved; optional HEAD observes real diagnostics paths',()=>{
+ const src=api();
+ const auth=src.indexOf('const authBoundary = classifyManagementRequest(');
+ const scan=src.indexOf("if (req.method==='POST' && u.pathname===apiPath('apps/scan') && inlineHostDockerUnavailable())");
+ const guard=src.indexOf('const controlGate=classifySecureManagementOperation(');
+ const old=src.indexOf("if (req.method === 'POST' && u.pathname === apiPath('apps/scan'))",guard);
+ assert.ok(auth>0&&scan>auth&&guard>scan&&old>guard,'auth->fixed-host scan->legacy deny');
+ assert.match(src,/require\('\.\/rc2-readonly-app-http-scan\.cjs'\)/);
+ const section=src.slice(scan,guard);
+ assert.match(section,/u\.query\?\.http!=='1'/);
+ assert.match(section,/listSecureAppsInventory\(\{appsDir:APPS_DIR\}\)/);
+ assert.match(section,/scanExistingAppHttpRoutes\(/);
+ assert.match(section,/bundle-diagnostics\.json/);
+ assert.match(section,/probe:rc2SafeLocalAudit/);
+ assert.equal(/spawnSync|execSync|docker|generateAppsBundle\.js|writeFileSync|unlinkSync/.test(section),false);
+});

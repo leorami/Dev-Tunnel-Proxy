@@ -1,0 +1,149 @@
+{
+  "beforeSha256": "fcd658234ff412271504edcd3bac48fa6a8008810b8d8af513a0f222a6de0555",
+  "afterSha256": "8d49e5ca3188c90f22ce6c4e38dd6a09d36cb0fb2651b39989f4bee7691d3f4b",
+  "nginxSyntaxTest": {
+    "ok": true,
+    "exitCode": 0,
+    "engine": "nginx-t-disposable",
+    "code": "NGINX_SYNTAX_OK"
+  },
+  "nginxSyntaxBrokenCandidate": {
+    "ok": true,
+    "exitCode": 0,
+    "engine": "nginx-t-disposable",
+    "code": "NGINX_SYNTAX_OK"
+  },
+  "unrelatedRoutesIntact": true,
+  "browserBefore": {
+    "captureId": "46784c868712c39ae9f06f780062e5f5",
+    "assetPath": "/lyra/_next/static/chunks/webpack.js",
+    "responses": [
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack-alt.js",
+        "contentType": null
+      },
+      {
+        "path": "/lyra/_next/static/chunks/webpack-alt.js",
+        "status": 308,
+        "location": "/lyra/_next/static/chunks/webpack.js",
+        "contentType": null
+      }
+    ],
+    "browserError": "ERR_TOO_MANY_REDIRECTS",
+    "consoleErrors": []
+  },
+  "browserAfter": {
+    "captureId": "ef5928004688f95e8ae5676c81d96b09",
+    "assetPath": "/lyra/_next/static/chunks/webpack.js",
+    "responses": [
+      {
+        "path": "/lyra/_next/static/chunks/webpack.js",
+        "status": 200,
+        "location": null,
+        "contentType": "application/javascript; charset=utf-8"
+      }
+    ],
+    "browserError": null,
+    "consoleErrors": []
+  },
+  "assessed": {
+    "status": "RECORDED_REPAIR_NEEDS_LIVE_ATTESTATION",
+    "healingPerformed": false,
+    "ownerApprovalGranted": false,
+    "liveAttested": false,
+    "releaseGateSatisfied": false,
+    "networkTransferAuthorized": false,
+    "beforeLoopObserved": true,
+    "afterJsServed": true,
+    "evidenceDigest": "033c3e3954f3ef4b09ccdf244cb019d1bb28158687ca992b1a54da02c257d9c7"
+  },
+  "liveAttested": false,
+  "healingPerformed": false,
+  "note": "disposable Chromium+nginx proof; not production live attestation"
+}

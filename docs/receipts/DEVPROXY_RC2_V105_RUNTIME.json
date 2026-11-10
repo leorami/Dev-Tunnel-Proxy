@@ -1,0 +1,31 @@
+{
+  "label": "SUPERVISOR_ONLY_WORKER_CLOSED_SOURCE_PREPARED",
+  "liveApplied": false,
+  "directCliExit": 2,
+  "directCliCode": "HOST_WORKER_SUPERVISOR_REQUIRED",
+  "directCliPathLeak": false,
+  "liveSpoolUntouched": true,
+  "focusedTests": "53/53",
+  "unitTestsExit": 0,
+  "liveWorkerPid": 96350,
+  "liveWorkerSingleton": true,
+  "directCliProcessPresent": false,
+  "pinMatchesLiveProxy": true,
+  "proxyId": "d5b71dc13699508cdfa44d14bc6a03300a28b2c73c40e30c0289d473bb173549",
+  "apiId": "b93e19d7ea9d8e4eaa18f7bbe64eaeb121095c078143309b6e2467ee8c391a85",
+  "appsConf": 17,
+  "health": 200,
+  "originParityCode": "OWNER_HTTPS_BROWSER_ORIGIN_MISSING",
+  "liveHealthPrivacy": "LEAKAGE",
+  "sourceHealthPrivacy": "MINIMIZED",
+  "liveRestartPolicy": "no",
+  "singularOwnerDecision": "LIVE_APPLY_HTTPS_ORIGIN_AND_API_RECREATE_FOR_PRIVACY",
+  "optionalSecondStep": "PROXY_RECREATE_FOR_UNLESS_STOPPED",
+  "originFive": {
+    "sourceCurrent": "PASS",
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "realAppVerified": "PARTIAL",
+    "ownerWorkPreserved": "PASS"
+  }
+}

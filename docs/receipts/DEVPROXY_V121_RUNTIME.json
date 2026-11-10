@@ -1,0 +1,67 @@
+{
+  "assignment": "V121",
+  "returnLabel": "BRIDGE_POTENTIAL_UNAUTHENTICATED_CONTROL",
+  "ownerActionGate": "NONE_THIS_SPRINT",
+  "futureOwnerGate": {
+    "required": true,
+    "title": "Scoped notification-bridge containment or corrected-source deployment",
+    "authorizedNow": false,
+    "mustNotReuse": "consumed V120 worker cutover grant"
+  },
+  "liveMutation": false,
+  "startedComment": 6715181825,
+  "trackingIssue": 8,
+  "handoff": "cto/devproxy-v121-notification-bridge-live-policy-probe-20261107@414bc6002c3a5289e6ef8b0ab5080c13976be2c8",
+  "parentSha": "7da2026a9b1bfd1cd2dacecc335bfaecb6788f62",
+  "changedPathCount": 7,
+  "specialists": "NOT_SPAWNED",
+  "native": {
+    "node": "v22.19.0",
+    "focusedReadonlyProbe": "5/5",
+    "nodeCheck": "OK",
+    "smartBuildUnitExit": 0,
+    "importedProbeBlob": "50c383e807b53ea45cb5cf3c039c99f9c895e9bf",
+    "importedTestBlob": "de7538c521302fccf4bbdab85cb84801670abd86"
+  },
+  "macReadonly": {
+    "listener": "127.0.0.1:17888",
+    "listenerCount": 1,
+    "processStart": "2026-11-05T18:33:01",
+    "processApproxAge": "~2d",
+    "cmdHasBridgeJs": true,
+    "argvTokenLikePresent": false,
+    "diskBridgeBlobMatchReviewed": true,
+    "diskAuthBlobMatchReviewed": true,
+    "reviewedBridgeBlob": "6bf5a1a973d6806e9ddbd05c932ef9cedee424c6",
+    "reviewedAuthBlob": "b7bf100ab54d97b21057f1b630906483a188c103",
+    "liveProcessSourceVerified": false,
+    "processFileSameInodeAsEngineerTree": false,
+    "probeStatusCodes": {
+      "health": 200,
+      "privilegedServiceStatus": 200,
+      "untrustedOriginServiceStatus": 200,
+      "forgedHostHealth": 200
+    },
+    "bodiesRetained": false,
+    "authorizationHeaderUsed": false,
+    "methodsOtherThanGet": false
+  },
+  "unauthorizedNotPerformed": [
+    "bridgeStopRestartInstallUninstall",
+    "POST_PUT_DELETE",
+    "MessagesSend",
+    "launchctl",
+    "osascript",
+    "pairingTokenRead",
+    "workerHmacDockerNgrokProxyMutation",
+    "masterMerge",
+    "responseBodyRetention"
+  ],
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}

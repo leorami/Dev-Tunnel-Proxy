@@ -1,0 +1,110 @@
+{
+  "assignment": "V119",
+  "returnLabel": "WORKER_RELEASE_CLOSURE_SOURCE_READY",
+  "ownerActionGate": "FUTURE_REQUIRED_PRODUCT_SOURCE_CUTOVER",
+  "ownerActionGateExecuted": false,
+  "liveMutation": false,
+  "startedComment": 6713087188,
+  "trackingIssue": 121,
+  "relatedIssues": [121, 116, 109],
+  "handoff": "cto/devproxy-rc2-v119-worker-release-closure-20261107@09fe7f78b95f8ba5c280356536c4e2255b0c0804",
+  "parentSha": "20427efaf372d19f341d39c84e21139e9413a907",
+  "changedPathCount": 7,
+  "importedPaths": 4,
+  "specialists": "NOT_SPAWNED",
+  "reviewedCommitSha": "20427efaf372d19f341d39c84e21139e9413a907",
+  "native": {
+    "node": "v22.19.0",
+    "focusedReleaseClosure": "10/10",
+    "nodeCheck": "OK",
+    "smartBuildUnitExit": 0,
+    "unitHookAdded": true
+  },
+  "requireClosure": {
+    "entrypoint": "scripts/rc2-supervised-mac-host-worker.cjs",
+    "reachableLocalModules": 12,
+    "pinnedModules": 12,
+    "missingFromPin": 0,
+    "extraInPin": 0,
+    "dynamicRequires": 0,
+    "unexpectedExternalPackages": 0,
+    "nodeBuiltinsOnly": true,
+    "allPinnedBlobsExactOnEngineerTree": true,
+    "pinnedGitBlobs": [
+      {"path": "scripts/rc2-supervised-mac-host-worker.cjs", "gitBlobSha": "fefb1f52830cfb52f6836bb8d4875dfbc87e2193"},
+      {"path": "utils/rc2-private-host-worker-pin.cjs", "gitBlobSha": "7638d841ca773e639ef19105cf112621f477dfa3"},
+      {"path": "utils/rc2-exclusive-host-worker-service.cjs", "gitBlobSha": "0970e79c87f3aae267abcfcaf3a71371cff9a10c"},
+      {"path": "utils/rc2-pending-host-worker.cjs", "gitBlobSha": "6a084d5f697e999219de5bd078032cbe8fde1536"},
+      {"path": "utils/rc2-mac-host-worker.cjs", "gitBlobSha": "b2d51f9fd76e0df9d0ca9a7cc96188e94cedae9f"},
+      {"path": "utils/rc2-cross-process-settlement.cjs", "gitBlobSha": "280132577d9ac28e7abb269c5279dc3d3c005bd7"},
+      {"path": "utils/rc1-host-mount-locked-docker-driver.cjs", "gitBlobSha": "81f355438fd83702d75cc22e7dc864e72af183bd"},
+      {"path": "utils/rc1-route-candidate-manifest.cjs", "gitBlobSha": "ee8318c2f86a3db5158916c29b9317f88c196e1a"},
+      {"path": "utils/rc1-content-bound-activation-request.cjs", "gitBlobSha": "d032a3ca9f8590321ef15ef992b0374b2c9c04fe"},
+      {"path": "utils/rc1-activation-spool.cjs", "gitBlobSha": "c8b52ac9bda93cbef5fa2fb667e13d48f876be17"},
+      {"path": "utils/rc1-two-phase-host-settlement.cjs", "gitBlobSha": "453c821489e188c9a4d9b601b8b606cfeb7e0e6b"},
+      {"path": "utils/host-execfile-adapter.cjs", "gitBlobSha": "6ac7f96934fd0cc89c3bc03eaf424b741cc609a4"}
+    ]
+  },
+  "offlineCandidate": {
+    "outsideLiveDurable": true,
+    "copiedModules": 12,
+    "ownerPrivateArtifactsCopied": false,
+    "secondRuntimeStarted": false,
+    "positive": "REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY",
+    "mutatedDependency": "REVIEWED_WORKER_CLOSURE_MISMATCH",
+    "symlink": "WORKER_CLOSURE_UNSAFE",
+    "hardlink": "WORKER_CLOSURE_UNSAFE",
+    "nonstickyWritableAncestor": "WORKER_CLOSURE_UNSAFE",
+    "testOnlyManifest": "TEST_ONLY_WORKER_CLOSURE_MATCH",
+    "wrongCommitSha": "WORKER_CLOSURE_UNVERIFIED",
+    "runningProcessAttested": false,
+    "productionChangeAuthorized": false,
+    "cleaned": true
+  },
+  "macReadonlyFresh": {
+    "workerServeCount": 1,
+    "cwdEqualsApprovedRoot": true,
+    "pinMode": "0o600",
+    "lockMode": "0o600",
+    "spoolTicketFiles": 0,
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "healthJson": 200,
+    "durablePendingClass": "MISMATCH",
+    "durablePendingHasV114Marker": false,
+    "launchAgentsMatching": 0,
+    "distinctFromHistoricalV118Receipt": "fresh_observation_same_IDs_drift_unchanged"
+  },
+  "unauthorizedNotPerformed": [
+    "liveWorkerStopSignalRestartReplace",
+    "durableProductSourceSync",
+    "singletonClearOrRecreate",
+    "signedTicketWriteOrReplay",
+    "launchdInstallOrEnable",
+    "dockerNgrokBridgeProxyAppHmacKeyCredentialChange",
+    "masterMerge",
+    "reusedV115RecoveryAuthorization"
+  ],
+  "futureOwnerGate": {
+    "required": true,
+    "title": "Narrowly scoped durable worker product-source cutover",
+    "authorizedNow": false,
+    "mustInclude": [
+      "single-process clean stop of current --serve",
+      "fail-closed lock/replay quarantine",
+      "install versioned 12-module reviewed product closure from commit 20427efaf372d19f341d39c84e21139e9413a907",
+      "private rollback of prior durable product bytes",
+      "HMAC epoch/pin continuity",
+      "signed CONFIG_SET_DIGEST_MISMATCH end-to-end nonfatal proof on new process",
+      "optional separately scoped LaunchAgent install only after external reviewed digests"
+    ]
+  },
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}

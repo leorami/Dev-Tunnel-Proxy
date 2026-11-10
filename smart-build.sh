@@ -645,6 +645,93 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/rc1-cutover-preflight.test.mjs' '$ROOT_DIR/tests/security/rc1-config-parity.test.cjs' '$ROOT_DIR/tests/security/rc1-mount-continuity.test.cjs'" || test_result=1
   fi
 
+  # RC2 owner-browser, public-health and cold-start regressions are source-only
+  # and DO NOT issue live HTTP, Docker, ngrok or Messages operations.
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 postcutover browser/privacy/restart source contracts (fixtures only)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-private-owner-browser-origin-parity.test.cjs' '$ROOT_DIR/tests/security/rc2-public-calliope-health-privacy.test.cjs' '$ROOT_DIR/tests/security/rc2-public-health-route-privacy-integration.test.cjs' '$ROOT_DIR/tests/security/rc2-cold-start-availability-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-isolated-nonroot-restore-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-production-compose-candidate.test.cjs' '$ROOT_DIR/tests/security/rc2-v83-production-compose-candidate.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 supervised-only Mac worker authorization (test-owned private fixtures)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-supervisor-only-direct-cli-guard.test.cjs' '$ROOT_DIR/tests/security/rc2-supervised-mac-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-private-host-worker-pin.test.cjs' '$ROOT_DIR/tests/security/rc2-exclusive-host-worker-service.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 pending host worker deterministic refusal and crash quarantine (test-owned only)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-pending-host-worker.test.cjs' '$ROOT_DIR/tests/security/rc2-pending-terminal-refusal.test.cjs' '$ROOT_DIR/tests/security/rc2-worker-only-recovery-preflight.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 per-user launchd worker candidate (source-only, no installation)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-macos-worker-launchagent-candidate.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "P2 configured app backend DNS startup hypothesis (source-only, no owner data)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-nginx-startup-dns-exposure.test.cjs' '$ROOT_DIR/tests/security/rc2-generated-offline-app-bundle.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 worker stage drift and LaunchAgent provenance (read-only fixtures)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-reviewed-worker-source-stage.test.cjs' '$ROOT_DIR/tests/security/rc2-worker-launchagent-path-provenance.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 worker release closure provenance (source-only offline fixtures)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-worker-release-closure.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 V120 signed refusal cutover integration (test-owned fixtures)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-v120-signed-refusal-cutover-integration.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Notification bridge read-only policy probe (loopback status GETs only)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-readonly-policy-probe.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Notification bridge containment policy (pure identity gates)" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-containment-policy.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Paired status page script trust and safe HTML sinks" \
+      "node --test '$ROOT_DIR/tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Calliope status chat single-flight and honest observation" \
+      "node --test '$ROOT_DIR/tests/security/calliope-status-chat-singleflight.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Calliope async history, honest cancel, distinct-route observation regressions" \
+      "node --test '$ROOT_DIR/tests/security/calliope-async-history-and-cancel-consistency.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Shared Health/Reports Calliope single-flight and honest self-check" \
+      "node --test '$ROOT_DIR/tests/security/calliope-crosspage-singleflight.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V138 Reports async catalog and filesystem IO quarantine" \
+      "node --test '$ROOT_DIR/tests/security/reports-list-contract.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 approved API-only postcheck and static nginx DNS rollback (source-only)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-approved-api-only-postcheck.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "RC2 live durable mount source protections (source-only, no Mac actions)" \
+      "node --test '$ROOT_DIR/tests/security/rc2-live-durable-mount-paths.test.cjs'" || test_result=1
+  fi
+
   return $test_result
 }
 

@@ -78,7 +78,8 @@ async function readPinnedJson(dir,id){
   if(a.dev!==st.dev||a.ino!==st.ino||a.size!==st.size||a.nlink!==1n)throw Error('UNSAFE_SPOOL_MESSAGE');
   const data=await fd.readFile();
   const b=await fd.stat({bigint:true});
-  if(b.size!==BigInt(data.length)||b.ino!==st.ino||b.mtimeNs!==a.mtimeNs||b.ctimeNs!==a.ctimeNs)throw Error('UNSAFE_SPOOL_MESSAGE');
+  // Bind inode + mtime + size; ignore ctime-only virtiofs/xattr bumps on Docker Desktop.
+  if(b.size!==BigInt(data.length)||b.ino!==st.ino||b.mtimeNs!==a.mtimeNs)throw Error('UNSAFE_SPOOL_MESSAGE');
   return JSON.parse(data.toString('utf8'));
  }catch(e){if(e instanceof SyntaxError)throw Error('INVALID_SPOOL_JSON');throw e;}
  finally{if(fd)await fd.close();}

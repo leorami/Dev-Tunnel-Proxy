@@ -1,0 +1,27 @@
+# Dev Proxy RC2 release-closeout handoff after verified v83 Engineer return
+
+Status: COORDINATION, not a production mutation or new owner authority. One primary Engineer-I only. This handoff does not launch Cursor.
+
+## Exact current source; do not overwrite
+Repository: leorami/Dev-Tunnel-Proxy
+Engineer-I PR #79: engineer/devproxy-rc2-controlled-release-20261104@098bf5dafea0ee0b6ef446e3b8ca3818b37c6e06
+Latest receipt: PR #79 comment 6640899155; docs/receipts/DEVPROXY_RC2_V83_PRIVATE_WORKER_PROVISION_ENGINEER_COMPLETION.md
+START ENGINEER CHECKOUT FROM THIS SHA, NOT THIS CTO BRANCH OR PRIOR V83. Recheck actual head/lifecycle immediately before executing; if newer STARTED work exists, preserve it and do not interrupt.
+
+## Accepted code and verified Mac evidence (do not redo)
+The v83 source imported CTO nonroot API-owned private spool child, sticky private IPC parent, owner-only HMAC pin/secret, exact cross-UID probe and standalone two-service Compose. Real disposable Mac-host + Linux API signed PREPARED/ACK/FINAL succeeded, and nginx image/mime/Brotli provenance was verified in a disposable. V83+V82 focused 173/173 and canonical ./smart-build.sh test:unit exit 0. Live secure RC1 unchanged, 17 routes and session mode 0600 preserved. Production remains NO-GO / NOT DEPLOYED.
+
+## Goal: finish one already owner-authorized conditional proxy + config API release, or return one concrete source-grounded NO-GO
+
+1. Inspect exact current GitHub diff and Mac source. Preserve v83 changes. No new primary, no reset of existing source and no relitigating proven disposable IPC. Specialists only for safe isolated READ-ONLY investigation if truly helpful; single primary integrates their evidence.
+2. Secure recovery gate FIRST. Verify existing owner-private image archives, nginx production config/routes, owner env, session 0600 and secrets preserved. Test restoring the exact current images/routes/state in a disposable without downgrading security. Record redacted receipts and exact failure-recovery steps. If no safe recovery, leave live untouched and return precise NO-GO.
+3. Functional parity gate. The current /ai/* self-healing endpoints return explicit 503 under secure mode. Trace owner-used management journeys and implement/test genuinely nonprivileged transaction-bound equivalents where achievable. Never sneak docker.sock/root/daemon sidecar or arbitrary command execution back into API. Preserved apps/install, apps/create-route, config edits, overrides/promote and apps/regenerate must continue working. If owner-used features remain degraded and no accepted scope change exists, return exact NO-GO, not false success.
+4. Correct BEFORE / CANDIDATE / AFTER sequencing. Old live RC1 root/API mounts are BEFORE evidence, not a candidate AFTER gate. Test private reviewed images, actual nonroot UID, private worker pins/spool, no socket, exact nginx loaded includes, backup and expected routing on disposable candidate. The five Origin fields (sourceCurrent, singleRuntime, noShadowApps, realAppVerified, ownerWorkPreserved) need real runtime evidence; postcutover UNKNOWN cannot count as PASS. POST-cutover-only facts must not be demanded as already-PASS before cutover; preserve real candidate/BEFORE evidence and separately enforce postchecks.
+5. Host worker identity is just-in-time: never reuse disposable proxy full ID as a production pin. Before cutover, stage reviewed private host pin materials WITHOUT launching a worker. Only after all pre-cutover safety/recovery/functional gates are green, exercise the standing scoped owner GO for ONE bounded proxy+API cutover; then inspect actual NEW full proxy/API IDs, verify immutable image/mount/UID, construct validated new worker pin for actual live proxy and supervise exactly one Mac-host worker. No Docker socket mount or extra permanent app.
+6. Immediately execute independent AFTER-state production preflight and true Origin-five checks, auth/session/Origin checks, nginx loaded-file and Brotli/mime image hashes, signed host-operation evidence, real route edit/regen path, existing 17 routes, single runtime and no shadow apps, same owner session and state. If any check fails, stop and use only separately verified secure recovery; do not declare DEPLOYED based on fixtures.
+7. Return ONE consolidated STARTED -> IMPLEMENTING -> VERIFYING -> RETURNED GitHub receipt on existing primary PR #79 with full SHA, source diff, native command/exits, backup/recovery test proof, redacted host private evidence, exact production identities and all five Origin outcomes; candid DEPLOYED or precise NO-GO. CTO independently reviews actual committed source and runtime before asking owner UAT.
+
+## Parallel work, not a surprise release change
+An independent CTO six-file security patch exists in draft PR #83 at cto/devproxy-rc2-v84-privacy-readonly-get-20261104@43a9d2c47e40d1bcbd18b8c63a412d9cbd684abb, source based on an older accepted Engineer return. It blocks unapproved remote AI indexing and debug injection and makes diagnostics GET read-only. This is NOT a new Engineer assignment, not a production merge, and must not reset v83. Review any dashboard compatibility change before considering a future reconciliation; do not let optional new hardening displace a proven safe release.
+
+Forbidden: protected merge, credential/public tunnel/ngrok/bridge change, unrelated app deployment, root API, Docker socket sidecar, downgrade rollback, silent owner scope expansion, automatic crash fence cleanup, fabricated Origin PASS, premature owner UAT.

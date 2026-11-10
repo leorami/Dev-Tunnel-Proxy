@@ -99,90 +99,170 @@
           currentPage = page;
           const data = await api(`${window.DTP.config.apiPath('reports/list')}?page=${page}&limit=${itemsPerPage}`);
           const tbody = document.getElementById('rows');
-          tbody.innerHTML = '';
-          
-          if (!data.reports || data.reports.length === 0) {
-            tbody.innerHTML = `
-              <tr><td colspan="4">
-                <div class="empty-state">
-                  <div style="font-size:48px; opacity: 0.3;">(No Reports)</div>
-                  <div style="font-size:16px;font-weight:600;margin-bottom:8px">No reports found</div>
-                  <div>Reports will appear here as they are generated</div>
-                </div>
-              </td></tr>
-            `;
+          tbody.textContent = '';
+
+          // V138: honor API contract {ok,items,pagination.total,mtimeMs}.
+          const items = (data && Array.isArray(data.items)) ? data.items : null;
+          const total = (data && data.pagination && Number.isFinite(Number(data.pagination.total)))
+            ? Number(data.pagination.total)
+            : (items ? items.length : 0);
+          if (data && data.ok === false) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            const box = document.createElement('div');
+            box.className = 'empty-state';
+            const title = document.createElement('div');
+            title.style.fontSize = '16px';
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '8px';
+            title.textContent = 'Could not load reports';
+            const detail = document.createElement('div');
+            detail.textContent = String((data && data.error) || 'reports_error');
+            box.appendChild(title);
+            box.appendChild(detail);
+            td.appendChild(box);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
             document.getElementById('pagination-info').textContent = '';
-            document.getElementById('pagination-controls').innerHTML = '';
+            document.getElementById('pagination-controls').textContent = '';
             return;
           }
-          
-          data.reports.forEach(r => {
+          if (!items || items.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            const box = document.createElement('div');
+            box.className = 'empty-state';
+            const glyph = document.createElement('div');
+            glyph.style.fontSize = '48px';
+            glyph.style.opacity = '0.3';
+            glyph.textContent = '(No Reports)';
+            const title = document.createElement('div');
+            title.style.fontSize = '16px';
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '8px';
+            title.textContent = 'No reports found';
+            const detail = document.createElement('div');
+            detail.textContent = 'Reports will appear here as they are generated';
+            box.appendChild(glyph);
+            box.appendChild(title);
+            box.appendChild(detail);
+            td.appendChild(box);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            document.getElementById('pagination-info').textContent = '';
+            document.getElementById('pagination-controls').textContent = '';
+            return;
+          }
+
+          items.forEach(r => {
             const row = document.createElement('tr');
-            const kind = kindOf(r.name);
-            row.innerHTML = `
-              <td style="font-family:monospace;font-size:12px">${r.name}</td>
-              <td><span class="tag ${kind}">${kind}</span></td>
-              <td>${fmtSize(r.size)}</td>
-              <td style="color:var(--muted)">${new Date(r.lastModified).toLocaleString()}</td>
-            `;
+            const nameTd = document.createElement('td');
+            nameTd.style.fontFamily = 'monospace';
+            nameTd.style.fontSize = '12px';
+            nameTd.textContent = String(r && r.name != null ? r.name : '');
+            const kindTd = document.createElement('td');
+            const kind = kindOf(r && r.name);
+            const tag = document.createElement('span');
+            tag.className = 'tag ' + kind;
+            tag.textContent = kind;
+            kindTd.appendChild(tag);
+            const sizeTd = document.createElement('td');
+            sizeTd.textContent = fmtSize(r && r.size);
+            const mtimeTd = document.createElement('td');
+            mtimeTd.style.color = 'var(--muted)';
+            const ms = r && Number(r.mtimeMs);
+            mtimeTd.textContent = Number.isFinite(ms) ? new Date(ms).toLocaleString() : '';
+            row.appendChild(nameTd);
+            row.appendChild(kindTd);
+            row.appendChild(sizeTd);
+            row.appendChild(mtimeTd);
             tbody.appendChild(row);
           });
-          
-          // Pagination info
+
           const start = (page - 1) * itemsPerPage + 1;
-          const end = Math.min(page * itemsPerPage, data.total);
-          document.getElementById('pagination-info').textContent = 
-            `Showing ${start}-${end} of ${data.total} reports`;
-          
-          // Pagination controls
-          const totalPages = Math.ceil(data.total / itemsPerPage);
+          const end = Math.min(page * itemsPerPage, total);
+          document.getElementById('pagination-info').textContent =
+            `Showing ${start}-${end} of ${total} reports`;
+
+          const totalPages = Math.ceil(total / itemsPerPage) || 0;
           const controls = document.getElementById('pagination-controls');
-          controls.innerHTML = '';
-          
+          controls.textContent = '';
+
           if (totalPages > 1) {
             const prev = document.createElement('button');
             prev.textContent = '← Previous';
             prev.disabled = page === 1;
             prev.onclick = () => load(page - 1);
             controls.appendChild(prev);
-            
-            for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+
+            const maxButtons = 5;
+            let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            if (endPage - startPage < maxButtons - 1) {
+              startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+            if (startPage > 1) {
+              const first = document.createElement('button');
+              first.textContent = '1';
+              first.onclick = () => load(1);
+              controls.appendChild(first);
+              if (startPage > 2) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.padding = '0 6px';
+                controls.appendChild(dots);
+              }
+            }
+            for (let i = startPage; i <= endPage; i++) {
               const btn = document.createElement('button');
-              btn.textContent = i;
-              btn.className = i === page ? 'active' : '';
+              btn.textContent = String(i);
+              if (i === page) btn.disabled = true;
               btn.onclick = () => load(i);
               controls.appendChild(btn);
             }
-            
-            if (totalPages > 5) {
-              const dots = document.createElement('span');
-              dots.textContent = '...';
-              dots.style.padding = '0 8px';
-              controls.appendChild(dots);
-              
+            if (endPage < totalPages) {
+              if (endPage < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.padding = '0 6px';
+                controls.appendChild(dots);
+              }
               const last = document.createElement('button');
-              last.textContent = totalPages;
-              last.className = totalPages === page ? 'active' : '';
+              last.textContent = String(totalPages);
               last.onclick = () => load(totalPages);
               controls.appendChild(last);
             }
-            
+
             const next = document.createElement('button');
             next.textContent = 'Next →';
             next.disabled = page === totalPages;
             next.onclick = () => load(page + 1);
             controls.appendChild(next);
           }
-        } catch (e) {
-          console.error('Failed to load reports:', e);
-          document.getElementById('rows').innerHTML = `
-            <tr><td colspan="4" style="color:var(--err);text-align:center;padding:40px">
-              Failed to load reports: ${e.message}
-            </td></tr>
-          `;
+        } catch (err) {
+          document.getElementById('rows').textContent = '';
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          const box = document.createElement('div');
+          box.className = 'empty-state';
+          const title = document.createElement('div');
+          title.style.fontSize = '16px';
+          title.style.fontWeight = '600';
+          title.style.marginBottom = '8px';
+          title.textContent = 'Error loading reports';
+          const detail = document.createElement('div');
+          detail.textContent = String((err && err.message) || err || 'error');
+          box.appendChild(title);
+          box.appendChild(detail);
+          td.appendChild(box);
+          tr.appendChild(td);
+          document.getElementById('rows').appendChild(tr);
         }
       }
-      
+
       document.getElementById('refresh').onclick = () => load(currentPage);
       
       document.getElementById('prune7').onclick = async () => {

@@ -1,0 +1,63 @@
+{
+  "assignment": "V116",
+  "returnLabel": "LAUNCHAGENT_SOURCE_CANDIDATE_READY",
+  "ownerActionGate": "NONE",
+  "launchAgentInstallAuthorized": false,
+  "workerStopCutoverAuthorized": false,
+  "liveMutation": false,
+  "startedComment": 6677593733,
+  "trackingIssue": 116,
+  "handoff": "cto/devproxy-rc2-v116-mac-worker-launchagent-candidate-20261106@2297d4241f52699bdcb4d94abeadf24b24717937",
+  "parentSha": "d2e06f40087ab4769af77daf0523b0d0e137534b",
+  "entrypointReview": {
+    "argv": "--serve <absolutePrivatePin>",
+    "sigtermAbort": true,
+    "candidateRunAtLoad": true,
+    "candidateKeepAlive": false
+  },
+  "native": {
+    "focusedLaunchAgentCandidate": "10/10",
+    "plutilLintDisposable": "OK",
+    "smartBuildUnitExit": 0
+  },
+  "candidateFlags": {
+    "code": "RC2_LAUNCHAGENT_SOURCE_ONLY",
+    "installed": false,
+    "macTested": false,
+    "ownerApprovedInstall": false,
+    "productionChangeAuthorized": false,
+    "requiresNewOwnerGrant": true
+  },
+  "readOnlyLive": {
+    "workerCountServe": 1,
+    "pidAlive": true,
+    "lockMode": "0o600",
+    "pinIdExact": true,
+    "pinImageExact": true,
+    "epoch": "OWNER_APPROVED_NEW_HMAC_EPOCH",
+    "proxyIdPrefix": "3506d7fe0b81",
+    "apiIdPrefix": "c2e669397470",
+    "ngrokIdPrefix": "178b23cbdb9d",
+    "appsListed": 17,
+    "health": 200,
+    "loginLocalNeg": 401,
+    "loginForeign": 403,
+    "loginHttpsNeg": 401,
+    "ask": 200,
+    "launchAgentsMatching": [],
+    "launchctlLabelPresent": false,
+    "spoolEmpty": true
+  },
+  "residuals": [
+    "dockerNotReadyAtLoginNoAutoRetry",
+    "noAutomaticCrashRecoveryByDesign",
+    "privateLogOwnershipAndCutoverStillRequiredBeforeInstall"
+  ],
+  "originFive": {
+    "singleRuntime": "PASS",
+    "noShadowApps": "PASS",
+    "ownerWorkPreserved": "PASS",
+    "sourceCurrent": "PASS",
+    "realAppVerified": "PARTIAL"
+  }
+}

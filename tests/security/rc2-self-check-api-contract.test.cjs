@@ -1,0 +1,20 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const source=()=>fs.readFileSync(path.join(__dirname,'../../utils/proxyConfigAPI.js'),'utf8');
+test('RED: protected self-check parses bounded user intent and denies unavailable healing before observing',()=>{
+ const s=source();
+ const auth=s.indexOf('const authBoundary = classifyManagementRequest(');
+ const handler=s.indexOf("if (req.method==='POST' && u.pathname===apiPath('ai/self-check') && inlineHostDockerUnavailable())");
+ const deny=s.indexOf('const controlGate=classifySecureManagementOperation(');
+ const legacy=s.indexOf("if (req.method === 'POST' && u.pathname === apiPath('ai/self-check'))",deny);
+ assert.ok(auth>0&&handler>auth&&deny>handler&&legacy>deny);
+ assert.match(s,/require\('\.\/rc2-secure-self-check\.cjs'\)/);
+ const section=s.slice(handler,deny);
+ assert.match(section,/readSecureSelfCheckRequestBody\(req\)/);
+ assert.match(section,/if\(!request\.ok\)return send\(res,request\.httpStatus/);
+ assert.match(section,/runSecureSelfCheck\(/);
+ assert.equal(/parseBody\(|spawnSync|docker\(|execSync|calliopeHealing/.test(section),false);
+});
