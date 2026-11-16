@@ -1,7 +1,8 @@
 # Dev Tunnel Proxy User Guide
 
-**Last Updated**: January 2026  
-**Version**: 1.1
+**Legacy guide edition:** January 2026, version 1.1. **Operational corrections:** November 16, 2026.
+
+> **Current capability notice:** The V152 Status/Calliope UI was published and Engineer-verified, but plain-language chat cannot automatically repair arbitrary proxy errors. A route HEAD 503 is only a read-only observation. The user's follow-up `please repair` currently falls back to generic documentation rather than using that route's context; tracked as [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150). **Read [current operational state](CURRENT_OPERATIONAL_STATE.md) first.** Earlier auto-healing examples in this guide describe legacy or planned behavior, not approval to mutate the running proxy. This documentation draft is not yet synchronized to the live owner's local checkout.
 
 Welcome! This guide will help you get started with Dev Tunnel Proxy, from initial setup to daily usage and troubleshooting.
 
@@ -31,7 +32,7 @@ Dev Tunnel Proxy is a development tool that:
 - **Routes multiple apps** through a single proxy (no more port chaos!)
 - **Provides a secure tunnel** to share your work with anyone
 - **Monitors health** of all your routes automatically
-- **Fixes issues automatically** with Calliope, the AI assistant
+- **Provides read-only route observations and local help** through Calliope; actual changes require a separately supported, reviewed and authorized repair flow
 
 ### When Should I Use It?
 
@@ -50,7 +51,7 @@ Not needed for:
 **Proxy**: Acts as a "front door" for all your services  
 **Route**: A URL path (e.g., `/myapp/`) that maps to a service  
 **Tunnel**: Secure connection to share your proxy publicly  
-**Calliope**: AI assistant that monitors and fixes routing issues
+**Calliope**: assistant with local-documentation answers and constrained route observations in the current secure mode, not a generic automatic repair agent
 
 ---
 
@@ -491,12 +492,12 @@ The tool automatically:
 
 ### What is Calliope?
 
-Calliope is your AI assistant who:
-- **Answers questions** about the proxy and your routes
-- **Diagnoses issues** when things aren't working
-- **Fixes problems automatically** (with your permission)
-- **Learns from each fix** to handle similar issues faster
-- **Helps resolve conflicts** between competing route configurations
+Calliope is the proxy's assistant interface. In the secured V152 runtime she:
+- **Answers bounded local documentation questions** and explains specific local capabilities, without implying a general AI model performed an analysis.
+- **Can report constrained, authenticated fixed-host HTTP HEAD observations** through the supported audit or self-check paths; HEAD 503 does not reveal an error's root cause.
+- **Does not automatically fix an arbitrary route on chat request.** Owner review, an exact supported repair mechanism, preimage, rollback and independent verification are separate requirements.
+- **Currently loses route context in some chat follow-ups**, as the owner observed with `please repair` and `try anyway`; [V153](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150) addresses this behavior.
+- **Does not become more capable because a historical knowledge-base document says a repair exists.**
 
 ### Opening Calliope
 
@@ -524,11 +525,9 @@ The Calliope drawer now:
 ### Getting Route Diagnostics
 
 1. Click the stethoscope icon next to a route
-2. Calliope will:
-   - Probe the route
-   - Analyze the response
-   - Check configuration
-   - Suggest fixes
+2. Read the **authenticated, fixed-host HEAD observation** when available. It records HTTP reachability only; redirects are not followed.
+3. A 503 is **not a verified root cause**. Current Ask chat may not carry the selected route into follow-ups; use the displayed route identifier when requesting a bounded audit.
+4. A real repair requires a separately authorized, reviewed and verifiable action. The diagnostic button alone never grants permission.
 
 ### Viewing Thinking Process
 
@@ -564,7 +563,7 @@ Everything's working now! Let me know if you need anything else. 💖
 
 ### Clearing Chat History
 
-Click the **Clear** button to start fresh. (History is also saved in localStorage.)
+On **Status**, **Clear view** removes visible messages and cancels local waiting, but **does not delete server-side chat history**. The shared Health/Reports drawer's local-clear confirmation removes browser-local messages only and expressly preserves server chat history. Do not treat either action as account-wide or permanent data deletion.
 
 ---
 
