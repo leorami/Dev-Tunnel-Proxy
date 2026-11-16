@@ -463,7 +463,7 @@ Visit `/status` for a comprehensive view of your proxy's health and routes.
 - **Status Indicators**: Color-coded health status (green/yellow/red)
 - **Shared Header**: Consistent navigation across all dashboard pages
 
-## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope Assistant
+## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope AI Assistant
 
 **As released in V152:** Calliope's protected Status/Health/Reports UI supports a composer with Send, single-flight Ask behavior, truthful Clear-view wording, self-hosted vendor JavaScript, and observational diagnostics. Engineer-I verified the eight-file static publication; the accepted source is draft PR [#149](https://github.com/leorami/Dev-Tunnel-Proxy/pull/149) at `2b006182e465105a553a43c576afc5b5d8d970f4` (unmerged). [Release receipts](https://github.com/leorami/Dev-Tunnel-Proxy/issues/135) distinguish Engineer browser QA, CTO source checks, and owner acceptance.
 
