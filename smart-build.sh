@@ -718,6 +718,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V151 preserved Calliope composer/layout with security invariants" \
+      "node --test '$ROOT_DIR/tests/security/v151-calliope-preserve-integrate.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "V138 Reports async catalog and filesystem IO quarantine" \
       "node --test '$ROOT_DIR/tests/security/reports-list-contract.test.cjs'" || test_result=1
   fi

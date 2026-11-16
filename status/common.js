@@ -113,14 +113,19 @@
       '  <div id="aiChat" class="ai-chat"></div>'+
       '  <div class="ai-hint" id="aiHint"></div>'+
       '  <div class="ai-input">'+
-      '    <textarea id="aiQuery" rows="3" placeholder="Ask about proxy/network issues"></textarea>'+
+      '    <div class="ai-composer">'+
+      '      <textarea id="aiQuery" rows="3" placeholder="Ask about proxy/network issues"></textarea>'+
+      '      <button type="button" class="ai-send-btn" id="aiSendBtn" title="Send" aria-label="Send">'+
+      '        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path></svg>'+
+      '      </button>'+
+      '    </div>'+
       '    <div class="ai-actions">'+
-      '      <button class="btn" id="aiStopBtn" style="display:none" title="Stop current operation">⏹ Stop</button>'+
-      '      <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>'+
-      '      <button class="btn" id="aiClearBtn" title="Clear conversation">Clear</button>'+
-      '      <button class="btn" id="aiAskBtn">Ask</button>'+
-      '      <button class="btn" id="aiHealBtn" data-role="selfcheck" title="Self‑Check" aria-label="Self‑Check">Self‑Check</button>'+
-      '      <button class="btn" id="aiRedirectHealBtn" data-role="reviewed-redirect-heal" title="Apply owner-reviewed Next.js /_next/ redirect fix" aria-label="Apply reviewed redirect heal">Fix /_next/ loop</button>'+
+      '      <button class="btn tab" id="aiStopBtn" style="display:none" title="Stop current operation">⏹ Stop</button>'+
+      '      <button class="btn tab" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>'+
+      '      <button class="btn tab" id="aiClearBtn" title="Clear conversation">Clear</button>'+
+      '      <button class="btn tab" id="aiAskBtn">Ask</button>'+
+      '      <button class="btn tab" id="aiHealBtn" data-role="selfcheck" title="Self‑Check" aria-label="Self‑Check">Self‑Check</button>'+
+      '      <button class="btn tab" id="aiRedirectHealBtn" data-role="reviewed-redirect-heal" title="Apply owner-reviewed Next.js /_next/ redirect fix" aria-label="Apply reviewed redirect heal">Fix /_next/ loop</button>'+
       '    </div>'+
       '  </div>'+
       '</div>'
@@ -231,7 +236,9 @@
         chat.appendChild(thinkingBubble);
         chat.scrollTop = chat.scrollHeight;
       }
+      const sendBtn = document.getElementById('aiSendBtn');
       if (askBtn){askBtn.disabled=true;askBtn.textContent='Thinking…';}
+      if (sendBtn) sendBtn.disabled=true;
       // A server-verified Stop implementation does not exist in secure mode.
       if (stopBtn) stopBtn.style.display='none';
 
@@ -304,10 +311,13 @@
           sharedAskInFlight=false;
           sharedAskController=null;
           if (askBtn){askBtn.disabled=false;askBtn.textContent='Ask';}
+          if (sendBtn) sendBtn.disabled=false;
         }
       }
     }
     if (ask) ask.addEventListener('click', submitQuery);
+    const sendBtnEl = drawer.querySelector('#aiSendBtn');
+    if (sendBtnEl) sendBtnEl.addEventListener('click', submitQuery);
     const textareaEvt = drawer.querySelector('#aiQuery');
     if (textareaEvt){
       textareaEvt.addEventListener('keydown', ev=>{
