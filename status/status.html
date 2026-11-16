@@ -2861,14 +2861,22 @@
         // Store globally for Open button functionality
         globalNgrokUrl = ngrokTxt;
         
-        // Build overview chips row with bold labels
+        // Build overview chips row with bold labels (DOM text nodes; no HTML interpolation)
         const summaryWrap = document.getElementById('summaryChips');
-        summaryWrap.innerHTML = '';
+        summaryWrap.textContent = '';
         const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Generated</strong> ${generatedTime}`;
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Proxy URL</strong> ${ngrokTxt}`;
         const targets = Object.keys(routes.summary||{});
-        summaryWrap.appendChild(chipEl(``, '')); summaryWrap.lastChild.innerHTML = `<strong>Targets</strong> ${targets.join(', ') || '—'}`;
+        function appendLabeledSummaryChip(label, value) {
+          const chip = chipEl('', '');
+          const strong = document.createElement('strong');
+          strong.textContent = label;
+          chip.appendChild(strong);
+          chip.appendChild(document.createTextNode(' ' + String(value)));
+          summaryWrap.appendChild(chip);
+        }
+        appendLabeledSummaryChip('Generated', generatedTime);
+        appendLabeledSummaryChip('Proxy URL', ngrokTxt);
+        appendLabeledSummaryChip('Targets', targets.join(', ') || '—');
 
         // Add conflict alert chip if any
         const conf = routes.nginxConflicts || routes.conflictSummary || {};
@@ -3162,22 +3170,50 @@ Or check if config files have syntax errors.
         
         const modal = document.createElement('div');
         modal.className = 'backdrop';
-        modal.innerHTML = `
-          <div class="modal large">
-            <h2>JSON Data for ${sourceFile}</h2>
-            <div class="section">
-              <h3>Filtered Routes & Metadata</h3>
-              <p>Showing only routes from <strong>${sourceFile}</strong> (${routesInSource.length} routes)</p>
-              <pre class="config-display">${JSON.stringify(filteredData, null, 2)}</pre>
-            </div>
-            <div class="toolbar">
-              <button class="btn" onclick="navigator.clipboard.writeText('${JSON.stringify(filteredData, null, 2).replace(/'/g, "\\'")}').then(() => this.textContent = 'Copied!').then(() => setTimeout(() => this.textContent = 'Copy JSON', 1500))">Copy JSON</button>
-              <button class="btn" onclick="this.closest('.backdrop').remove()">Close</button>
-            </div>
-          </div>
-        `;
+        const panel = document.createElement('div');
+        panel.className = 'modal large';
+        const title = document.createElement('h2');
+        title.textContent = 'JSON Data for ' + sourceFile;
+        const section = document.createElement('div');
+        section.className = 'section';
+        const subtitle = document.createElement('h3');
+        subtitle.textContent = 'Filtered Routes & Metadata';
+        const description = document.createElement('p');
+        const sourceLabel = document.createElement('strong');
+        sourceLabel.textContent = sourceFile;
+        description.append(
+          document.createTextNode('Showing only routes from '),
+          sourceLabel,
+          document.createTextNode(' (' + routesInSource.length + ' routes)')
+        );
+        const jsonText = JSON.stringify(filteredData, null, 2);
+        const pre = document.createElement('pre');
+        pre.className = 'config-display';
+        pre.textContent = jsonText;
+        section.append(subtitle, description, pre);
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'btn';
+        copyBtn.textContent = 'Copy JSON';
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(jsonText);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => { copyBtn.textContent = 'Copy JSON'; }, 1500);
+          } catch {
+            copyBtn.textContent = 'Copy failed';
+          }
+        });
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.addEventListener('click', () => modal.remove());
+        toolbar.append(copyBtn, closeBtn);
+        panel.append(title, section, toolbar);
+        modal.appendChild(panel);
         document.body.appendChild(modal);
-        
+
         modal.addEventListener('click', (e) => {
           if (e.target === modal) modal.remove();
         });
