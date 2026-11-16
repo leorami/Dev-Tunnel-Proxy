@@ -338,36 +338,100 @@ header h1 .brand {
   flex-shrink: 0;  /* Prevent input area from shrinking */
 }
 
+/* Composer shell: textarea + in-corner send (preserved from local Calliope UX) */
+.ai-composer {
+  position: relative;
+  display: block;
+}
+
 /* User input textarea */
-.ai-input textarea {
+.ai-input textarea,
+.ai-composer textarea {
   flex: 1;
+  width: 100%;
+  box-sizing: border-box;
   border: 1px solid var(--codeBorder);
   border-radius: 10px;
   background: var(--codeBg);
   color: var(--text);
-  min-height: 60px;  /* Minimum comfortable size */
-  max-height: 120px;  /* Prevent excessive growth */
-  padding: 8px;
+  min-height: 60px;
+  max-height: 120px;
+  padding: 12px 12px 40px 12px;
   resize: vertical;
 }
 
-/* Action buttons container */
+.ai-composer textarea {
+  padding-right: 44px; /* room for lower-right send */
+}
+
+.ai-send-btn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--btnBorder);
+  background: var(--btnBg);
+  color: var(--btnText);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 8px rgba(0,0,0,.18);
+}
+
+.ai-send-btn:hover {
+  background: var(--btnBgHover);
+}
+
+.ai-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-send-btn svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Action chips */
 .ai-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
-  flex-shrink: 0;  /* Prevent buttons from shrinking */
+  flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
-.ai-actions .btn {
+#aiDrawer .ai-actions .btn,
+#aiDrawer .ai-actions .tab,
+.ai-actions .btn,
+.ai-actions .tab {
   appearance: none;
   border: 1px solid var(--btnBorder);
   background: var(--btnBg);
   color: var(--btnText);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 999px !important;
+  padding: 4px 8px !important;
   cursor: pointer;
-  font-weight: 600;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.ai-actions .btn:hover,
+.ai-actions .tab:hover {
+  background: var(--btnBgHover);
 }
 
 /* ============================================================================

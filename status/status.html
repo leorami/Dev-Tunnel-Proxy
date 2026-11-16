@@ -430,9 +430,14 @@
       .bubble pre{margin:.5em 0;background:var(--codeBg);border:1px solid var(--codeBorder);padding:10px;border-radius:10px;overflow:auto}
       .bubble code{background:rgba(125,162,255,.15);border:1px solid rgba(125,162,255,.25);padding:0 4px;border-radius:4px}
       .ai-input{display:flex;flex-direction:column;gap:8px}
-      .ai-input textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body);border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);color:var(--text);caret-color:var(--text)}
-      .ai-input textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
-      .ai-input textarea:focus{outline:none;border-color:var(--lnk);box-shadow:0 0 0 2px rgba(125,176,255,.25)}
+      .ai-composer{position:relative}
+      .ai-input textarea,.ai-composer textarea{resize:vertical;min-height:44px;max-height:160px;font-family:var(--font-body);border:1px solid var(--codeBorder);border-radius:10px;background:var(--codeBg);color:var(--text);caret-color:var(--text);width:100%;box-sizing:border-box;padding:12px 44px 40px 12px}
+      .ai-input textarea::placeholder,.ai-composer textarea::placeholder{font-family:var(--font-body);color:var(--muted)}
+      .ai-input textarea:focus,.ai-composer textarea:focus{outline:none;border-color:var(--lnk);box-shadow:0 0 0 2px rgba(125,176,255,.25)}
+      .ai-send-btn{position:absolute;right:10px;bottom:10px;width:30px;height:30px;border-radius:999px;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 2px 8px rgba(0,0,0,.18)}
+      .ai-send-btn:hover{background:var(--btnBgHover)}
+      .ai-send-btn:disabled{opacity:.5;cursor:not-allowed}
+      .ai-send-btn svg{width:16px;height:16px;display:block}
       .ai-actions{display:flex;gap:8px;justify-content:flex-end;position:sticky;bottom:0;padding-top:8px;border-top:1px solid var(--border)}
       /* Thinking indicator */
       .bubble.thinking{background:transparent;border:1px dashed var(--btnBorder);opacity:.85}
@@ -694,7 +699,12 @@
           <div class="ai-content">
             <div id="aiChat" class="ai-chat hover-scroll"></div>
             <div class="ai-input">
-              <textarea id="aiQuery" class="hover-scroll" rows="3" placeholder="Ask about proxy/network issues" style="padding: 12px;"></textarea>
+              <div class="ai-composer">
+                <textarea id="aiQuery" class="hover-scroll" rows="3" placeholder="Ask about proxy/network issues"></textarea>
+                <button type="button" class="ai-send-btn" id="aiSendBtn" title="Send" aria-label="Send">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path></svg>
+                </button>
+              </div>
               <div class="ai-actions">
                 <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
                 <button class="btn" id="aiClearBtn" title="Clear visible messages; saved history is unchanged">Clear view</button>
@@ -4064,6 +4074,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         const copyBtn = document.getElementById('aiCopyBtn');
         const healBtn = document.getElementById('aiHealBtn');
         const queryEl = document.getElementById('aiQuery');
+        const sendBtn = document.getElementById('aiSendBtn');
         // Own chat handlers and timers exactly once for the lifetime of this page.
         if (!drawer || !chatEl || !askBtn || !clearBtn || !copyBtn || !queryEl) return;
         if (window.__devproxyCalliopeInitBound) return;
@@ -4092,6 +4103,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           if (statusLabel) statusLabel.textContent = 'Local-only';
           askBtn.disabled = false;
           askBtn.textContent = 'Ask';
+          try{ if (sendBtn) sendBtn.disabled = false; }catch{}
         }
         // Persisted chat history loader
         async function loadChatHistory(){
@@ -4375,6 +4387,44 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }catch(_e){ /* non-fatal */ }
         }, true);
 
+        function looksLikeHealFollowUp(q){
+          const s = String(q||'').trim();
+          if (!s) return false;
+          if (/\b(you have my authority|i (give you|grant you) (my )?authority|i (authorize|consent|approve)|go ahead( and heal)?|owner (go|authority|consent)|you('re| are) authorized|permission granted|authorized to (heal|fix|proceed))\b/i.test(s)) return true;
+          if (/^(please\s+)?(fix|heal|repair|resolve|unbreak)(\s+(this|it|that|the\s+route|the\s+issue|the\s+problem))?[.!?]*$/i.test(s)) return true;
+          if (/\b(please\s+)?(fix|heal|repair)\s+(this|it|that)\b/i.test(s)) return true;
+          if (/\b(can you|could you|try to|just)\s+(fix|heal|repair)\b/i.test(s)) return true;
+          if (/\b(make it work|do the heal|run heal|audit and heal|try again|do it anyway)\b/i.test(s)) return true;
+          return false;
+        }
+        function recentSecureHealBlock(){
+          try{
+            const ctx = window.__calliopeSecureHealBlock;
+            if (ctx && ctx.at && (Date.now() - ctx.at) < 30*60*1000) return ctx;
+          }catch{}
+          try{
+            const bubbles = chatEl ? chatEl.querySelectorAll('.bubble.assistant .bubble-content') : [];
+            for (let i = bubbles.length - 1; i >= 0; i--) {
+              const t = bubbles[i].textContent || '';
+              if (/secure mode|audit-and-heal is unavailable|healing is unavailable|Owner scope decision/i.test(t)) {
+                return { route: null, at: Date.now(), inferred: true };
+              }
+            }
+          }catch{}
+          return null;
+        }
+        function secureHealBlockedReply(secureBlock, q){
+          const routeNote = secureBlock && secureBlock.route ? (' for `' + secureBlock.route + '`') : '';
+          const lines = [
+            'I cannot apply a repair from this chat' + routeNote + '.',
+            '',
+            'Saying "' + String(q||'').slice(0,80) + '" does not unlock Docker-backed healing, and I will not dump unrelated docs instead.',
+            '',
+            'Re-run the route Diagnose for a local HTTP observation, or use the owner-reviewed redirect repair control when that specific fix applies.'
+          ];
+          return lines.join('\n');
+        }
+
         async function onAsk(){
           if (activeAskSeq !== 0) return;
           const q = (queryEl.value||'').trim();
@@ -4388,8 +4438,19 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           chatEngaged = true;
           askBtn.disabled = true;
           askBtn.textContent = 'Thinking…';
+          try{ if (sendBtn) sendBtn.disabled = true; }catch{}
           queryEl.value = '';
           appendBubble('user', q);
+          const secureBlock = looksLikeHealFollowUp(q) ? recentSecureHealBlock() : null;
+          if (secureBlock){
+            appendBubble('assistant', secureHealBlockedReply(secureBlock, q));
+            activeAskSeq = 0;
+            activeAskAbort = null;
+            askBtn.disabled = false;
+            askBtn.textContent = 'Ask';
+            try{ if (sendBtn) sendBtn.disabled = false; }catch{}
+            return;
+          }
           const thinking = appendThinking();
           try{
             const response = await fetch(window.DTP.config.apiPath('ai/ask'), {
@@ -4420,6 +4481,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               activeAskAbort = null;
               askBtn.disabled = false;
               askBtn.textContent = 'Ask';
+              try{ if (sendBtn) sendBtn.disabled = false; }catch{}
             }
           }
         }
@@ -4708,6 +4770,7 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         try { window.runCalliopeHealth = runCalliopeHealth; } catch {}
 
         try{ askBtn && askBtn.addEventListener('click', onAsk); }catch{}
+        try{ sendBtn && sendBtn.addEventListener('click', onAsk); }catch{}
         try{ clearBtn && clearBtn.addEventListener('click', clearChat); }catch{}
         try{ copyBtn && copyBtn.addEventListener('click', onCopy); }catch{}
         try{ queryEl && queryEl.addEventListener('keydown', (e)=>{ if (e.key==='Enter' && !e.shiftKey){ e.preventDefault(); onAsk(); } }); }catch{}
