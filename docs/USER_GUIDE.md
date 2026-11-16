@@ -529,37 +529,21 @@ The Calliope drawer now:
 3. A 503 is **not a verified root cause**. Current Ask chat may not carry the selected route into follow-ups; use the displayed route identifier when requesting a bounded audit.
 4. A real repair requires a separately authorized, reviewed and verifiable action. The diagnostic button alone never grants permission.
 
-### Viewing Thinking Process
+### Understanding status messages and evidence
 
-When Calliope is working on something complex, you'll see:
-- **Animated thinking dots** (💭)
-- **Status chips** showing current step
-  - "Investigating"
-  - "Diagnosing"
-  - "Applying Fix"
-  - "Testing"
+A visual thinking animation is a UI state, **not proof that Docker inspection, a browser audit, a configuration change or repair occurred**. In secure mode, separate genuine tool receipts must substantiate any such action.
 
-### Understanding Responses
+When you see a non-green fixed-host HEAD observation, distinguish the following:
 
-Calliope will:
-- ✅ Explain what she found
-- ✅ Show what she's doing to fix it
-- ✅ Verify the fix worked
-- ✅ Give you next steps
+- **Observed:** for example, an HTTP HEAD returned 503 for the selected route. Redirects were not followed; no repair was attempted.
+- **Unknown:** whether a backend service failed, an upstream was unavailable, the route mapping was wrong, or GET/browser behavior differs.
+- **Next useful step:** a narrowly scoped, authenticated read-only inspection of the route and its approved local upstream, followed by a proposed action only when the root cause is supported.
 
-**Example response**:
-```
-I checked /myapp/ and noticed your assets were returning 404s! 
-This is usually because React apps need proper basePath configuration.
+If the user replies `please repair` and Calliope instead says she cannot find a grounded documentation answer or quotes old repair guides, **that is the currently observed follow-up defect**, not a successful repair. [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150) tracks the source-only correction.
 
-I've added an override to handle this:
-✓ Created overrides/myapp-assets.conf
-✓ Regenerated bundle
-✓ Reloaded nginx
-✓ Verified assets now load correctly (200 OK)
+### What is not proof of healing
 
-Everything's working now! Let me know if you need anything else. 💖
-```
+A generic success-sounding chat message, documentation excerpt, HTTP status alone, canned progress animation, or prior knowledge-base entry does not verify that a change was made. Any real repair must have explicit authority for its exact target, a source/preimage check, reversible execution, and post-change verification. See [current operational state](CURRENT_OPERATIONAL_STATE.md).
 
 ### Clearing Chat History
 
