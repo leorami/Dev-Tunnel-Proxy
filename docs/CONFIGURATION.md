@@ -1,5 +1,7 @@
 # Configuration Management Guide
 
+> **November 16, 2026 safe-operation note:** This historical configuration guide contains commands and examples that may mutate nginx routes or enable autonomous repair. The currently secured Calliope Ask cannot authorize such changes. A 503 from fixed-host HEAD is not a root-cause diagnosis; use separately authorized, scoped, reversible procedures for edits, and do not infer an installed healing ability from historical examples. Read [current operational state](CURRENT_OPERATIONAL_STATE.md), and see [V153](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150) for the observed chat follow-up defect.
+
 **Last Updated**: January 2026  
 **Version**: 1.1
 
