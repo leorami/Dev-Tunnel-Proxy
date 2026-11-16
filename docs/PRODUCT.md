@@ -1,5 +1,7 @@
 # Product Overview: Dev Tunnel Proxy
 
+> **November 16, 2026 product-evidence note:** Automatic diagnosis, autonomous self-healing and continuous learned repairs remain **product ambitions or historical implementations**, not a blanket feature proven in today's protected runtime. The eight-file Status UI was Engineer-verified published in V152, while the owner immediately demonstrated that chat follow-ups `please repair` / `try anyway` did not repair a non-green route ([V153](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150)). Separate owner review, exact preimages, rollback and verification govern repairs. [Current operational state](CURRENT_OPERATIONAL_STATE.md) distinguishes the shipped UI from the roadmap.
+
 **Last Updated**: December 2025  
 **Version**: 1.0
 

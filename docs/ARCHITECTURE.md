@@ -1,5 +1,7 @@
 # Dev Tunnel Proxy Architecture
 
+> **November 16, 2026 implementation note:** This document retains a December 2025 architecture vision, including historical OpenAI/self-healing diagrams. The V152 secured, nonroot Calliope Ask instead offers bounded local-document answers and fixed-host read-only HTTP diagnostics; typing a repair request does not run Docker or change nginx. The owner reproduced this limitation after V152 publication ([V153](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150)). The installed **static UI** and the still-contained Notifications Bridge have different release histories. See [current operational state](CURRENT_OPERATIONAL_STATE.md) for exact source/receipt provenance. A draft docs PR does not mutate the live host.
+
 **Last Updated**: December 2025  
 **Version**: 1.1
 

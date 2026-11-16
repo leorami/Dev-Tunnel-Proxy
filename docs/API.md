@@ -1,5 +1,7 @@
 # API Reference
 
+> **November 16, 2026 API-currency note:** This catalog originated in December 2025 and includes legacy or planned paths. For the secured V152 deployment, protected Calliope routes use the `/devproxy/api/ai/` namespace: Ask is bounded local explanation/docs; audit is fixed-host, allowlisted-path, no-redirect HTTP HEAD; self-check with `?http=1` and `{"heal":false}` observes but does not heal. Legacy `advanced-heal`, `audit-and-heal`, Docker operations and `{"heal":true}` examples are **not** operational permission. See [current operational state](CURRENT_OPERATIONAL_STATE.md) and exact source PR #149 for current behavior.
+
 **Last Updated**: December 2025  
 **Version**: 1.0
 

@@ -1,7 +1,8 @@
 # Calliope AI Assistant - Complete Guide
 
-**Last Updated**: January 2026  
-**Version**: 1.1
+**Legacy edition:** January 2026, version 1.1. **Current operational correction:** November 16, 2026.
+
+> **IMPORTANT — HISTORICAL DESIGN, NOT CURRENT SELF-HEALING AUTHORITY.** This guide includes legacy and aspirational autonomous Docker restarts, remote-model calls, automatic nginx edits, advanced-heal, and heal:true examples. The secured V152 runtime instead has bounded local-document Ask, owner-authenticated fixed-host HTTP HEAD observation, and observational self-check with heal:false. Typing "please repair" or "try anyway" does not itself authorize or execute a repair. The owner reproduced an HTTP 503 → unhelpful docs fallback after the V152 UI release. [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150) tracks that. **Read [current operational state](CURRENT_OPERATIONAL_STATE.md) before relying on any of the historical recipes below.** A documentation-only Git branch is not automatically synchronized to the live local documentation directory.
 
 <div align="center">
   <img src="../status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="120" />
@@ -27,7 +28,7 @@
 
 ## Introduction
 
-**Calliope** is your development proxy's caring, youthful AI assistant who lives inside your development environment. She's not just an AI assistant—she's the living embodiment of your proxy infrastructure, speaking as herself about her own health, routes, and capabilities. She proactively monitors, diagnoses, and fixes routing issues while maintaining a warm, encouraging personality.
+**Calliope** is the development proxy's assistant interface. In the **currently verified secure mode**, Ask explains bounded local capabilities or retrieves local documentation; separate authenticated diagnostics can perform read-only, fixed-host HEAD checks. A repair request does **not** generally diagnose and repair a route. The rest of this guide records earlier design intentions and legacy implementation, not a verified list of permissions available in production.
 
 ### What Makes Calliope Special
 
@@ -123,6 +124,9 @@ Calliope uses physical expressions and emojis to make her thinking and actions f
 
 ### 🛠️ Self-Healing Powers
 
+**Historical or proposed catalog, not current permission:** The following abilities were envisioned or exist in older code paths; they are not evidence that the secured runtime can execute them. Refer to [current operational state](CURRENT_OPERATIONAL_STATE.md) for implemented and authorized capabilities.
+
+
 #### React & Frontend Issues
 - **Static Asset Routing** - Fixes 404s for images, CSS, JS files in React apps
 - **Bundle.js Content-Type** - Resolves "Unexpected token '<'" errors
@@ -182,6 +186,9 @@ She's not just a conduit to OpenAI—she's a true AI engineer with her own tools
 ---
 
 ## Self-Healing System
+
+**Historical architecture reference:** This section does not grant permissions to the secured V152 runtime. Current source requires owner-reviewed, exact-preimage, reversible action for supported repairs. A fixed-host HEAD 503 and chat instruction alone cannot authorize a route mutation.
+
 
 ### Architecture & Flow
 
@@ -451,7 +458,9 @@ Response:
 
 ## API Endpoints
 
-All endpoints are served by the `dev-proxy-config-api` container on port 3001.
+> **Current secure-mode correction:** This is a historical endpoint catalog, not an operator runbook. Protected routes are namespaced under `/devproxy/api/ai/`. Secure-mode `/ai/ask` uses bounded local documentation/capability explanation. Authenticated `/ai/audit` performs read-only fixed-host HEAD with no redirect following. Observational `/ai/self-check?http=1` uses `{"heal":false}`; calls demanding healing/targeting in secure mode are rejected. Older examples of `{"heal":true}`, `advanced-heal`, `audit-and-heal`, Docker restarts, and generic writes **do not establish an authorized production capability**. See [current operational state](CURRENT_OPERATIONAL_STATE.md).
+
+Historically, API endpoints were associated with the `dev-proxy-config-api` container on port 3001; actual secure-route behavior depends on the deployed source.
 
 ### Health & Status
 
@@ -650,6 +659,9 @@ curl -X POST http://localhost:8080/devproxy/api/ai/cancel
 ---
 
 ## How to Use Calliope
+
+**Current V152 status:** The authenticated Status page can show a fixed-host HTTP HEAD result for a route. A 503 is non-green reachability evidence only; it does not establish a root cause or repair. A follow-up `please repair` may trigger an unhelpful local-doc fallback instead of carrying forward the selected route context. This known product defect is tracked in [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150). The steps below are legacy illustrations, not proof of executed diagnosis or healing. [Current operational state](CURRENT_OPERATIONAL_STATE.md) is authoritative for this snapshot.
+
 
 ### Via Status Interface
 
