@@ -122,7 +122,7 @@
       '    <div class="ai-actions">'+
       '      <button class="btn tab" id="aiStopBtn" style="display:none" title="Stop current operation">⏹ Stop</button>'+
       '      <button class="btn tab" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>'+
-      '      <button class="btn tab" id="aiClearBtn" title="Clear conversation">Clear</button>'+
+      '      <button class="btn tab" id="aiClearBtn" title="Clear locally saved messages in this browser only; server chat history is unchanged">Clear</button>'+
       '      <button class="btn tab" id="aiAskBtn">Ask</button>'+
       '      <button class="btn tab" id="aiHealBtn" data-role="selfcheck" title="Self‑Check" aria-label="Self‑Check">Self‑Check</button>'+
       '      <button class="btn tab" id="aiRedirectHealBtn" data-role="reviewed-redirect-heal" title="Apply owner-reviewed Next.js /_next/ redirect fix" aria-label="Apply reviewed redirect heal">Fix /_next/ loop</button>'+
@@ -335,8 +335,8 @@
     clearBtn.addEventListener('click', async ()=>{ 
       const confirmed = await window.DTP.showDialog({
         type: 'confirm',
-        title: 'Clear History',
-        message: 'Clear Calliope chat history?'
+        title: 'Clear local messages',
+        message: 'Clear Calliope messages saved in this browser only? Server chat history is not deleted.'
       });
       if (confirmed){
         // Clear invalidates both pending Ask and Self-Check terminal responses.

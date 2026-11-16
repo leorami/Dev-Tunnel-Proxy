@@ -61,3 +61,33 @@ test('Reports UI consumes reviewed items/pagination contract with textContent-sa
   // V138 reports path prefers textContent assignments over raw innerHTML name sinks.
   assert.match(reportsHtml, /\.textContent\s*=/);
 });
+
+
+test('Status Clear copy truthfully describes visible-only clear (not stored-history deletion)', () => {
+  const btn = statusHtml.match(/<button[^>]*id="aiClearBtn"[^>]*>[^<]*/);
+  assert.ok(btn, 'aiClearBtn present');
+  const tag = btn[0];
+  assert.match(tag, /Clear view/);
+  assert.match(tag, /title="Clear visible messages; saved history is unchanged"/);
+  assert.equal(/title="Clear conversation"/.test(tag), false);
+});
+
+test('Shared Clear copy and confirm disclose browser-local only; no server delete request', () => {
+  assert.match(commonJs, /id="aiClearBtn"[^']*title="Clear locally saved messages in this browser only; server chat history is unchanged"/);
+  assert.match(commonJs, /title:\s*'Clear local messages'/);
+  assert.match(commonJs, /Server chat history is not deleted/);
+  assert.equal(/title="Clear conversation"/.test(commonJs), false);
+  assert.equal(/title:\s*'Clear History'/.test(commonJs), false);
+  assert.equal(/Clear Calliope chat history\?/.test(commonJs), false);
+  assert.match(commonJs, /localStorage\.removeItem\(LS_KEY\)/);
+  assert.equal(/method:\s*['"]DELETE['"]/.test(commonJs), false);
+});
+
+test('Status clearChat remains client-visible clear without server history deletion', () => {
+  const m = statusHtml.match(/function clearChat\(\)\{[\s\S]*?\n        \}/);
+  assert.ok(m, 'clearChat present');
+  const body = m[0];
+  assert.match(body, /replaceChildren/);
+  assert.equal(/method:\s*['"]DELETE['"]/.test(body), false);
+  assert.equal(/chat-history/.test(body), false);
+});
