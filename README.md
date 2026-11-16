@@ -3,13 +3,15 @@
   
   # Dev Tunnel Proxy
   
-  A standalone, reusable development proxy + ngrok tunnel for teams with intelligent routing, conflict resolution, and AI-powered self-healing capabilities.
+  A standalone development proxy and ngrok tunnel with route management, protected diagnostics, and a developing, owner-reviewed repair capability.
   
   [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
   [![Docker](https://img.shields.io/badge/docker-compose-blue.svg)](docker-compose.yml)
 </div>
 
 ---
+
+> **November 16, 2026 operational correction:** The V152 eight-file Status/Calliope UI is Engineer-verified live, but **Calliope does not automatically repair arbitrary routes when asked in chat**. The owner reproduced HEAD 503 followed by unhelpful `please repair` / `try anyway` answers; see [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150). The secure Ask fallback reads local documents, and some older pages below describe **historical/aspirational healing** rather than installed permissions. Read [current operational state](docs/CURRENT_OPERATIONAL_STATE.md). This documentation-only draft does not alter the live served UI or the owner's local docs.
 
 ## Table of Contents
 
@@ -36,7 +38,7 @@
 
 - **🔧 Smart Configuration Management**: Tiny core Nginx config that composes app routes from `apps/` and `overrides/` directories into a single generated bundle
 - **🌐 Secure Tunneling**: Separate ngrok container provides secure public access to your development environment
-- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI-Powered Assistant**: Calliope, your caring AI assistant, proactively monitors, diagnoses, and heals routing issues
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> Assistant**: Calliope provides local documentation answers and authenticated read-only route observations in secure mode; arbitrary automatic repairs are not enabled
 - **📊 Enhanced Status Dashboard**: Visual route management with grouping, promotion system, and real-time health monitoring
 - **🔄 Programmatic API**: RESTful endpoints for configuration management, conflict resolution, and diagnostics
 - **🐳 Docker-Native**: All apps join the shared `devproxy` Docker network for seamless connectivity
@@ -461,88 +463,33 @@ Visit `/status` for a comprehensive view of your proxy's health and routes.
 - **Status Indicators**: Color-coded health status (green/yellow/red)
 - **Shared Header**: Consistent navigation across all dashboard pages
 
-## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope AI Assistant
+## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope Assistant
 
-**Calliope** is your proxy's caring, youthful AI assistant who proactively monitors, diagnoses, and heals routing issues. She's not just an advisor—she actually fixes problems herself.
+**As released in V152:** Calliope's protected Status/Health/Reports UI supports a composer with Send, single-flight Ask behavior, truthful Clear-view wording, self-hosted vendor JavaScript, and observational diagnostics. Engineer-I verified the eight-file static publication; the accepted source is draft PR [#149](https://github.com/leorami/Dev-Tunnel-Proxy/pull/149) at `2b006182e465105a553a43c576afc5b5d8d970f4` (unmerged). [Release receipts](https://github.com/leorami/Dev-Tunnel-Proxy/issues/135) distinguish Engineer browser QA, CTO source checks, and owner acceptance.
 
-### Core Capabilities
+### Verified secure capabilities
 
-#### 💪 **Proactive Self-Healing**
-- **Takes immediate action** when issues are detected
-- **Runs her own diagnostics** using container access and network tools
-- **Applies fixes automatically** with verification and testing
-- **Learns from each healing** to handle similar issues faster
+- **Ask:** authenticated `POST /devproxy/api/ai/ask` currently returns a bounded local-documentation response or a limited capability explanation in nonroot secure mode. It does **not** invoke an unconstrained model or automatically fix a route.
+- **Route audit:** authenticated `POST /devproxy/api/ai/audit` tests a constrained route via private `dev-proxy:80` using **HEAD**. It never follows redirects, reaches an arbitrary external URL, edits a proxy route or proves browser GET behavior.
+- **Self-check:** `POST /devproxy/api/ai/self-check?http=1` with `{"heal":false}` produces bounded read-only inventory/HEAD observation. Secure mode intentionally rejects attempts to turn that into an unreviewed heal.
+- **History:** Status **Clear view** clears visible bubbles, **not** stored server chat history. Shared drawer clear only removes browser-local messages, after an explicit notice.
+- **Proposed repairs:** some narrowly typed Next.js redirect repairs have an owner-reviewed, single-use ticket/preimage/rollback path. **That is not a generic ability to repair an arbitrary HTTP 503.**
 
-#### 🔬 **Advanced Diagnostics**
-- Container health monitoring
-- Network connectivity testing
-- Configuration validation
-- Log analysis and pattern recognition
-- Real-time route probing
+### Currently observed limitation — repair follow-ups
 
-#### 🛠️ **Healing Strategies**
+After a displayed route HEAD 503, the owner wrote `please repair` and then `try anyway`. The released chat answered with generic or irrelevant **historical documentation excerpts**, not a grounded diagnosis or repair. This is an actual product limitation, tracked as [V153](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150). A 503 alone does not identify its cause; no successful repair has been demonstrated.
 
-**React & Frontend Issues:**
-- Static asset routing fixes (404s for images, CSS, JS)
-- Bundle.js content-type corrections
-- Subpath asset handling for React apps
+### Historical and future ambitions
 
-**Nginx Configuration:**
-- Variable-based proxy_pass fixes
-- Duplicate location block removal
-- Resolver configuration
-- Upstream failover and timeout handling
+The original design includes automatic route fixes, log learning, direct container inspection, OpenAI embeddings and generalized self-healing. Those are **legacy implementation concepts or roadmap goals**, not proof of current deployment, a permit to restart Docker, or operator-approved execution. The source and safety contract for future abilities is documented in [current operational state](docs/CURRENT_OPERATIONAL_STATE.md) and the [teachable-capability canon](docs/architecture/DEVPROXY_CALLIOPE_TEACHING_AND_CAPABILITY_CANON.md). Never use legacy `heal:true` or `audit-and-heal` snippets as instructions for the secured runtime.
 
-**Infrastructure:**
-- Proxy discovery and ngrok URL updates
-- Symlink reconstruction
-- Container health checks and restarts
+### How to use now
 
-#### 🧠 **Pattern Learning**
-- Saves successful fixes to knowledge base
-- Automatic application of known patterns
-- Continuous improvement through feedback loop
-
-### How to Use
-
-#### Via Status Interface
-1. Click the <img src="/status/assets/calliope_heart_stethoscope.svg" alt="stethoscope" style="width:16px;height:16px;vertical-align:middle;"> stethoscope icon next to any route
-2. Watch her thinking animation as she investigates
-3. See step-by-step healing process in real-time
-4. Get caring, personal explanations of fixes
-
-#### Via Chat Interface
-- Ask questions: "Why is my logo not loading?"
-- Request healing: "Can you fix the /impact route?"
-- Get help: "What does this 404 mean?"
-
-#### Via API
-```bash
-# Health check
-GET /api/ai/health
-
-# Ask a question
-POST /api/ai/ask
-{"query": "Why is /myapp returning 502?"}
-
-# Self-check with healing
-POST /api/ai/self-check
-{"heal": true, "route": "/myapp/"}
-
-# Advanced healing
-POST /api/ai/advanced-heal
-{"route": "/api/", "hint": "nginx test failed"}
-
-# Site audit
-POST /api/ai/audit
-{"url": "http://dev-proxy/myapp"}
-
-# Audit and heal iteratively
-POST /api/ai/audit-and-heal
-{"url": "http://dev-proxy/myapp", "maxPasses": 3}
-```
+Open the authenticated Status UI, use the route's Diagnose button, and read the reported HTTP status **as an observation**. You can ask for supported local configuration facts or explicitly invoke a reviewed diagnostic. If Calliope cannot diagnose a failed route yet, preserve the status/path as evidence and request a bounded read-only upstream inspection; do not infer a repair from chat text or animation.
 
 ### 📚 **Knowledge Base & RAG System**
+
+> **Legacy architecture description:** The embedding/index sections below belong to the earlier Calliope design. The protected V152 Ask fallback is bounded local-document retrieval, not automatic OpenAI embedding search or learned executable repair. [Current status](docs/CURRENT_OPERATIONAL_STATE.md).
 - **Documentation Embeddings**: Calliope has access to all internal documentation via semantic search
 - **Automatic Reindexing**: Smart-build detects doc changes and rebuilds knowledge base automatically
 - **Comprehensive Coverage**: ~97k characters across 10 docs (README, troubleshooting, API guides, etc.)
