@@ -458,7 +458,9 @@ Response:
 
 ## API Endpoints
 
-All endpoints are served by the `dev-proxy-config-api` container on port 3001.
+> **Current secure-mode correction:** This is a historical endpoint catalog, not an operator runbook. Protected routes are namespaced under `/devproxy/api/ai/`. Secure-mode `/ai/ask` uses bounded local documentation/capability explanation. Authenticated `/ai/audit` performs read-only fixed-host HEAD with no redirect following. Observational `/ai/self-check?http=1` uses `{"heal":false}`; calls demanding healing/targeting in secure mode are rejected. Older examples of `{"heal":true}`, `advanced-heal`, `audit-and-heal`, Docker restarts, and generic writes **do not establish an authorized production capability**. See [current operational state](CURRENT_OPERATIONAL_STATE.md).
+
+Historically, API endpoints were associated with the `dev-proxy-config-api` container on port 3001; actual secure-route behavior depends on the deployed source.
 
 ### Health & Status
 
@@ -657,6 +659,9 @@ curl -X POST http://localhost:8080/devproxy/api/ai/cancel
 ---
 
 ## How to Use Calliope
+
+**Current V152 status:** The authenticated Status page can show a fixed-host HTTP HEAD result for a route. A 503 is non-green reachability evidence only; it does not establish a root cause or repair. A follow-up `please repair` may trigger an unhelpful local-doc fallback instead of carrying forward the selected route context. This known product defect is tracked in [V153 issue #150](https://github.com/leorami/Dev-Tunnel-Proxy/issues/150). The steps below are legacy illustrations, not proof of executed diagnosis or healing. [Current operational state](CURRENT_OPERATIONAL_STATE.md) is authoritative for this snapshot.
+
 
 ### Via Status Interface
 
