@@ -62,6 +62,7 @@ const {createProductionRouteMutationService} = require('./production-route-mutat
 const {proposeRepair} = require('./calliope-first-safe-heal.cjs');
 const {runOwnerNextjsRedirectHealSkill} = require('./calliope-owner-nextjs-heal-skill.cjs');
 const {createOwnerHealReviewGate,readBoundedHealJsonBody} = require('./rc2-owner-heal-review-gate.cjs');
+const {decideCreateRouteInstall} = require('./create-route-install-intent.cjs');
 const ownerHealReviewGate=createOwnerHealReviewGate();
 const {createAuthenticatedReloadClient} = require('./owner-authenticated-reload.cjs');
 const {createExclusiveMutationLock} = require('./exclusive-route-mutation-lock.cjs');
@@ -1144,7 +1145,15 @@ async function handle(req, res){
           return send(res, 400, { ok:false, error: err.code || 'invalid_request', detail: msg || 'invalid request' });
         }
 
-        const shouldInstall = options.install !== false;
+        const installDecision = decideCreateRouteInstall(body);
+        if (!installDecision.ok){
+          return send(res, installDecision.status || 400, {
+            ok:false,
+            error: installDecision.code || 'INVALID_INSTALL_INTENT',
+            detail: installDecision.error
+          });
+        }
+        const shouldInstall = installDecision.install === true;
         let installed = null;
         let hardenWarning = null;
 
@@ -2904,5 +2913,14 @@ module.exports = {
   saveEmbeddings,
   loadEmbeddings,
   rankByVector,
-  cosine
+  cosine,
+  handle,
+  decideCreateRouteInstall
 };
+// Test-only route-manager injection. Must not exist when NODE_ENV!=='test'
+// (checked at module load). Production imports therefore cannot swap managers.
+if (process.env.NODE_ENV === 'test') {
+  module.exports.__setRouteMutationServiceForTests = function(manager){
+    routeManager = manager;
+  };
+}

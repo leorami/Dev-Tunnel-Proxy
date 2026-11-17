@@ -728,6 +728,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Create-route explicit install intent (#154, source/unit only)" \
+      "node --test '$ROOT_DIR/tests/security/v154-create-route-install-intent.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "V138 Reports async catalog and filesystem IO quarantine" \
       "node --test '$ROOT_DIR/tests/security/reports-list-contract.test.cjs'" || test_result=1
   fi
