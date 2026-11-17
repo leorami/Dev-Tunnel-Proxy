@@ -4093,6 +4093,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           chatEl.replaceChildren();
           queryEl.value = '';
           queryEl.focus();
+          // Session-local route observation must not survive Clear view.
+          lastVerifiedRouteObservation = null;
           // Clearing an observation must also clear its transient "Checking" state.
           const statusChip = document.getElementById('aiHealingStatus');
           const statusLabel = document.getElementById('aiHealingStatusLabel');
@@ -4387,15 +4389,89 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           }catch(_e){ /* non-fatal */ }
         }, true);
 
-        function looksLikeHealFollowUp(q){
+        // V153: keep in sync with utils/rc2-calliope-grounded-followup.cjs
+        // Session-local only — never persisted to logs/URLs/server memory.
+        let lastVerifiedRouteObservation = null;
+        const CALLIOPE_BLOCKED_TOP = new Set(['admin','devproxy','api','config','status','dashboard','.artifacts','nginx_status','server-status','_internal']);
+        function calliopeIsAllowlistedRoute(route){
+          if (typeof route !== 'string' || route.length < 2 || route.length > 256) return false;
+          if (route[0] !== '/' || route.startsWith('//')) return false;
+          if (!/^\/[a-zA-Z0-9._~/-]*$/.test(route)) return false;
+          if (route.includes('//') || route.includes('/./') || route.includes('/../')) return false;
+          if (route.endsWith('/.') || route.endsWith('/..')) return false;
+          if (route.split('/').some(p => p.startsWith('.'))) return false;
+          const top = (route.split('/')[1] || '').toLowerCase();
+          return !CALLIOPE_BLOCKED_TOP.has(top);
+        }
+        function isRepairIntentFollowUp(q){
           const s = String(q||'').trim();
           if (!s) return false;
           if (/\b(you have my authority|i (give you|grant you) (my )?authority|i (authorize|consent|approve)|go ahead( and heal)?|owner (go|authority|consent)|you('re| are) authorized|permission granted|authorized to (heal|fix|proceed))\b/i.test(s)) return true;
           if (/^(please\s+)?(fix|heal|repair|resolve|unbreak)(\s+(this|it|that|the\s+route|the\s+issue|the\s+problem))?[.!?]*$/i.test(s)) return true;
           if (/\b(please\s+)?(fix|heal|repair)\s+(this|it|that)\b/i.test(s)) return true;
           if (/\b(can you|could you|try to|just)\s+(fix|heal|repair)\b/i.test(s)) return true;
-          if (/\b(make it work|do the heal|run heal|audit and heal|try again|do it anyway)\b/i.test(s)) return true;
+          if (/\b(make it work|do the heal|run heal|audit and heal|try again|do it anyway|try anyway)\b/i.test(s)) return true;
           return false;
+        }
+        function looksLikeHealFollowUp(q){ return isRepairIntentFollowUp(q); }
+        function parseVerifiedAuditObservation(result){
+          if (!result || typeof result !== 'object') return null;
+          if (result.healingPerformed === true || result.routeModified === true) return null;
+          if (result.code !== 'LOCAL_HTTP_OK' && result.code !== 'LOCAL_HTTP_NOT_GREEN') return null;
+          const summary = result.summary;
+          if (!summary || typeof summary !== 'object') return null;
+          if (summary.mode !== 'LOCAL_HTTP_HEAD_ONLY') return null;
+          if (summary.redirectFollowed === true || summary.healingPerformed === true) return null;
+          if (!calliopeIsAllowlistedRoute(summary.route)) return null;
+          if (!Number.isInteger(summary.status) || summary.status < 100 || summary.status > 599) return null;
+          return {
+            route: summary.route,
+            status: summary.status,
+            code: result.code,
+            mode: 'LOCAL_HTTP_HEAD_ONLY',
+            redirectFollowed: false,
+            healingPerformed: false,
+            browserAudited: summary.browserAudited === true,
+            at: Date.now()
+          };
+        }
+        function retainVerifiedObservation(_previous, next){
+          return next && calliopeIsAllowlistedRoute(next.route) ? next : null;
+        }
+        function calliopeReplyForRepairFollowUp(observation, query){
+          const q = String(query||'').slice(0,80);
+          if (!observation || !calliopeIsAllowlistedRoute(observation.route) || !Number.isInteger(observation.status)){
+            return [
+              'I don\'t know which route you\'re asking about—use Diagnose on a route card first.',
+              '',
+              'Saying "' + q + '" does not select a route, does not run a repair, and will not quote historical heal documentation as a substitute.',
+              '',
+              'Evidence vs assumption: without a verified local HTTP HEAD observation in this Status session, I have no route identity or status code to reason from.'
+            ].join('\n');
+          }
+          const green = observation.code === 'LOCAL_HTTP_OK';
+          const reachability = green
+            ? ('reachable via HEAD (' + observation.status + ')')
+            : ('not green via HEAD (' + observation.status + ')');
+          return [
+            'Grounded on the last verified Status observation for `' + observation.route + '` (session-local; not a standing memory).',
+            '',
+            'Observed evidence:',
+            '- mode: LOCAL_HTTP_HEAD_ONLY',
+            '- code: ' + observation.code,
+            '- HTTP HEAD status: ' + observation.status + ' (' + reachability + ')',
+            '- redirectFollowed: false (redirects were not followed)',
+            '- healingPerformed: false / browserAudited: ' + (observation.browserAudited ? 'true' : 'false'),
+            '',
+            'Assumptions I will not make from that HEAD alone:',
+            '- root cause (upstream down vs wrong upstream name vs proxy mismatch vs method-only quirk)',
+            '- GET/browser rendering parity',
+            '- that a repair is authorized or possible from chat',
+            '',
+            'Saying "' + q + '" does not unlock Docker-backed healing or an automatic fix. Repair is not currently permitted from this Ask path, and no repair was attempted.',
+            '',
+            'Next diagnostic (owner-approved, still non-mutating unless separately granted): re-run Diagnose on `' + observation.route + '` after checking whether the configured upstream hostname is the process that is actually running; if you need a change applied, use an owner-reviewed control for that specific repair type (for example Fix /_next/ loop when that defect applies)—do not treat docs excerpts as authority to heal.'
+          ].join('\n');
         }
         function recentSecureHealBlock(){
           try{
@@ -4441,9 +4517,28 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           try{ if (sendBtn) sendBtn.disabled = true; }catch{}
           queryEl.value = '';
           appendBubble('user', q);
-          const secureBlock = looksLikeHealFollowUp(q) ? recentSecureHealBlock() : null;
-          if (secureBlock){
-            appendBubble('assistant', secureHealBlockedReply(secureBlock, q));
+          // Repair-intent follow-ups prefer the typed last observation over docs Ask.
+          if (isRepairIntentFollowUp(q)){
+            if (lastVerifiedRouteObservation){
+              appendBubble('assistant', calliopeReplyForRepairFollowUp(lastVerifiedRouteObservation, q));
+              activeAskSeq = 0;
+              activeAskAbort = null;
+              askBtn.disabled = false;
+              askBtn.textContent = 'Ask';
+              try{ if (sendBtn) sendBtn.disabled = false; }catch{}
+              return;
+            }
+            const secureBlock = recentSecureHealBlock();
+            if (secureBlock){
+              appendBubble('assistant', secureHealBlockedReply(secureBlock, q));
+              activeAskSeq = 0;
+              activeAskAbort = null;
+              askBtn.disabled = false;
+              askBtn.textContent = 'Ask';
+              try{ if (sendBtn) sendBtn.disabled = false; }catch{}
+              return;
+            }
+            appendBubble('assistant', calliopeReplyForRepairFollowUp(null, q));
             activeAskSeq = 0;
             activeAskAbort = null;
             askBtn.disabled = false;
@@ -4716,6 +4811,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           };
           let reply = 'Local-only observation unavailable. No repair was attempted.';
           let observationVerified = false;
+          // A new Diagnose replaces any prior route context (A→B keeps B only).
+          lastVerifiedRouteObservation = null;
           try{
             changeStatus('status-auditing','Checking');
             const valid = route.length>1 && route.length<=256 && route[0]==='/' &&
@@ -4731,16 +4828,19 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               });
               const result = await response.json().catch(()=>null);
               const status = result && result.summary && result.summary.status;
+              const parsed = response.ok ? parseVerifiedAuditObservation(result) : null;
               if (result && (result.healingPerformed===true || result.routeModified===true)){
                 reply = 'Unexpected action flags: observation is unverified and no repair is claimed.';
               } else if (response.ok && result && result.code==='LOCAL_HTTP_OK' &&
-                         Number.isInteger(status) && status>=200 && status<300){
+                         Number.isInteger(status) && status>=200 && status<300 && parsed){
                 observationVerified = true;
+                lastVerifiedRouteObservation = retainVerifiedObservation(null, parsed);
                 reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
                   ' (reachable). Browser behavior is not verified. No repair was attempted.';
               } else if (response.ok && result && result.code==='LOCAL_HTTP_NOT_GREEN' &&
-                         Number.isInteger(status)){
+                         Number.isInteger(status) && parsed){
                 observationVerified = true;
+                lastVerifiedRouteObservation = retainVerifiedObservation(null, parsed);
                 reply = 'Route ' + route + ': local HTTP HEAD returned ' + status +
                   ' (not green). Redirects were not followed. No repair was attempted.';
               } else if (response.status===401 || response.status===403){
@@ -4762,6 +4862,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
                   (observationVerified ? 'status-ready' : 'status-offline'),
                 otherRoutePending ? 'Checking' : (observationVerified ? 'Observed' : 'Unavailable'));
               appendBubble('assistant', reply);
+            } else {
+              lastVerifiedRouteObservation = null;
             }
           }
         }

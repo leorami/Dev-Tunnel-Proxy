@@ -723,6 +723,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V153 grounded Calliope repair follow-up after route HEAD observation" \
+      "node --test '$ROOT_DIR/tests/security/v153-calliope-grounded-followup.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "V138 Reports async catalog and filesystem IO quarantine" \
       "node --test '$ROOT_DIR/tests/security/reports-list-contract.test.cjs'" || test_result=1
   fi
