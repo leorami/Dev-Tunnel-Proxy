@@ -51,7 +51,9 @@ test('ports secure heal-follow-up Ask guard without dropping single-flight Ask',
   assert.match(statusHtml, /function recentSecureHealBlock/);
   assert.match(statusHtml, /function secureHealBlockedReply/);
   assert.match(statusHtml, /activeAskSeq !== 0/);
-  assert.match(statusHtml, /looksLikeHealFollowUp\(q\)\s*\?\s*recentSecureHealBlock/);
+  // V153: repair-intent uses isRepairIntentFollowUp; secure-block remains a fallback.
+  assert.match(statusHtml, /isRepairIntentFollowUp\(q\)|looksLikeHealFollowUp\(q\)/);
+  assert.match(statusHtml, /recentSecureHealBlock/);
 });
 
 test('Reports UI consumes reviewed items/pagination contract with textContent-safe rendering bias', () => {

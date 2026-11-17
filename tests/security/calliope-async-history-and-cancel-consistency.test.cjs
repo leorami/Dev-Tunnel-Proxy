@@ -81,8 +81,20 @@ test('a different route must not be dropped while another route is being observe
   const badge = {classList:{add(){},remove(){}}};
   const document = {getElementById:id=>id==='aiHealingStatus'?badge:{textContent:''}};
   const window = {DTP:{config:{apiPath:p=>'/api/'+p}}};
+  // V153 Diagnose retains a typed observation via helpers declared earlier in initAiAssistant.
   const make = new Function('fetch','window','document','appendBubble','appendThinking','ensureAiOpen',
-    'let chatEpoch=0,chatEngaged=false;\n' + handlerSource + '\nreturn runCalliopeHealth;');
+    'let chatEpoch=0,chatEngaged=false,lastVerifiedRouteObservation=null;\n' +
+    'function calliopeIsAllowlistedRoute(route){return typeof route==="string"&&route.charAt(0)==="/"&&route.length>1;}\n' +
+    'function parseVerifiedAuditObservation(result){\n' +
+    '  if(!result||result.healingPerformed===true||result.routeModified===true)return null;\n' +
+    '  if(result.code!=="LOCAL_HTTP_OK"&&result.code!=="LOCAL_HTTP_NOT_GREEN")return null;\n' +
+    '  const s=result.summary; if(!s||!Number.isInteger(s.status))return null;\n' +
+    '  const route=typeof s.route==="string"?s.route:null;\n' +
+    '  if(!calliopeIsAllowlistedRoute(route||"/oauth"))return null;\n' +
+    '  return {route:route||"/observed",status:s.status,code:result.code,mode:"LOCAL_HTTP_HEAD_ONLY",redirectFollowed:false,healingPerformed:false,browserAudited:false,at:Date.now()};\n' +
+    '}\n' +
+    'function retainVerifiedObservation(_prev,next){return next||null;}\n' +
+    handlerSource + '\nreturn runCalliopeHealth;');
   const diagnose=make(fetch,window,document,()=>{},()=>({remove(){}}),()=>{});
   const one=diagnose('/oauth');
   const repeated=diagnose('/oauth'); // repeated same route must coalesce
