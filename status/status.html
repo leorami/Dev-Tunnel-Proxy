@@ -14,10 +14,10 @@
     <!-- Lucide Icons -->
     <script src="/status/vendor/lucide.min.js"></script>
     <style>
-      :root{--bg:#0c111c;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px}
-      :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
+      :root{--bg:#0b1220;--bg2:#0e1627;--panel:#101827;--panelGlass:rgba(16,24,39,.92);--appBgGlass:rgba(13,20,36,.95);--border:#1f2a44;--muted:#8a9bb7;--text:#e4ecfa;--heading:#cfe0ff;--chip:#1a2440;--chipBg:#132140;--chipBorder:#263455;--chipText:#b8c8e6;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--lnk:#7fb0ff;--sea-glass:#7ec8c3;--pacific:#3aa7d6;--btnBg:rgba(19,42,77,.45);--btnBorder:rgba(58,110,174,.55);--btnText:#cfe0ff;--btnBgHover:rgba(22,52,95,.6);--headerBg:rgba(10,16,30,.55);--codeBg:#0a1223;--codeBorder:#1b2a48;--glowOpacity:.10;--summaryGap:24px;--cardGap:16px;--font-display:"Avenir Next Condensed","Avenir Next",Montserrat,"Segoe UI",sans-serif;--font-body:ui-sans-serif,"Avenir Next","Segoe UI",Helvetica,Arial,sans-serif}
+      :root[data-theme="light"]{--bg:#edf2fb;--bg2:#f7faff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--appBgGlass:rgba(255,255,255,.9);--border:#d6e0f5;--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--chip:#e8eefc;--chipBg:#eef2ff;--chipBorder:#cddcff;--chipText:#0b1220;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--lnk:#2d6cdf;--sea-glass:#2a9d8f;--pacific:#1d7aad;--btnBg:#eef2ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--btnBgHover:#e2e8ff;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5;--glowOpacity:.14;--cardGap:16px}
       *{box-sizing:border-box}
-      body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      body{margin:0;background:radial-gradient(1200px 600px at 12% -10%, rgba(58,167,214,.18), transparent 55%),radial-gradient(900px 500px at 88% 0%, rgba(126,200,195,.12), transparent 50%),linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.5 var(--font-body)}
       header{padding:16px 20px 12px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(10px);position:sticky;top:0;z-index:1000;box-shadow:0 10px 30px rgba(0,0,0,.25)}
       .header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
       .header-actions{display:flex;gap:8px;align-items:center}
@@ -559,6 +559,24 @@
         #aiDrawer.ai-drawer{height:min(88dvh, calc(100dvh - 80px));max-height:calc(100dvh - 12px)}
         #aiDrawer .ai-chat{min-height:0;flex:1 1 auto;max-height:none !important}
       }
+
+      .card-title{font-family:var(--font-display);letter-spacing:.01em}
+      .ai-send-btn{background:linear-gradient(180deg,var(--pacific),color-mix(in srgb,var(--pacific) 70%, #0b1220));border-color:color-mix(in srgb,var(--sea-glass) 55%, var(--pacific));color:#041018}
+      .ai-send-btn:focus-visible,.btn:focus-visible,.icon-btn:focus-visible,textarea:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--sea-glass);outline-offset:2px}
+      .ai-ask-programmatic{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+      details.settings-disclosure{padding:0}
+      details.settings-disclosure>summary{list-style:none;cursor:pointer;padding:16px;border-radius:12px}
+      details.settings-disclosure>summary::-webkit-details-marker{display:none}
+      details.settings-disclosure>summary .card-header-row{margin-bottom:0}
+      details.settings-disclosure[open]>summary{border-bottom:1px solid var(--border);border-radius:12px 12px 0 0}
+      details.settings-disclosure .settings-grid{padding:0 16px 16px}
+      .ai-healing-status.status-ready{background:rgba(126,200,195,.22);border-color:rgba(126,200,195,.55);color:var(--text)!important}
+      .ai-healing-status.status-auditing{background:rgba(58,167,214,.28);border-color:rgba(58,167,214,.65);color:#fff!important}
+      .ai-healing-status.status-healing{background:rgba(245,158,11,.28);border-color:rgba(245,158,11,.65);color:#fff!important}
+      .ai-healing-status.status-coding{background:rgba(126,200,195,.35);border-color:rgba(58,167,214,.55);color:#041018!important}
+      @media (prefers-reduced-motion: reduce){
+        *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+      }
     </style>
     <link rel="stylesheet" href="/status/common.css" />
     <script src="/status/config.js"></script>
@@ -602,70 +620,6 @@
           <div class="summaryChips" id="summaryChips"></div>
         </div>
         
-        <!-- Settings Card -->
-        <div class="card" id="settingsCard">
-          <div class="card-header-row">
-            <div class="header-main">
-              <span class="icon-badge settings"><i data-lucide="settings" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
-              <div>
-                <p class="card-title">Settings</p>
-                <p class="card-subtitle">Notifications, logging, scans</p>
-              </div>
-            </div>
-          </div>
-          
-          <div class="settings-grid">
-            <!-- Notifications Service Sub-card (macOS only) -->
-            <div class="settings-subcard" id="notificationsSubcard" style="display: none;">
-              <h3>
-                <span title="Desktop notifications for route health changes"><i data-lucide="bell" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Notifications</span>
-              </h3>
-              <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px;">
-                <span id="notificationsServiceText" style="flex: 1; font-size: 13px; color: var(--muted);">Checking...</span>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 13px; padding: 8px 14px;">
-                    <span>Loading...</span>
-                  </div>
-                  <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none; font-size: 13px; padding: 8px 14px;" title="View notification logs">
-                    <span><i data-lucide="file-text" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>Logs</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Auto-Scan Settings Sub-card -->
-            <div class="settings-subcard" id="autoScanSubcard">
-              <h3>
-                <span title="Automatically scan routes for health issues"><i data-lucide="scan" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Auto-Scan</span>
-              </h3>
-              
-              <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
-                <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
-                  <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
-                  <span id="autoScanEnabledLabel" style="font-weight: 600; font-size: 13px;">On</span>
-                </label>
-                
-                <div class="chip" style="font-size: 13px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
-                  <i data-lucide="clock" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>
-                  <input type="number" id="autoScanInterval" min="5" max="300" step="5" class="compact-input" title="Scan interval (5-300 seconds)">
-                  <span style="color: var(--muted);">s</span>
-                </div>
-                
-                <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; align-items: center;">
-                  <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600; font-size: 13px; padding: 8px 14px;" title="Save changes">
-                    <i data-lucide="save" stroke-width="2.5" style="width:16px;height:16px"></i>
-                  </button>
-                  <button class="chip" id="autoScanReset" style="cursor: pointer; opacity: 0.7; font-size: 13px; padding: 8px 14px;" title="Reset to defaults (enabled, 15s)">
-                    <i data-lucide="rotate-ccw" stroke-width="2.5" style="width:16px;height:16px"></i>
-                  </button>
-                </div>
-              </div>
-              
-              <div id="autoScanStatus" style="display: none; padding: 8px; border-radius: 6px; font-size: 11px; margin-top: 8px;"></div>
-            </div>
-          </div>
-        </div>
-
         <div class="ai-drawer collapsed" id="aiDrawer">
           <!-- Healing History Panel -->
           <div class="healing-history" id="healingHistory">
@@ -687,11 +641,11 @@
             </h2>
             <div class="ai-meta">
               <span class="ai-healing-history" id="aiHealingHistory">
-                <span class="ai-healing-history-label">Healing History</span>
+                <span class="ai-healing-history-label">Recent activity</span>
               </span>
               <span class="ai-healing-status" id="aiHealingStatus">
                 <span class="pulse"></span>
-                <span class="ai-healing-status-label" id="aiHealingStatusLabel">Healing</span>
+                <span class="ai-healing-status-label" id="aiHealingStatusLabel">Local-only</span>
                 <span class="ai-healing-count" style="display:none" id="aiHealingCount"></span>
               </span>
             </div>
@@ -708,7 +662,7 @@
               <div class="ai-actions">
                 <button class="btn" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>
                 <button class="btn" id="aiClearBtn" title="Clear visible messages; saved history is unchanged">Clear view</button>
-                <button class="btn" id="aiAskBtn">Ask</button>
+                <button class="btn ai-ask-programmatic" id="aiAskBtn" type="button" tabindex="-1" aria-hidden="true">Ask</button>
                 <button class="btn" id="aiHealBtn" data-role="selfcheck" title="Self-Check" aria-label="Self-Check">Self‑Check</button>
               </div>
             </div>
@@ -774,6 +728,73 @@
           </div>
           <div class="apps" id="apps">Loading…</div>
         </div>
+
+        <!-- Settings Card (progressive disclosure; after primary routes) -->
+        <details class="card settings-disclosure" id="settingsCard">
+          <summary>
+            <div class="card-header-row">
+              <div class="header-main">
+                <span class="icon-badge settings"><i data-lucide="settings" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
+                <div>
+                  <p class="card-title">Settings</p>
+                  <p class="card-subtitle">Notifications, logging, Auto-Scan</p>
+                </div>
+              </div>
+            </div>
+          </summary>
+          
+          <div class="settings-grid">
+            <!-- Notifications Service Sub-card (macOS only) -->
+            <div class="settings-subcard" id="notificationsSubcard" style="display: none;">
+              <h3>
+                <span title="Desktop notifications for route health changes"><i data-lucide="bell" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Notifications</span>
+              </h3>
+              <div id="notificationsServiceStatus" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 32px;">
+                <span id="notificationsServiceText" style="flex: 1; font-size: 13px; color: var(--muted);">Checking...</span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <div class="chip" id="notificationsServiceChip" style="cursor: pointer; user-select: none; font-size: 13px; padding: 8px 14px;">
+                    <span>Loading...</span>
+                  </div>
+                  <div class="chip" id="notificationsLogsChip" style="cursor: pointer; user-select: none; display: none; font-size: 13px; padding: 8px 14px;" title="View notification logs">
+                    <span><i data-lucide="file-text" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>Logs</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Auto-Scan Settings Sub-card -->
+            <div class="settings-subcard" id="autoScanSubcard">
+              <h3>
+                <span title="Automatically scan routes for health issues"><i data-lucide="scan" stroke-width="2.5" style="width:20px;height:20px;vertical-align:middle;margin-right:8px"></i>Auto-Scan</span>
+              </h3>
+              
+              <div class="settings-row" style="justify-content: space-between; flex-wrap: nowrap; gap: 8px; min-height: 32px; align-items: center;">
+                <label title="Enable or disable automatic route health scanning" style="flex-shrink: 0; display: flex; align-items: center;">
+                  <input type="checkbox" id="autoScanEnabled" class="toggle-checkbox">
+                  <span id="autoScanEnabledLabel" style="font-weight: 600; font-size: 13px;">On</span>
+                </label>
+                
+                <div class="chip" style="font-size: 13px; flex-shrink: 0; display: flex; align-items: center;" title="Scan interval in seconds">
+                  <i data-lucide="clock" stroke-width="2.5" style="width:16px;height:16px;vertical-align:middle;margin-right:6px"></i>
+                  <input type="number" id="autoScanInterval" min="5" max="300" step="5" class="compact-input" title="Scan interval (5-300 seconds)">
+                  <span style="color: var(--muted);">s</span>
+                </div>
+                
+                <div style="display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; align-items: center;">
+                  <button class="chip" id="autoScanSave" disabled style="cursor: pointer; opacity: 0.5; pointer-events: none; background: var(--ok); border-color: var(--ok); color: white; font-weight: 600; font-size: 13px; padding: 8px 14px;" title="Save changes">
+                    <i data-lucide="save" stroke-width="2.5" style="width:16px;height:16px"></i>
+                  </button>
+                  <button class="chip" id="autoScanReset" style="cursor: pointer; opacity: 0.7; font-size: 13px; padding: 8px 14px;" title="Reset to defaults (enabled, 15s)">
+                    <i data-lucide="rotate-ccw" stroke-width="2.5" style="width:16px;height:16px"></i>
+                  </button>
+                </div>
+              </div>
+              
+              <div id="autoScanStatus" style="display: none; padding: 8px; border-radius: 6px; font-size: 11px; margin-top: 8px;"></div>
+            </div>
+          </div>
+        </details>
+
 
       </div>
     </div>
@@ -3857,6 +3878,32 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
       initTheme();
 
       // ===== AI Assistant Wiring =====
+
+      // Issue #160: typed-evidence Calliope status vocabulary (source contract)
+      const SEMANTIC_CALLIOPE_STATUS = Object.freeze({
+        idle: Object.freeze({ label: 'Local-only', className: 'status-ready' }),
+        checking: Object.freeze({ label: 'Checking', className: 'status-auditing' }),
+        not_green: Object.freeze({ label: 'Needs attention', className: 'status-healing' }),
+        review: Object.freeze({ label: 'Review available', className: 'status-coding' }),
+        unavailable: Object.freeze({ label: 'Needs attention', className: 'status-offline' })
+      });
+      function semanticCalliopeStatus(input){
+        const kind = input && typeof input.kind === 'string' ? input.kind : 'idle';
+        return SEMANTIC_CALLIOPE_STATUS[kind] || SEMANTIC_CALLIOPE_STATUS.idle;
+      }
+      function applySemanticCalliopeStatus(kind){
+        const mapped = semanticCalliopeStatus({ kind });
+        const statusChip = document.getElementById('aiHealingStatus');
+        const labelEl = document.getElementById('aiHealingStatusLabel');
+        if (statusChip){
+          statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding','status-offline');
+          statusChip.classList.add(mapped.className);
+          try{ statusChip.style.display = 'inline-flex'; }catch{}
+        }
+        if (labelEl) labelEl.textContent = mapped.label;
+        return mapped;
+      }
+
       // Healing History Management
       let healingHistory = [];
       let isHealing = false;
@@ -3900,10 +3947,8 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
         }catch{}
         
         // Only adjust label if not overridden by refreshHealth state mapping
-        if (isHealing && statusEl && statusLabelEl) {
-          statusEl.classList.remove('status-ready','status-auditing','status-coding','status-offline');
-          statusEl.classList.add('status-healing');
-          statusLabelEl.textContent = '😵‍💫 Confused';
+        if (isHealing) {
+          applySemanticCalliopeStatus('not_green');
         }
         
         if (countHeaderEl) countHeaderEl.textContent = count > 0 ? `(${count})` : '';
@@ -4096,13 +4141,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           // Session-local route observation must not survive Clear view.
           lastVerifiedRouteObservation = null;
           // Clearing an observation must also clear its transient "Checking" state.
-          const statusChip = document.getElementById('aiHealingStatus');
-          const statusLabel = document.getElementById('aiHealingStatusLabel');
-          if (statusChip){
-            statusChip.classList.remove('status-auditing','status-healing','status-coding','status-offline');
-            statusChip.classList.add('status-ready');
+          // Truthful idle badge; keep self-contained for extracted harnesses.
+          {
+            const statusChip = document.getElementById('aiHealingStatus');
+            const statusLabel = document.getElementById('aiHealingStatusLabel');
+            if (statusChip){
+              statusChip.classList.remove('status-auditing','status-healing','status-coding','status-offline');
+              statusChip.classList.add('status-ready');
+            }
+            if (statusLabel) statusLabel.textContent = 'Local-only';
           }
-          if (statusLabel) statusLabel.textContent = 'Local-only';
           askBtn.disabled = false;
           askBtn.textContent = 'Ask';
           try{ if (sendBtn) sendBtn.disabled = false; }catch{}
@@ -4208,17 +4256,17 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
               // If backend emits a dedicated status event with a chip hint, honor it
               if (msg === 'status' && det && det.chip){
                 const chip = String(det.chip||'').toLowerCase();
-                if (chip==='healing') setState('status-healing','💖 Healing');
-                else if (chip==='auditing') setState('status-auditing','🔬 Auditing');
-                else if (chip==='coding') setState('status-coding','🛠️ Coding');
-                else if (chip==='happy' || chip==='ready' || chip==='idle') setState('status-ready','😊 Happy');
-                else if (chip==='offline') setState('status-offline','Offline');
+                if (chip==='healing' || chip==='attention') applySemanticCalliopeStatus('not_green');
+                else if (chip==='auditing' || chip==='checking') applySemanticCalliopeStatus('checking');
+                else if (chip==='coding' || chip==='review') applySemanticCalliopeStatus('review');
+                else if (chip==='happy' || chip==='ready' || chip==='idle') applySemanticCalliopeStatus('idle');
+                else if (chip==='offline') applySemanticCalliopeStatus('unavailable');
               } else {
                 if (/working…|working\.\.\./.test(lower)) ; else
-                if (/auditing/.test(lower) || /audit/.test(lower)) setState('status-auditing','🔬 Auditing');
-                else if (/healing/.test(lower) || /heal/.test(lower)) setState('status-healing','💖 Healing');
-                else if (/code review|snapshot|analyz|review/i.test(lower)) setState('status-coding','🛠️ Coding');
-                else if (/complete ✅|all clear|finished|done/i.test(lower)) setState('status-ready','😊 Happy');
+                if (/auditing|checking/.test(lower) || /audit/.test(lower)) applySemanticCalliopeStatus('checking');
+                else if (/needs attention|not green|503|502/.test(lower)) applySemanticCalliopeStatus('not_green');
+                else if (/review available|proposal|conflict/.test(lower)) applySemanticCalliopeStatus('review');
+                else if (/complete ✅|all clear|finished|done|local-only/i.test(lower)) applySemanticCalliopeStatus('idle');
               }
                 recordThoughtSeen(ev);
               });
@@ -4266,29 +4314,23 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             };
 
             if (!healthJson.enabled || healthJson.healthy===false){
-              setState('status-offline','Unavailable');
+              applySemanticCalliopeStatus('unavailable');
             } else if (localOnly){
-              setState('status-ready','Local-only');
+              applySemanticCalliopeStatus('idle');
             } else {
-              // Prefer explicit activity if provided by API
+              // Secure UI never advertises idle Healing/Happy without typed evidence.
               const activity = (healthJson.activity||'').toLowerCase();
-              if (activity === 'healing') setState('status-healing','💖 Healing');
-              else if (activity === 'auditing') setState('status-auditing','🔬 Auditing');
-              else if (activity === 'coding') setState('status-coding','🛠️ Coding');
-              else setState('status-ready','😊 Happy');
+              if (activity === 'auditing' || activity === 'checking') applySemanticCalliopeStatus('checking');
+              else if (activity === 'attention' || activity === 'healing') applySemanticCalliopeStatus('not_green');
+              else if (activity === 'review' || activity === 'coding') applySemanticCalliopeStatus('review');
+              else applySemanticCalliopeStatus('idle');
             }
           } catch {
             if (statusEl) statusEl.textContent = 'Unavailable';
             // Fallback: disable Calliope UI affordances when API health check fails (no API key)
             document.body.classList.remove('calliope-enabled');
             try { if (typeof window.toggleCalliopeAffordances === 'function') window.toggleCalliopeAffordances(false); } catch(e) {}
-            const statusChip = document.getElementById('aiHealingStatus');
-            if (statusChip) {
-              statusChip.classList.remove('status-ready','status-healing','status-auditing','status-coding');
-              statusChip.classList.add('status-offline');
-              const chipLabel = statusChip.querySelector('.ai-healing-label');
-              if (chipLabel) chipLabel.textContent = 'Offline';
-            }
+            applySemanticCalliopeStatus('unavailable');
           }
           try {
             const s = await fetch(window.DTP.config.apiPath('ai/stats'));
@@ -4813,8 +4855,16 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           let observationVerified = false;
           // A new Diagnose replaces any prior route context (A→B keeps B only).
           lastVerifiedRouteObservation = null;
+          // Local table keeps this function self-contained for extracted harnesses.
+          const semanticLocal = {
+            idle: { label: 'Local-only', className: 'status-ready' },
+            checking: { label: 'Checking', className: 'status-auditing' },
+            not_green: { label: 'Needs attention', className: 'status-healing' },
+            review: { label: 'Review available', className: 'status-coding' },
+            unavailable: { label: 'Needs attention', className: 'status-offline' }
+          };
           try{
-            changeStatus('status-auditing','Checking');
+            changeStatus(semanticLocal.checking.className, semanticLocal.checking.label);
             const valid = route.length>1 && route.length<=256 && route[0]==='/' &&
               Array.from(route).every(ch=>'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~/-'.includes(ch)) &&
               !route.includes('//') && !route.includes('/./') && !route.includes('/../');
@@ -4858,9 +4908,22 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
             diagnosisInFlight.delete(route);
             if (epoch === chatEpoch){
               const otherRoutePending = diagnosisInFlight.size > 0;
-              changeStatus(otherRoutePending ? 'status-auditing' :
-                  (observationVerified ? 'status-ready' : 'status-offline'),
-                otherRoutePending ? 'Checking' : (observationVerified ? 'Observed' : 'Unavailable'));
+              let terminalKind = 'unavailable';
+              if (otherRoutePending) terminalKind = 'checking';
+              else if (observationVerified && lastVerifiedRouteObservation &&
+                       lastVerifiedRouteObservation.code === 'LOCAL_HTTP_NOT_GREEN') terminalKind = 'not_green';
+              else if (observationVerified) terminalKind = 'idle';
+              // Conflict Help Me / reviewable follow-up context surfaces Review available.
+              try{
+                const conflictCard = document.getElementById('conflictCard');
+                if (terminalKind === 'not_green' && conflictCard && conflictCard.classList &&
+                    typeof conflictCard.classList.contains === 'function' &&
+                    !conflictCard.classList.contains('hidden')) {
+                  terminalKind = 'review';
+                }
+              }catch{}
+              const terminal = semanticLocal[terminalKind] || semanticLocal.unavailable;
+              changeStatus(terminal.className, terminal.label);
               appendBubble('assistant', reply);
             } else {
               lastVerifiedRouteObservation = null;
@@ -4973,10 +5036,13 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           setStatus: (s)=>{
             const statusChip = document.getElementById('aiHealingStatus');
             const labelEl = document.getElementById('aiHealingStatusLabel');
-            const map = { ready:['status-ready','😊 Happy'], healing:['status-healing','💖 Healing'], auditing:['status-auditing','🔬 Auditing'], coding:['status-coding','🛠️ Coding'], offline:['status-offline','🫥 AFK'] };
-            const m = map[(s||'').toLowerCase()]||map.ready;
-            statusChip.className = 'ai-healing-status ' + m[0];
-            labelEl.textContent = m[1];
+            const key = String(s||'').toLowerCase();
+            const kind = key==='healing'||key==='attention' ? 'not_green'
+              : key==='auditing'||key==='checking' ? 'checking'
+              : key==='coding'||key==='review' ? 'review'
+              : key==='offline'||key==='unavailable' ? 'unavailable'
+              : 'idle';
+            applySemanticCalliopeStatus(kind);
           },
           pingThought:(m)=>fetch(window.DTP.config.apiPath('ai/thoughts/clear'), {method:'POST', credentials: 'include'}).then(()=>appendBubble('assistant', m||'debug thought'))
         };

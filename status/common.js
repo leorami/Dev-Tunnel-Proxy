@@ -123,7 +123,7 @@
       '      <button class="btn tab" id="aiStopBtn" style="display:none" title="Stop current operation">⏹ Stop</button>'+
       '      <button class="btn tab" id="aiCopyBtn" title="Copy conversation to clipboard">Copy</button>'+
       '      <button class="btn tab" id="aiClearBtn" title="Clear locally saved messages in this browser only; server chat history is unchanged">Clear</button>'+
-      '      <button class="btn tab" id="aiAskBtn">Ask</button>'+
+      '      <button class="btn tab ai-ask-programmatic" id="aiAskBtn" type="button" tabindex="-1" aria-hidden="true">Ask</button>'+
       '      <button class="btn tab" id="aiHealBtn" data-role="selfcheck" title="Self‑Check" aria-label="Self‑Check">Self‑Check</button>'+
       '      <button class="btn tab" id="aiRedirectHealBtn" data-role="reviewed-redirect-heal" title="Apply owner-reviewed Next.js /_next/ redirect fix" aria-label="Apply reviewed redirect heal">Fix /_next/ loop</button>'+
       '    </div>'+

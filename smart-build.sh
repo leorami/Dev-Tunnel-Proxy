@@ -727,6 +727,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/v153-calliope-grounded-followup.test.cjs'" || test_result=1
   fi
 
+  if [ -f "$ROOT_DIR/tests/security/v160-status-calliope-experience.test.cjs" ]; then
+    run_test_with_progress "V160 Status/Calliope one-send truthful hierarchy UX" \
+      "node --test '$ROOT_DIR/tests/security/v160-status-calliope-experience.test.cjs'" || test_result=1
+  fi
+
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "Create-route explicit install intent (#154, source/unit only)" \
       "node --test '$ROOT_DIR/tests/security/v154-create-route-install-intent.test.cjs'" || test_result=1

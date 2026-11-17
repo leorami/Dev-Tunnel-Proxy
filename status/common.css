@@ -19,6 +19,15 @@
   
   /* Standard gap between drawer and viewport edge */
   --aiGutter: 16px;
+
+  /* Issue #160 calm navy/charcoal + sea-glass/Pacific accents */
+  --sea-glass: #7ec8c3;
+  --pacific: #3aa7d6;
+}
+
+:root[data-theme="light"] {
+  --sea-glass: #2a9d8f;
+  --pacific: #1d7aad;
 }
 
 /* ============================================================================
@@ -664,4 +673,48 @@ body.ai-open[data-page="reports"] .container {
 
 @keyframes toastOut {
   to { transform: translateX(100%) scale(0.9); opacity: 0; }
+}
+
+
+/* Issue #160: keep #aiAskBtn for programmatic .click(); hide as second visible CTA */
+.ai-ask-programmatic {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+.ai-send-btn:focus-visible,
+.btn:focus-visible,
+.icon-btn:focus-visible,
+textarea:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--sea-glass);
+  outline-offset: 2px;
+}
+
+.ai-send-btn {
+  background: linear-gradient(180deg, var(--pacific), color-mix(in srgb, var(--pacific) 70%, #0b1220));
+  border-color: color-mix(in srgb, var(--sea-glass) 55%, var(--pacific));
+}
+
+.ai-healing-status.status-ready {
+  background: rgba(126, 200, 195, 0.22);
+  border-color: rgba(126, 200, 195, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-drawer,
+  .ai-send-btn,
+  .bubble,
+  .header-actions .btn {
+    animation: none !important;
+    transition: none !important;
+  }
 }
