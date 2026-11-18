@@ -143,3 +143,34 @@ test('semantic status helper rejects idle Healing and Happy without typed eviden
   assert.notEqual(fn({ kind: 'idle' }).label, 'Healing');
   assert.notEqual(fn({ kind: 'idle' }).label, 'Happy');
 });
+
+test('mobile header: shared CSS wraps primary nav/actions; no clip-hide; destinations retained', () => {
+  // RED→GREEN contract for issue #164: narrow viewports must not depend on
+  // single-row .header-actions without wrap (scrollWidth overflow at 375px).
+  assert.match(commonCss, /@media\s*\(\s*max-width:\s*899px\s*\)/);
+  const mediaIdx = commonCss.search(/@media\s*\(\s*max-width:\s*899px\s*\)/);
+  assert.ok(mediaIdx >= 0, '899px header media query present in common.css');
+  // Prefer the dedicated mobile-header block if multiple 899 queries exist.
+  const blockStart = commonCss.indexOf('/* V161 mobile header');
+  const slice = blockStart >= 0
+    ? commonCss.slice(blockStart, blockStart + 1200)
+    : commonCss.slice(mediaIdx, mediaIdx + 900);
+  assert.match(slice, /header(?:\s*>\s*\.header-row|\s+\.header-row)/);
+  assert.match(slice, /flex-wrap\s*:\s*wrap/);
+  assert.match(slice, /\.header-actions/);
+  // Must not "fix" overflow by clipping interactive controls away.
+  assert.doesNotMatch(slice, /header[^\{]*\{[^}]*overflow\s*:\s*hidden/);
+  assert.doesNotMatch(commonCss, /header\s*>\s*\.header-row\s*>\s*\.header-actions[^\{]*\{[^}]*overflow\s*:\s*hidden/);
+  // Touch-ish actionable targets on narrow header controls.
+  assert.match(slice, /min-height\s*:\s*44px/);
+  // Shared builder keeps all primary destinations (Status/Health/Reports/Dashboard + Create Route).
+  assert.match(commonJs, /href="\/status"/);
+  assert.match(commonJs, /href="\/health"/);
+  assert.match(commonJs, /href="\/reports"/);
+  assert.match(commonJs, /href="\/dashboard\/"/);
+  assert.match(commonJs, /href="\/dashboard\/#create-route"/);
+  // Structured nav/tools groups enable intentional multi-row layout.
+  assert.match(commonJs, /class="header-nav"|class='header-nav'/);
+  assert.match(commonJs, /class="header-tools"|class='header-tools'/);
+});
+

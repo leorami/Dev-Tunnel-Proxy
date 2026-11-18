@@ -71,6 +71,16 @@ header h1 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Primary destinations vs tool actions (shared Status/Health/Reports header) */
+.header-actions .header-nav,
+.header-actions .header-tools {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* Standard header button */
@@ -533,6 +543,52 @@ body.ai-open[data-page="reports"] .container {
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
+
+/* V161 mobile header: intentional multi-row nav/tools; no horizontal document scroll */
+@media (max-width: 899px) {
+  body > header > .header-row {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  body > header > .header-row > .header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    gap: 8px;
+  }
+
+  body > header .header-actions .header-nav,
+  body > header .header-actions .header-tools {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  body > header .header-actions .divider {
+    display: none;
+  }
+
+  body > header .header-actions .btn,
+  body > header .header-actions .tab,
+  body > header .header-actions .action {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  body > header .header-actions .action {
+    min-width: 44px;
+    justify-content: center;
+  }
+}
 
 /* Mobile/tablet: drawer becomes bottom sheet */
 @media (max-width: 768px) {

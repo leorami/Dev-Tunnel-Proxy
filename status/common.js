@@ -56,17 +56,21 @@
       '    <span class="brand">Dev Tunnel Proxy</span>'+
       '  </h1>'+
       '  <div class="header-actions">'+
-      `    <a class="tab btn ${active==='status'?'active':''}" href="/status">Status</a>`+
-      `    <a class="tab btn ${active==='health'?'active':''}" href="/health">Health</a>`+
-      `    <a class="tab btn ${active==='reports'?'active':''}" href="/reports">Reports</a>`+
-      `    <a class="tab btn ${active==='dashboard'?'active':''}" href="/dashboard/">Dashboard</a>`+
-      '    <a class="tab btn" href="/dashboard/#create-route">Create Route</a>'+
+      '    <nav class="header-nav" aria-label="Primary">'+
+      `      <a class="tab btn ${active==='status'?'active':''}" href="/status">Status</a>`+
+      `      <a class="tab btn ${active==='health'?'active':''}" href="/health">Health</a>`+
+      `      <a class="tab btn ${active==='reports'?'active':''}" href="/reports">Reports</a>`+
+      `      <a class="tab btn ${active==='dashboard'?'active':''}" href="/dashboard/">Dashboard</a>`+
+      '      <a class="tab btn" href="/dashboard/#create-route">Create Route</a>'+
+      '    </nav>'+
       '    <span class="divider" aria-hidden="true"></span>'+
-      '    <button class="action btn" id="reloadConfigs" title="Reload configurations"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
-      '    <button class="action btn" id="viewToggle" title="Toggle view density" aria-label="Toggle view density"><i data-lucide="layout-list" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
-      '    <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
-      '    <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
-      '    <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
+      '    <div class="header-tools">'+
+      '      <button class="action btn" id="reloadConfigs" title="Reload configurations"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
+      '      <button class="action btn" id="viewToggle" title="Toggle view density" aria-label="Toggle view density"><i data-lucide="layout-list" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
+      '      <button class="action btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>'+
+      '      <button class="action btn" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>'+
+      '      <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
+      '    </div>'+
       '  </div>'+
       '</div>'
     );

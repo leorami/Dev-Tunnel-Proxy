@@ -660,7 +660,7 @@
           <div class="card-main">
             <div>
               <h2 style="margin:0 0 6px 0">Create Route</h2>
-              <p style="margin:0;">Generate a base-path friendly config, install it in the proxy, and download the file.</p>
+              <p style="margin:0;">Preview a base-path friendly config, optionally install it when you check Install now, and download the file.</p>
             </div>
             <div class="actions">
               <button id="openRouteModal" class="primary">Open Route Creator</button>
@@ -668,10 +668,10 @@
           </div>
         </div>
         
-        <!-- Audit Tool -->
+        <!-- Check Route (bounded read-only local HEAD; no heal) -->
         <div class="tool-card">
-          <h2>Audit Route</h2>
-          <p>Test a specific route and get a detailed report of any issues found.</p>
+          <h2>Check Route</h2>
+          <p>Read-only local reachability check for one route. No repair, browser audit, or external AI.</p>
           <div class="input-group">
             <label for="auditRoute">Select Route</label>
             <select id="auditRoute">
@@ -679,61 +679,28 @@
             </select>
           </div>
           <div class="btn-group">
-            <button id="btnAudit" class="primary">Run Audit</button>
+            <button id="btnAudit" class="primary">Check Route</button>
           </div>
         </div>
-        
-        <!-- Audit + Heal Tool -->
-        <div class="tool-card">
-          <h2>Audit + Heal</h2>
-          <p>Audit a route and automatically attempt to fix any issues found.</p>
-          <div class="input-group">
-            <label for="healRoute">Select Route</label>
-            <select id="healRoute">
-              <option value="">Select a route...</option>
-            </select>
-          </div>
-          <div class="btn-group">
-            <button id="btnAuditHeal" class="success">Audit + Heal</button>
-          </div>
-        </div>
-        
-        <!-- Advanced Heal Tool -->
-        <div class="tool-card">
-          <h2>Advanced Heal</h2>
-          <p>Deep healing for complex issues. Analyzes configuration and fixes problems.</p>
-          <div class="input-group">
-            <label for="advHealRoute">Select Route</label>
-            <select id="advHealRoute">
-              <option value="">Select a route...</option>
-            </select>
-          </div>
-          <div class="btn-group">
-            <button id="btnAdvHeal" class="success">Advanced Heal</button>
-          </div>
-        </div>
-        
-        <!-- Reindex Tool -->
-        <div class="tool-card">
-          <h2>Reindex Knowledge</h2>
-          <p>Rebuild Calliope's knowledge base from documentation and configuration files.</p>
+
+        <!-- Secure mode: Heal/Reindex endpoints are blocked; do not advertise them -->
+        <div class="tool-card" id="secureCapabilityNote">
+          <h2>Healing &amp; Reindex</h2>
+          <p>Automated heal and knowledge reindex controls are unavailable under secure management policy. Use Check Route for a truthful read-only observation.</p>
           <div class="info-box">
-            <strong>When to use:</strong> After updating documentation or when Calliope seems out of sync.
-          </div>
-          <div class="btn-group">
-            <button id="btnReindex" class="primary">Reindex Now</button>
+            <strong>Why:</strong> Those actions are blocked as unsettled legacy management — the Dashboard does not offer buttons that cannot succeed.
           </div>
         </div>
         
         <!-- Self-Check Tool -->
         <div class="tool-card">
           <h2>Self-Check</h2>
-          <p>Run Calliope's self-diagnostic to identify and fix system issues.</p>
+          <p>Run a local observation-only self-check. Inventory and diagnostics only — no repair is attempted.</p>
           <div class="info-box">
-            <strong>Tip:</strong> Run this if you're experiencing proxy or routing issues.
+            <strong>Tip:</strong> Use this for a bounded local inventory when routes look wrong; healing is unavailable here.
           </div>
           <div class="btn-group">
-            <button id="btnSelfCheck" class="success">Run Self-Check</button>
+            <button id="btnSelfCheck" class="primary">Run Self-Check</button>
           </div>
         </div>
         
@@ -768,7 +735,7 @@
       <div class="modal">
         <div class="modal-header">
           <h2>Create Route</h2>
-          <p class="modal-subtitle">Generate a base-path friendly config, install it, and download the file.</p>
+          <p class="modal-subtitle">Preview a config without installing. Create Route installs only when Install now is checked.</p>
           <button class="modal-close" id="closeRouteModal" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
@@ -1058,7 +1025,7 @@
           console.log('[Dashboard] Sorted configs:', sortedConfigs);
           
           // Populate all three selects
-          ['auditRoute', 'healRoute', 'advHealRoute'].forEach(selectId => {
+          ['auditRoute'].forEach(selectId => {
             const select = document.getElementById(selectId);
             console.log(`[Dashboard] Populating ${selectId}, current options:`, select.options.length);
             
@@ -1150,67 +1117,47 @@
         });
       }
       
-      // Audit
+      // Check Route — bounded authenticated ai/audit only; never claim repair.
+      function showRouteCheckObservation(res) {
+        if (res && res.healingPerformed === true) {
+          showError(new Error('Unexpected healingPerformed=true from read-only route check'));
+          return;
+        }
+        output.className = 'result-content';
+        output.style.color = '';
+        output.textContent = typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+        const ok = !!(res && res.ok === true);
+        const reachable = !!(res && res.summary && res.summary.reachable === true);
+        if (ok && reachable) {
+          setStatus('Reachable — no repair attempted', 'success');
+          showToast('Route reachable (read-only check; no repair attempted)', 'success');
+          return;
+        }
+        // Non-green HTTP, probe failure, or auth/capability miss: never paint Complete.
+        setStatus('Needs attention — no repair attempted', 'error');
+        const code = res && res.code ? String(res.code) : 'ROUTE_CHECK_NOT_GREEN';
+        showToast(`${code}: Needs attention — no repair attempted`, 'error');
+      }
+
       document.getElementById('btnAudit').onclick = async () => {
         const route = document.getElementById('auditRoute').value;
         if (!route) { showError(new Error('Please select a route')); return; }
         try {
-          showLoading('Running audit...');
+          showLoading('Checking route (read-only)...');
           const url = `${window.location.origin}${route}`;
           const res = await post('ai/audit', { url, wait: 2000, timeout: 30000 });
-          showResult(res, 'success');
+          showRouteCheckObservation(res);
         } catch (e) {
-          showError(e);
+          // Auth/session/capability unavailable or HTTP error — honest no-diagnosis.
+          output.className = 'result-content';
+          output.style.color = 'var(--err)';
+          output.textContent = `Error: ${e.message || e}`;
+          setStatus('Needs attention — no repair attempted', 'error');
+          showToast('Route check unavailable — no repair attempted', 'error');
         }
       };
       
-      // Audit + Heal
-      document.getElementById('btnAuditHeal').onclick = async () => {
-        const route = document.getElementById('healRoute').value;
-        if (!route) { showError(new Error('Please select a route')); return; }
-        try {
-          showLoading('Running audit + heal...');
-          const url = `${window.location.origin}${route}`;
-          const res = await post('ai/audit-and-heal', { url, route, wait: 2000, timeout: 60000, maxPasses: 4 });
-          showResult(res, 'success');
-        } catch (e) {
-          showError(e);
-        }
-      };
-      
-      // Advanced Heal
-      document.getElementById('btnAdvHeal').onclick = async () => {
-        const route = document.getElementById('advHealRoute').value;
-        if (!route) { showError(new Error('Please select a route')); return; }
-        try {
-          showLoading('Running advanced heal...');
-          const res = await post('ai/advanced-heal', { route: route.replace(/\/$/, '') });
-          showResult(res, 'success');
-        } catch (e) {
-          showError(e);
-        }
-      };
-      
-      // Reindex
-      document.getElementById('btnReindex').onclick = async () => {
-        const confirmed = await showDialog({
-          type: 'confirm',
-          title: 'Reindex Knowledge Base',
-          message: 'Reindex knowledge base? This may take a minute.'
-        });
-        if (!confirmed) return;
-        try {
-          showLoading('Reindexing knowledge base...');
-          const res = await post('ai/reindex', {});
-          showResult(res, 'success');
-          showToast('Knowledge base reindexed successfully', 'success');
-        } catch (e) {
-          // Secure/spool mode refuses unapproved external AI egress — surface honestly.
-          showError(e);
-          showToast('Reindex blocked in secure mode (no unapproved external AI egress)', 'error');
-        }
-      };
-      
+      // Self-Check — observation only in secure mode (never claim heal).
       // Self-Check — observation only in secure mode (never claim heal).
       document.getElementById('btnSelfCheck').onclick = async () => {
         try {
