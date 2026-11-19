@@ -742,6 +742,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/v162-secure-dashboard-truthful-actions.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ] && [ -f "$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs" ]; then
+    run_test_with_progress "V171 four auth-prefix ^~ nested-JSON precedence (source + disposable nginx)" \
+      "node --test '$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs'" || test_result=1
+  fi
+
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "V138 Reports async catalog and filesystem IO quarantine" \
       "node --test '$ROOT_DIR/tests/security/reports-list-contract.test.cjs'" || test_result=1

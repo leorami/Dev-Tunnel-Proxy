@@ -97,7 +97,8 @@ for (const config of ['config/default.conf','config/default.production.conf']) {
       'location = /routes {',
       'location = /routes.json {',
       'location = /status.json {',
-      'location /dashboard {',
+      // V171: default.conf uses ^~ /dashboard; production overlay may still be ordinary until LIVE_NGINX_CONFIG_GO.
+      source.includes('location ^~ /dashboard {') ? 'location ^~ /dashboard {' : 'location /dashboard {',
     ]) {
       const index=source.indexOf(marker);
       assert.notEqual(index,-1,marker);
