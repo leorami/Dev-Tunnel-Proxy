@@ -11,7 +11,7 @@ const PAGES = new Set([
   '/status', '/status/', '/health', '/health/',
   '/reports', '/reports/', '/dashboard', '/dashboard/',
 ]);
-const INERT_ASSET = /\.(?:js|css|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf)$/i;
+const INERT_ASSET = /\.(?:js|css|png|jpg|jpeg|gif|webp|ico|svg|woff|woff2|ttf)$/i;
 function plain(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && Object.getPrototypeOf(value) === Object.prototype;
@@ -23,6 +23,14 @@ function safePath(pathname) {
   if(/[\\%?#\u0000-\u001f\u007f]/.test(pathname) || pathname.includes('//')) return false;
   if(pathname.split('/').some(p => p === '..' || p === '.')) return false;
   return true;
+}
+function allowedAssetPrefix(pathname) {
+  if (pathname.startsWith('/status/assets/') || pathname.startsWith('/dashboard/assets/')) return true;
+  if (pathname.startsWith('/status/vendor/')) return true;
+  // Exact leaf scripts/styles under /status/ (common.css, common.js, config.js).
+  if (/^\/status\/[A-Za-z0-9._-]+\.(?:js|css)$/.test(pathname)) return true;
+  if (/^\/dashboard\/[A-Za-z0-9._-]+\.(?:js|css)$/.test(pathname)) return true;
+  return false;
 }
 function evaluateObserverAccess(input) {
   if(!plain(input)) return denied();
@@ -43,8 +51,7 @@ function evaluateObserverAccess(input) {
     return denied();
   if(!INERT_ASSET.test(pathname)) return denied();
   if(!exactStaticAssetManifest.includes(pathname)) return denied();
-  if(!(pathname.startsWith('/status/assets/') || pathname.startsWith('/dashboard/assets/')))
-    return denied();
+  if(!allowedAssetPrefix(pathname)) return denied();
   return {allowed:true,classification:'asset'};
 }
 module.exports = Object.freeze({evaluateObserverAccess});

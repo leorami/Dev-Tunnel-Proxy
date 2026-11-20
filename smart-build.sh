@@ -698,6 +698,26 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "CTO observer access policy (pure fail-closed visual grant)" \
+      "node --test '$ROOT_DIR/tests/security/cto-observer-access-policy.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "CTO observer grant lifecycle (issue/redeem/revoke/replay)" \
+      "node --test '$ROOT_DIR/tests/security/cto-observer-grant-service.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "CTO observer HTTP boundary, projection privacy, transport truth-gate" \
+      "node --test '$ROOT_DIR/tests/security/cto-observer-http-boundary.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "CTO observer nginx source contract (dual gate + deny sensitive)" \
+      "node --test '$ROOT_DIR/tests/security/cto-observer-nginx-source-contract.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "Paired status page script trust and safe HTML sinks" \
       "node --test '$ROOT_DIR/tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs'" || test_result=1
   fi
