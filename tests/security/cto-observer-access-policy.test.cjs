@@ -17,6 +17,9 @@ const grant = Object.freeze({
 const manifest = Object.freeze([
   '/status/assets/logo.png',
   '/status/assets/site.css',
+  '/status/assets/logo.svg',
+  '/status/common.css',
+  '/status/common.js',
   '/dashboard/assets/app.js',
 ]);
 const access = (overrides={}) => evaluateObserverAccess({
@@ -51,9 +54,12 @@ test('ALLOW only explicit read-only rendered page routes', () => {
 test('ALLOW only exact source-allowlisted inert assets, no wildcard asset grants', () => {
   assert.deepEqual(access({pathname:'/status/assets/logo.png'}),{allowed:true,classification:'asset'});
   assert.deepEqual(access({pathname:'/dashboard/assets/app.js'}),{allowed:true,classification:'asset'});
+  assert.deepEqual(access({pathname:'/status/assets/logo.svg'}),{allowed:true,classification:'asset'});
+  assert.deepEqual(access({pathname:'/status/common.css'}),{allowed:true,classification:'asset'});
   assert.equal(access({pathname:'/status/assets/secrets.json'}).allowed,false);
   assert.equal(access({pathname:'/status/assets/random.js'}).allowed,false);
-  assert.equal(access({pathname:'/status/assets/script.svg',exactStaticAssetManifest:['/status/assets/script.svg']}).allowed,false);
+  assert.equal(access({pathname:'/status/common.css',exactStaticAssetManifest:[]}).allowed,false);
+  assert.equal(access({pathname:'/status/secret.json',exactStaticAssetManifest:['/status/secret.json']}).allowed,false);
 });
 
 test('DENY mutations, configuration, AI actions, admin endpoints and private JSON even with a valid grant', () => {

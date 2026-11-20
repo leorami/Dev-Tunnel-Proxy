@@ -35,7 +35,20 @@ const {answerFromLocalProjectDocs,readBoundedLocalQuestionBody}=require('./rc2-l
 const {explainLocalCalliopeCapability}=require('./rc2-local-calliope-observe-explain.cjs');
 const {createMinimalPublicCalliopeHealth,publicCalliopeHealthCacheHeaders}=require('./rc2-public-calliope-health-privacy.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
+const { createCtoObserverHttpBoundary } = require('./cto-observer-http.cjs');
+const { getCtoObserverAssetManifest } = require('./cto-observer-asset-manifest.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
+function resolveDevproxySourceSha(){
+  const sha = process.env.DEVPROXY_SOURCE_SHA || process.env.DEVPROXY_GIT_SHA || '';
+  return /^[a-f0-9]{40}$/.test(sha) ? sha : null;
+}
+const ctoObserverHttp = createCtoObserverHttpBoundary({
+  getSourceSha: () => resolveDevproxySourceSha(),
+  getAssetManifest: () => getCtoObserverAssetManifest(),
+  parseBody,
+  send,
+});
+
 // No network request occurs until an authenticated owner starts a bounded audit.
 const rc2SafeLocalAudit=createConstrainedLocalHttpAudit({trustedOrigins:TRUSTED_ORIGINS});
 
@@ -633,6 +646,42 @@ async function handle(req, res){
     
     // Password recovery is a LOCAL TRUSTED OPERATOR action, not an HTTP endpoint.
     // The old /admin/show-password disclosure route is intentionally retired.
+
+    // V174: CTO observer grant/redeem/check/projection (source-wired; no live deploy GO).
+    if (typeof u.pathname === 'string' && u.pathname.startsWith('/admin/cto-observer')) {
+      const adminToken = extractSessionToken(req);
+      const adminSessionPresent = Boolean(adminToken);
+      const ownerAuthenticated = validateSession(adminToken);
+      const trustedOriginOk = adminRequestOriginAllowed(req.headers.origin, {
+        trustedOrigins: TRUSTED_ORIGINS,
+        authMode: requestAuthMode(req),
+        method: req.method,
+      });
+      return ctoObserverHttp.handle(req, res, {
+        pathname: u.pathname,
+        ownerAuthenticated,
+        trustedOriginOk,
+        adminSessionPresent,
+        adminBearerPresent: Boolean(req.headers.authorization),
+        routeCountPublic: 0,
+        publicHealthOk: true,
+      });
+    }
+
+    // Dual visual gate: owner admin XOR observer session+policy.
+    if (req.method === 'GET' && u.pathname === '/admin/visual-access-check') {
+      if (originDenied(req, res)) return;
+      const adminToken = extractSessionToken(req);
+      const adminSessionPresent = Boolean(adminToken);
+      const adminSessionValid = validateSession(adminToken);
+      const gate = ctoObserverHttp.evaluateVisualAccessGate(req, {
+        adminSessionValid,
+        adminSessionPresent,
+        adminBearerPresent: Boolean(req.headers.authorization),
+      });
+      if (gate.ok) return send(res, 200, { authenticated: true, role: gate.role });
+      return send(res, 401, { authenticated: false, code: gate.code || 'VISUAL_ACCESS_DENIED' });
+    }
     
     // GET /admin/login - Serve login page
     if (req.method === 'GET' && u.pathname === '/admin/login'){

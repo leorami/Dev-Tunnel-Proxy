@@ -1,6 +1,6 @@
 # Mandatory CTO Visual Access — Dev Proxy v1
 
-**Status: source-only CTO security contract; NOT wired to an observer server; NOT deployed.** Owner decision: Dev Proxy (not automatically every Origin consumer) must give the CTO authenticated read-only visual access to the single canonical live app, with genuine screenshot bytes and exact source snippets inline in ChatGPT. Engineer-I's independently captured screenshot/UAT evidence remains mandatory too.
+**Status: source-wired CTO observer grant/redeem/check + nginx dual visual gate candidate on engineer branch; NOT live-deployed; ChatGPT browser transport still blocked until trusted plugin delivers original PNG inline.** Owner decision: Dev Proxy (not automatically every Origin consumer) must give the CTO authenticated read-only visual access to the single canonical live app, with genuine screenshot bytes and exact source snippets inline in ChatGPT. Engineer-I's independently captured screenshot/UAT evidence remains mandatory too.
 
 ## Existing site and real access truth
 
