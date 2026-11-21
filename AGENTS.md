@@ -1,0 +1,7 @@
+# AGENTS.md — bounded Origin visual evidence addendum (2026-11-20)
+
+This is an **interim project-scoped rule**, not a claim that the entire protected Origin Core has been synchronized. Preserve the project's actual implementation/owner permissions, existing primary assignment and canonical runtime; do not merge or deploy merely because this note exists.
+
+**No macOS runner prerequisite for browser work:** UI screenshots, Playwright, static/web rendering, and source snippets use the current canonical app's browser/dev proxy and available Linux/Ubuntu runners. A Mac CI/GUI prerequisite is ONLY a separate *native Tauri* proof lane, not a general Origin visual gate. If that native lane is unavailable, continue independent browser and code evidence, labeling it browser-only where appropriate.
+
+For substantive UI/UX/IA reviews, the CTO must independently review real source-return code and actual SHA/dimension-verified original PNG bytes, then embed 1–3 actual original images as literal `![descriptive alt](sandbox:/mnt/data/<verified-real-file.png>)` attachments **in the FINAL ChatGPT reply**, with a short exact-source snippet. Tool previews, GitHub URLs, filenames, hashes and claims of viewing images are NOT owner-visible screenshots. If genuine pixels cannot be retrieved, keep visual approval on HOLD and report `BLOCKED_VISIBLE_PIXEL_TRANSPORT`; never fabricate mockups, say UAT PASS, or ask the owner to relay images. Follow Origin coordination Issue #140 and draft fix #144; integration into the canonical Origin protocol remains a separate reviewed step.
