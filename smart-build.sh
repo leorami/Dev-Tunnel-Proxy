@@ -519,6 +519,11 @@ cmd_test_unit() {
       "node '$ROOT_DIR/test/calliope-embeddings-integration.test.js'" || test_result=1
   fi
   
+  if [ $test_result -eq 0 ] && [ -f "$ROOT_DIR/tests/docs/v177-current-capability-truth.test.cjs" ]; then
+    run_test_with_progress "V177 Calliope capability docs truth" \
+      "node --test '$ROOT_DIR/tests/docs/v177-current-capability-truth.test.cjs'" || test_result=1
+  fi
+
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "Management perimeter security (source-only, safe)" \
       "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
