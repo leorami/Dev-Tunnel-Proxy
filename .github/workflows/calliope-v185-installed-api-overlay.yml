@@ -5,6 +5,7 @@ on:
       - 'utils/rc2-v185-calliope-api-overlay.cjs'
       - 'tests/release/v185-exact-installed-api-overlay.test.cjs'
       - '.github/workflows/calliope-v185-installed-api-overlay.yml'
+      - 'docs/handoffs/DEVPROXY_V185_CALLIOPE_INSTALLED_API_RECONCILE.md'
   workflow_dispatch:
 permissions:
   contents: read
