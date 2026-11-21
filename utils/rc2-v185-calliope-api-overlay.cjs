@@ -64,7 +64,9 @@ function buildCalliopeInstalledApiOverlay(input){
   if([installedSource,mainSource,reviewedSource].some(s=>typeof s!=='string'||!s.endsWith('\n')||
      s.length>300000||s.includes('\r')))
     return reject('INVALID_OVERLAY_SOURCE');
-  // Historical reviewed APIs contain literal NUL bytes in old display-copy strings.\n  // Pinned Git blob SHA covers them exactly; do not corrupt that on-host preimage.\n  if(blobSha(installedSource)!==PINS.installedApi||
+  // Historical reviewed APIs contain literal NUL bytes in old display-copy strings.
+  // Pinned Git blob SHA covers them exactly; do not corrupt that on-host preimage.
+  if(blobSha(installedSource)!==PINS.installedApi||
      blobSha(mainSource)!==PINS.mainApi||
      blobSha(reviewedSource)!==PINS.reviewedApi)
     return reject('UNRECONCILED_API_PREIMAGE');
