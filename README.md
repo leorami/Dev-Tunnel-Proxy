@@ -36,7 +36,7 @@
 
 - **🔧 Smart Configuration Management**: Tiny core Nginx config that composes app routes from `apps/` and `overrides/` directories into a single generated bundle
 - **🌐 Secure Tunneling**: Separate ngrok container provides secure public access to your development environment
-- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI-Powered Assistant**: Calliope, your caring AI assistant, proactively monitors, diagnoses, and heals routing issues
+- **<img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="20" style="vertical-align: middle;" /> AI-Powered Assistant**: Calliope provides secure-mode Ask/Diagnose answers and authenticated read-only route observations; unattended automatic repairs are not enabled
 - **📊 Enhanced Status Dashboard**: Visual route management with grouping, promotion system, and real-time health monitoring
 - **🔄 Programmatic API**: RESTful endpoints for configuration management, conflict resolution, and diagnostics
 - **🐳 Docker-Native**: All apps join the shared `devproxy` Docker network for seamless connectivity
@@ -463,7 +463,9 @@ Visit `/status` for a comprehensive view of your proxy's health and routes.
 
 ## <img src="./status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="32" style="vertical-align: middle;" /> Calliope AI Assistant
 
-**Calliope** is your proxy's caring, youthful AI assistant who proactively monitors, diagnoses, and heals routing issues. She's not just an advisor—she actually fixes problems herself.
+**Calliope** is your proxy's caring AI assistant for authenticated diagnostics and documentation Q&A in secure mode. She can observe and explain; she does **not** automatically repair arbitrary routes when asked in chat.
+
+> **Current capability note (2026-11-20):** Secure Ask returns bounded local-documentation answers; Diagnose uses authenticated read-only HTTP HEAD observation. Owner-approved, separately gated changes are required for any repair. See [current operational state](docs/CURRENT_OPERATIONAL_STATE.md) and [Calliope guide](docs/CALLIOPE_ASSISTANT.md).
 
 ### Core Capabilities
 
@@ -572,7 +574,7 @@ OPENAI_EMBED_MODEL=text-embedding-3-small
 
 ### Learn More
 
-- **[Calliope Complete Guide](docs/CALLIOPE.md)** - Full capabilities, personality, RAG system, and technical details
+- **[Calliope Complete Guide](docs/CALLIOPE_ASSISTANT.md)** - Full capabilities, personality, RAG system, and technical details
 
 ## 🔄 API Endpoints
 

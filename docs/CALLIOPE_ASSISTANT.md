@@ -1,11 +1,9 @@
 # Calliope AI Assistant - Complete Guide
 
-**Last Updated**: January 2026  
-**Version**: 1.1
+**Legacy edition:** January 2026, version 1.1. **Operational correction:** November 20, 2026.
 
-<div align="center">
-  <img src="../status/assets/calliope_heart_stethoscope.svg" alt="Calliope" width="120" />
-</div>
+> **IMPORTANT — SECURE MODE IS OBSERVATION-ONLY BY DEFAULT.**
+> In the currently approved secure management mode, Calliope's Ask/Diagnose path is **read-only / observation-only**: bounded local-documentation answers and authenticated HTTP HEAD route observations. Typing "please repair" or "try anyway" does **not** authorize or execute a repair. Unattended Docker restarts, automatic nginx edits, and `heal:true` flows described later in this guide are **historical or aspirational**, not current secure-runtime authority. Present-tense product truth: [CURRENT_OPERATIONAL_STATE.md](CURRENT_OPERATIONAL_STATE.md).
 
 ---
 
@@ -22,6 +20,9 @@
 9. [Testing & Validation](#testing--validation)
 10. [Troubleshooting Guides](#troubleshooting-guides)
 11. [Technical Implementation](#technical-implementation)
+
+---
+
 
 ---
 
@@ -180,6 +181,10 @@ She's not just a conduit to OpenAI—she's a true AI engineer with her own tools
 - **When Uncertain**: "This one's a bit tricky, but let me try a few things..."
 
 ---
+
+## Historical / non-operative self-healing design
+
+> The section below preserves legacy design history. It is **not** a permit to run autonomous repairs in secure mode.
 
 ## Self-Healing System
 
