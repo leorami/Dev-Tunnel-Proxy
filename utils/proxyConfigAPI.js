@@ -33,6 +33,7 @@ const {scanExistingAppHttpRoutes}=require('./rc2-readonly-app-http-scan.cjs');
 const {runSecureSelfCheck,readSecureSelfCheckRequestBody}=require('./rc2-secure-self-check.cjs');
 const {answerFromLocalProjectDocs,readBoundedLocalQuestionBody}=require('./rc2-local-calliope-evidence.cjs');
 const {explainLocalCalliopeCapability}=require('./rc2-local-calliope-observe-explain.cjs');
+const {createCalliopeAskRuntime}=require('./calliope-owner-session-runtime.cjs');
 const {createMinimalPublicCalliopeHealth,publicCalliopeHealthCacheHeaders}=require('./rc2-public-calliope-health-privacy.cjs');
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
@@ -40,6 +41,11 @@ const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORI
 const rc2SafeLocalAudit=createConstrainedLocalHttpAudit({trustedOrigins:TRUSTED_ORIGINS});
 
 const ROOT = path.resolve(__dirname, '..');
+let calliopeRuntime;
+function calliopeAskRuntime(){
+  if(!calliopeRuntime) calliopeRuntime=createCalliopeAskRuntime({root:ROOT});
+  return calliopeRuntime;
+}
 const APPS_DIR = path.join(ROOT, 'apps');
 const ARTIFACTS_DIR = path.join(ROOT, '.artifacts');
 const RES_FILE = path.join(ARTIFACTS_DIR, 'route-resolutions.json');
@@ -686,6 +692,7 @@ async function handle(req, res){
       if (originDenied(req, res)) return;
       const token = extractSessionToken(req);
       if (token) {
+        try { calliopeAskRuntime().invalidate(calliopeAskRuntime().sessionKey(token)); } catch {}
         activeSessions.delete(token);
         saveSessions();
       }
@@ -747,6 +754,22 @@ async function handle(req, res){
         executionAuthorized:false,productionChangeAuthorized:false,networkTransferAuthorized:false});
       const explained=explainLocalCalliopeCapability(request.query);
       if(explained.ok)return send(res,200,explained);
+      const ownerSessionId=calliopeAskRuntime().sessionKey(extractSessionToken(req));
+      const local=await calliopeAskRuntime().ask({ownerSessionId, query:request.query});
+      if(local&&local.ok===true&&local.usedAI===true&&local.mode==='local_model_readonly'){
+        return send(res,200,{
+          ok:true,
+          answer:calliopeAskRuntime().present(local),
+          sources:local.evidenceIds,
+          usedAI:true,
+          mode:'local_model_readonly',
+          healingPerformed:false,
+          executionAuthorized:false,
+          productionChangeAuthorized:false,
+          liveAttested:false,
+          networkTransferAuthorized:false,
+        });
+      }
       const answer=answerFromLocalProjectDocs({root:ROOT,query:request.query,maxDocs:request.maxDocs});
       const code=answer.ok?200:(answer.code==='LOCAL_DOCUMENTATION_UNAVAILABLE'?503:400);
       return send(res,code,answer);
@@ -764,6 +787,12 @@ async function handle(req, res){
       if(!rc2SafeAuditInput)return send(res,400,{ok:false,error:'INVALID_AUDIT_BODY'});
       const auditObservation=await rc2SafeLocalAudit.audit(rc2SafeAuditInput);
       const {httpStatus,...auditResult}=auditObservation;
+      try {
+        calliopeAskRuntime().rememberAudit(
+          calliopeAskRuntime().sessionKey(extractSessionToken(req)),
+          auditResult
+        );
+      } catch {}
       return send(res,httpStatus,auditResult);
     }
     // RC2_SECURE_APPS_INVENTORY: default remains authenticated, no-network

@@ -3,7 +3,12 @@ on:
   pull_request:
     paths:
       - 'utils/calliope-grounded-local-turn.cjs'
+      - 'utils/calliope-owner-session-brain.cjs'
+      - 'utils/calliope-local-model-complete.cjs'
+      - 'utils/calliope-owner-session-runtime.cjs'
       - 'tests/calliope/v181-grounded-local-turn.test.cjs'
+      - 'tests/calliope/v181-owner-session-local-model-red.test.cjs'
+      - 'tests/calliope/v181-local-model-allowlist.test.cjs'
       - '.github/workflows/calliope-grounded-local-contract.yml'
   workflow_dispatch:
 permissions:
@@ -19,3 +24,5 @@ jobs:
           node-version: '22'
       - name: RED first then pure read-only persona and evidence trust gate
         run: node --test tests/calliope/v181-grounded-local-turn.test.cjs
+      - name: Owner-session local model adapter and private endpoint allowlist
+        run: node --test tests/calliope/v181-owner-session-local-model-red.test.cjs tests/calliope/v181-local-model-allowlist.test.cjs
