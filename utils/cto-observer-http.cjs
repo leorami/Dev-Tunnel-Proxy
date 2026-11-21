@@ -1,7 +1,6 @@
 'use strict';
 /**
- * HTTP boundary for CTO observer grant/redeem/check.
- * Intended to be called from proxyConfigAPI; no listen() here.
+ * HTTP boundary for CTO observer grant/redeem/check (V175 fail-closed).
  * Secrets are never written into logs or audit objects.
  */
 const crypto = require('node:crypto');
@@ -15,22 +14,17 @@ const {
 const {
   classifyCtoBrowserTransport,
 } = require('./cto-observer-browser-transport.cjs');
+const {
+  selectGrantSourceSha,
+} = require('./cto-observer-source-attestation.cjs');
 
 const OBSERVER_COOKIE = 'cto_observer_session';
 const TOKEN = /^[a-f0-9]{64}$/;
 const HEX_SHA = /^[a-f0-9]{40}$/;
 
-function plain(value) {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    && Object.getPrototypeOf(value) === Object.prototype;
-}
-
 function extractObserverSessionToken(req) {
   const headers = req?.headers || {};
-  if (headers.authorization !== undefined) {
-    // Observer must not use admin bearer; reject any Authorization for observer identity.
-    return null;
-  }
+  if (headers.authorization !== undefined) return null;
   const cookie = headers.cookie;
   if (typeof cookie !== 'string' || cookie.length > 8192) return null;
   let found = null;
@@ -64,6 +58,24 @@ function headerHasAdminBearer(req) {
   return typeof auth === 'string' && /^Bearer\s+\S+/i.test(auth);
 }
 
+function newToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Fail-closed original target resolution. Never invents `/status`.
+ */
+function resolveOriginalPathname(req) {
+  const raw = req?.headers?.['x-original-uri'] || req?.headers?.['x-original-url'];
+  if (typeof raw !== 'string' || !raw.startsWith('/') || raw.length > 2048) return null;
+  if (/[\\%?#\u0000-\u001f\u007f]/.test(raw) || raw.includes('//')) return null;
+  const pathOnly = raw.split('?')[0].split('#')[0];
+  if (!pathOnly.startsWith('/') || pathOnly.split('/').some((p) => p === '..' || p === '.')) {
+    return null;
+  }
+  return pathOnly;
+}
+
 function createCtoObserverHttpBoundary(deps = {}) {
   const store = deps.store || createCtoObserverGrantStore({ nowFn: deps.nowFn });
   const getSourceSha = typeof deps.getSourceSha === 'function'
@@ -81,26 +93,35 @@ function createCtoObserverHttpBoundary(deps = {}) {
       res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(obj));
     };
+  /** @type {Map<string, {token:string, expiresAtMs:number}>} */
+  const ownerCsrfBySession = new Map();
+  const nowFn = typeof deps.nowFn === 'function' ? deps.nowFn : () => Date.now();
 
-  function csrfOk(req, body) {
-    // Double-submit style: trusted Origin already checked by caller; require
-    // matching X-DevProxy-CSRF header equal to body.csrfToken (non-empty).
-    const header = req?.headers?.['x-devproxy-csrf'];
-    const token = body && typeof body.csrfToken === 'string' ? body.csrfToken : '';
-    if (typeof header !== 'string' || header.length < 16 || header.length > 256) return false;
-    if (!token || token.length < 16 || token.length > 256) return false;
-    const a = Buffer.from(header, 'utf8');
-    const b = Buffer.from(token, 'utf8');
-    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  function issueOwnerCsrf(adminSessionToken) {
+    if (!TOKEN.test(adminSessionToken)) return null;
+    const token = newToken();
+    ownerCsrfBySession.set(adminSessionToken, {
+      token,
+      expiresAtMs: nowFn() + 10 * 60 * 1000,
+    });
+    return token;
   }
 
-  function originalPathname(req) {
-    const raw = req?.headers?.['x-original-uri'] || req?.headers?.['x-original-url'];
-    if (typeof raw === 'string' && raw.startsWith('/')) {
-      const pathOnly = raw.split('?')[0].split('#')[0];
-      return pathOnly;
+  function ownerCsrfOk(adminSessionToken, req, body) {
+    if (!TOKEN.test(adminSessionToken)) return false;
+    const record = ownerCsrfBySession.get(adminSessionToken);
+    if (!record || record.expiresAtMs <= nowFn()) {
+      ownerCsrfBySession.delete(adminSessionToken);
+      return false;
     }
-    return typeof req?.observerPathname === 'string' ? req.observerPathname : '/status';
+    const header = req?.headers?.['x-devproxy-csrf'];
+    const token = body && typeof body.csrfToken === 'string' ? body.csrfToken : '';
+    if (typeof header !== 'string' || !TOKEN.test(header) || !TOKEN.test(token)) return false;
+    const expected = Buffer.from(record.token, 'utf8');
+    const a = Buffer.from(header, 'utf8');
+    const b = Buffer.from(token, 'utf8');
+    if (a.length !== expected.length || b.length !== expected.length) return false;
+    return crypto.timingSafeEqual(a, expected) && crypto.timingSafeEqual(b, expected);
   }
 
   async function handle(req, res, ctx) {
@@ -114,20 +135,49 @@ function createCtoObserverHttpBoundary(deps = {}) {
     const trustedOriginOk = ctx?.trustedOriginOk === true;
     const adminSessionPresent = ctx?.adminSessionPresent === true;
     const adminBearerPresent = headerHasAdminBearer(req) || ctx?.adminBearerPresent === true;
+    const adminSessionToken = typeof ctx?.adminSessionToken === 'string'
+      ? ctx.adminSessionToken
+      : '';
 
-    // GET /admin/cto-observer/check — nginx auth_request for observer-or dual gate helper
+    // GET /admin/cto-observer/csrf — server-bound CSRF for authenticated owner session
+    if (method === 'GET' && pathname === '/admin/cto-observer/csrf') {
+      if (!trustedOriginOk) return send(res, 403, { ok: false, code: 'ORIGIN_DENIED' });
+      if (!ownerAuthenticated || !TOKEN.test(adminSessionToken)) {
+        return send(res, 401, { ok: false, code: 'OWNER_AUTH_REQUIRED' });
+      }
+      const csrfToken = issueOwnerCsrf(adminSessionToken);
+      const attested = getSourceSha();
+      return send(res, 200, {
+        ok: true,
+        csrfToken,
+        attestedSourceSha: HEX_SHA.test(attested) ? attested : null,
+        transport: classifyCtoBrowserTransport({
+          chatgptWorkCloudBrowserCallable: false,
+          devProxyObserverPluginCallable: false,
+          canRetrieveOriginalPngBytes: false,
+          deliversInlineToOwnerChatgpt: false,
+          cursorIdeBrowserPresent: true,
+        }),
+      });
+    }
+
+    // GET /admin/cto-observer/check
     if (method === 'GET' && pathname === '/admin/cto-observer/check') {
       const sourceSha = getSourceSha();
       const observerToken = extractObserverSessionToken(req);
       if (adminSessionPresent || adminBearerPresent) {
         return send(res, 401, { authenticated: false, code: 'ADMIN_CREDENTIAL_REUSE_DENIED' });
       }
+      const original = resolveOriginalPathname(req);
+      if (!original) {
+        return send(res, 401, { authenticated: false, code: 'ORIGINAL_URI_REQUIRED' });
+      }
       if (!observerToken || !HEX_SHA.test(sourceSha)) {
         return send(res, 401, { authenticated: false, code: 'SESSION_INVALID' });
       }
       const decision = store.accessDecision({
         sessionToken: observerToken,
-        pathname: originalPathname(req),
+        pathname: original,
         method: 'GET',
         sourceSha,
         exactStaticAssetManifest: getAssetManifest(),
@@ -140,41 +190,48 @@ function createCtoObserverHttpBoundary(deps = {}) {
       return send(res, 200, { authenticated: true, classification: decision.classification });
     }
 
-    // POST /admin/cto-observer/grants — owner issues revocable grant
+    // POST /admin/cto-observer/grants
     if (method === 'POST' && pathname === '/admin/cto-observer/grants') {
       if (!trustedOriginOk) return send(res, 403, { ok: false, code: 'ORIGIN_DENIED' });
       if (!ownerAuthenticated) return send(res, 401, { ok: false, code: 'OWNER_AUTH_REQUIRED' });
       const body = await parseBody(req);
-      if (!csrfOk(req, body)) return send(res, 403, { ok: false, code: 'CSRF_DENIED' });
-      const sourceSha = typeof body.sourceSha === 'string' ? body.sourceSha : getSourceSha();
+      if (!ownerCsrfOk(adminSessionToken, req, body)) {
+        return send(res, 403, { ok: false, code: 'CSRF_DENIED' });
+      }
+      const selected = selectGrantSourceSha({
+        attestedSourceSha: getSourceSha(),
+        requestedSourceSha: body.sourceSha,
+      });
+      if (!selected.ok) return send(res, 400, { ok: false, code: selected.code });
       const result = store.issueGrant({
         ownerAuthenticated: true,
         trustedOriginOk: true,
         csrfOk: true,
-        sourceSha,
+        sourceSha: selected.sourceSha,
         observerPrincipal: body.observerPrincipal,
         ttlMs: body.ttlMs,
       });
       if (!result.ok) return send(res, 400, { ok: false, code: result.code });
-      // redemptionToken only in this authenticated owner response — never log it.
+      // redemptionToken only in authenticated owner JSON — never log / URL / screenshot DOM helper.
       return send(res, 200, {
         ok: true,
         grantId: result.audit.grantId,
         expiresAtMs: result.audit.expiresAtMs,
         redemptionToken: result.redemptionToken,
         redeemPath: '/admin/cto-observer/redeem',
+        attestedSourceSha: selected.sourceSha,
         audit: result.audit,
+        deliveryNote: 'HAND_TO_TRUSTED_OBSERVER_CHANNEL_ONLY',
       });
     }
 
-    // POST /admin/cto-observer/redeem — one-time observer redemption (no admin cookie)
+    // POST /admin/cto-observer/redeem — redemptionToken proves one-use secret; no admin CSRF
     if (method === 'POST' && pathname === '/admin/cto-observer/redeem') {
       if (!trustedOriginOk) return send(res, 403, { ok: false, code: 'ORIGIN_DENIED' });
       if (adminSessionPresent || adminBearerPresent) {
         return send(res, 403, { ok: false, code: 'ADMIN_CREDENTIAL_REUSE_DENIED' });
       }
       const body = await parseBody(req);
-      if (!csrfOk(req, body)) return send(res, 403, { ok: false, code: 'CSRF_DENIED' });
       const result = store.redeemGrant({
         grantId: body.grantId,
         redemptionToken: body.redemptionToken,
@@ -201,7 +258,9 @@ function createCtoObserverHttpBoundary(deps = {}) {
       if (!trustedOriginOk) return send(res, 403, { ok: false, code: 'ORIGIN_DENIED' });
       if (!ownerAuthenticated) return send(res, 401, { ok: false, code: 'OWNER_AUTH_REQUIRED' });
       const body = await parseBody(req);
-      if (!csrfOk(req, body)) return send(res, 403, { ok: false, code: 'CSRF_DENIED' });
+      if (!ownerCsrfOk(adminSessionToken, req, body)) {
+        return send(res, 403, { ok: false, code: 'CSRF_DENIED' });
+      }
       const result = store.revokeGrant({
         ownerAuthenticated: true,
         trustedOriginOk: true,
@@ -212,12 +271,12 @@ function createCtoObserverHttpBoundary(deps = {}) {
       return send(res, 200, { ok: true, audit: result.audit });
     }
 
-    // GET /admin/cto-observer/projection/:page — sanitized read-only projection
+    // GET /admin/cto-observer/projection/:page
     if (method === 'GET' && pathname.startsWith('/admin/cto-observer/projection/')) {
       if (adminSessionPresent || adminBearerPresent) {
         return send(res, 403, { ok: false, code: 'ADMIN_CREDENTIAL_REUSE_DENIED' });
       }
-      const page = pathname.slice('/admin/cto-observer/projection/'.length);
+      const page = pathname.slice('/admin/cto-observer/projection/'.length).split('/')[0];
       const sourceSha = getSourceSha();
       const observerToken = extractObserverSessionToken(req);
       const decision = store.accessDecision({
@@ -242,7 +301,7 @@ function createCtoObserverHttpBoundary(deps = {}) {
       return send(res, 200, { ok: true, projection: built.projection });
     }
 
-    // GET /admin/cto-observer/transport — truth gate status (no secrets)
+    // GET /admin/cto-observer/transport
     if (method === 'GET' && pathname === '/admin/cto-observer/transport') {
       if (!ownerAuthenticated) return send(res, 401, { ok: false, code: 'OWNER_AUTH_REQUIRED' });
       const transport = classifyCtoBrowserTransport({
@@ -258,10 +317,6 @@ function createCtoObserverHttpBoundary(deps = {}) {
     return send(res, 404, { ok: false, code: 'NOT_FOUND' });
   }
 
-  /**
-   * Dual visual gate used by nginx auth_request replacement candidate:
-   * owner admin session alone OR observer session+policy; never both.
-   */
   function evaluateVisualAccessGate(req, {
     adminSessionValid = false,
     adminSessionPresent = false,
@@ -274,9 +329,11 @@ function createCtoObserverHttpBoundary(deps = {}) {
     if (observerToken && !adminSessionPresent && !adminBearerPresent) {
       const sourceSha = getSourceSha();
       if (!HEX_SHA.test(sourceSha)) return { ok: false, code: 'SOURCE_SHA_INVALID' };
+      const original = resolveOriginalPathname(req);
+      if (!original) return { ok: false, code: 'ORIGINAL_URI_REQUIRED' };
       const decision = store.accessDecision({
         sessionToken: observerToken,
-        pathname: originalPathname(req),
+        pathname: original,
         method: 'GET',
         sourceSha,
         exactStaticAssetManifest: getAssetManifest(),
@@ -295,6 +352,8 @@ function createCtoObserverHttpBoundary(deps = {}) {
     evaluateVisualAccessGate,
     extractObserverSessionToken,
     observerSessionCookie,
+    resolveOriginalPathname,
+    issueOwnerCsrf,
     store,
     OBSERVER_COOKIE,
   });
@@ -304,5 +363,6 @@ module.exports = Object.freeze({
   createCtoObserverHttpBoundary,
   extractObserverSessionToken,
   observerSessionCookie,
+  resolveOriginalPathname,
   OBSERVER_COOKIE,
 });

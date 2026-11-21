@@ -718,6 +718,21 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V175 observer predeploy trust gates (formerly RED)" \
+      "node --test '$ROOT_DIR/tests/security/v175-observer-predeploy-red-gates.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V175 attested source SHA selection" \
+      "node --test '$ROOT_DIR/tests/security/cto-observer-source-attestation.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ] && [ -f "$ROOT_DIR/tests/security/v175-observer-nginx-caret-precedence.test.cjs" ]; then
+    run_test_with_progress "V175 native nginx ^~ nested JSON precedence" \
+      "node --test '$ROOT_DIR/tests/security/v175-observer-nginx-caret-precedence.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "Paired status page script trust and safe HTML sinks" \
       "node --test '$ROOT_DIR/tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs'" || test_result=1
   fi

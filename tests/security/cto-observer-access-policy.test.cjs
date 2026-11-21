@@ -46,7 +46,8 @@ test('REFUSE expired, unbounded, malformed, and source-mismatched grants', () =>
 });
 
 test('ALLOW only explicit read-only rendered page routes', () => {
-  for(const pathname of ['/status','/status/','/health','/health/','/reports','/reports/','/dashboard','/dashboard/']) {
+  for(const pathname of ['/status','/status/','/health','/health/','/reports','/reports/','/dashboard','/dashboard/',
+    '/observer/status','/observer/health.html','/observer/reports','/observer/dashboard.html']) {
     assert.deepEqual(access({pathname}),{allowed:true,classification:'page'},pathname);
   }
 });

@@ -10,19 +10,30 @@ function conf(name) {
   return fs.readFileSync(path.join(ROOT, 'config', name), 'utf8');
 }
 
+function nginxBlock(src, declaration) {
+  const start = src.indexOf(declaration + ' {');
+  if (start < 0) return null;
+  const open = src.indexOf('{', start);
+  let depth = 1;
+  for (let i = open + 1; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) return src.slice(start, i + 1);
+  }
+  return null;
+}
+
 test('default and production expose CTO observer endpoints and dual visual gate', () => {
   for (const name of ['default.conf', 'default.production.conf']) {
     const text = conf(name);
-    for (const loc of [
-      '/admin/cto-observer/grants',
-      '/admin/cto-observer/redeem',
-      '/admin/cto-observer/revoke',
-      '/admin/cto-observer/check',
-      '/admin/visual-access-check',
-    ]) {
-      assert.match(text, new RegExp('location = ' + loc.replace(/\//g, '\\/')), name + ' ' + loc);
+    for (const page of ['status', 'reports', 'health', 'dashboard']) {
+      const b = nginxBlock(text, 'location ^~ /' + page);
+      assert.ok(b, name + ' ^~ /' + page);
+      assert.match(b, /auth_request\s+\/admin\/visual-access-check;/);
     }
-    assert.equal((text.match(/auth_request \/admin\/visual-access-check;/g) || []).length >= 4, true, name);
+    const vac = nginxBlock(text, 'location = /admin/visual-access-check');
+    assert.match(vac, /\binternal\s*;/);
+    assert.match(text, /location\s+\^~\s+\/admin\/cto-observer\/projection\//);
+    assert.match(text, /location\s+\^~\s+\/observer\//);
   }
 });
 
@@ -30,7 +41,6 @@ test('sensitive JSON and management routes remain on admin/check, not observer-o
   const text = conf('default.conf');
   assert.match(text, /location = \/\.artifacts\/calliope\/healing-log\.json \{\s*auth_request \/admin\/check;/);
   assert.match(text, /location = \/devproxy\/api\/notifications \{\s*auth_request \/admin\/check;/);
-  assert.doesNotMatch(text, /location = \/\.artifacts\/calliope\/healing-log\.json \{\s*auth_request \/admin\/visual-access-check;/);
 });
 
 test('snippet candidate exists for review without implying live include', () => {

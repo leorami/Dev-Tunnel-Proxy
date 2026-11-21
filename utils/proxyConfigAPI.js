@@ -37,13 +37,10 @@ const {createMinimalPublicCalliopeHealth,publicCalliopeHealthCacheHeaders}=requi
 const {safeAdminPasswordMatches,extractAdminSessionToken,adminSessionCookie,writeSecureSessionFile,readSecureSessionFile,adminRequestOriginAllowed,normalizeTrustedOrigins} = require('./admin-session-security.cjs');
 const { createCtoObserverHttpBoundary } = require('./cto-observer-http.cjs');
 const { getCtoObserverAssetManifest } = require('./cto-observer-asset-manifest.cjs');
+const { resolveAttestedSourceSha } = require('./cto-observer-source-attestation.cjs');
 const TRUSTED_ORIGINS = normalizeTrustedOrigins(process.env.DEVPROXY_TRUSTED_ORIGINS || '');
-function resolveDevproxySourceSha(){
-  const sha = process.env.DEVPROXY_SOURCE_SHA || process.env.DEVPROXY_GIT_SHA || '';
-  return /^[a-f0-9]{40}$/.test(sha) ? sha : null;
-}
 const ctoObserverHttp = createCtoObserverHttpBoundary({
-  getSourceSha: () => resolveDevproxySourceSha(),
+  getSourceSha: () => resolveAttestedSourceSha(process.env),
   getAssetManifest: () => getCtoObserverAssetManifest(),
   parseBody,
   send,
@@ -662,6 +659,7 @@ async function handle(req, res){
         ownerAuthenticated,
         trustedOriginOk,
         adminSessionPresent,
+        adminSessionToken: adminToken || '',
         adminBearerPresent: Boolean(req.headers.authorization),
         routeCountPublic: 0,
         publicHealthOk: true,

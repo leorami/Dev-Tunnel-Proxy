@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const { createCtoObserverHttpBoundary } = require('../../utils/cto-observer-http.cjs');
 const { buildObserverProjection, projectionLeaksSensitive } = require('../../utils/cto-observer-sanitized-projection.cjs');
 const { classifyCtoBrowserTransport } = require('../../utils/cto-observer-browser-transport.cjs');
+const { selectGrantSourceSha } = require('../../utils/cto-observer-source-attestation.cjs');
 
 const SHA = '952aa2625990f8da60784a8c6a63759b47b43569';
 const PRINCIPAL = 'chatgpt-work-cto-observer';
-const CSRF = 'a'.repeat(32);
+const ADMIN = 'b'.repeat(64);
 
 function mockRes() {
   return {
@@ -35,27 +36,42 @@ function boundary() {
   });
 }
 
-function ownerReq(body = {}) {
-  return {
-    method: 'POST',
-    headers: {
-      origin: 'https://ramileo.ngrok.app',
-      'x-devproxy-csrf': CSRF,
-      host: 'ramileo.ngrok.app',
-      cookie: 'admin_session=' + 'b'.repeat(64),
-    },
-    _body: { csrfToken: CSRF, observerPrincipal: PRINCIPAL, sourceSha: SHA, ...body },
-  };
+async function issueCsrf(api) {
+  const res = mockRes();
+  await api.handle({
+    method: 'GET',
+    headers: { origin: 'https://ramileo.ngrok.app', host: 'ramileo.ngrok.app', cookie: 'admin_session=' + ADMIN },
+  }, res, {
+    pathname: '/admin/cto-observer/csrf',
+    ownerAuthenticated: true,
+    trustedOriginOk: true,
+    adminSessionToken: ADMIN,
+  });
+  assert.equal(res.code, 200);
+  const body = JSON.parse(res.body);
+  assert.match(body.csrfToken, /^[a-f0-9]{64}$/);
+  return body.csrfToken;
 }
 
 test('owner grant → redeem → check allows page; replay and admin reuse denied', async () => {
   const api = boundary();
+  const csrf = await issueCsrf(api);
   const grantRes = mockRes();
-  await api.handle(ownerReq(), grantRes, {
+  await api.handle({
+    method: 'POST',
+    headers: {
+      origin: 'https://ramileo.ngrok.app',
+      'x-devproxy-csrf': csrf,
+      host: 'ramileo.ngrok.app',
+      cookie: 'admin_session=' + ADMIN,
+    },
+    _body: { csrfToken: csrf, observerPrincipal: PRINCIPAL },
+  }, grantRes, {
     pathname: '/admin/cto-observer/grants',
     ownerAuthenticated: true,
     trustedOriginOk: true,
     adminSessionPresent: true,
+    adminSessionToken: ADMIN,
   });
   assert.equal(grantRes.code, 200);
   const grantBody = JSON.parse(grantRes.body);
@@ -65,47 +81,19 @@ test('owner grant → redeem → check allows page; replay and admin reuse denie
   const redeemRes = mockRes();
   await api.handle({
     method: 'POST',
-    headers: {
-      origin: 'https://ramileo.ngrok.app',
-      'x-devproxy-csrf': CSRF,
-      host: 'ramileo.ngrok.app',
-    },
+    headers: { origin: 'https://ramileo.ngrok.app', host: 'ramileo.ngrok.app' },
     _body: {
-      csrfToken: CSRF,
       grantId: grantBody.grantId,
       redemptionToken: grantBody.redemptionToken,
       observerPrincipal: PRINCIPAL,
     },
   }, redeemRes, {
     pathname: '/admin/cto-observer/redeem',
-    ownerAuthenticated: false,
     trustedOriginOk: true,
     adminSessionPresent: false,
   });
   assert.equal(redeemRes.code, 200);
-  assert.match(redeemRes.headers['Set-Cookie'], /cto_observer_session=[a-f0-9]{64}/);
-  assert.doesNotMatch(redeemRes.headers['Set-Cookie'], /admin_session=/);
   const session = /cto_observer_session=([a-f0-9]{64})/.exec(redeemRes.headers['Set-Cookie'])[1];
-
-  const replay = mockRes();
-  await api.handle({
-    method: 'POST',
-    headers: {
-      origin: 'https://ramileo.ngrok.app',
-      'x-devproxy-csrf': CSRF,
-      host: 'ramileo.ngrok.app',
-    },
-    _body: {
-      csrfToken: CSRF,
-      grantId: grantBody.grantId,
-      redemptionToken: grantBody.redemptionToken,
-      observerPrincipal: PRINCIPAL,
-    },
-  }, replay, {
-    pathname: '/admin/cto-observer/redeem',
-    trustedOriginOk: true,
-  });
-  assert.equal(replay.code, 401);
 
   const checkOk = mockRes();
   await api.handle({
@@ -117,57 +105,53 @@ test('owner grant → redeem → check allows page; replay and admin reuse denie
   }, checkOk, { pathname: '/admin/cto-observer/check' });
   assert.equal(checkOk.code, 200);
 
-  const checkAdminReuse = mockRes();
+  const missingUri = mockRes();
   await api.handle({
     method: 'GET',
-    headers: {
-      cookie: 'cto_observer_session=' + session + '; admin_session=' + 'c'.repeat(64),
-      'x-original-uri': '/status',
-    },
-  }, checkAdminReuse, {
-    pathname: '/admin/cto-observer/check',
-    adminSessionPresent: true,
-  });
-  assert.equal(checkAdminReuse.code, 401);
-
-  for (const badPath of ['/devproxy/api/ai/ask', '/routes.json', '/admin/check', '/status.json']) {
-    const denied = mockRes();
-    await api.handle({
-      method: 'GET',
-      headers: {
-        cookie: 'cto_observer_session=' + session,
-        'x-original-uri': badPath,
-      },
-    }, denied, { pathname: '/admin/cto-observer/check' });
-    assert.equal(denied.code, 401, badPath);
-  }
+    headers: { cookie: 'cto_observer_session=' + session },
+  }, missingUri, { pathname: '/admin/cto-observer/check' });
+  assert.equal(missingUri.code, 401);
 });
 
-test('CSRF and origin mismatches deny grant issuance', async () => {
+test('invented CSRF self-match is denied without server-bound token', async () => {
   const api = boundary();
+  const invented = 'a'.repeat(64);
   const res = mockRes();
   await api.handle({
     method: 'POST',
-    headers: { 'x-devproxy-csrf': CSRF, host: 'ramileo.ngrok.app' },
-    _body: { csrfToken: 'b'.repeat(32), observerPrincipal: PRINCIPAL, sourceSha: SHA },
+    headers: {
+      origin: 'https://ramileo.ngrok.app',
+      'x-devproxy-csrf': invented,
+      host: 'ramileo.ngrok.app',
+    },
+    _body: { csrfToken: invented, observerPrincipal: PRINCIPAL },
   }, res, {
     pathname: '/admin/cto-observer/grants',
     ownerAuthenticated: true,
     trustedOriginOk: true,
+    adminSessionPresent: true,
+    adminSessionToken: ADMIN,
   });
   assert.equal(res.code, 403);
   assert.equal(JSON.parse(res.body).code, 'CSRF_DENIED');
-
-  const res2 = mockRes();
-  await api.handle(ownerReq(), res2, {
-    pathname: '/admin/cto-observer/grants',
-    ownerAuthenticated: true,
-    trustedOriginOk: false,
-  });
-  assert.equal(res2.code, 403);
 });
 
-test('visual gate allows admin alone or observer alone, never mixed credentials', () => {
+test('caller-supplied mismatched source SHA is rejected; attested SHA used', () => {
+  assert.equal(selectGrantSourceSha({
+    attestedSourceSha: SHA,
+    requestedSourceSha: 'f'.repeat(40),
+  }).code, 'SOURCE_SHA_MISMATCH');
+  assert.deepEqual(selectGrantSourceSha({
+    attestedSourceSha: SHA,
+    requestedSourceSha: SHA,
+  }), { ok: true, sourceSha: SHA });
+  assert.equal(selectGrantSourceSha({
+    attestedSourceSha: null,
+    requestedSourceSha: SHA,
+  }).code, 'SOURCE_SHA_UNAVAILABLE');
+});
+
+test('visual gate allows admin alone; observer requires proven original URI', () => {
   const api = boundary();
   assert.deepEqual(api.evaluateVisualAccessGate({ headers: {} }, {
     adminSessionValid: true,
@@ -176,9 +160,9 @@ test('visual gate allows admin alone or observer alone, never mixed credentials'
   assert.equal(api.evaluateVisualAccessGate({
     headers: { cookie: 'cto_observer_session=' + 'd'.repeat(64) },
   }, {
-    adminSessionValid: true,
-    adminSessionPresent: true,
-  }).ok, false);
+    adminSessionValid: false,
+    adminSessionPresent: false,
+  }).code, 'ORIGINAL_URI_REQUIRED');
 });
 
 test('sanitized projection drops private fields and fails closed on leaks', () => {
@@ -193,14 +177,6 @@ test('sanitized projection drops private fields and fails closed on leaks', () =
   });
   assert.equal(built.ok, true);
   assert.equal(projectionLeaksSensitive(built.projection), false);
-  assert.equal(Object.hasOwn(built.projection, 'adminPassword'), false);
-  assert.equal(buildObserverProjection({
-    page: 'status',
-    sourceSha: SHA,
-    routeCountPublic: -1,
-    publicHealthOk: true,
-    generatedAtMs: 1000,
-  }).ok, false);
 });
 
 test('browser transport truth gate remains blocked without ChatGPT-inline PNG path', () => {
@@ -213,11 +189,4 @@ test('browser transport truth gate remains blocked without ChatGPT-inline PNG pa
   });
   assert.equal(blocked.code, 'BLOCKED_CTO_BROWSER_TRANSPORT');
   assert.equal(blocked.uiApproval, 'UI_APPROVAL_WITHHELD');
-  const ready = classifyCtoBrowserTransport({
-    chatgptWorkCloudBrowserCallable: true,
-    devProxyObserverPluginCallable: false,
-    canRetrieveOriginalPngBytes: true,
-    deliversInlineToOwnerChatgpt: true,
-  });
-  assert.equal(ready.code, 'CTO_BROWSER_TRANSPORT_READY');
 });

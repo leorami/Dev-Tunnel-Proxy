@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Observer · Reports</title>
+  <link rel="stylesheet" href="/status/common.css" />
+</head>
+<body>
+  <main style="max-width:40rem;margin:2rem auto;padding:0 1rem;font-family:ui-sans-serif,system-ui,sans-serif;">
+    <h1>CTO observer · Reports</h1>
+    <p>Read-only sanitized projection. Admin APIs, route install, heal, and notifications are unavailable in this mode.</p>
+    <nav style="display:flex;gap:0.75rem;flex-wrap:wrap;margin:1rem 0;">
+      <a href="/observer/status">Status</a>
+      <a href="/observer/health">Health</a>
+      <a href="/observer/reports">Reports</a>
+      <a href="/observer/dashboard">Dashboard</a>
+    </nav>
+    <pre id="out" style="white-space:pre-wrap;background:#111;color:#eee;padding:1rem;border-radius:8px;">Loading…</pre>
+  </main>
+  <script>
+    (async () => {
+      const out = document.getElementById('out');
+      try {
+        const res = await fetch('/admin/cto-observer/projection/reports', { credentials: 'same-origin' });
+        const json = await res.json();
+        if (!res.ok || !json.ok) {
+          out.textContent = 'Projection unavailable (' + res.status + ').';
+          return;
+        }
+        out.textContent = JSON.stringify(json.projection, null, 2);
+      } catch (e) {
+        out.textContent = 'Projection fetch failed.';
+      }
+    })();
+  </script>
+</body>
+</html>

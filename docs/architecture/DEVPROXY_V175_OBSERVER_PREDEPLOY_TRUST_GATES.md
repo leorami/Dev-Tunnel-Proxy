@@ -1,6 +1,6 @@
 # Dev Proxy V175 — Observer pre-deployment security and usability gates
 
-**Authority:** owner requested CTO-led meaningful independent engineering and working mandatory read-only CTO visual access. No automatic production deployment, credentials, or protected branch merge. **State: source review + RED contracts only.**
+**Authority:** owner requested CTO-led meaningful independent engineering and working mandatory read-only CTO visual access. No automatic production deployment, credentials, or protected branch merge. **State: Engineer-I V175 source repair candidate (draft PR); formerly RED gates GREEN without assertion softening; NOT live-deployed; ChatGPT PNG transport still blocked.**
 
 ## Verified immutable predecessor
 

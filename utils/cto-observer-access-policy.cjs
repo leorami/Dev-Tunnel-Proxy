@@ -10,6 +10,11 @@ const MAX_SESSION_MS = 10 * 60 * 1000;
 const PAGES = new Set([
   '/status', '/status/', '/health', '/health/',
   '/reports', '/reports/', '/dashboard', '/dashboard/',
+  // V175 observer-safe shells (projection-backed; no admin APIs).
+  '/observer/status', '/observer/status/', '/observer/status.html',
+  '/observer/health', '/observer/health/', '/observer/health.html',
+  '/observer/reports', '/observer/reports/', '/observer/reports.html',
+  '/observer/dashboard', '/observer/dashboard/', '/observer/dashboard.html',
 ]);
 const INERT_ASSET = /\.(?:js|css|png|jpg|jpeg|gif|webp|ico|svg|woff|woff2|ttf)$/i;
 function plain(value) {
