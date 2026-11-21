@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CTO observer consent</title>
+  <link rel="stylesheet" href="/status/common.css" />
+</head>
+<body>
+  <main style="max-width:42rem;margin:2rem auto;padding:0 1rem;font-family:ui-sans-serif,system-ui,sans-serif;">
+    <h1>CTO visual observer consent</h1>
+    <p>Issues a ten-minute, revocable, read-only observation grant bound to the server-attested source SHA and a server-issued CSRF token for this owner session. Do not paste redemption secrets into chat, GitHub, URLs, or screenshots.</p>
+    <p id="meta">Loading server CSRF + attested source…</p>
+    <label>Observer principal (trusted channel label)<br />
+      <input id="principal" style="width:100%" placeholder="chatgpt-work-cto-observer" />
+    </label>
+    <div style="margin-top:1rem;display:flex;gap:0.75rem;flex-wrap:wrap;">
+      <button id="issue" type="button" disabled>Issue grant</button>
+      <button id="revoke" type="button" disabled>Revoke grant</button>
+    </div>
+    <p id="hint" style="margin-top:1rem;color:#444;">On success, copy the redemption material only through a trusted out-of-band observer channel. This page will not keep the secret in the DOM.</p>
+  </main>
+  <script>
+    let csrfToken = '';
+    let attestedSourceSha = null;
+    const meta = document.getElementById('meta');
+    const issueBtn = document.getElementById('issue');
+    const revokeBtn = document.getElementById('revoke');
+
+    async function loadCsrf() {
+      const res = await fetch('/admin/cto-observer/csrf', { credentials: 'same-origin' });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok || !json.csrfToken) {
+        meta.textContent = 'Unable to load server CSRF (owner session + trusted origin required).';
+        return;
+      }
+      csrfToken = json.csrfToken;
+      attestedSourceSha = json.attestedSourceSha;
+      meta.textContent = attestedSourceSha
+        ? ('Attested source: ' + attestedSourceSha.slice(0, 12) + '… · transport: ' + (json.transport && json.transport.code))
+        : 'Attested source unavailable — grants will fail closed until DEVPROXY_SOURCE_SHA is configured.';
+      issueBtn.disabled = !attestedSourceSha;
+      revokeBtn.disabled = false;
+    }
+
+    async function post(path, body) {
+      const res = await fetch(path, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'content-type': 'application/json',
+          'x-devproxy-csrf': csrfToken,
+        },
+        body: JSON.stringify({ ...body, csrfToken }),
+      });
+      return { status: res.status, json: await res.json().catch(() => ({})) };
+    }
+
+    document.getElementById('issue').onclick = async () => {
+      const r = await post('/admin/cto-observer/grants', {
+        observerPrincipal: document.getElementById('principal').value.trim(),
+      });
+      if (!r.json.ok) {
+        meta.textContent = 'Grant failed: ' + (r.json.code || r.status);
+        return;
+      }
+      window.prompt(
+        'Copy redemption token NOW via trusted observer channel (not ChatGPT/GitHub). grantId=' + r.json.grantId,
+        r.json.redemptionToken,
+      );
+      meta.textContent = 'Grant issued. Redemption material was shown once in a prompt and is not retained on this page.';
+      await loadCsrf();
+    };
+
+    document.getElementById('revoke').onclick = async () => {
+      const grantId = window.prompt('grantId to revoke');
+      if (!grantId) return;
+      const r = await post('/admin/cto-observer/revoke', { grantId });
+      meta.textContent = r.json.ok ? 'Grant revoked.' : ('Revoke failed: ' + (r.json.code || r.status));
+      await loadCsrf();
+    };
+
+    loadCsrf().catch(() => { meta.textContent = 'CSRF bootstrap failed.'; });
+  </script>
+</body>
+</html>
