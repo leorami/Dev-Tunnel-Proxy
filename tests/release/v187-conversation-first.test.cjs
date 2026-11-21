@@ -84,5 +84,6 @@ test('RED: strict deployed source CAS, source-only result, no permission or mode
  assert.equal(compileModelFirstApi({deployedSource:old.source+'\n'}).ok,false);
  assert.equal(compileModelFirstApi({deployedSource:r.source}).ok,false);
  assert.equal(compileModelFirstApi({deployedSource:old.source,ownerGo:true}).ok,false);
+ assert.equal(compileModelFirstApi({unexpected:old.source}).ok,false);
  assert.equal(compileModelFirstApi({}).ok,false);
 });
