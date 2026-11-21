@@ -1,0 +1,106 @@
+{
+  "schema": "devproxy.calliope.release-source-identity.v1",
+  "repository": "leorami/Dev-Tunnel-Proxy",
+  "baselineMainSha": "590bcf2a980b434f533ddacac43a24a777a933e7",
+  "reviewedCandidateSha": "95017398f6d1d64f4fc43b89e264641604e08fba",
+  "authority": {
+    "protectedMerge": false,
+    "liveInstall": false,
+    "apiRestart": false,
+    "nginxReload": false,
+    "hostWorkerAction": false,
+    "ownerUatAccepted": false
+  },
+  "scope": "Calliope feature slice only; this is neither the complete Config API dependency graph nor proof of host/runtime source parity.",
+  "changedRuntimeFiles": [
+    {
+      "path": "utils/proxyConfigAPI.js",
+      "mainGitBlobSha1": "bafc60dc0224439e3d726f07e900afdbfce7cf60",
+      "candidateGitBlobSha1": "79c87fdc83ae5da2bdc22d1670f9d03709aee80d"
+    },
+    {
+      "path": "status/status.html",
+      "mainGitBlobSha1": "3709655a064ba4ef7a6f8543c42add6930240ec3",
+      "candidateGitBlobSha1": "fb3309132bbe0842d6c6c6dac34341613124fb1f"
+    },
+    {
+      "path": "utils/calliope-grounded-local-turn.cjs",
+      "mainGitBlobSha1": null,
+      "candidateGitBlobSha1": "a7e15ad1126a707dda5ba6d88df4f4f7006f0245"
+    },
+    {
+      "path": "utils/calliope-local-model-complete.cjs",
+      "mainGitBlobSha1": null,
+      "candidateGitBlobSha1": "86a3717e40fb021f9e04e318334a7da71ea12466"
+    },
+    {
+      "path": "utils/calliope-owner-session-brain.cjs",
+      "mainGitBlobSha1": null,
+      "candidateGitBlobSha1": "f69d9c9ad468a21a9f0df572bf34fb13f8bb0aa7"
+    },
+    {
+      "path": "utils/calliope-owner-session-runtime.cjs",
+      "mainGitBlobSha1": null,
+      "candidateGitBlobSha1": "4064363810b8c90ccfa1a0e20f407ead894f5b87"
+    },
+    {
+      "path": "utils/calliope-trusted-observation-cache.cjs",
+      "mainGitBlobSha1": null,
+      "candidateGitBlobSha1": "2e74686c989ac6024611569fd90d4a885938faab"
+    }
+  ],
+  "requiredCompatibilityFiles": [
+    {
+      "path": "utils/rc2-calliope-grounded-followup.cjs",
+      "candidateGitBlobSha1": "78a511dd8e5d7a2dc24a8487cfd80e1c58f70e78"
+    },
+    {
+      "path": "utils/rc2-local-calliope-evidence.cjs",
+      "candidateGitBlobSha1": "0ef86d09aae4e1a447138ba4b76b0bcb88595de2"
+    },
+    {
+      "path": "utils/rc2-local-calliope-observe-explain.cjs",
+      "candidateGitBlobSha1": "6f0bc497c5081c761818706782fa2ec1c8c23ebc"
+    },
+    {
+      "path": "utils/rc2-inline-docker-policy.cjs",
+      "candidateGitBlobSha1": "8eaba00809dc9d3168a58802c1537bd757256c13"
+    },
+    {
+      "path": "utils/admin-session-security.cjs",
+      "candidateGitBlobSha1": "39b86e023ae24abdd747835b04803764cdb1c14c"
+    },
+    {
+      "path": "status/common.js",
+      "candidateGitBlobSha1": "33d757a78f2d65edcaad93d543fa955010a7e069"
+    },
+    {
+      "path": "status/common.css",
+      "candidateGitBlobSha1": "28f006befdc02bc93f460abf04d2241a7a05ef4b"
+    },
+    {
+      "path": "status/config.js",
+      "candidateGitBlobSha1": "bd858c04942a6756dd43180830120463fe5eea5c"
+    },
+    {
+      "path": "status/vendor/marked.min.js",
+      "candidateGitBlobSha1": "e12b0fab1b958792f45849d31abb3cdecc012d1b"
+    },
+    {
+      "path": "status/vendor/purify.min.js",
+      "candidateGitBlobSha1": "54a70fe024a729c6ef4a0a5d3557918063d5afad"
+    },
+    {
+      "path": "status/vendor/lucide.min.js",
+      "candidateGitBlobSha1": "0123783f406f3141429457cf42d6afe86f01486d"
+    },
+    {
+      "path": "status/assets/calliope_heart_stethoscope.svg",
+      "candidateGitBlobSha1": "d033ebbc47906ba8bc605803d258f00d14bc3579"
+    },
+    {
+      "path": "status/assets/logo.svg",
+      "candidateGitBlobSha1": "0d7f7fad5172097a687544267f556298ca378e2e"
+    }
+  ]
+}
