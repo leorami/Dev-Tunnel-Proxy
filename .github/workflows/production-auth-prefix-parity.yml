@@ -1,0 +1,20 @@
+name: Production UI authentication precedence (source-only)
+on:
+  pull_request:
+    paths:
+      - 'config/default.conf'
+      - 'config/default.production.conf'
+      - 'tests/security/v179-production-auth-prefix-parity.test.cjs'
+      - 'smart-build.sh'
+      - '.github/workflows/production-auth-prefix-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-auth-prefix-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify protected vs public Nginx location declarations
+        run: node --test tests/security/v179-production-auth-prefix-parity.test.cjs
