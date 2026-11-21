@@ -4,6 +4,9 @@ on:
     paths:
       - 'utils/rc2-v185-calliope-api-overlay.cjs'
       - 'tests/release/v185-exact-installed-api-overlay.test.cjs'
+      - 'tests/release/v185-overlay-auth-integrity.test.cjs'
+      - 'docs/release/DEVPROXY_V185_INSTALLED_API_OVERLAY.unified.diff'
+      - 'docs/release/DEVPROXY_V185_CALLIOPE_COMPATIBILITY_MAP.md'
       - '.github/workflows/calliope-v185-installed-api-overlay.yml'
       - 'docs/handoffs/DEVPROXY_V185_CALLIOPE_INSTALLED_API_RECONCILE.md'
   workflow_dispatch:
@@ -21,4 +24,4 @@ jobs:
         with:
           node-version: '22'
       - name: Test historical installed API preimage against immutable accepted source
-        run: node --test tests/release/v185-exact-installed-api-overlay.test.cjs
+        run: node --test tests/release/v185-exact-installed-api-overlay.test.cjs tests/release/v185-overlay-auth-integrity.test.cjs
