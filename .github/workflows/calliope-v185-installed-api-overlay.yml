@@ -1,0 +1,23 @@
+name: V185 exact installed API safe Calliope overlay (SOURCE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'utils/rc2-v185-calliope-api-overlay.cjs'
+      - 'tests/release/v185-exact-installed-api-overlay.test.cjs'
+      - '.github/workflows/calliope-v185-installed-api-overlay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only-reconciliation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to read the already-existing historical installed Git blob; no remote owner-host access.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test historical installed API preimage against immutable accepted source
+        run: node --test tests/release/v185-exact-installed-api-overlay.test.cjs
