@@ -22,7 +22,7 @@ const old=buildCalliopeInstalledApiOverlay({
  mainSource:execFileSync('git',['show',MAIN+':utils/proxyConfigAPI.js'],{encoding:'utf8'}),
  reviewedSource:fs.readFileSync(path.resolve(__dirname,'../../utils/proxyConfigAPI.js'),'utf8')
 });
-const sha=(s)=>{const b=Buffer.from(s,'utf8');return crypto.createHash('sha1').update('blob '+b.length+'\\0').update(b).digest('hex');};
+const sha=(s)=>{const b=Buffer.from(s,'utf8');return crypto.createHash('sha1').update('blob '+b.length+'\0').update(b).digest('hex');};
 function secureHandler(text){
  const begin=text.indexOf("if(req.method==='POST'&&u.pathname===apiPath('ai/ask')&&inlineHostDockerUnavailable())");
  const end=text.indexOf("if (req.method==='POST' && u.pathname===apiPath('ai/audit') && inlineHostDockerUnavailable())",begin);
