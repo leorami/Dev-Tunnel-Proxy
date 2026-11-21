@@ -1,0 +1,24 @@
+name: V187 Calliope model-first source-only acceptance
+on:
+  pull_request:
+    paths:
+      - 'utils/rc2-v187-calliope-model-first.cjs'
+      - 'tests/release/v187-conversation-first.test.cjs'
+      - 'docs/handoffs/DEVPROXY_V187_CONVERSATION_FIRST_SOURCE.md'
+      - '.github/workflows/calliope-v187-conversation-first.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  model-first-source-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Freeze original deterministic-template precedence and require source-only model-first
+        run: node --test tests/release/v187-conversation-first.test.cjs
