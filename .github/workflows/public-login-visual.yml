@@ -6,6 +6,7 @@ on:
       - 'scripts/visuals/capture_public_login.py'
       - 'tests/visuals/test_public_login_capture.py'
       - 'tests/visuals/test_v178_public_proxied_app_gate.py'
+      - 'tests/visuals/test_v180_fullpage_scroll_fidelity.py'
   workflow_dispatch:
 permissions:
   contents: read

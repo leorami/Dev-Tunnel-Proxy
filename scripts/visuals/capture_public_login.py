@@ -14,6 +14,10 @@ PUBLIC_ORIGIN_HOST = 'ramileo.ngrok.app'
 PNG = bytes.fromhex('89504e470d0a1a0a')
 SHA40 = re.compile(r'^[0-9a-f]{40}$')
 VIEWPORTS = {'desktop': (1365, 900), 'mobile': (390, 844)}
+# Live public Encast full-page captures are a few thousand pixels tall. Stop before an unbounded crawl.
+MAX_PUBLIC_PAGE_HEIGHT = 20000
+MAX_PUBLIC_SCROLL_STEPS = 40
+SCROLL_SETTLE_MS = 200
 # Always deny these even if an operator mistakenly allowlists them.
 PRIVATE_PATH_PREFIXES = (
     '/admin', '/status', '/health', '/reports', '/dashboard', '/devproxy/api',
@@ -76,6 +80,81 @@ def validate_public_app_target(
     if path not in allow:
         raise ValueError('Path is not on the explicit public-route allowlist')
     return True
+
+def _public_scroll_metrics(page) -> dict:
+    return page.evaluate('''() => {
+        const el = document.scrollingElement || document.documentElement || document.body;
+        const view = window.innerHeight || 0;
+        const height = el ? el.scrollHeight : 0;
+        return {y: window.scrollY || 0, view, height, maxScroll: Math.max(0, height - view)};
+    }''')
+
+def _settle_visible_public_assets(page, everywhere: bool = False) -> None:
+    """Wait for intersection frames, fonts, and in-view image decode. Does not edit DOM or CSS."""
+    page.evaluate('''async (everywhere) => {
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+        const images = Array.from(document.images || []);
+        const pending = images.map((img) => {
+            if (img.complete) return Promise.resolve();
+            if (!everywhere) {
+                const rect = img.getBoundingClientRect();
+                const view = window.innerHeight || 1;
+                if (rect.bottom < -view || rect.top > view * 2) return Promise.resolve();
+            }
+            const decode = img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+            return Promise.race([decode, new Promise((resolve) => setTimeout(resolve, 1000))]);
+        });
+        await Promise.race([
+            Promise.all([fonts, ...pending]),
+            new Promise((resolve) => setTimeout(resolve, everywhere ? 2500 : 1500)),
+        ]);
+    }''', everywhere)
+
+def stabilize_public_app_page(page) -> None:
+    """Scroll a guest page in viewport steps so real lazy/intersection content can run, then return to the top.
+
+    No navigation, clicks, typing, DOM writes, or CSS edits. Oversized pages and stuck scroll raise.
+    """
+    page.evaluate('window.scrollTo(0, 0)')
+    metrics = _public_scroll_metrics(page)
+    if metrics['view'] < 1:
+        raise RuntimeError('Public page viewport height is not usable')
+    if metrics['height'] > MAX_PUBLIC_PAGE_HEIGHT:
+        raise RuntimeError(
+            'Public page is taller than the bounded capture height '
+            f'({int(metrics["height"])}px > {MAX_PUBLIC_PAGE_HEIGHT}px)')
+    reached_bottom = False
+    stuck = 0
+    for _step in range(MAX_PUBLIC_SCROLL_STEPS):
+        metrics = _public_scroll_metrics(page)
+        if metrics['height'] > MAX_PUBLIC_PAGE_HEIGHT:
+            raise RuntimeError(
+                'Public page grew past the bounded capture height '
+                f'({int(metrics["height"])}px > {MAX_PUBLIC_PAGE_HEIGHT}px)')
+        if metrics['y'] >= metrics['maxScroll'] - 2:
+            reached_bottom = True
+            break
+        before = metrics['y']
+        # Overlap consecutive viewports so a section is not visible only on a boundary.
+        step_px = max(1, int(metrics['view'] * 0.75))
+        page.evaluate('(dy) => window.scrollBy(0, dy)', step_px)
+        page.wait_for_timeout(SCROLL_SETTLE_MS)
+        _settle_visible_public_assets(page, everywhere=False)
+        after = _public_scroll_metrics(page)['y']
+        if after <= before + 1:
+            stuck += 1
+            if stuck >= 2:
+                raise RuntimeError(
+                    'Public page did not scroll; stopping before a false full-page capture')
+        else:
+            stuck = 0
+    if not reached_bottom:
+        raise RuntimeError('Public page scroll did not reach the bottom within the step bound')
+    _settle_visible_public_assets(page, everywhere=True)
+    page.evaluate('window.scrollTo(0, 0)')
+    _settle_visible_public_assets(page, everywhere=False)
+    page.wait_for_timeout(50)
 
 def png_dimensions(raw: bytes) -> tuple[int, int]:
     if len(raw) < 33 or raw[:8] != PNG or raw[12:16] != b'IHDR':
@@ -259,6 +338,12 @@ def capture_public_app(
                     # Still accept a marker-validated HTML shell if SPA assets are slow.
                     page.wait_for_timeout(1500)
                 page.evaluate('document.fonts.ready')
+                stabilize_public_app_page(page)
+                target = urlparse(page.url)
+                if ((target.scheme, target.hostname, target.port) != origin
+                        or target.path != approved_path):
+                    raise RuntimeError(
+                        'Unexpected navigation away from approved public path during scroll')
                 raw = page.screenshot(type='png', full_page=True, animations='disabled')
                 iw, ih = png_dimensions(raw)
                 if iw != width or ih < height:
@@ -271,6 +356,7 @@ def capture_public_app(
                     'viewport': {'width': width, 'height': height},
                     'servedHtmlSha256': live_hash,
                     'contentType': ctype.split(';')[0].strip(),
+                    'deniedOutOfScopeRequests': len(attempted_unsafe),
                 })
                 result['servedHtmlSha256'] = live_hash
                 context.close()
