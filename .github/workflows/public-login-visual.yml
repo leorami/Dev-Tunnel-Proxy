@@ -1,0 +1,40 @@
+name: Dev Proxy public-login browser originals (Linux)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/public-login-visual.yml'
+      - 'scripts/visuals/capture_public_login.py'
+      - 'tests/visuals/test_public_login_capture.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-login-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser on Linux (no macOS runner required)
+        run: |
+          python -m pip install 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - name: Verify real Chromium fixture and strict public-path restrictions
+        run: python -m unittest discover -s tests/visuals -p 'test_*.py' -v
+      - name: Capture ONLY unauthenticated public login with pinned-source parity
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python scripts/visuals/capture_public_login.py \
+            --source-file status/login.html \
+            --source-sha "$SOURCE_SHA" \
+            --output-dir "$RUNNER_TEMP/devproxy-public-login"
+      - name: Upload short-lived public-login originals + SHA/viewport manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: devproxy-public-login-original-png
+          path: ${{ runner.temp }}/devproxy-public-login/
+          retention-days: 2
+          if-no-files-found: error
