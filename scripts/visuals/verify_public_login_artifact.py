@@ -40,12 +40,13 @@ def _png_dimensions(raw):
     return width, height
 
 def verify_and_extract(archive, outdir: Path, *, expected_source_sha: str,
-                       expected_html_sha: str) -> list[dict]:
+                       expected_html_sha: str, sandbox_root: Path = SANDBOX) -> list[dict]:
     """Verify every member BEFORE writing; never overwrite existing output."""
     if not SOURCE_SHA.fullmatch(expected_source_sha) or not SHA256.fullmatch(expected_html_sha):
         _deny('expected_provenance_missing')
     outdir = Path(outdir).resolve()
-    if outdir == SANDBOX or not outdir.is_relative_to(SANDBOX) or outdir.exists():
+    sandbox_root = Path(sandbox_root).resolve()
+    if outdir == sandbox_root or not outdir.is_relative_to(sandbox_root) or outdir.exists():
         _deny('output_must_be_a_fresh_conversation_directory')
     if isinstance(archive, (bytes, bytearray)):
         archive = io.BytesIO(archive)
@@ -95,7 +96,7 @@ def verify_and_extract(archive, outdir: Path, *, expected_source_sha: str,
             _deny('pixel_or_viewport_manifest_mismatch')
         dest = outdir / name
         label = 'Desktop' if 'desktop' in name else 'Mobile'
-        relative = dest.relative_to(SANDBOX).as_posix()
+        relative = dest.relative_to(sandbox_root).as_posix()
         verified.append({
             'name': name, 'sha256': digest, 'width': width, 'height': height,
             'path': dest, 'classification': 'ACTUAL_UNAUTHENTICATED_PUBLIC_LOGIN_ONLY',
