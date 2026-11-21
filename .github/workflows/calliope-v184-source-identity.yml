@@ -1,0 +1,22 @@
+name: V184 Calliope source-identity owner-go release gate (SOURCE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'docs/release/DEVPROXY_V184_CALLIOPE_SOURCE_IDENTITY.json'
+      - 'tests/release/v184-calliope-source-identity.test.cjs'
+      - 'utils/calliope-release-source-identity.cjs'
+      - '.github/workflows/calliope-v184-source-identity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  identity-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify reviewed Calliope source-only identity contract
+        run: node --test tests/release/v184-calliope-source-identity.test.cjs
