@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source-verified PUBLIC login screenshot capture; no owner credentials or private paths."""
+"""Source-verified PUBLIC login / approved-public app screenshot capture; no owner credentials or private paths."""
 from __future__ import annotations
 import argparse
 import hashlib
@@ -7,12 +7,20 @@ import json
 from pathlib import Path
 import re
 import struct
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 PUBLIC_URL = 'https://ramileo.ngrok.app/admin/login?redirect=/status'
+PUBLIC_ORIGIN_HOST = 'ramileo.ngrok.app'
 PNG = bytes.fromhex('89504e470d0a1a0a')
 SHA40 = re.compile(r'^[0-9a-f]{40}$')
 VIEWPORTS = {'desktop': (1365, 900), 'mobile': (390, 844)}
+# Always deny these even if an operator mistakenly allowlists them.
+PRIVATE_PATH_PREFIXES = (
+    '/admin', '/status', '/health', '/reports', '/dashboard', '/devproxy/api',
+)
+PRIVATE_PATH_EXACT = frozenset({
+    '/routes.json', '/status', '/health', '/reports', '/dashboard',
+})
 
 def validate_target(url: str, allow_loopback: bool = False) -> None:
     p = urlparse(url)
@@ -20,12 +28,54 @@ def validate_target(url: str, allow_loopback: bool = False) -> None:
         raise ValueError('Unsafe URL components')
     if p.scheme == 'http' and allow_loopback and p.hostname in ('localhost', '127.0.0.1'):
         pass
-    elif p.scheme == 'https' and p.hostname == 'ramileo.ngrok.app' and p.port is None:
+    elif p.scheme == 'https' and p.hostname == PUBLIC_ORIGIN_HOST and p.port is None:
         pass
     else:
         raise ValueError('Only canonical public login origin is allowed')
     if p.path != '/admin/login' or parse_qs(p.query) != {'redirect': ['/status']}:
         raise ValueError('Only the public login page is allowed')
+
+def validate_public_app_target(
+        url: str,
+        approved_paths: tuple[str, ...] | list[str] = (),
+        owner_public_approved: bool = False,
+        allow_loopback: bool = False) -> bool:
+    """Fail-closed gate for ONE explicit owner-public proxied app path.
+
+    Requires both an exact path allowlist membership and owner_public_approved.
+    Rejects private/admin surfaces, aliases, credentials, query tokens, fragments,
+    and encoded path traversal. No wildcard or auto-discovery bypass.
+    """
+    if not owner_public_approved:
+        raise ValueError('Owner public intent is required')
+    if not approved_paths:
+        raise ValueError('Explicit public-route allowlist is required')
+    allow = tuple(approved_paths)
+    for item in allow:
+        if not isinstance(item, str) or not item.startswith('/') or '*' in item:
+            raise ValueError('Allowlist entries must be exact absolute paths')
+    p = urlparse(url)
+    if p.username or p.password or p.fragment or p.params:
+        raise ValueError('Unsafe URL components')
+    if p.query:
+        raise ValueError('Query parameters are not allowed on public app captures')
+    if p.scheme == 'http' and allow_loopback and p.hostname in ('localhost', '127.0.0.1'):
+        pass
+    elif p.scheme == 'https' and p.hostname == PUBLIC_ORIGIN_HOST and p.port is None:
+        pass
+    else:
+        raise ValueError('Only the canonical HTTPS public proxy origin is allowed')
+    path = p.path or ''
+    decoded = unquote(path)
+    if path != decoded or '..' in decoded.split('/'):
+        raise ValueError('Encoded or traversal paths are not allowed')
+    if path in PRIVATE_PATH_EXACT or any(
+            path == prefix or path.startswith(prefix + '/')
+            for prefix in PRIVATE_PATH_PREFIXES):
+        raise ValueError('Private or management routes are not allowed')
+    if path not in allow:
+        raise ValueError('Path is not on the explicit public-route allowlist')
+    return True
 
 def png_dimensions(raw: bytes) -> tuple[int, int]:
     if len(raw) < 33 or raw[:8] != PNG or raw[12:16] != b'IHDR':
@@ -109,15 +159,168 @@ def capture(url: str, source_file: Path, output_dir: Path, source_sha: str,
         json.dumps(result, sort_keys=True, indent=2) + '\n')
     return result
 
+def capture_public_app(
+        url: str,
+        output_dir: Path,
+        proxy_source_sha: str,
+        app_source_sha: str,
+        *,
+        approved_paths: tuple[str, ...] | list[str],
+        owner_public_approved: bool,
+        app_source_label: str,
+        required_markers: tuple[str, ...] | list[str] = (),
+        browser_binary: str | None = None,
+        allow_loopback: bool = False) -> dict:
+    """Capture ONE approved-public proxied app with a fresh guest browser context.
+
+    App source SHA is recorded separately from proxy source SHA. Live HTML is
+    hashed as served evidence; Vite/Next transforms mean byte equality with the
+    app repo index is not required. Markers prove the intended public shell.
+    """
+    from playwright.sync_api import sync_playwright
+    validate_public_app_target(
+        url, approved_paths=approved_paths,
+        owner_public_approved=owner_public_approved, allow_loopback=allow_loopback)
+    if not SHA40.fullmatch(proxy_source_sha) or not SHA40.fullmatch(app_source_sha):
+        raise ValueError('Expected full 40-character Git source SHAs')
+    if not app_source_label or not str(app_source_label).strip():
+        raise ValueError('App source label is required')
+    if str(app_source_label).startswith('/') or '..' in str(app_source_label):
+        raise ValueError('App source label must be a short non-path provenance string')
+    markers = tuple(required_markers)
+    if not markers:
+        raise ValueError('At least one required public-app marker is required')
+    if output_dir.exists():
+        raise ValueError('Refusing to replace existing capture output')
+    parsed_url = urlparse(url)
+    approved_path = parsed_url.path
+    origin = (parsed_url.scheme, parsed_url.hostname, parsed_url.port)
+    result = {
+        'kind': 'ACTUAL_PUBLIC_APP' if parsed_url.scheme == 'https' else 'OFFLINE_PUBLIC_APP_FIXTURE',
+        'proxySourceSha': proxy_source_sha,
+        'appSourceSha': app_source_sha,
+        'appSourceLabel': app_source_label,
+        'approvedPath': approved_path,
+        'requiredMarkers': list(markers),
+        'originalPixels': True,
+        'ownerAuthenticated': False,
+        'privilegedAppUat': False,
+        'cookiesUsed': False,
+        'shots': [],
+    }
+    images = {}
+    with sync_playwright() as p:
+        settings = {'headless': True}
+        if browser_binary:
+            settings['executable_path'] = browser_binary
+        browser = p.chromium.launch(**settings)
+        try:
+            for label, (width, height) in VIEWPORTS.items():
+                context = browser.new_context(
+                    viewport={'width': width, 'height': height},
+                    service_workers='block', accept_downloads=False)
+                # Fresh context: no storage/cookies from prior captures.
+                page = context.new_page()
+                attempted_unsafe = []
+                def guard(route):
+                    req = route.request
+                    target = urlparse(req.url)
+                    if req.method not in ('GET', 'HEAD') or (
+                        target.scheme, target.hostname, target.port) != origin:
+                        attempted_unsafe.append('non-readonly or external request')
+                        route.abort()
+                    else:
+                        route.continue_()
+                page.route('**/*', guard)
+                response = page.goto(url, wait_until='domcontentloaded', timeout=25000)
+                if not response or response.status != 200:
+                    raise RuntimeError('Approved public app did not return HTTP 200')
+                ctype = (response.headers.get('content-type') or '').lower()
+                if 'text/html' not in ctype:
+                    raise RuntimeError('Approved public app did not serve HTML')
+                body = response.body()
+                live_hash = hashlib.sha256(body).hexdigest()
+                text = body.decode('utf-8', 'replace')
+                for marker in markers:
+                    if marker not in text:
+                        raise RuntimeError('Required public-app marker missing from served HTML')
+                if 'type="password"' in text.lower() or 'admin login' in text.lower():
+                    raise RuntimeError('Refusing capture that looks like auth or private admin UI')
+                target = urlparse(page.url)
+                if ((target.scheme, target.hostname, target.port) != origin
+                        or target.path != approved_path):
+                    raise RuntimeError('Unexpected navigation away from approved public path')
+                if attempted_unsafe:
+                    raise RuntimeError('Public app attempted out-of-scope requests')
+                # Fresh context starts with no cookies; do not reuse owner tabs/storage.
+                try:
+                    page.wait_for_load_state('networkidle', timeout=20000)
+                except Exception:
+                    # Still accept a marker-validated HTML shell if SPA assets are slow.
+                    page.wait_for_timeout(1500)
+                page.evaluate('document.fonts.ready')
+                raw = page.screenshot(type='png', full_page=True, animations='disabled')
+                iw, ih = png_dimensions(raw)
+                if iw != width or ih < height:
+                    raise RuntimeError('Screenshot viewport proof mismatch')
+                name = f'devproxy-public-app-{label}.png'
+                images[name] = raw
+                result['shots'].append({
+                    'name': name, 'sha256': hashlib.sha256(raw).hexdigest(),
+                    'width': iw, 'height': ih,
+                    'viewport': {'width': width, 'height': height},
+                    'servedHtmlSha256': live_hash,
+                    'contentType': ctype.split(';')[0].strip(),
+                })
+                result['servedHtmlSha256'] = live_hash
+                context.close()
+        finally:
+            browser.close()
+    output_dir.mkdir(parents=True, exist_ok=False)
+    for name, raw in images.items():
+        (output_dir / name).write_bytes(raw)
+    (output_dir / 'manifest.json').write_text(
+        json.dumps(result, sort_keys=True, indent=2) + '\n')
+    return result
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', default=PUBLIC_URL)
     parser.add_argument('--source-file', type=Path, default=Path('status/login.html'))
-    parser.add_argument('--source-sha', required=True)
+    parser.add_argument('--source-sha', required=True,
+                        help='Proxy repository Git SHA (40 hex)')
     parser.add_argument('--output-dir', type=Path, required=True)
     parser.add_argument('--browser-binary')
     parser.add_argument('--allow-loopback-fixture', action='store_true')
+    parser.add_argument('--public-app', action='store_true',
+                        help='Capture one approved-public proxied app (not login)')
+    parser.add_argument('--approved-path', action='append', default=[],
+                        help='Exact path allowlist entry (repeatable)')
+    parser.add_argument('--owner-public-approved', action='store_true')
+    parser.add_argument('--app-source-sha', default='',
+                        help='Separate app repository Git SHA (40 hex)')
+    parser.add_argument('--app-source-label', default='',
+                        help='Short non-secret app provenance label')
+    parser.add_argument('--required-marker', action='append', default=[],
+                        help='Substring that must appear in served HTML')
     args = parser.parse_args()
+    if args.public_app:
+        data = capture_public_app(
+            args.url, args.output_dir, args.source_sha, args.app_source_sha,
+            approved_paths=tuple(args.approved_path),
+            owner_public_approved=args.owner_public_approved,
+            app_source_label=args.app_source_label,
+            required_markers=tuple(args.required_marker),
+            browser_binary=args.browser_binary,
+            allow_loopback=args.allow_loopback_fixture)
+        print(json.dumps({
+            'result': data['kind'], 'count': len(data['shots']),
+            'approvedPath': data['approvedPath'],
+            'appSourceSha': data['appSourceSha'],
+            'proxySourceSha': data['proxySourceSha'],
+            'servedHtmlSha256': data.get('servedHtmlSha256'),
+        }, sort_keys=True))
+        return
     data = capture(args.url, args.source_file, args.output_dir, args.source_sha,
                    args.browser_binary, args.allow_loopback_fixture)
     print(json.dumps({
