@@ -525,6 +525,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Production Nginx four-prefix auth parity" \
+      "node --test '$ROOT_DIR/tests/security/v179-production-auth-prefix-parity.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "Management perimeter security (source-only, safe)" \
       "node --test '$ROOT_DIR/tests/security/management-perimeter.test.mjs'" || test_result=1
   fi
