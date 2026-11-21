@@ -5,6 +5,7 @@ on:
       - '.github/workflows/public-login-visual.yml'
       - 'scripts/visuals/capture_public_login.py'
       - 'tests/visuals/test_public_login_capture.py'
+      - 'tests/visuals/test_v178_public_proxied_app_gate.py'
   workflow_dispatch:
 permissions:
   contents: read
@@ -31,10 +32,38 @@ jobs:
             --source-file status/login.html \
             --source-sha "$SOURCE_SHA" \
             --output-dir "$RUNNER_TEMP/devproxy-public-login"
+      - name: Capture ONE approved-public proxied app (guest GET, no cookies)
+        env:
+          SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Verified on owner Mac from existing apps/encast.conf ("Public path: /encast/")
+          # and bind-mounted encast checkout HEAD at engineer start. Not a private route.
+          PUBLIC_APP_URL: https://ramileo.ngrok.app/encast/
+          PUBLIC_APP_PATH: /encast/
+          APP_SOURCE_SHA: 0541197f0f4a3966bf959ecf6daad4bead9e08f3
+          APP_SOURCE_LABEL: encast-web@0541197f
+        run: |
+          python scripts/visuals/capture_public_login.py \
+            --public-app \
+            --url "$PUBLIC_APP_URL" \
+            --approved-path "$PUBLIC_APP_PATH" \
+            --owner-public-approved \
+            --source-sha "$SOURCE_SHA" \
+            --app-source-sha "$APP_SOURCE_SHA" \
+            --app-source-label "$APP_SOURCE_LABEL" \
+            --required-marker 'data-encast-theme' \
+            --required-marker '<title>Encast</title>' \
+            --output-dir "$RUNNER_TEMP/devproxy-public-app"
       - name: Upload short-lived public-login originals + SHA/viewport manifest
         uses: actions/upload-artifact@v4
         with:
           name: devproxy-public-login-original-png
           path: ${{ runner.temp }}/devproxy-public-login/
+          retention-days: 2
+          if-no-files-found: error
+      - name: Upload short-lived approved-public app originals + provenance manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: devproxy-public-app-original-png
+          path: ${{ runner.temp }}/devproxy-public-app/
           retention-days: 2
           if-no-files-found: error
