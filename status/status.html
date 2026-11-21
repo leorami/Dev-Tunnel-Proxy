@@ -4562,35 +4562,6 @@ docker exec dev-proxy nginx -t && docker exec dev-proxy nginx -s reload`;
           try{ if (sendBtn) sendBtn.disabled = true; }catch{}
           queryEl.value = '';
           appendBubble('user', q);
-          // Repair-intent follow-ups prefer the typed last observation over docs Ask.
-          if (isRepairIntentFollowUp(q)){
-            if (lastVerifiedRouteObservation){
-              appendBubble('assistant', calliopeReplyForRepairFollowUp(lastVerifiedRouteObservation, q));
-              activeAskSeq = 0;
-              activeAskAbort = null;
-              askBtn.disabled = false;
-              askBtn.textContent = 'Ask';
-              try{ if (sendBtn) sendBtn.disabled = false; }catch{}
-              return;
-            }
-            const secureBlock = recentSecureHealBlock();
-            if (secureBlock){
-              appendBubble('assistant', secureHealBlockedReply(secureBlock, q));
-              activeAskSeq = 0;
-              activeAskAbort = null;
-              askBtn.disabled = false;
-              askBtn.textContent = 'Ask';
-              try{ if (sendBtn) sendBtn.disabled = false; }catch{}
-              return;
-            }
-            appendBubble('assistant', calliopeReplyForRepairFollowUp(null, q));
-            activeAskSeq = 0;
-            activeAskAbort = null;
-            askBtn.disabled = false;
-            askBtn.textContent = 'Ask';
-            try{ if (sendBtn) sendBtn.disabled = false; }catch{}
-            return;
-          }
           const thinking = appendThinking();
           try{
             const response = await fetch(window.DTP.config.apiPath('ai/ask'), {

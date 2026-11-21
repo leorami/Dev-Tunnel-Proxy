@@ -1,0 +1,25 @@
+name: V182 Calliope source-owned evidence lifetime (GREEN core + GREEN integration)
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-trusted-observation-cache.cjs'
+      - 'utils/calliope-owner-session-runtime.cjs'
+      - 'tests/calliope/v182-trusted-observation-cache.test.cjs'
+      - 'tests/calliope/v182-runtime-evidence-freshness-red.test.cjs'
+      - '.github/workflows/calliope-v182-observation-lifecycle-contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pure-cache-and-runtime-integration-green:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: CTO pure observation cache contract MUST be GREEN
+        run: node --test tests/calliope/v182-trusted-observation-cache.test.cjs
+      - name: Engineer V182 runtime integration MUST be GREEN
+        run: node --test tests/calliope/v182-runtime-evidence-freshness-red.test.cjs
