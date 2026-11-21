@@ -32,10 +32,12 @@ function one(haystack,needle){
   return ix>=0&&haystack.indexOf(needle,ix+1)===-1?ix:-1;
 }
 function compileModelFirstApi(input){
+  const sourceDescriptor=input&&typeof input==='object'
+    ? Object.getOwnPropertyDescriptor(input,'deployedSource') : null;
   if(!input||typeof input!=='object'||Array.isArray(input)||
      Object.getPrototypeOf(input)!==Object.prototype||
-     Reflect.ownKeys(input).length!==1||
-     !Object.hasOwn(Object.getOwnPropertyDescriptor(input,'deployedSource'),'value')){
+     Reflect.ownKeys(input).length!==1||!sourceDescriptor||
+     !Object.hasOwn(sourceDescriptor,'value')){
     return deny('UNTRUSTED_SOURCE_INPUT');
   }
   const source=input.deployedSource;
