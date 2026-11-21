@@ -167,22 +167,18 @@ test('Status Diagnose retains typed last observation and Clear resets it', () =>
   assert.match(diagnosis, /retainVerifiedObservation|lastVerifiedRouteObservation\s*=/);
   assert.match(diagnosis, /parseVerifiedAuditObservation/);
   assert.match(clear, /lastVerifiedRouteObservation\s*=\s*null/);
-  assert.match(ask, /calliopeReplyForRepairFollowUp|isRepairIntentFollowUp/);
+  assert.match(ask, /apiPath\(['"]ai\/ask['"]\)/);
+  assert.equal(ask.includes('calliopeReplyForRepairFollowUp('), false);
   assert.match(statusHtml, /try anyway/i);
   assert.match(statusHtml, /V153.*rc2-calliope-grounded-followup|keep in sync with utils\/rc2-calliope-grounded-followup/i);
 });
 
-test('repair follow-up with observation does not POST ai/ask; ordinary ask still can', () => {
-  // Source contract: grounded branch returns before fetch(ai/ask).
+test('repair follow-up reaches one safe ai/ask instead of a canned short-circuit', () => {
   const ask = section(statusHtml, 'async function onAsk(){', 'async function onReindex(){');
-  assert.match(ask, /isRepairIntentFollowUp|looksLikeHealFollowUp/);
-  assert.match(ask, /lastVerifiedRouteObservation/);
-  assert.match(ask, /apiPath\(['"]ai\/ask['"]\)/);
-  // Grounded path must short-circuit before the ask fetch when observation exists.
-  const groundedIdx = ask.indexOf('calliopeReplyForRepairFollowUp');
-  const askFetchIdx = ask.indexOf("apiPath('ai/ask')");
-  assert.ok(groundedIdx >= 0, 'missing grounded follow-up call');
-  assert.ok(askFetchIdx > groundedIdx, 'ai/ask fetch must remain after grounded short-circuit');
+  assert.equal([...ask.matchAll(/apiPath\(['"]ai\/ask['"]\)/g)].length, 1);
+  assert.equal(ask.includes('calliopeReplyForRepairFollowUp('), false);
+  assert.equal(ask.includes('isRepairIntentFollowUp('), false);
+  assert.match(ask, /JSON\.stringify\(\{query:q\}\)/);
 });
 
 test('V152 UI invariants preserved: no audit-and-heal, heal:false observational, local vendors', () => {

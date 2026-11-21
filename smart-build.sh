@@ -524,6 +524,11 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/docs/v177-current-capability-truth.test.cjs'" || test_result=1
   fi
 
+  if [ $test_result -eq 0 ] && [ -f "$ROOT_DIR/tests/calliope/v181-owner-session-local-model-red.test.cjs" ]; then
+    run_test_with_progress "V181 Calliope local session brain" \
+      "node --test '$ROOT_DIR/tests/calliope/v181-grounded-local-turn.test.cjs' '$ROOT_DIR/tests/calliope/v181-owner-session-local-model-red.test.cjs' '$ROOT_DIR/tests/calliope/v181-local-model-allowlist.test.cjs'" || test_result=1
+  fi
+
   if [ $test_result -eq 0 ]; then
     run_test_with_progress "Production Nginx four-prefix auth parity" \
       "node --test '$ROOT_DIR/tests/security/v179-production-auth-prefix-parity.test.cjs'" || test_result=1
