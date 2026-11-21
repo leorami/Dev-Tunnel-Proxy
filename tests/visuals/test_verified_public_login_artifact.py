@@ -38,16 +38,16 @@ def archive(tamper=None):
 
 class EvidenceTests(unittest.TestCase):
     def assertDenied(self, binary):
-        with tempfile.TemporaryDirectory(dir='/mnt/data') as d:
+        with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(EvidenceError):
                 verify_and_extract(binary, Path(d)/'output', expected_source_sha=SHA,
-                    expected_html_sha=HASH)
+                    expected_html_sha=HASH, sandbox_root=Path(d))
             self.assertFalse((Path(d)/'output').exists())
 
     def test_genuine_artifact_extracted_only_after_all_checks(self):
-        with tempfile.TemporaryDirectory(dir='/mnt/data') as d:
+        with tempfile.TemporaryDirectory() as d:
             data=verify_and_extract(archive(), Path(d)/'verified', expected_source_sha=SHA,
-                    expected_html_sha=HASH)
+                    expected_html_sha=HASH, sandbox_root=Path(d))
             self.assertEqual(len(data),2)
             for frame in data:
                 self.assertTrue(frame['path'].is_file())
