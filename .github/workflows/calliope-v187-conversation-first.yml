@@ -4,6 +4,7 @@ on:
     paths:
       - 'utils/rc2-v187-calliope-model-first.cjs'
       - 'tests/release/v187-conversation-first.test.cjs'
+      - 'tests/release/v187-model-first-fallback-integrity.test.cjs'
       - 'docs/handoffs/DEVPROXY_V187_CONVERSATION_FIRST_SOURCE.md'
       - '.github/workflows/calliope-v187-conversation-first.yml'
   workflow_dispatch:
@@ -21,4 +22,4 @@ jobs:
         with:
           node-version: '22'
       - name: Freeze original deterministic-template precedence and require source-only model-first
-        run: node --test tests/release/v187-conversation-first.test.cjs
+        run: node --test tests/release/v187-conversation-first.test.cjs tests/release/v187-model-first-fallback-integrity.test.cjs
