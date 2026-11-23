@@ -5,6 +5,7 @@ on:
       - 'config/default.conf'
       - 'config/default.production.conf'
       - 'tests/security/v190-private-api-regex-auth-precedence.test.cjs'
+      - 'tests/security/v190-eight-api-native-nginx.test.cjs'
       - '.github/workflows/devproxy-v190-private-api-auth-precedence.yml'
       - 'docs/handoffs/DEVPROXY_V190_PRIVATE_API_PREFIX_SOURCE.md'
   workflow_dispatch:
@@ -24,4 +25,4 @@ jobs:
       - name: Install disposable native Nginx test image
         run: docker pull nginx:1.26.3-alpine
       - name: Focused source preimage, public route, native auth and production parity tests
-        run: node --test tests/security/v190-private-api-regex-auth-precedence.test.cjs tests/security/v179-production-auth-prefix-parity.test.cjs tests/security/v171-four-auth-prefix-nginx.test.cjs
+        run: node --test tests/security/v190-private-api-regex-auth-precedence.test.cjs tests/security/v190-eight-api-native-nginx.test.cjs tests/security/v179-production-auth-prefix-parity.test.cjs tests/security/v171-four-auth-prefix-nginx.test.cjs
