@@ -87,7 +87,7 @@ test('two OS-isolated named endpoints complete genuine PQXDH prekey and Double R
     await peers.trajectory.command('start', { to: 'calliope', bundle });
     const packet = await peers.trajectory.command('encrypt', { to: 'calliope', message: ACCEPT });
     assert.equal(packet.messageType, 3, 'first message must be a Signal PreKey message');
-    assert.doesNotMatch(packet.ciphertext, /artifact\.describe|demo-studio/);
+    assert.equal(Buffer.from(packet.ciphertext,'hex').includes(Buffer.from(JSON.stringify(ACCEPT),'utf8')),false, 'ciphertext must not contain literal plaintext');
     const received = await peers.calliope.command('decrypt', { from: 'trajectory', packet });
     assert.deepEqual(received, { accepted:true, status:'METADATA_ONLY', sender:'trajectory', purpose:'artifact.describe',
       ownerApprovalGranted:false, exportAuthorized:false, executionAuthorized:false });
