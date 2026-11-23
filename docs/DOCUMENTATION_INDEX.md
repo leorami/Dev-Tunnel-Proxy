@@ -5,6 +5,7 @@ This index makes durable product and security decisions discoverable across chat
 ## Core / product
 
 - [Current operational state](CURRENT_OPERATIONAL_STATE.md) — present-tense secure-mode Calliope capability and evidence boundaries (source docs; not automatic live sync)
+- [V189 Origin original screenshot capture and inline ChatGPT delivery](architecture/DEVPROXY_V189_ORIGIN_SCREENSHOT_DELIVERY.md) — exact Engineer/CTO visual evidence and private transport gates; source-only, live V188 visual UAT HOLD
 - [Product outcomes](PRODUCT.md)
 - [Architecture](ARCHITECTURE.md)
 - [API contract](API.md)
