@@ -53,7 +53,7 @@ test('valid V191-signed metadata and independent server-owned grant produce only
   assertNoAuthority(outcome);
 });
 
-test('valid encrypted identity claim is insufficient without trusted grant AND source-locked manifest',()=>{
+test('valid signed metadata identity is insufficient without trusted grant AND source-locked manifest',()=>{
   const cases=[
     {artifacts:[],trustedGrants:[grant()]},
     {artifacts:[metadata()],trustedGrants:[]},
