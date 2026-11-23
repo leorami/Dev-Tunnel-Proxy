@@ -47,3 +47,15 @@ test('documented visual pack contract gives exact refusal and privately retrieva
     assert.ok(s.includes(item),item);
   }
 });
+
+test('P0 regression: tool images alone FAIL; actual verified sandbox PNG must appear as image Markdown in FINAL answer',()=>{
+  assert.match(agents,/FINAL_REPLY_SANDBOX_IMAGE_REQUIRED/);
+  assert.match(agents,/literal !\[.*?\]\(sandbox:\/mnt\/data\//);
+  assert.match(agents,/FINAL owner-facing answer/);
+  assert.match(agents,/tool-only image\(\) output does NOT satisfy/);
+  assert.match(agents,/INLINE_RENDER_UNVERIFIED/);
+  const canon=fs.readFileSync(path.join(root,'docs/architecture/DEVPROXY_V189_ORIGIN_SCREENSHOT_DELIVERY.md'),'utf8');
+  assert.match(canon,/Origin PR #144/);
+  assert.match(canon,/FINAL response, not just tool/);
+  assert.match(canon,/verify.*existing.*sandbox.*PNG/i);
+});
