@@ -74,10 +74,16 @@ test('domain, intent, time bounds and strict shape reject unsafe or ambiguous re
 });
 test('invalid identities and non-Ed25519 keys rejected before accepting messages',()=>{
  const rsa=crypto.generateKeyPairSync('rsa',{modulusLength:2048});
+ const ed=crypto.generateKeyPairSync('ed25519');
  assert.throws(()=>createCalliopeAgentEnvelopeVerifier({
   identities:{trajectory:{publicKey:rsa.publicKey,projects:['demo-studio']}}}),/ONLY_ED25519/);
  assert.throws(()=>createCalliopeAgentEnvelopeVerifier({
   identities:{trajectory:{publicKey:'invalid',projects:['demo-studio']}}}),/INVALID_AGENT_PUBLIC_KEY/);
+ assert.throws(()=>createCalliopeAgentEnvelopeVerifier({
+  identities:{trajectory:{publicKey:ed.privateKey,projects:['demo-studio']}}}),/INVALID_AGENT_PUBLIC_KEY/);
+ assert.throws(()=>createCalliopeAgentEnvelopeVerifier({
+  identities:{trajectory:{publicKey:ed.privateKey.export({type:'pkcs8',format:'pem'}),
+   projects:['demo-studio']}}}),/INVALID_AGENT_PUBLIC_KEY/);
  assert.throws(()=>createCalliopeAgentEnvelopeVerifier({identities:{}}),/INVALID_AGENT_IDENTITY/);
 });
 test('all sender verification outcomes keep denial response authority flags false',()=>{
