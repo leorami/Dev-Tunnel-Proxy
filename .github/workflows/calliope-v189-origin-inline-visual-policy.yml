@@ -4,7 +4,7 @@ on:
     paths:
       - 'AGENTS.md'
       - 'docs/architecture/DEVPROXY_V189_ORIGIN_SCREENSHOT_DELIVERY.md'
-      - 'docs/handoffs/DEVPROXY_V189_CALLOPE_INLINE_VISUAL_OWNER_UAT.md'
+      - 'docs/handoffs/DEVPROXY_V189_CALLIOPE_INLINE_VISUAL_OWNER_UAT.md'
       - 'tests/security/v189-origin-real-inline-image-policy.test.cjs'
       - '.github/workflows/calliope-v189-origin-inline-visual-policy.yml'
   workflow_dispatch:
