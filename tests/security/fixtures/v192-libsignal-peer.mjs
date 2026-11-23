@@ -8,6 +8,8 @@ import readline from 'node:readline';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { createPublicKey, generateKeyPairSync, randomBytes, sign as edSign } from 'node:crypto';
 
 const root=process.env.V192_LIBSIGNAL_PACKAGE_ROOT;
 const localName=process.env.V192_PEER_NAME;
@@ -19,6 +21,13 @@ if (packageInfo.name!=='@signalapp/libsignal-client' || packageInfo.version!=='0
   throw Error('TEST_ONLY_LIBSIGNAL_VERSION_MISMATCH');
 }
 const Signal=await import(pathToFileURL(join(root,'dist','index.js')).href);
+// V194 SYNTHETIC ONLY: Signal E2EE and V191 signed metadata are distinct.
+const require=createRequire(import.meta.url);
+const {messageSigningBytes}=require('../../../utils/calliope-agent-envelope.cjs');
+const {createCalliopeArtifactDescriptorGate}=require('../../../utils/calliope-artifact-descriptor-gate.cjs');
+const signer=generateKeyPairSync('ed25519');
+const TEST_NOW=1800000000000,TEST_HASH='a'.repeat(64),TEST_SOURCE='c'.repeat(40);
+let descriptorGate=null;
 const identityKey=(name)=>name+'#1';
 const asAddress=(name)=>Signal.ProtocolAddress.new(name,1);
 const keyHex=(publicKey)=>Buffer.from(publicKey.serialize()).toString('hex');
@@ -107,6 +116,7 @@ class KyberPreKeys extends Signal.KyberPreKeyStore {
 const session=new Sessions(),identity=new Identities(),prekeys=new PreKeys(),
   signedPrekeys=new SignedPreKeys(),kyberPrekeys=new KyberPreKeys();
 const me=asAddress(localName);
+const publicSigningKey=signer.publicKey.export({type:'spki',format:'der'}).toString('base64');
 const AUTH_FALSE=Object.freeze({ownerApprovalGranted:false,exportAuthorized:false,executionAuthorized:false});
 const MESSAGE_FIELDS=['version','sender','recipient','project','purpose','artifactSha256'];
 function evaluateMessage(raw,from){
@@ -146,9 +156,26 @@ function readBundle(bundle){
     Signal.PublicKey.deserialize(requireHex(bundle.identityPublic,64)),bundle.kyberId,
     Signal.KEMPublicKey.deserialize(requireHex(bundle.kyberPublic,4096)),requireHex(bundle.kyberSig,100));
 }
+async function decryptPacket(from,packet){
+  if(from===localName || !identity.pinned.has(from))throw Error('UNAUTHORIZED_SENDER');
+  if(!packet||![2,3].includes(packet.messageType))throw Error('BAD_PACKET');
+  const raw=requireHex(packet.ciphertext,8192);
+  return packet.messageType===3?
+    Signal.signalDecryptPreKey(Signal.PreKeySignalMessage.deserialize(raw),
+      asAddress(from),me,session,identity,prekeys,signedPrekeys,kyberPrekeys):
+    Signal.signalDecrypt(Signal.SignalMessage.deserialize(raw),asAddress(from),me,session,identity);
+}
+async function encryptMetadata(to,payload){
+  if(to===localName || !identity.pinned.has(to))throw Error('UNAUTHORIZED_RECIPIENT');
+  const serialized=Buffer.from(JSON.stringify(payload),'utf8');
+  if(serialized.length>2048)throw Error('MESSAGE_TOO_LARGE');
+  const ciphertext=await Signal.signalEncrypt(serialized,asAddress(to),me,session,identity);
+  return {messageType:ciphertext.type(),ciphertext:Buffer.from(ciphertext.serialize()).toString('hex')};
+}
 async function execute(command){
   const {op,peer,to,from,publicIdentity,bundle,packet,message}=command;
-  if(op==='identity')return {pid:process.pid,publicIdentity:keyHex((await identity.getIdentityKey()).getPublicKey())};
+  if(op==='identity')return {pid:process.pid,
+    publicIdentity:keyHex((await identity.getIdentityKey()).getPublicKey()),publicSigningKey};
   if(op==='pin'){identity.pin(peer,publicIdentity);return {pinned:true};}
   if(op==='bundle')return await createPublicBundle();
   if(op==='start'){
@@ -158,22 +185,52 @@ async function execute(command){
     await Signal.processPreKeyBundle(readBundle(bundle),asAddress(to),me,session,identity);
     return {sessionInitialized:true};
   }
-  if(op==='encrypt'){
-    if(to===localName || !identity.pinned.has(to))throw Error('UNAUTHORIZED_RECIPIENT');
-    const serialized=Buffer.from(JSON.stringify(message),'utf8');
-    if(serialized.length>2048)throw Error('MESSAGE_TOO_LARGE');
-    const ciphertext=await Signal.signalEncrypt(serialized,asAddress(to),me,session,identity);
-    return {messageType:ciphertext.type(),ciphertext:Buffer.from(ciphertext.serialize()).toString('hex')};
+  if(op==='encrypt')return encryptMetadata(to,message);
+  if(op==='decrypt')return evaluateMessage(await decryptPacket(from,packet),from);
+  // V194 ONLY: The coordinator is the synthetic, independently trusted enrollment
+  // fixture. It can install a PUBLIC signing identity, not a private key or grant
+  // obtained from the encrypted client. The grant and manifest are test constants.
+  if(op==='configure-describe'){
+    if(localName!=='calliope'||descriptorGate!==null||
+       typeof command.trustedSenderPublicKey!=='string'||
+       typeof command.withGrant!=='boolean')throw Error('TEST_DESCRIPTOR_CONFIG_DENIED');
+    const pk=createPublicKey({key:Buffer.from(command.trustedSenderPublicKey,'base64'),
+      format:'der',type:'spki'});
+    descriptorGate=createCalliopeArtifactDescriptorGate({
+      identities:{trajectory:{publicKey:pk,projects:['demo-studio']}},
+      artifacts:[{project:'demo-studio',artifactSha256:TEST_HASH,
+        sourceCommit:TEST_SOURCE,mediaType:'image/png',byteLength:12800,
+        capturedAtMs:TEST_NOW-1000}],
+      trustedGrants:command.withGrant?[{sender:'trajectory',project:'demo-studio',
+        purpose:'artifact.describe',artifactSha256:TEST_HASH,sourceCommit:TEST_SOURCE,
+        issuedAtMs:TEST_NOW-1000,expiresAtMs:TEST_NOW+10000}]:[],
+      now:()=>TEST_NOW
+    });
+    return {configured:true,ownerConsentProven:false,exportAuthorized:false};
   }
-  if(op==='decrypt'){
-    if(from===localName || !identity.pinned.has(from))throw Error('UNAUTHORIZED_SENDER');
-    if(!packet||![2,3].includes(packet.messageType))throw Error('BAD_PACKET');
-    const raw=requireHex(packet.ciphertext,8192);
-    const plaintext=packet.messageType===3?
-      await Signal.signalDecryptPreKey(Signal.PreKeySignalMessage.deserialize(raw),
-        asAddress(from),me,session,identity,prekeys,signedPrekeys,kyberPrekeys):
-      await Signal.signalDecrypt(Signal.SignalMessage.deserialize(raw),asAddress(from),me,session,identity);
-    return evaluateMessage(plaintext,from);
+  if(op==='encrypt-signed-describe'){
+    if(localName!=='trajectory'||to!=='calliope')throw Error('TEST_SIGNER_DENIED');
+    const signed={version:1,audience:'devproxy.calliope.agent.v1',
+      sender:'trajectory',project:'demo-studio',
+      purpose:command.purpose??'artifact.describe',
+      artifactSha256:command.artifactSha256??TEST_HASH,
+      issuedAtMs:TEST_NOW-500,expiresAtMs:TEST_NOW+20000,
+      nonce:command.nonce??randomBytes(32).toString('base64url')};
+    let signature=edSign(null,messageSigningBytes(signed),signer.privateKey).toString('base64url');
+    if(command.tamperSignature===true)signature=signature.slice(0,-1)+(signature.at(-1)==='A'?'B':'A');
+    const envelope={...signed,signature};
+    if(command.ownerApproved===true)envelope.ownerApproved=true;
+    return encryptMetadata(to,envelope);
+  }
+  if(op==='decrypt-and-describe'){
+    if(localName!=='calliope'||!descriptorGate)throw Error('NO_TRUSTED_DESCRIPTOR_FIXTURE');
+    const plain=await decryptPacket(from,packet);
+    if(plain.length>2048)throw Error('SIGNED_MESSAGE_TOO_LARGE');
+    let msg;try{msg=JSON.parse(Buffer.from(plain).toString('utf8'));}
+    catch{throw Error('INVALID_ENCRYPTED_MESSAGE');}
+    // The test-only recipient decrypts and verifies inside the Calliope OS
+    // process. Neither plaintext nor private key is returned to the relay.
+    return descriptorGate.describe(msg);
   }
   throw Error('OPERATION_NOT_ALLOWED');
 }
