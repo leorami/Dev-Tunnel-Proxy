@@ -1,0 +1,22 @@
+name: V189 Origin inline visual acceptance — source only
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'docs/architecture/DEVPROXY_V189_ORIGIN_SCREENSHOT_DELIVERY.md'
+      - 'tests/security/v189-origin-real-inline-image-policy.test.cjs'
+      - '.github/workflows/calliope-v189-origin-inline-visual-policy.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  origin-inline-visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Require real original pixels and actual inline output (no UAT fakery)
+        run: node --test tests/security/v189-origin-real-inline-image-policy.test.cjs
