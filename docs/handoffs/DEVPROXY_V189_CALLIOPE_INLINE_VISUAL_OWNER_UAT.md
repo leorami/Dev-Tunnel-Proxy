@@ -35,4 +35,4 @@ One real current-source visual UAT journey captured, verified, privately deliver
 
 ## Exact single-primary handoff
 
-Execute origin/cto/devproxy-v189-origin-real-inline-visual-acceptance-20261122@<FINAL_REMOTE_FULL_40_SHA_FROM_ISSUE>:docs/handoffs/DEVPROXY_V189_CALLOPE_INLINE_VISUAL_OWNER_UAT.md exactly as written.
+Execute origin/cto/devproxy-v189-origin-real-inline-visual-acceptance-20261122@<FINAL_REMOTE_FULL_40_SHA_FROM_ISSUE>:docs/handoffs/DEVPROXY_V189_CALLIOPE_INLINE_VISUAL_OWNER_UAT.md exactly as written.
