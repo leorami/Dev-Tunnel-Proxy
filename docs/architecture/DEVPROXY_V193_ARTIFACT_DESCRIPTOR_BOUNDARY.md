@@ -1,0 +1,41 @@
+# V193 — Source-locked, grant-record-bound artifact descriptions (no disclosure)
+
+**Status: CTO SOURCE CANDIDATE / NOT INSTALLED / NO OWNER CONSENT VERIFIED / NO SIGNAL ENDPOINT.**
+This is an independent CTO lane begun while the sole Engineer-I implemented V192 Signal's synthetic two-process proof. It descends from already accepted V191 Engineer return `1f58c57bc407add17d88e41037164604a9b7fee8`, not from V192's in-flight branch. V192 genuinely RETURNED `636bbca02b9e72f8505b29b3275ca2288c3c651c` (Issue #234), independent CTO reviewed receipt-only diff and exact source CI. Future integration must reconcile the **two sibling branches** before any common executable branch. Protected `main@590bcf2a980b434f533ddacac43a24a777a933e7` is not updated.
+
+## Product outcome and why this matters
+
+Owner wants Trajectory and Calliope to communicate privately via Dev Proxy and eventually request original screenshots, project files, diagnostic observations and owner-approved repairs. A message encrypted with Signal is *not* evidence of consent to disclose a particular file; a valid sender signature also proves no such consent. V193 closes one precise part of that gap **before** implementing any listener or file service: signed request identity + an independently trusted exact grant record + a separately pinned inert artifact manifest must all agree to describe **metadata only**. A file path, bytes or URL is never returned.
+
+This is deliberately smaller than a full capability system. It does not mint, store, validate provenance for, rotate or revoke real owner grants and cannot authenticate owner identity. A test configuration's `trustedGrants` are synthetic. The constructor's parameter is named to remind future implementers that only a separately verified trusted host source may populate it; passing JSON from an agent/Signal recipient directly must always fail the runtime security review. The result deliberately never says `ownerApprovalGranted:true` even when a synthetic match succeeds.
+
+## Source interface and contract
+
+New pure CommonJS `utils/calliope-artifact-descriptor-gate.cjs` exports `createCalliopeArtifactDescriptorGate({identities,artifacts,trustedGrants,now})`. It internally constructs the **real** V191 `createCalliopeAgentEnvelopeVerifier`, so untrusted `{verified:true}` / `{ownerApproved:true}` structures cannot spoof identity. It only accepts a real canonical, domain-separated Ed25519 signed V191 `artifact.describe` message; no Signal dependency, cryptographic session state, dynamic protocol endpoint or Node24 requirement is introduced in this lane.
+
+A trusted *manifest* record must have **exactly** `project`, `artifactSha256`, `sourceCommit`, `mediaType`, `byteLength`, and `capturedAtMs`; all copied and validated at service construction. Only a bounded allowlist of inert media types is accepted; no HTML, executables or client paths. A separately trusted *grant* record must have **exactly** `sender`, `project`, `purpose`, `artifactSha256`, `sourceCommit`, `issuedAtMs`, `expiresAtMs`. The synthetic grant lifetime is at most ten minutes, but a live service must enforce an owner-validated, usually shorter lifetime. Duplicated manifest identities or grant identities abort the constructor rather than selecting whichever appears last. Input mutation after construction does not mutate the verified snapshot.
+
+During `describe(signedEnvelope)`, V191 verifies the real signature, registered identity/project, canonical intent/expiry, anti-replay, unknown field refusal and sender nonce first. V193 then requires exact sender/project/hash/source match against **both independent trusted records**, valid grant time and a not-future manifest capture timestamp. On any mismatch it returns a frozen denial. On match it returns `DESCRIPTOR_CANDIDATE_ONLY`, source commit/media type/length/capture time, artifact digest and sender/project name. The following flags are **always false**: `ownerApprovalGranted`, `exportAuthorized`, `executionAuthorized`, `healingPerformed`, `liveAttested`, `productionChangeAuthorized`.
+
+No filesystem, network, environment, Docker, shell, model, private application endpoint, public API, runtime module or screenshot reader is imported. This candidate cannot leak original byte content because it has no such input, file handles, arbitrary paths or code to read it.
+
+## Critical trust boundaries
+
+1. **Real owner consent is not proven by this gate.** Even a server-created grant object is not evidence without independently verified grant issuance, owner authentication, revocation, valid principal/device registration and audit of source/recipient/purpose. Real integration must validate those invariants inside a separate owner-trusted service.
+2. **A synthetic manifest is not proof an artifact exists.** A source SHA identifies a candidate commit; it does not establish the actual process's loaded bytes, file rights, ownership, screenshot dimensions or independent availability. Those are separate read-only host proofs, required before any disclosure.
+3. **V191 replay tracking is per process only.** A restart, rolling deploy or two receiver processes can replay an old authentic signed message. Do not expose this gate as an HTTP/MCP/Signal endpoint until durable atomic anti-replay/idempotency and session persistence exist.
+4. **V192 Signal is a separate layer.** Source-only official libsignal@0.106.0 proof has real PQXDH and Double Ratchet between *synthetic* peers, not a registered real Trajectory/Calliope endpoint. The owner-mandated Signal policy remains optional Origin PR #154. Signal protects plaintext message confidentiality, but not legitimate owner authority or path authorization. E2EE is not a shortcut around secure host accounting.
+5. **Future file and PNG export are deliberately not implemented.** In a separate approved scope, require a truly owner-authenticated and recipient/source/purpose-bound disclosure grant, exact allowed file under a securely resolved root, no symlink traversal, logged audit metadata without private bytes, hash/size rechecks, bounded streaming and recipient-only encryption, then origin-byte visual verification and inline ChatGPT display. Do not use public GitHub artifacts to carry private PNGs.
+6. **No actual protection of the live owner app is claimed.** No authenticated Calliope URL, Nginx config, API credential, Docker socket, worker, owner Mac path, owner session, screenshot or privilege is touched.
+
+## Required RED/GREEN acceptance
+
+`tests/security/v193-calliope-artifact-descriptor-gate.test.cjs` exercises genuine ephemeral Ed25519 V191 signed requests, a frozen inert descriptor, missing and mismatched server grant/manifest, stale source, expired grant, forged `verified`/owner approval/path/URL/bytes, outsider key, replay, prototype/extra fields, duplicate records, excessive size, stale time and immutability. Test-only `.github/workflows/devproxy-v193-descriptor-gate.yml` runs Node22 syntax and both the 6 V191 signature tests plus 8 new V193 tests, with no production dependency. All in-scope tests must pass (zero failure/skip); actual CI log is the evidence, not the existence of a workflow.
+
+## Explicit Non-goals
+
+No automatic grant issuance or claim of owner approval, no owner consent UI, no Signal network transport or Signal Messenger bot, no access to protected files or original PNGs, no device/key enrollments, no product release, no new privileges, no proxy/ngrok/worker/API/Compose operations, no live source mount swap, no protected branch merge, no governance PR merge. GitHub issues and tests are coordination and source evidence, not release authorization.
+
+## Next integration boundary
+
+After the V192 actual Engineer source is accepted (now evidenced) and this V193 gate is independently reviewed, the *next* design task may reconcile both sibling source candidates into one isolated integration branch. That task must NOT silently turn synthetic grants or test-only Signal keys into real owner credentials. The next user-visible product capability should be a small real, explicit consent-based **artifact description** in Trajectory/Calliope before private byte transfer. Deploying that requires independent user session, authoritative server grant, durable replay store and separate release GO.
