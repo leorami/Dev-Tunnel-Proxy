@@ -25,6 +25,22 @@ const NO_AUTHORITY = Object.freeze({ownerApprovalGranted:false,exportAuthorized:
   productionChangeAuthorized:false});
 const FAIL = Object.freeze({ok:false,status:'MESSAGE_REJECTED',...NO_AUTHORITY});
 
+function publicEd25519Only(material) {
+  // Verifier config must never accept private key material. createPublicKey()
+  // would otherwise derive a public key from PKCS8/JWK/KeyObject secrets.
+  if (material instanceof crypto.KeyObject) {
+    if (material.type !== 'public') throw Error('INVALID_AGENT_PUBLIC_KEY');
+  } else {
+    let privateMaterial = false;
+    try { crypto.createPrivateKey(material); privateMaterial = true; } catch { /* public encodings fail here */ }
+    if (privateMaterial) throw Error('INVALID_AGENT_PUBLIC_KEY');
+    try { material = crypto.createPublicKey(material); }
+    catch { throw Error('INVALID_AGENT_PUBLIC_KEY'); }
+  }
+  if (material.asymmetricKeyType !== 'ed25519' || material.type !== 'public')
+    throw Error(material.asymmetricKeyType === 'ed25519' ? 'INVALID_AGENT_PUBLIC_KEY' : 'ONLY_ED25519_KEYS_ALLOWED');
+  return material;
+}
 function ownExactData(obj, keys) {
   try {
     if (obj === null || typeof obj !== 'object' || Array.isArray(obj) ||
@@ -59,11 +75,7 @@ function createCalliopeAgentEnvelopeVerifier({identities,now=Date.now,maxSeen=12
         !Array.isArray(entry.projects) || entry.projects.length<1 ||
         entry.projects.length>32 || !entry.projects.every(p=>typeof p==='string'&&NAME.test(p)))
       throw Error('INVALID_AGENT_IDENTITY_CONFIG');
-    let publicKey;
-    try { publicKey = entry.publicKey instanceof crypto.KeyObject && entry.publicKey.type==='public'
-      ? entry.publicKey : crypto.createPublicKey(entry.publicKey); }
-    catch { throw Error('INVALID_AGENT_PUBLIC_KEY'); }
-    if (publicKey.asymmetricKeyType!=='ed25519') throw Error('ONLY_ED25519_KEYS_ALLOWED');
+    const publicKey = publicEd25519Only(entry.publicKey);
     registry.set(sender,{publicKey,projects:new Set(entry.projects)});
   }
   if (!registry.size || registry.size>64) throw Error('INVALID_AGENT_IDENTITY_CONFIG');
