@@ -11,7 +11,7 @@ const {createCalliopeAgentEnvelopeVerifier,messageSigningBytes}=require('../../u
 const NOW=1800000000000, HASH='a'.repeat(64);
 const rawNonce=() => crypto.randomBytes(32).toString('base64url');
 function sandbox(){
- const root=fs.mkdtempSync(path.join(os.tmpdir(),'devproxy-v196-source-only-'));
+ const root=fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(),'devproxy-v196-source-only-')));
  fs.chmodSync(root,0o700);
  const dir=path.join(root,'replay');
  fs.mkdirSync(dir,{mode:0o700});
