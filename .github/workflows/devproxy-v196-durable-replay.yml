@@ -1,0 +1,32 @@
+name: V196 durable signed-message replay (source-only, no app runtime)
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-agent-envelope.cjs'
+      - 'utils/calliope-durable-replay-ledger.cjs'
+      - 'tests/security/v196-durable-replay-ledger.test.cjs'
+      - 'tests/security/v191-calliope-agent-envelope.test.cjs'
+      - '.github/workflows/devproxy-v196-durable-replay.yml'
+      - 'docs/architecture/DEVPROXY_V196_DURABLE_REPLAY_SOURCE.md'
+      - 'docs/handoffs/DEVPROXY_V196_REPLAY_RESTART_SECURITY.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-only-replay:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node-version: ['18.20.8', '22.23.5']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Verify no new dependencies or live host writes
+        run: |
+          node --check utils/calliope-agent-envelope.cjs
+          node --check utils/calliope-durable-replay-ledger.cjs
+          node --check tests/security/v196-durable-replay-ledger.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs
