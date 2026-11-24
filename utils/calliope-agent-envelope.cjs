@@ -8,6 +8,7 @@
  * an agent launcher, an owner grant or a deployable service.
  */
 const crypto = require('node:crypto');
+const {isDurableCalliopeReplayLedger}=require('./calliope-durable-replay-ledger.cjs');
 const AUDIENCE = 'devproxy.calliope.agent.v1';
 const PURPOSE = 'artifact.describe';
 const DOMAIN = 'DEVPROXY-CALLIOPE-AGENT-ENVELOPE-V1\n';
@@ -65,10 +66,15 @@ function messageSigningBytes(message) {
   });
   return Buffer.from(DOMAIN + JSON.stringify(fields),'utf8');
 }
-function createCalliopeAgentEnvelopeVerifier({identities,now=Date.now,maxSeen=128}={}) {
+function createCalliopeAgentEnvelopeVerifier({identities,now=Date.now,maxSeen=128,
+ replayLedger=null,requireDurableReplay=false}={}) {
   if (!identities || Object.getPrototypeOf(identities)!==Object.prototype ||
       typeof now!=='function' || !Number.isSafeInteger(maxSeen) ||
       maxSeen<1 || maxSeen>1024) throw Error('INVALID_AGENT_VERIFIER_CONFIG');
+  if(typeof requireDurableReplay!=='boolean'||
+     (replayLedger!==null&&!isDurableCalliopeReplayLedger(replayLedger))||
+     (requireDurableReplay&&!isDurableCalliopeReplayLedger(replayLedger)))
+    throw Error('DURABLE_REPLAY_REQUIRED');
   const registry = new Map();
   for (const [sender, entry] of Object.entries(identities)) {
     if (!NAME.test(sender) || !entry || Object.getPrototypeOf(entry)!==Object.prototype ||
@@ -111,6 +117,13 @@ function createCalliopeAgentEnvelopeVerifier({identities,now=Date.now,maxSeen=12
     for (const [key,expiry] of seen) if(expiry<=at) seen.delete(key);
     const marker=sender+'\0'+nonce;
     if(seen.has(marker)||seen.size>=maxSeen)return FAIL;
+    // The in-memory cache alone never establishes restart-safe replay.
+    // Only a branded, pre-provisioned private ledger may be used for the
+    // explicit durable mode. A disk error or full ledger denies the request.
+    if(replayLedger){
+      try{if(!replayLedger.reserve({sender,project,nonce,expiresAtMs,at}))return FAIL;}
+      catch{return FAIL;}
+    }
     seen.set(marker,expiresAtMs);
     return Object.freeze({ok:true,status:'SIGNED_METADATA_ONLY',sender,project,
       purpose,artifactSha256,...NO_AUTHORITY});
