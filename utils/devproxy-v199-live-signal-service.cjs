@@ -47,6 +47,11 @@ function createLivePrivateSignalService({enrollmentDir,mailbox,now=Date.now}){
     const recipient=registry.role('calliope');
     const sender=registry.role('trajectory');
     if(!recipient||!sender)return false;
+    // An authenticated transport sender is not sufficient: both ends must
+    // pin each OTHER's real libsignal identity fingerprint, not merely self.
+    if(sender.peerSignalIdentitySha256!==recipient.signalIdentitySha256||
+       recipient.peerSignalIdentitySha256!==sender.signalIdentitySha256)
+      return false;
     if(typeof principal.senderSignalKeySha256==='string'&&
        principal.senderSignalKeySha256!==sender.signalIdentitySha256)return false;
     if(typeof principal.recipientSignalKeySha256==='string'&&
