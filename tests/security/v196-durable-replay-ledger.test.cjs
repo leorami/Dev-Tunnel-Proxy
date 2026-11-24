@@ -158,3 +158,14 @@ test('RED: signature-invalid messages never consume durable nonces',()=>{
   assert.equal(verifier.verifyEnvelope(signed(original,signedKey.privateKey)).ok,true);
  }finally{s.close()}
 });
+
+test('RED: durable ledger honors V191 sender-wide nonce scope across authorized projects',()=>{
+ const s=sandbox();
+ try{
+  const l=createDurableCalliopeReplayLedger({directory:s.dir,maxEntries:16});
+  const nonce=rawNonce();
+  assert.equal(l.reserve(params(nonce)),true);
+  assert.equal(l.reserve({...params(nonce),project:'aperture'}),false,
+    'sender+nonce replay must not become valid by switching project');
+ }finally{s.close()}
+});
