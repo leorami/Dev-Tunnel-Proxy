@@ -47,26 +47,21 @@ test('RED: only exact authenticated recipient-bound opaque ciphertext may reach 
  noAuthority(got);
 });
 
-test('RED: relay cannot be constructed without true host-authentication and enrollment verifiers',()=>{
- for(const config of [
-  {resolveAuthenticatedSender:undefined},
+test('RED: relay cannot be constructed without host authentication and enrollment verifiers',()=>{
+ assert.throws(()=>createPrivateSignalCiphertextAdmission({
+   now:()=>NOW,isRecipientEnrolled:()=>true
+ }),/TRUSTED_RELAY_AUTHENTICATOR_REQUIRED/);
+ assert.throws(()=>createPrivateSignalCiphertextAdmission({
+   now:()=>NOW,resolveAuthenticatedSender:()=>principal()
+ }),/TRUSTED_RELAY_AUTHENTICATOR_REQUIRED/);
+ for(const options of [
   {resolveAuthenticatedSender:()=>({ok:true})},
-  {isRecipientEnrolled:undefined},
   {resolveAuthenticatedSender:async()=>principal()},
   {isRecipientEnrolled:async()=>true}
  ]){
-  const base={now:()=>NOW,...config};
-  if(config.resolveAuthenticatedSender===undefined||config.isRecipientEnrolled===undefined){
-    assert.throws(()=>createPrivateSignalCiphertextAdmission(base),/TRUSTED_RELAY_AUTHENTICATOR_REQUIRED/);
-  }else{
-    const g=createPrivateSignalCiphertextAdmission({
-      ...base,resolveAuthenticatedSender:config.resolveAuthenticatedSender,
-      isRecipientEnrolled:config.isRecipientEnrolled
-    });
-    const answer=g.admit(validPacket(),{});
-    assert.equal(answer.ok,false);
-    noAuthority(answer);
-  }
+  const answer=factory(options).admit(validPacket(),{});
+  assert.equal(answer.ok,false);
+  noAuthority(answer);
  }
 });
 
