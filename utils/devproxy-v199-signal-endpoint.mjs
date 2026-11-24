@@ -4,7 +4,8 @@
  */
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { readPrivateSealedStore,writePrivateSealedStore } from './devproxy-v200-atomic-sealed-store.cjs';
+import sealedStore from './devproxy-v200-atomic-sealed-store.cjs';
+const {readPrivateSealedStore,writePrivateSealedStore}=sealedStore;
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
