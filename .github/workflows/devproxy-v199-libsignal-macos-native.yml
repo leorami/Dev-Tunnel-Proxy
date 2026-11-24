@@ -31,11 +31,13 @@ jobs:
       - name: Require official npm latest stable equals GitHub latest stable
         id: stable
         shell: bash
+        env:
+          GITHUB_API_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           latest="$(npm view @signalapp/libsignal-client dist-tags.latest)"
           [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'NOT_A_STABLE_NPM_VERSION'; exit 1; }
-          upstream="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let s="";process.stdin.on("data",b=>s+=b);process.stdin.on("end",()=>console.log(JSON.parse(s).tag_name))')"
+          upstream="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GITHUB_API_TOKEN" https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let s="";process.stdin.on("data",b=>s+=b);process.stdin.on("end",()=>console.log(JSON.parse(s).tag_name))')"
           [[ "v$latest" == "$upstream" ]] || { echo "LATEST_RELEASE_NOT_YET_AVAILABLE_ON_NPM: npm=$latest upstream=$upstream"; exit 1; }
           echo "version=$latest" >> "$GITHUB_OUTPUT"
       - name: Install official exact validated candidate ONLY into disposable macOS runner
