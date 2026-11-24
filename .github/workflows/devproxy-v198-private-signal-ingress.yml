@@ -3,7 +3,11 @@ on:
   pull_request:
     paths:
       - 'utils/calliope-private-signal-admission.cjs'
+      - 'utils/calliope-private-signal-mailbox.cjs'
+      - 'utils/proxyConfigAPI.js'
       - 'tests/security/v198-private-signal-ingress.test.cjs'
+      - 'tests/security/v198-private-signal-mailbox.test.cjs'
+      - 'tests/security/v198-private-signal-mailbox-http.test.cjs'
       - '.github/workflows/devproxy-v198-private-signal-ingress.yml'
       - 'docs/architecture/DEVPROXY_V198_PRIVATE_SIGNAL_RELAY.md'
       - 'docs/handoffs/DEVPROXY_V198_OWNER_AUTHENTICATED_RELAY.md'
@@ -26,7 +30,10 @@ jobs:
       - name: Check admission contracts and reject unsafe defaults
         run: |
           node --check tests/security/v198-private-signal-ingress.test.cjs
+          node --check tests/security/v198-private-signal-mailbox.test.cjs
+          node --check tests/security/v198-private-signal-mailbox-http.test.cjs
           node --check utils/calliope-private-signal-admission.cjs
+          node --check utils/calliope-private-signal-mailbox.cjs
       - name: Opaque ciphertext, metadata authorization and replay safety
         run: |
-          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs
