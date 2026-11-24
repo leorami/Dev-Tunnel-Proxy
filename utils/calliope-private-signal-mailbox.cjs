@@ -64,8 +64,17 @@ function listSafe(directory,expected){
  if(current.dev!==expected.dev||current.ino!==expected.ino)
   throw Error('INVALID_MAILBOX_DIRECTORY');
  const names=fs.readdirSync(directory);
- if(names.some(name=>!MSG.test(name)&&!ACK.test(name)))
-  throw Error('UNSAFE_MAILBOX_ENTRY');
+ for(const name of names){
+  if(!MSG.test(name)&&!ACK.test(name))
+   throw Error('UNSAFE_MAILBOX_ENTRY');
+  // ACKs are security records: symlinks and group-readable files are
+  // untrusted even when their filename looks legitimate.
+  const st=fs.lstatSync(path.join(directory,name));
+  if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1||
+     (st.mode&0o777)!==0o600||
+     (typeof process.getuid==='function'&&st.uid!==process.getuid()))
+   throw Error('UNSAFE_MAILBOX_ENTRY');
+ }
  return names;
 }
 function payloadDigest(bytes){
@@ -90,10 +99,19 @@ function readMsg(directory,name){
 }
 function readAckDigest(directory,name){
  const target=path.join(directory,name);
- const raw=fs.readFileSync(target,'utf8');
- const m=/^V1\n([a-f0-9]{64})\n$/.exec(raw);
- if(!m)throw Error('UNSAFE_MAILBOX_ENTRY');
- return m[1];
+ let fd;
+ try{
+  fd=fs.openSync(target,fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);
+  // O_NOFOLLOW + fstat also close the listSafe -> read race.
+  const st=fs.fstatSync(fd);
+  if(!st.isFile()||st.nlink!==1||(st.mode&0o777)!==0o600||
+     (typeof process.getuid==='function'&&st.uid!==process.getuid()))
+   throw Error('UNSAFE_MAILBOX_ENTRY');
+  const raw=fs.readFileSync(fd,'utf8');
+  const m=/^V1\n([a-f0-9]{64})\n$/.exec(raw);
+  if(!m)throw Error('UNSAFE_MAILBOX_ENTRY');
+  return m[1];
+ }finally{if(fd!==undefined)fs.closeSync(fd);}
 }
 function fsyncDir(directory){
  const rootFd=fs.openSync(directory,fs.constants.O_RDONLY|fs.constants.O_DIRECTORY);
