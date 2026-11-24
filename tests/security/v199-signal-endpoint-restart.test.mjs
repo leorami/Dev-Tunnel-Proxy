@@ -31,7 +31,7 @@ test('paired endpoints exchange proxy.status through an opaque mailbox and again
   assert.equal(typeof root,'string');
   // The workflow verifies official upstream stable == npm latest and sets
   // this exact candidate; no historical release may be hardcoded here.
-  assert.match(expected,/^[0-9]+\\.[0-9]+\\.[0-9]+$/);
+  assert.match(expected,/^[0-9]+\.[0-9]+\.[0-9]+$/);
   const home=dir();
   const trajectoryStore=join(home,'trajectory.store');
   const calliopeStore=join(home,'calliope.store');
