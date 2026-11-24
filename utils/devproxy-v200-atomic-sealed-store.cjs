@@ -60,7 +60,7 @@ function writePrivateSealedStore(file,bytes,{beforeCommit}={}){
  // Before acquiring the writer lock, reject any pre-existing unsafe target.
  readPrivateSealedStore(file);
  const lock=file+'.lock';
- let lockFd,temporary,staged=false;
+ let lockFd,temporary,staged=false,lockOwned=false;
  try{
   try{
    lockFd=fs.openSync(lock,FLAGS.O_WRONLY|FLAGS.O_CREAT|FLAGS.O_EXCL|FLAGS.O_NOFOLLOW,0o600);
@@ -68,6 +68,7 @@ function writePrivateSealedStore(file,bytes,{beforeCommit}={}){
    if(err&&err.code==='EEXIST')throw Error('SIGNAL_STORE_WRITE_LOCKED');
    throw err;
   }
+  lockOwned=true;
   fs.fsyncSync(lockFd);
   fs.closeSync(lockFd);lockFd=undefined;
   fsyncDirectory(dir);
@@ -93,7 +94,7 @@ function writePrivateSealedStore(file,bytes,{beforeCommit}={}){
   if(temporary){
    try{fs.unlinkSync(temporary);}catch{/* preserving original exception */}
   }
-  try{fs.unlinkSync(lock);}catch{/* persistent lock is fail-closed */}
+  if(lockOwned){try{fs.unlinkSync(lock);}catch{/* persistent lock is fail-closed */}}
   if(staged){try{fsyncDirectory(dir);}catch{/* preserve thrown error */}}
  }
 }
