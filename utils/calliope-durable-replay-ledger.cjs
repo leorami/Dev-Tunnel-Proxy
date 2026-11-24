@@ -68,7 +68,7 @@ function createDurableCalliopeReplayLedger({directory,maxEntries=1024}={}){
    const entries=fs.readdirSync(directory);
    if(entries.length>=maxEntries||entries.some(name=>!FILENAME.test(name)))return false;
    const digest=crypto.createHash('sha256')
-     .update(DOMAIN+data.sender+'\0'+data.project+'\0'+data.nonce,'utf8').digest('hex');
+     .update(DOMAIN+data.sender+'\0'+data.nonce,'utf8').digest('hex');
    const target=path.join(directory,digest+'.nonce');
    let fd;
    try{
