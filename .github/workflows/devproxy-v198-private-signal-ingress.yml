@@ -1,0 +1,32 @@
+name: V198 private Signal ciphertext ingress (no live listener)
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-private-signal-admission.cjs'
+      - 'tests/security/v198-private-signal-ingress.test.cjs'
+      - '.github/workflows/devproxy-v198-private-signal-ingress.yml'
+      - 'docs/architecture/DEVPROXY_V198_PRIVATE_SIGNAL_RELAY.md'
+      - 'docs/handoffs/DEVPROXY_V198_OWNER_AUTHENTICATED_RELAY.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  private-signal-ingress:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['18.20.8','22.23.5']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Check admission contracts and reject unsafe defaults
+        run: |
+          node --check tests/security/v198-private-signal-ingress.test.cjs
+          node --check utils/calliope-private-signal-admission.cjs
+      - name: Opaque ciphertext, metadata authorization and replay safety
+        run: |
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs
