@@ -1,0 +1,13 @@
+{
+  "schema": "owner.core-collaboration.lock.v1",
+  "master_repository": "leorami/project-template",
+  "master_path": "CORE_COLLABORATION_PROTOCOL.md",
+  "master_commit_sha": "c49fb010cb9db6bb28e0345d7690d5bbd587b443",
+  "master_blob_sha": "fda5e7311b8e0cc692827ad0918fb8fdec1f0250",
+  "master_version": "2026-11-02.2",
+  "published_master_head": "3e7a87624faf4be7503a2829e24d5bdf493762f3",
+  "project_specific_rules": "AGENTS.md and docs/architecture/DEVPROXY_ORIGIN_VISUAL_EVIDENCE.md",
+  "integration_status": "public-consumer-reference-only",
+  "registration_status": "PENDING_ORIGIN_REGISTRY",
+  "verification_status": "NOT_VERIFIED_FULL_ADOPTION"
+}
