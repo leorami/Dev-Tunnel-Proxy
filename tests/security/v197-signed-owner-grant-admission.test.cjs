@@ -219,3 +219,12 @@ test('RED: issuer attestation only cannot inspect owner files or elevate app aut
   noAuthority(result);
  }finally{f.cleanup()}
 });
+
+test('RED: an enrolled agent cannot act as its own owner-grant issuer by sharing the signing key',()=>{
+ const f=fixture();
+ try{
+  assert.throws(()=>createCalliopeOwnerGrantVerifier({
+   ...f.config,issuerPublicKey:f.sender.publicKey
+  }),/ISSUER_SIGNER_KEY_SEPARATION/);
+ }finally{f.cleanup()}
+});
