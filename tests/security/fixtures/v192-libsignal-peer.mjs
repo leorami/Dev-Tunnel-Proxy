@@ -17,7 +17,11 @@ if (!root || !['trajectory','calliope','intruder'].includes(localName)) {
   throw Error('TEST_ONLY_CONFIG_INVALID');
 }
 const packageInfo=JSON.parse(readFileSync(join(root,'package.json'),'utf8'));
-if (packageInfo.name!=='@signalapp/libsignal-client' || packageInfo.version!=='0.106.0') {
+// Original V192/V194 proofs remain pinned to 0.106.0 by default. The
+// separate upstream-latest compatibility runner explicitly supplies the
+// exact npm/GitHub-verified candidate; a floating version is never accepted.
+const expectedVersion=process.env.V192_EXPECTED_LIBSIGNAL_VERSION??'0.106.0';
+if (packageInfo.name!=='@signalapp/libsignal-client' || packageInfo.version!==expectedVersion) {
   throw Error('TEST_ONLY_LIBSIGNAL_VERSION_MISMATCH');
 }
 const Signal=await import(pathToFileURL(join(root,'dist','index.js')).href);
