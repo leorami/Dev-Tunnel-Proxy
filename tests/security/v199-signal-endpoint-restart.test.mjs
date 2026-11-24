@@ -29,7 +29,9 @@ function open(role,store,readPublicHealth){
 
 test('paired endpoints exchange proxy.status through an opaque mailbox and again after restart',async()=>{
   assert.equal(typeof root,'string');
-  assert.equal(expected,'0.108.7');
+  // The workflow verifies official upstream stable == npm latest and sets
+  // this exact candidate; no historical release may be hardcoded here.
+  assert.match(expected,/^[0-9]+\\.[0-9]+\\.[0-9]+$/);
   const home=dir();
   const trajectoryStore=join(home,'trajectory.store');
   const calliopeStore=join(home,'calliope.store');
