@@ -89,6 +89,8 @@ function signedHeaders({identity,method,pathname,body,extra}){
 
 test('signed enrolled sender delivers opaque ciphertext; test header, replay and revocation do not',async()=>{
   const enrollment=privateDir('devproxy-v199-enroll-');
+  // A live nonce ledger is owner-provisioned, not silently auto-created.
+  fs.mkdirSync(path.join(enrollment,'proof-nonces'),{mode:0o700});
   const mailbox=privateDir('devproxy-v199-mail-');
   const registry=openEnrollmentRegistry(enrollment);
   const trajectory=createTransportIdentity();
