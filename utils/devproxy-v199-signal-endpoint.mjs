@@ -3,7 +3,9 @@
  * Private identity material stays inside the sealed store. The mailbox sees ciphertext only.
  */
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync, openSync, fsyncSync, closeSync, chmodSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import sealedStore from './devproxy-v200-atomic-sealed-store.cjs';
+const {readPrivateSealedStore,writePrivateSealedStore}=sealedStore;
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
@@ -60,16 +62,17 @@ export async function createSignalEndpoint({
     throw Error('LIBSIGNAL_PIN_MISMATCH');
   const Signal=await import(pathToFileURL(join(packageRoot,'dist','index.js')).href);
   const peer=role==='trajectory'?'calliope':'trajectory';
-  let state=existsSync(storePath)?JSON.parse(openSeal(sealingKey,readFileSync(storePath)).toString('utf8')):{
+  const previousSealedStore=readPrivateSealedStore(storePath);
+  let state=previousSealedStore?JSON.parse(openSeal(sealingKey,previousSealedStore).toString('utf8')):{
     version:1,role,revoked:false,identity:null,pinned:null,sessions:{},prekeys:{},signed:{},kyber:{},
     kyberUsed:{},seen:[]
   };
   if(state.role!==role||state.version!==1)throw Error('ENDPOINT_STORE_MISMATCH');
   function persist(){
     const blob=seal(sealingKey,Buffer.from(JSON.stringify(state)));
-    const fd=openSync(storePath,'w',0o600);
-    try{writeFileSync(fd,blob);fsyncSync(fd);}finally{closeSync(fd);}
-    chmodSync(storePath,0o600);
+    // V200: never truncate the last durable session/prekey state in place.
+    // Exclusive writer lock + fsynced temp + atomic rename + dir fsync.
+    writePrivateSealedStore(storePath,blob);
   }
   const identitySecret=state.identity?Signal.PrivateKey.deserialize(Buffer.from(state.identity,'base64')):Signal.PrivateKey.generate();
   if(!state.identity){state.identity=Buffer.from(identitySecret.serialize()).toString('base64');persist();}

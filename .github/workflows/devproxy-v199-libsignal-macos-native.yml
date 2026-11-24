@@ -4,6 +4,16 @@ on:
     paths:
       - '.github/workflows/devproxy-v199-libsignal-macos-native.yml'
       - 'tests/security/v199-mailbox-ack-filesystem.test.cjs'
+      - 'tests/security/v200-atomic-sealed-store.test.cjs'
+      - 'tests/security/v200-enrollment-replay.test.cjs'
+      - 'tests/security/v200-peer-pin.test.cjs'
+      - 'docs/architecture/DEVPROXY_V200_RC2_SAFE_OVERLAY.md'
+      - 'docs/handoffs/DEVPROXY_V200_RC2_SAFE_OVERLAY_REAL_SIGNAL_ROOM.md'
+      - 'tests/security/v199-signal-endpoint-restart.test.mjs'
+      - 'utils/devproxy-v199-live-signal-service.cjs'
+      - 'utils/devproxy-v199-enrollment-registry.cjs'
+      - 'utils/devproxy-v200-atomic-sealed-store.cjs'
+      - 'utils/devproxy-v199-signal-endpoint.mjs'
       - 'utils/calliope-private-signal-mailbox.cjs'
       - 'docs/architecture/DEVPROXY_V199_OWNER_MAC_PILOT.md'
       - 'docs/handoffs/DEVPROXY_V199_REAL_OWNER_MAC_SIGNAL_PILOT.md'
@@ -55,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs tests/security/v199-mailbox-ack-filesystem.test.cjs tests/security/v199-live-device-proof.test.cjs tests/security/v199-signal-endpoint-restart.test.mjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs tests/security/v199-mailbox-ack-filesystem.test.cjs tests/security/v199-live-device-proof.test.cjs tests/security/v199-signal-endpoint-restart.test.mjs tests/security/v200-atomic-sealed-store.test.cjs tests/security/v200-enrollment-replay.test.cjs tests/security/v200-peer-pin.test.cjs
       - name: Record exact vetted candidate but NEVER install into owner app
         if: success()
         shell: bash
