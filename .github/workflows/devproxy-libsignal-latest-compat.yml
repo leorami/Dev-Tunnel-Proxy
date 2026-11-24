@@ -1,0 +1,68 @@
+name: Official libsignal latest stable compatibility (nonproduction)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/devproxy-libsignal-latest-compat.yml'
+      - 'docs/architecture/DEVPROXY_OFFICIAL_LIBSIGNAL_LATEST_VALIDATED.md'
+      - 'tests/security/fixtures/v192-libsignal-peer.mjs'
+      - 'tests/security/v192-libsignal-two-peers.test.mjs'
+      - 'tests/security/v194-signal-signed-descriptor.test.mjs'
+  workflow_dispatch:
+  schedule:
+    - cron: '17 12 * * *'
+permissions:
+  contents: read
+jobs:
+  upstream-compatibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.1'
+      - name: Verify latest official npm stable matches upstream official release
+        id: stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          stable="$(npm view @signalapp/libsignal-client dist-tags.latest)"
+          if ! [[ "$stable" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "FAIL_CLOSED: npm latest tag is not a stable semver version"
+            exit 1
+          fi
+          official="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let x="";process.stdin.on("data",v=>x+=v);process.stdin.on("end",()=>console.log(JSON.parse(x).tag_name))')"
+          if [[ "v$stable" != "$official" ]]; then
+            echo "HOLD: upstream release and npm latest differ: npm=$stable upstream=$official"
+            exit 1
+          fi
+          echo "version=$stable" >> "$GITHUB_OUTPUT"
+          echo "Validated candidate: official libsignal $stable"
+      - name: Install exact candidate only in disposable CI directory
+        shell: bash
+        env:
+          LIBSIGNAL_CANDIDATE: ${{ steps.stable.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/devproxy-libsignal-latest"
+          npm install --prefix "$RUNNER_TEMP/devproxy-libsignal-latest" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts "@signalapp/libsignal-client@$LIBSIGNAL_CANDIDATE"
+          node -e 'const p=require(process.env.RUNNER_TEMP+"/devproxy-libsignal-latest/node_modules/@signalapp/libsignal-client/package.json");if(p.version!==process.env.LIBSIGNAL_CANDIDATE||p.license!=="AGPL-3.0-only")process.exit(1);console.log("Official installed candidate",p.name,p.version,p.license)'
+          echo "V192_LIBSIGNAL_PACKAGE_ROOT=$RUNNER_TEMP/devproxy-libsignal-latest/node_modules/@signalapp/libsignal-client" >> "$GITHUB_ENV"
+      - name: Qualify current upstream candidate against actual encrypted two-process and signed descriptor contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tests/security/fixtures/v192-libsignal-peer.mjs
+          node --check tests/security/v192-libsignal-two-peers.test.mjs
+          node --check tests/security/v194-signal-signed-descriptor.test.mjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs
+      - name: Record exact candidate and source (NO production promotion)
+        if: success()
+        env:
+          LIBSIGNAL_CANDIDATE: ${{ steps.stable.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Official libsignal latest validated on Linux Node 24.18.1: $LIBSIGNAL_CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source checkout: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "No owner Mac install, live pairing, license sign-off, private keys or deployment." >> "$GITHUB_STEP_SUMMARY"
