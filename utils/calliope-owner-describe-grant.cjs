@@ -94,6 +94,10 @@ function createCalliopeOwnerGrantVerifier({
    throw Error('INVALID_OWNER_GRANT_CONFIG');
  const senderSigningKeySha256=crypto.createHash('sha256').update(
    pinnedSender.export({format:'der',type:'spki'})).digest('hex');
+ const issuerSigningKeySha256=crypto.createHash('sha256').update(
+   pinnedIssuer.export({format:'der',type:'spki'})).digest('hex');
+ if(issuerSigningKeySha256===senderSigningKeySha256)
+  throw Error('ISSUER_SIGNER_KEY_SEPARATION');
  // The SAME V191 verifier enforces signed sender identity and the genuine
  // V196 file-backed nonce reservation. Strict durable mode is mandatory.
  const requests=createCalliopeAgentEnvelopeVerifier({
