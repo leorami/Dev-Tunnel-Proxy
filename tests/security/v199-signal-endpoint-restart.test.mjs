@@ -15,6 +15,19 @@ const root=process.env.V192_LIBSIGNAL_PACKAGE_ROOT;
 const expected=process.env.V192_EXPECTED_LIBSIGNAL_VERSION;
 const key=randomBytes(32);
 const health=()=>({ok:true,mode:'public'});
+const session='cd'.repeat(32);
+
+function sink(){
+  const replies=[];
+  return {replies,enqueueReply(reply){replies.push(reply);return {ok:true};}};
+}
+async function binding(calliope,threadId){
+  return {
+    ownerSessionSha256:session,
+    threadId,
+    recipientSignalKeySha256:await calliope.identitySha256()
+  };
+}
 
 function dir(){
   const path=realpathSync(mkdtempSync(join(tmpdir(),'devproxy-v199-endpoint-')));
@@ -44,7 +57,8 @@ test('paired endpoints exchange proxy.status through an opaque mailbox and again
   calliope.pinPeer(trajectory.identityPublicHex());
   const bundle=await calliope.publicBundle();
   await trajectory.acceptPeerBundle(bundle);
-  const first=await trajectory.sendProxyStatus();
+  const fields=await binding(calliope,'room-thread-a');
+  const first=await trajectory.sendProxyStatus(fields);
   const mailbox=createPrivateSignalMailbox({directory:box});
   const gate=createPrivateSignalCiphertextAdmission({
     now:Date.now,
@@ -66,21 +80,26 @@ test('paired endpoints exchange proxy.status through an opaque mailbox and again
   const listed=mailbox.list('calliope');
   assert.equal(listed.items.length,1);
   assert.equal(JSON.stringify(listed).includes('public'),false);
+  const replies=sink();
   const received=await calliope.receiveProxyStatus({
     messageType:listed.items[0].signalMessageType,
     ciphertext:listed.items[0].ciphertextBase64url
-  });
+  },replies);
   assert.equal(received.ackAfterDurable,true);
+  assert.equal(received.retry,false);
   assert.equal(mailbox.ack({recipient:'calliope',messageId:listed.items[0].messageId}).ok,true);
-  const rendered=await trajectory.readProxyStatus(received.reply);
+  const rendered=await trajectory.readProxyStatus(received.reply,{...fields,requestNonce:first.nonce});
   assert.equal(rendered.executable,false);
   assert.equal(rendered.summary.mode,'public');
+  assert.equal(rendered.requestNonce,first.nonce);
+  assert.equal(rendered.threadId,'room-thread-a');
   trajectory=null;calliope=null;
   trajectory=await open('trajectory',trajectoryStore);
   calliope=await open('calliope',calliopeStore,health);
-  const second=await trajectory.sendProxyStatus();
-  const again=await calliope.receiveProxyStatus(second.packet);
-  const afterRestart=await trajectory.readProxyStatus(again.reply);
+  const secondFields=await binding(calliope,'room-thread-b');
+  const second=await trajectory.sendProxyStatus(secondFields);
+  const again=await calliope.receiveProxyStatus(second.packet,sink());
+  const afterRestart=await trajectory.readProxyStatus(again.reply,{...secondFields,requestNonce:second.nonce});
   assert.equal(afterRestart.executable,false);
   trajectory.revoke();
   await assert.rejects(()=>trajectory.sendProxyStatus(),/ENDPOINT_REVOKED/);
