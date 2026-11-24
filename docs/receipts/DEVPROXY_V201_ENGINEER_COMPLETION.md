@@ -43,7 +43,7 @@ node --test tests/security/v201-request-binding.test.mjs tests/security/v199-sig
 
 3 pass, 0 fail, 0 skip, exit 0. The container was removed. It is not the hosted Calliope process.
 
-`/opt/homebrew/opt/node@24/bin/node` on this Mac is Node v25.9.0. A separate Mac Node 24.18.1 binary was not used. GitHub Actions on the returned SHA is the Mac Node 24.18.1 qualification.
+`/opt/homebrew/opt/node@24/bin/node` on this Mac is Node v25.9.0. A separate local Mac Node 24.18.1 binary was not used. GitHub Actions run `45512666520` on `macos-15` Node 24.18.1 passed 84 tests, 0 fail, 0 skip, including the request-binding and restart tests, for the parent of the authenticated Linux-lookup fix. The Linux workflow's unauthenticated GitHub release lookup returned HTTP 403 on run `45512666823`; that lookup now uses the same Actions token as the macOS workflow.
 
 ## Unperformed
 
