@@ -48,6 +48,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/devproxy-libsignal-latest" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts "@signalapp/libsignal-client@$LIBSIGNAL_CANDIDATE"
           node -e 'const p=require(process.env.RUNNER_TEMP+"/devproxy-libsignal-latest/node_modules/@signalapp/libsignal-client/package.json");if(p.version!==process.env.LIBSIGNAL_CANDIDATE||p.license!=="AGPL-3.0-only")process.exit(1);console.log("Official installed candidate",p.name,p.version,p.license)'
           echo "V192_LIBSIGNAL_PACKAGE_ROOT=$RUNNER_TEMP/devproxy-libsignal-latest/node_modules/@signalapp/libsignal-client" >> "$GITHUB_ENV"
+          echo "V192_EXPECTED_LIBSIGNAL_VERSION=$LIBSIGNAL_CANDIDATE" >> "$GITHUB_ENV"
       - name: Qualify current upstream candidate against actual encrypted two-process and signed descriptor contracts
         shell: bash
         run: |
