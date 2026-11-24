@@ -34,8 +34,12 @@ jobs:
           node --check tests/security/v198-private-signal-mailbox.test.cjs
           node --check tests/security/v198-private-signal-mailbox-http.test.cjs
           node --check tests/security/v199-mailbox-ack-filesystem.test.cjs
+          node --check tests/security/v199-live-device-proof.test.cjs
           node --check utils/calliope-private-signal-admission.cjs
           node --check utils/calliope-private-signal-mailbox.cjs
+          node --check utils/devproxy-v199-device-proof.cjs
+          node --check utils/devproxy-v199-enrollment-registry.cjs
+          node --check utils/devproxy-v199-live-signal-service.cjs
       - name: Opaque ciphertext, metadata authorization and replay safety
         run: |
-          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs tests/security/v199-mailbox-ack-filesystem.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs tests/security/v199-mailbox-ack-filesystem.test.cjs tests/security/v199-live-device-proof.test.cjs

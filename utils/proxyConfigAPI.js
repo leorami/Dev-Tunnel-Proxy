@@ -27,6 +27,7 @@ const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
 const {createPrivateSignalCiphertextAdmission}=require('./calliope-private-signal-admission.cjs');
 const {isPrivateSignalMailbox}=require('./calliope-private-signal-mailbox.cjs');
+const {loadLivePrivateSignalService}=require('./devproxy-v199-live-signal-service.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
 const {readExistingBundleDiagnostics}=require('./rc2-readonly-bundle-diagnostics.cjs');
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
@@ -560,7 +561,7 @@ function readBoundedPrivateSignalJson(req,maxBytes){
         const parsed=JSON.parse(raw.toString('utf8'));
         if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
           return done({ok:false,code:'INVALID_JSON'});
-        done({ok:true,value:parsed});
+        done({ok:true,value:parsed,raw});
       }catch{done({ok:false,code:'INVALID_JSON'});}
     });
     req.on('error',()=>done({ok:false,code:'INVALID_JSON'}));
@@ -568,7 +569,7 @@ function readBoundedPrivateSignalJson(req,maxBytes){
 }
 function activePrivateSignalService(){
   if(process.env.NODE_ENV==='test'&&privateSignalTestService)return privateSignalTestService;
-  return null;
+  try{return loadLivePrivateSignalService();}catch{return null;}
 }
 async function handlePrivateSignalMailbox(req,res){
   const route=privateSignalRoute((url.parse(req.url,true).pathname||''));
@@ -577,14 +578,30 @@ async function handlePrivateSignalMailbox(req,res){
   if((route==='inbox'&&req.method!=='GET')||(route!=='inbox'&&req.method!=='POST'))
     return send(res,405,{ok:false,error:'Method not allowed'});
   const svc=activePrivateSignalService();
+  const live=!!(svc&&typeof svc.authenticateRequest==='function');
   if(!svc||!isPrivateSignalMailbox(svc.mailbox)||
      typeof svc.resolveAuthenticatedSender!=='function'||
      typeof svc.isRecipientEnrolled!=='function'||
-     typeof svc.peerFromRequest!=='function'||
-     typeof svc.authenticatedRecipient!=='function')
+     typeof svc.authenticatedRecipient!=='function'||
+     (!live&&typeof svc.peerFromRequest!=='function'))
     return privateSignalNotEnrolled(res);
+  let prefetched=null;
   let proof;
-  try{proof=svc.peerFromRequest(req);}catch{return privateSignalNotEnrolled(res);}
+  try{
+    if(live){
+      if(req.headers['x-devproxy-signal-peer']!==undefined)return privateSignalNotEnrolled(res);
+      if(req.method==='POST'){
+        prefetched=await readBoundedPrivateSignalJson(req,route==='deliver'?PRIVATE_SIGNAL_MAX_BODY:4096);
+        if(!prefetched.ok)return send(res,prefetched.code==='BODY_TOO_LARGE'?413:400,{
+          ok:false,error:prefetched.code,ownerApprovalGranted:false,exportAuthorized:false,
+          executionAuthorized:false,healingPerformed:false,liveAttested:false,
+          productionChangeAuthorized:false});
+      }
+      proof=svc.authenticateRequest(req,prefetched?prefetched.raw:Buffer.alloc(0));
+    }else{
+      proof=svc.peerFromRequest(req);
+    }
+  }catch{return privateSignalNotEnrolled(res);}
   if(!proof)return privateSignalNotEnrolled(res);
   let gate;
   try{
@@ -595,7 +612,7 @@ async function handlePrivateSignalMailbox(req,res){
     });
   }catch{return privateSignalNotEnrolled(res);}
   if(route==='deliver'){
-    const body=await readBoundedPrivateSignalJson(req,PRIVATE_SIGNAL_MAX_BODY);
+    const body=prefetched||await readBoundedPrivateSignalJson(req,PRIVATE_SIGNAL_MAX_BODY);
     if(!body.ok)return send(res,body.code==='BODY_TOO_LARGE'?413:400,{
       ok:false,error:body.code,ownerApprovalGranted:false,exportAuthorized:false,
       executionAuthorized:false,healingPerformed:false,liveAttested:false,
@@ -618,7 +635,7 @@ async function handlePrivateSignalMailbox(req,res){
     if(!listed.ok)return privateSignalDenied(res,listed.status);
     return send(res,200,listed);
   }
-  const body=await readBoundedPrivateSignalJson(req,4096);
+  const body=prefetched||await readBoundedPrivateSignalJson(req,4096);
   if(!body.ok)return send(res,body.code==='BODY_TOO_LARGE'?413:400,{
     ok:false,error:body.code,ownerApprovalGranted:false,exportAuthorized:false,
     executionAuthorized:false,healingPerformed:false,liveAttested:false,
