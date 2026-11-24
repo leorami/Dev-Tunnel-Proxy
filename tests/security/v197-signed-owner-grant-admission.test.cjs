@@ -48,7 +48,7 @@ function fixture({revoked=()=>false,active=()=>true,now=()=>NOW}={}){
    recipient:'calliope',recipientSignalKeySha256:RECIPIENT_SIGNAL,
    project:'demo-studio',purpose:'artifact.describe',
    artifactSha256:SHA,sourceCommit:SOURCE,requestNonce:grantNonce,
-   issuedAtMs:NOW-1000,expiresAtMs:NOW+10000
+   issuedAtMs:NOW-300,expiresAtMs:NOW+10000
  };
  const signGrant=(data=grant,key=issuer.privateKey)=>({
    ...data,signature:crypto.sign(null,ownerGrantSigningBytes(data),key).toString('base64url')
