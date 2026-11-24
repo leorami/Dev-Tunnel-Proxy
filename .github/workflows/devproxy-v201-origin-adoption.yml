@@ -9,6 +9,9 @@ on:
       - 'scripts/devproxy-v200-live-room-exchange.mjs'
       - 'scripts/devproxy-v200-calliope-receiver.mjs'
       - 'tests/security/v201-*.test.cjs'
+      - 'tests/security/v201-request-binding.test.mjs'
+      - 'tests/security/v199-signal-endpoint-restart.test.mjs'
+      - 'utils/devproxy-v199-signal-endpoint.mjs'
       - '.github/workflows/devproxy-v201-origin-adoption.yml'
   workflow_dispatch:
 permissions:

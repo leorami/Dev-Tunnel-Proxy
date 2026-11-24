@@ -7,6 +7,9 @@ on:
       - 'tests/security/fixtures/v192-libsignal-peer.mjs'
       - 'tests/security/v192-libsignal-two-peers.test.mjs'
       - 'tests/security/v194-signal-signed-descriptor.test.mjs'
+      - 'tests/security/v199-signal-endpoint-restart.test.mjs'
+      - 'tests/security/v201-request-binding.test.mjs'
+      - 'utils/devproxy-v199-signal-endpoint.mjs'
   workflow_dispatch:
   schedule:
     - cron: '17 12 * * *'
@@ -24,6 +27,8 @@ jobs:
       - name: Verify latest official npm stable matches upstream official release
         id: stable
         shell: bash
+        env:
+          GITHUB_API_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           stable="$(npm view @signalapp/libsignal-client dist-tags.latest)"
@@ -31,7 +36,7 @@ jobs:
             echo "FAIL_CLOSED: npm latest tag is not a stable semver version"
             exit 1
           fi
-          official="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let x="";process.stdin.on("data",v=>x+=v);process.stdin.on("end",()=>console.log(JSON.parse(x).tag_name))')"
+          official="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GITHUB_API_TOKEN" https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let x="";process.stdin.on("data",v=>x+=v);process.stdin.on("end",()=>console.log(JSON.parse(x).tag_name))')"
           if [[ "v$stable" != "$official" ]]; then
             echo "HOLD: upstream release and npm latest differ: npm=$stable upstream=$official"
             exit 1
@@ -56,7 +61,7 @@ jobs:
           node --check tests/security/fixtures/v192-libsignal-peer.mjs
           node --check tests/security/v192-libsignal-two-peers.test.mjs
           node --check tests/security/v194-signal-signed-descriptor.test.mjs
-          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v199-signal-endpoint-restart.test.mjs tests/security/v201-request-binding.test.mjs
       - name: Record exact candidate and source (NO production promotion)
         if: success()
         env:

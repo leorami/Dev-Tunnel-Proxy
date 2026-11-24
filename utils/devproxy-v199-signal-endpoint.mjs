@@ -9,8 +9,13 @@ const {readPrivateSealedStore,writePrivateSealedStore}=sealedStore;
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 
-const INTENT=Object.freeze(['intent','nonce','sentAtMs','version']);
-const RESULT=Object.freeze(['executable','intent','observedAtMs','source','summary','version']);
+const INTENT=Object.freeze(['intent','nonce','ownerSessionSha256','recipientSignalKeySha256','sentAtMs','threadId','version']);
+const RESULT=Object.freeze(['executable','intent','observedAtMs','ownerSessionSha256','recipientSignalKeySha256','requestNonce','source','summary','threadId','version']);
+const SHA=/^[a-f0-9]{64}$/;
+const THREAD=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,80}$/;
+const REQUEST_WINDOW_MS=60000;
+const RESULT_WINDOW_MS=120000;
+const BINDING_CAP=256;
 
 function sha256(bytes){
   return createHash('sha256').update(bytes).digest('hex');
@@ -68,6 +73,11 @@ export async function createSignalEndpoint({
     kyberUsed:{},seen:[]
   };
   if(state.role!==role||state.version!==1)throw Error('ENDPOINT_STORE_MISMATCH');
+  if(!state.pending||typeof state.pending!=='object'||Array.isArray(state.pending))state.pending={};
+  if(!state.durableReplies||typeof state.durableReplies!=='object'||Array.isArray(state.durableReplies))state.durableReplies={};
+  if(!state.rejectedCipher||typeof state.rejectedCipher!=='object'||Array.isArray(state.rejectedCipher))state.rejectedCipher={};
+  if(!state.readCache||typeof state.readCache!=='object'||Array.isArray(state.readCache))state.readCache={};
+  if(!Array.isArray(state.seen))state.seen=[];
   function persist(){
     const blob=seal(sealingKey,Buffer.from(JSON.stringify(state)));
     // V200: never truncate the last durable session/prekey state in place.
@@ -191,8 +201,30 @@ export async function createSignalEndpoint({
     const bytes=Buffer.from(JSON.stringify(payload),'utf8');
     if(bytes.length>2048)throw Error('MESSAGE_TOO_LARGE');
     const ciphertext=await Signal.signalEncrypt(bytes,Signal.ProtocolAddress.new(peer,1),me,stores.session,stores.identity);
-    checkpoint();
     return {messageType:ciphertext.type(),ciphertext:Buffer.from(ciphertext.serialize()).toString('base64url')};
+  }
+  function remember(map,key){
+    if(Object.keys(map).length>=BINDING_CAP&&!Object.prototype.hasOwnProperty.call(map,key))
+      throw Error('ENDPOINT_BINDING_FULL');
+  }
+  function bindingOf(value){
+    if(!value||typeof value.ownerSessionSha256!=='string'||!SHA.test(value.ownerSessionSha256)||
+       typeof value.threadId!=='string'||!THREAD.test(value.threadId)||
+       typeof value.recipientSignalKeySha256!=='string'||!SHA.test(value.recipientSignalKeySha256))
+      return null;
+    return {
+      ownerSessionSha256:value.ownerSessionSha256,
+      threadId:value.threadId,
+      recipientSignalKeySha256:value.recipientSignalKeySha256
+    };
+  }
+  function pinnedRecipientSha256(){
+    if(!pinned)throw Error('RECIPIENT_UNPINNED');
+    return sha256(pinned.serialize());
+  }
+  function cipherKey(packet){
+    if(!packet||typeof packet.ciphertext!=='string'||![2,3].includes(packet.messageType))throw Error('BAD_PACKET');
+    return sha256(Buffer.from(packet.ciphertext,'base64url'));
   }
   async function decryptRaw(packet){
     requireActive();
@@ -204,39 +236,120 @@ export async function createSignalEndpoint({
       :await Signal.signalDecrypt(Signal.SignalMessage.deserialize(raw),address,me,stores.session,stores.identity);
     return Buffer.from(plain);
   }
-  async function sendProxyStatus(){
+  async function sendProxyStatus(binding){
     if(role!=='trajectory')throw Error('SENDER_ROLE_REQUIRED');
+    requireActive();
+    const fields=bindingOf(binding);
+    if(!fields)throw Error('OWNER_SESSION_REQUIRED');
+    if(fields.recipientSignalKeySha256!==pinnedRecipientSha256())throw Error('RECIPIENT_MISMATCH');
     const nonce=randomBytes(32).toString('hex');
-    const packet=await encryptJson({version:1,intent:'proxy.status',nonce,sentAtMs:now()});
+    const sentAtMs=now();
+    if(!Number.isSafeInteger(sentAtMs))throw Error('STATUS_STALE');
+    const packet=await encryptJson({version:1,intent:'proxy.status',nonce,sentAtMs,...fields});
+    remember(state.pending,nonce);
+    state.pending[nonce]={...fields,sentAtMs};
+    checkpoint();
     return {nonce,packet};
   }
-  async function receiveProxyStatus(packet){
+  async function deliverReply(reply,enqueueReply){
+    if(typeof enqueueReply!=='function')throw Error('REPLY_SINK_REQUIRED');
+    const queued=await enqueueReply(reply);
+    if(!queued||queued.ok!==true)throw Error('REPLY_NOT_DURABLE');
+    return queued;
+  }
+  function rejectCipher(key,code){
+    remember(state.rejectedCipher,key);
+    state.rejectedCipher[key]=code;
+    checkpoint();
+    throw Error(code);
+  }
+  async function receiveProxyStatus(packet,options={}){
     if(role!=='calliope'||typeof readPublicHealth!=='function')throw Error('RECIPIENT_ROLE_REQUIRED');
+    requireActive();
+    const key=cipherKey(packet);
+    const stored=state.durableReplies[key];
+    if(stored){
+      if(stored.delivered!==true){
+        await deliverReply(stored.reply,options.enqueueReply);
+        stored.delivered=true;
+        checkpoint();
+      }
+      return {ackAfterDurable:true,reply:stored.reply,retry:true};
+    }
+    if(state.rejectedCipher[key])throw Error(state.rejectedCipher[key]);
     const plain=JSON.parse((await decryptRaw(packet)).toString('utf8'));
+    const fields=bindingOf(plain);
     if(!exactKeys(plain,INTENT)||plain.version!==1||plain.intent!=='proxy.status'||
-       typeof plain.nonce!=='string'||!/^[a-f0-9]{64}$/.test(plain.nonce)||
-       !Number.isSafeInteger(plain.sentAtMs))throw Error('STATUS_INTENT_DENIED');
-    if(state.seen.includes(plain.nonce))throw Error('STATUS_REPLAY');
+       typeof plain.nonce!=='string'||!SHA.test(plain.nonce)||
+       !Number.isSafeInteger(plain.sentAtMs)||!fields)return rejectCipher(key,'STATUS_INTENT_DENIED');
+    if(fields.recipientSignalKeySha256!==await identitySha256())return rejectCipher(key,'RECIPIENT_MISMATCH');
+    const clock=now();
+    if(!Number.isSafeInteger(clock)||plain.sentAtMs>clock+5000||clock-plain.sentAtMs>REQUEST_WINDOW_MS)
+      return rejectCipher(key,'STATUS_STALE');
+    if(state.seen.includes(plain.nonce))return rejectCipher(key,'STATUS_REPLAY');
     const health=await readPublicHealth();
     const summary=boundedSummary(health);
-    if(!summary)throw Error('HEALTH_SUMMARY_DENIED');
-    state.seen.push(plain.nonce);
-    if(state.seen.length>256)state.seen.shift();
+    if(!summary)return rejectCipher(key,'HEALTH_SUMMARY_DENIED');
     const reply=await encryptJson({
       version:1,intent:'proxy.status.result',executable:false,
-      observedAtMs:now(),source:'devproxy.api.ai.health',summary
+      observedAtMs:clock,source:'devproxy.api.ai.health',summary,
+      requestNonce:plain.nonce,...fields
     });
-    return {ackAfterDurable:true,reply};
-  }
-  async function readProxyStatus(packet){
-    if(role!=='trajectory')throw Error('SENDER_ROLE_REQUIRED');
-    const plain=JSON.parse((await decryptRaw(packet)).toString('utf8'));
-    const summary=boundedSummary(plain.summary);
-    if(!exactKeys(plain,RESULT)||plain.version!==1||plain.intent!=='proxy.status.result'||
-       plain.executable!==false||plain.source!=='devproxy.api.ai.health'||
-       !Number.isSafeInteger(plain.observedAtMs)||!summary)throw Error('STATUS_RESULT_DENIED');
+    if(state.seen.length>=BINDING_CAP)return rejectCipher(key,'ENDPOINT_BINDING_FULL');
+    remember(state.durableReplies,key);
+    state.seen.push(plain.nonce);
+    state.durableReplies[key]={
+      reply,requestNonce:plain.nonce,sentAtMs:plain.sentAtMs,delivered:false,...fields
+    };
     checkpoint();
-    return {executable:false,source:plain.source,observedAtMs:plain.observedAtMs,summary};
+    await deliverReply(reply,options.enqueueReply);
+    state.durableReplies[key].delivered=true;
+    checkpoint();
+    return {ackAfterDurable:true,reply,retry:false};
+  }
+  async function readProxyStatus(packet,view){
+    if(role!=='trajectory')throw Error('SENDER_ROLE_REQUIRED');
+    requireActive();
+    const viewFields=bindingOf(view);
+    if(!viewFields||typeof view.requestNonce!=='string'||!SHA.test(view.requestNonce))
+      throw Error('VIEW_BINDING_REQUIRED');
+    const key=cipherKey(packet);
+    let plain=state.readCache[key];
+    if(!plain){
+      plain=JSON.parse((await decryptRaw(packet)).toString('utf8'));
+      const summary=boundedSummary(plain.summary);
+      if(!exactKeys(plain,RESULT)||plain.version!==1||plain.intent!=='proxy.status.result'||
+         plain.executable!==false||plain.source!=='devproxy.api.ai.health'||
+         typeof plain.requestNonce!=='string'||!SHA.test(plain.requestNonce)||
+         !bindingOf(plain)||!Number.isSafeInteger(plain.observedAtMs)||!summary)
+        return rejectCipher(key,'STATUS_RESULT_DENIED');
+      remember(state.readCache,key);
+      state.readCache[key]={
+        requestNonce:plain.requestNonce,observedAtMs:plain.observedAtMs,source:plain.source,
+        executable:false,summary,...bindingOf(plain)
+      };
+      checkpoint();
+      plain=state.readCache[key];
+    }
+    const pending=state.pending[plain.requestNonce];
+    if(!pending)throw Error('STATUS_RESULT_UNBOUND');
+    if(view.requestNonce!==plain.requestNonce||
+       viewFields.threadId!==plain.threadId||viewFields.threadId!==pending.threadId||
+       viewFields.ownerSessionSha256!==plain.ownerSessionSha256||
+       viewFields.ownerSessionSha256!==pending.ownerSessionSha256||
+       viewFields.recipientSignalKeySha256!==plain.recipientSignalKeySha256||
+       viewFields.recipientSignalKeySha256!==pending.recipientSignalKeySha256)
+      throw Error('STATUS_CROSS_THREAD');
+    if(plain.observedAtMs<pending.sentAtMs||plain.observedAtMs>pending.sentAtMs+RESULT_WINDOW_MS)
+      throw Error('STATUS_STALE');
+    delete state.pending[plain.requestNonce];
+    checkpoint();
+    return {
+      executable:false,source:plain.source,observedAtMs:plain.observedAtMs,summary:plain.summary,
+      requestNonce:plain.requestNonce,threadId:plain.threadId,
+      ownerSessionSha256:plain.ownerSessionSha256,
+      recipientSignalKeySha256:plain.recipientSignalKeySha256
+    };
   }
   function revoke(){state.revoked=true;persist();}
   return Object.freeze({
