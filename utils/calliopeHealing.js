@@ -389,7 +389,7 @@ async function walk(srcDir, outDir){
 `;
     fs.writeFileSync(scriptPath, js, 'utf8');
 
-    const cmd = `docker run --rm -v "${hostProjectPath}:/src:ro" -v "${dest}:/out" -v "${scriptPath}:/script.js:ro" node:20-alpine node /script.js`;
+    const cmd = `docker run --rm -v "${hostProjectPath}:/src:ro" -v "${dest}:/out" -v "${scriptPath}:/script.js:ro" node:24-alpine node /script.js`;
     execSync(cmd, { encoding: 'utf8' });
 
     return { success: true, message: 'Snapshot created', dest };
@@ -1054,7 +1054,7 @@ async function runSiteAuditor(urlToAudit, options = {}) {
         execSync('npx -y tsc -p tsconfig.json', { cwd: toolDir, stdio: 'ignore' });
       } catch (e) {
         // try dockerized build as last resort
-        execSync(`docker run --rm -v "${toolDir}:/app" -w /app node:20-alpine sh -lc 'npm ci --no-audit --no-fund && npx -y tsc -p tsconfig.json'`, { stdio: 'ignore' });
+        execSync(`docker run --rm -v "${toolDir}:/app" -w /app node:24-alpine sh -lc 'npm ci --no-audit --no-fund && npx -y tsc -p tsconfig.json'`, { stdio: 'ignore' });
       }
     }
     // Run the auditor
