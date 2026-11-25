@@ -2702,13 +2702,13 @@ async function runSelfCheck(opts){
     result.steps.push({ name: 'scan_apps', status: 'running' });
     const scan = spawnSync('docker', ['exec', 'dev-auto-scan', 'true'], { encoding: 'utf8' });
     if (scan.status !== 0){
-      const oneOff = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:18-alpine', 'node', 'test/scanApps.js'], { encoding: 'utf8' });
+      const oneOff = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:24-alpine', 'node', 'test/scanApps.js'], { encoding: 'utf8' });
       result.steps.push({ name: 'scan_apps_one_off', ok: oneOff.status === 0, stdout: safeSlice(oneOff.stdout||'', 4000), stderr: safeSlice(oneOff.stderr||'', 4000) });
     } else {
       result.steps.push({ name: 'scan_apps', ok: true });
     }
     // 2) Run health report (one-off)
-    const healthRun = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:18-alpine', 'node', 'test/run.js'], { encoding: 'utf8' });
+    const healthRun = spawnSync('docker', ['run', '--rm', '--network', 'devproxy', '-v', `${ROOT}:/app`, '-w', '/app', 'node:24-alpine', 'node', 'test/run.js'], { encoding: 'utf8' });
     result.steps.push({ name: 'health_run', ok: healthRun.status === 0, stdout: safeSlice(healthRun.stdout||'', 2000), stderr: safeSlice(healthRun.stderr||'', 1000) });
     // 3) Probe live local endpoints
     const baseLocal = process.env.LOCAL_PROXY_BASE || 'http://dev-proxy';
