@@ -79,15 +79,29 @@ test('GREEN: admitted ciphertext enqueues once; duplicate messageId and payload 
   const queued=first.mailbox.enqueue(first.admitted);
   assert.equal(queued.ok,true);
   assert.equal(queued.status,'PRIVATE_MAILBOX_ENQUEUED');
+  assert.equal(queued.role,'trajectory');
+  assert.equal(queued.recipient,'calliope');
+  assert.equal(queued.messageId,'b'.repeat(64));
+  assert.match(queued.ciphertextDigest,/^[a-f0-9]{64}$/);
   assert.equal(Object.hasOwn(queued,'ciphertextBase64url'),false);
   noAuthority(queued);
   const again=first.mailbox.enqueue(first.admitted);
-  assert.equal(again.ok,false);
-  assert.equal(again.status,'PRIVATE_MAILBOX_DUPLICATE');
+  assert.equal(again.ok,true);
+  assert.equal(again.status,'PRIVATE_MAILBOX_ENQUEUED');
+  assert.equal(again.messageId,queued.messageId);
+  assert.equal(again.recipient,queued.recipient);
+  assert.equal(again.role,queued.role);
+  assert.equal(again.ciphertextDigest,queued.ciphertextDigest);
+  const names=fs.readdirSync(s.dir).filter(n=>n.endsWith('.msg'));
+  assert.equal(names.length,1);
   const otherId=candidate({dir:s.dir},{bytes,messageId:'d'.repeat(64)});
   const dupPayload=first.mailbox.enqueue(otherId.admitted);
   assert.equal(dupPayload.ok,false);
   assert.equal(dupPayload.status,'PRIVATE_MAILBOX_DUPLICATE');
+  const clash=candidate({dir:s.dir},{bytes:crypto.randomBytes(96),messageId:'b'.repeat(64)});
+  const mismatched=first.mailbox.enqueue(clash.admitted);
+  assert.equal(mismatched.ok,false);
+  assert.equal(mismatched.status,'PRIVATE_MAILBOX_DUPLICATE_MISMATCH');
  }finally{s.close();}
 });
 
@@ -182,8 +196,8 @@ test('RED: concurrent O_EXCL enqueue of one messageId admits exactly one',async(
    });
   }
   const outcomes=await Promise.all(Array.from({length:6},()=>child()));
-  assert.equal(outcomes.filter(x=>x==='1').length,1);
-  assert.equal(outcomes.filter(x=>x==='0').length,5);
+  assert.equal(outcomes.filter(x=>x==='1').length,6);
+  assert.equal(fs.readdirSync(s.dir).filter(n=>n.endsWith('.msg')).length,1);
  }finally{s.close();}
 });
 

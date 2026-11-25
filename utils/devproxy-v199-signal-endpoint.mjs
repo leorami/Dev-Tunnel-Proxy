@@ -236,9 +236,14 @@ export async function createSignalEndpoint({
       :await Signal.signalDecrypt(Signal.SignalMessage.deserialize(raw),address,me,stores.session,stores.identity);
     return Buffer.from(plain);
   }
+  function requireHostBinding(view){
+    if(!view||typeof view!=='object'||Array.isArray(view)||view.origin!=='host')
+      throw Error('HOST_BINDING_REQUIRED');
+  }
   async function sendProxyStatus(binding){
     if(role!=='trajectory')throw Error('SENDER_ROLE_REQUIRED');
     requireActive();
+    requireHostBinding(binding);
     const fields=bindingOf(binding);
     if(!fields)throw Error('OWNER_SESSION_REQUIRED');
     if(fields.recipientSignalKeySha256!==pinnedRecipientSha256())throw Error('RECIPIENT_MISMATCH');
@@ -310,6 +315,7 @@ export async function createSignalEndpoint({
   async function readProxyStatus(packet,view){
     if(role!=='trajectory')throw Error('SENDER_ROLE_REQUIRED');
     requireActive();
+    requireHostBinding(view);
     const viewFields=bindingOf(view);
     if(!viewFields||typeof view.requestNonce!=='string'||!SHA.test(view.requestNonce))
       throw Error('VIEW_BINDING_REQUIRED');
@@ -341,6 +347,9 @@ export async function createSignalEndpoint({
        viewFields.recipientSignalKeySha256!==pending.recipientSignalKeySha256)
       throw Error('STATUS_CROSS_THREAD');
     if(plain.observedAtMs<pending.sentAtMs||plain.observedAtMs>pending.sentAtMs+RESULT_WINDOW_MS)
+      throw Error('STATUS_STALE');
+    const clock=now();
+    if(!Number.isSafeInteger(clock)||clock<plain.observedAtMs||clock-plain.observedAtMs>RESULT_WINDOW_MS)
       throw Error('STATUS_STALE');
     delete state.pending[plain.requestNonce];
     checkpoint();

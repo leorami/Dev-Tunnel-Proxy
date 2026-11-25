@@ -526,7 +526,7 @@ function privateSignalNotEnrolled(res){
 }
 function privateSignalDenied(res,status){
   const code=status==='PRIVATE_MAILBOX_FULL'?503:
-    (status==='PRIVATE_MAILBOX_DUPLICATE'?409:
+    (status==='PRIVATE_MAILBOX_DUPLICATE'||status==='PRIVATE_MAILBOX_DUPLICATE_MISMATCH'?409:
     (status==='PRIVATE_MAILBOX_MISSING'?404:403));
   return send(res,code,{
     ok:false,error:status||'PRIVATE_MAILBOX_DENIED',

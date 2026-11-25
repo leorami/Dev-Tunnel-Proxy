@@ -184,29 +184,52 @@ function createPrivateSignalMailbox({
   let at;
   try{at=now();}catch{return DENY;}
   if(!Number.isSafeInteger(at)||at<=0)return DENY;
+  function durableReceipt(rec){
+   return Object.freeze({
+    ok:true,status:'PRIVATE_MAILBOX_ENQUEUED',
+    sender:rec.sender,role:rec.sender,recipient:rec.recipient,project:rec.project,
+    messageId:rec.messageId,ciphertextDigest:rec.payloadSha256,
+    byteLength:rec.byteLength,...FLAGS
+   });
+  }
   try{
    const names=listSafe(directory,expected);
+   const msgName=p.messageId+'.msg';
+   const ackName=p.messageId+'.ack';
+   if(names.includes(msgName)){
+    const rec=readMsg(directory,msgName);
+    if(rec.sender===p.sender&&rec.recipient===p.recipient&&rec.project===p.project&&
+       rec.messageId===p.messageId&&rec.signalMessageType===p.signalMessageType&&
+       rec.payloadSha256===digest)
+     return durableReceipt(rec);
+    return deny('PRIVATE_MAILBOX_DUPLICATE_MISMATCH');
+   }
+   if(names.includes(ackName))
+    return deny('PRIVATE_MAILBOX_DUPLICATE');
    const used=occupied(names);
    if(used.files>=maxMessages*2||used.messages>=maxMessages||
       used.bytes+bytes.length>maxTotalBytes)return deny('PRIVATE_MAILBOX_FULL');
-   if(used.payloads.has(digest)||
-      names.includes(p.messageId+'.msg')||
-      names.includes(p.messageId+'.ack'))
+   if(used.payloads.has(digest))
     return deny('PRIVATE_MAILBOX_DUPLICATE');
-   const record=JSON.stringify({
+   const record={
     sender:p.sender,recipient:p.recipient,project:p.project,
     messageId:p.messageId,signalMessageType:p.signalMessageType,
     ciphertextBase64url:p.ciphertextBase64url,byteLength:p.byteLength,
     payloadSha256:digest,storedAtMs:at,expiresAtMs:at+60000
-   });
-   writeExclusive(directory,p.messageId+'.msg',DOMAIN+record,0o600);
-   return Object.freeze({
-    ok:true,status:'PRIVATE_MAILBOX_ENQUEUED',
-    messageId:p.messageId,recipient:p.recipient,project:p.project,
-    byteLength:p.byteLength,...FLAGS
-   });
+   };
+   writeExclusive(directory,msgName,DOMAIN+JSON.stringify(record),0o600);
+   return durableReceipt(record);
   }catch(err){
-   if(err&&err.code==='EEXIST')return deny('PRIVATE_MAILBOX_DUPLICATE');
+   if(err&&err.code==='EEXIST'){
+    try{
+     const rec=readMsg(directory,p.messageId+'.msg');
+     if(rec.sender===p.sender&&rec.recipient===p.recipient&&rec.project===p.project&&
+        rec.messageId===p.messageId&&rec.signalMessageType===p.signalMessageType&&
+        rec.payloadSha256===digest)
+      return durableReceipt(rec);
+     return deny('PRIVATE_MAILBOX_DUPLICATE_MISMATCH');
+    }catch{return deny('PRIVATE_MAILBOX_DUPLICATE');}
+   }
    return DENY;
   }
  }

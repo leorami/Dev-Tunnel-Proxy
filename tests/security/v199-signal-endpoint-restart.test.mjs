@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, realpathSync, chmodSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync, realpathSync, chmodSync, rmSync, mkdirSync,
+  openSync, writeSync, fsyncSync, closeSync, constants as fsConstants
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -10,29 +13,30 @@ import { createSignalEndpoint } from '../../utils/devproxy-v199-signal-endpoint.
 const require=createRequire(import.meta.url);
 const {createPrivateSignalMailbox}=require('../../utils/calliope-private-signal-mailbox.cjs');
 const {createPrivateSignalCiphertextAdmission}=require('../../utils/calliope-private-signal-admission.cjs');
+const {createTransportIdentity}=require('../../utils/devproxy-v199-device-proof.cjs');
+const {openEnrollmentRegistry}=require('../../utils/devproxy-v199-enrollment-registry.cjs');
+const {createLivePrivateSignalService}=require('../../utils/devproxy-v199-live-signal-service.cjs');
+const {createPrivateRelayAdapter}=require('../../utils/devproxy-v202-private-relay-adapter.cjs');
 
 const root=process.env.V192_LIBSIGNAL_PACKAGE_ROOT;
 const expected=process.env.V192_EXPECTED_LIBSIGNAL_VERSION;
 const key=randomBytes(32);
 const health=()=>({ok:true,mode:'public'});
-const session='cd'.repeat(32);
-
-function sink(){
-  const replies=[];
-  return {replies,enqueueReply(reply){replies.push(reply);return {ok:true};}};
-}
-async function binding(calliope,threadId){
-  return {
-    ownerSessionSha256:session,
-    threadId,
-    recipientSignalKeySha256:await calliope.identitySha256()
-  };
-}
 
 function dir(){
   const path=realpathSync(mkdtempSync(join(tmpdir(),'devproxy-v199-endpoint-')));
   chmodSync(path,0o700);
   return path;
+}
+function writeCredential(directory){
+  const file=join(directory,'relay.cred');
+  const fd=openSync(file,fsConstants.O_CREAT|fsConstants.O_EXCL|
+    fsConstants.O_WRONLY|fsConstants.O_NOFOLLOW,0o600);
+  try{
+    writeSync(fd,randomBytes(32));
+    fsyncSync(fd);
+  }finally{closeSync(fd);}
+  return file;
 }
 function open(role,store,readPublicHealth){
   return createSignalEndpoint({
@@ -42,24 +46,48 @@ function open(role,store,readPublicHealth){
 
 test('paired endpoints exchange proxy.status through an opaque mailbox and again after restart',async()=>{
   assert.equal(typeof root,'string');
-  // The workflow verifies official upstream stable == npm latest and sets
-  // this exact candidate; no historical release may be hardcoded here.
   assert.match(expected,/^[0-9]+\.[0-9]+\.[0-9]+$/);
   const home=dir();
+  const enrollDir=dir();
+  mkdirSync(join(enrollDir,'proof-nonces'),{mode:0o700});
   const trajectoryStore=join(home,'trajectory.store');
   const calliopeStore=join(home,'calliope.store');
-  const box=dir();
+  const requestBox=dir();
+  const replyBox=dir();
   let trajectory=await open('trajectory',trajectoryStore);
   let calliope=await open('calliope',calliopeStore,health);
   const senderSha=await trajectory.identitySha256();
   const recipientSha=await calliope.identitySha256();
   trajectory.pinPeer(calliope.identityPublicHex());
   calliope.pinPeer(trajectory.identityPublicHex());
-  const bundle=await calliope.publicBundle();
-  await trajectory.acceptPeerBundle(bundle);
-  const fields=await binding(calliope,'room-thread-a');
+  await trajectory.acceptPeerBundle(await calliope.publicBundle());
+  const registry=openEnrollmentRegistry(enrollDir);
+  const trajectoryDevice=createTransportIdentity();
+  const calliopeDevice=createTransportIdentity();
+  registry.enroll({
+    version:1,role:'trajectory',deviceId:trajectoryDevice.deviceId,revoked:false,
+    transportPublicKeySpki:trajectoryDevice.transportPublicKeySpki,
+    signalIdentitySha256:senderSha,peerSignalIdentitySha256:recipientSha
+  });
+  registry.enroll({
+    version:1,role:'calliope',deviceId:calliopeDevice.deviceId,revoked:false,
+    transportPublicKeySpki:calliopeDevice.transportPublicKeySpki,
+    signalIdentitySha256:recipientSha,peerSignalIdentitySha256:senderSha
+  });
+  const replyMailbox=createPrivateSignalMailbox({directory:replyBox});
+  const live=createLivePrivateSignalService({
+    enrollmentDir:enrollDir,mailbox:replyMailbox
+  });
+  const adapter=createPrivateRelayAdapter({
+    service:live,
+    credentialPath:writeCredential(home),
+    senderProof:{deviceId:calliopeDevice.deviceId,role:'calliope'}
+  });
+  const fields=adapter.hostOwnedBinding({
+    threadId:'room-thread-a',recipientSignalKeySha256:recipientSha
+  });
   const first=await trajectory.sendProxyStatus(fields);
-  const mailbox=createPrivateSignalMailbox({directory:box});
+  const requestMailbox=createPrivateSignalMailbox({directory:requestBox});
   const gate=createPrivateSignalCiphertextAdmission({
     now:Date.now,
     resolveAuthenticatedSender:()=>({
@@ -76,18 +104,25 @@ test('paired endpoints exchange proxy.status through an opaque mailbox and again
   },{device:'enrolled'});
   assert.equal(admitted.ok,true,admitted.status);
   assert.equal(admitted.ciphertextBase64url.includes('proxy.status'),false);
-  assert.equal(mailbox.enqueue(admitted).ok,true);
-  const listed=mailbox.list('calliope');
+  assert.equal(requestMailbox.enqueue(admitted).ok,true);
+  const listed=requestMailbox.list('calliope');
   assert.equal(listed.items.length,1);
   assert.equal(JSON.stringify(listed).includes('public'),false);
-  const replies=sink();
   const received=await calliope.receiveProxyStatus({
     messageType:listed.items[0].signalMessageType,
     ciphertext:listed.items[0].ciphertextBase64url
-  },replies);
+  },adapter);
   assert.equal(received.ackAfterDurable,true);
   assert.equal(received.retry,false);
-  assert.equal(mailbox.ack({recipient:'calliope',messageId:listed.items[0].messageId}).ok,true);
+  const replyListed=replyMailbox.list('trajectory');
+  assert.equal(replyListed.items.length,1);
+  const retried=await calliope.receiveProxyStatus({
+    messageType:listed.items[0].signalMessageType,
+    ciphertext:listed.items[0].ciphertextBase64url
+  },adapter);
+  assert.equal(retried.retry,true);
+  assert.equal(replyMailbox.list('trajectory').items.length,1);
+  assert.equal(requestMailbox.ack({recipient:'calliope',messageId:listed.items[0].messageId}).ok,true);
   const rendered=await trajectory.readProxyStatus(received.reply,{...fields,requestNonce:first.nonce});
   assert.equal(rendered.executable,false);
   assert.equal(rendered.summary.mode,'public');
@@ -96,13 +131,17 @@ test('paired endpoints exchange proxy.status through an opaque mailbox and again
   trajectory=null;calliope=null;
   trajectory=await open('trajectory',trajectoryStore);
   calliope=await open('calliope',calliopeStore,health);
-  const secondFields=await binding(calliope,'room-thread-b');
+  const secondFields=adapter.hostOwnedBinding({
+    threadId:'room-thread-b',recipientSignalKeySha256:await calliope.identitySha256()
+  });
   const second=await trajectory.sendProxyStatus(secondFields);
-  const again=await calliope.receiveProxyStatus(second.packet,sink());
+  const again=await calliope.receiveProxyStatus(second.packet,adapter);
   const afterRestart=await trajectory.readProxyStatus(again.reply,{...secondFields,requestNonce:second.nonce});
   assert.equal(afterRestart.executable,false);
   trajectory.revoke();
   await assert.rejects(()=>trajectory.sendProxyStatus(),/ENDPOINT_REVOKED/);
   rmSync(home,{recursive:true,force:true});
-  rmSync(box,{recursive:true,force:true});
+  rmSync(enrollDir,{recursive:true,force:true});
+  rmSync(requestBox,{recursive:true,force:true});
+  rmSync(replyBox,{recursive:true,force:true});
 });

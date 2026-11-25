@@ -46,6 +46,7 @@ async function pair(){
   calliope.pinPeer(trajectory.identityPublicHex());
   await trajectory.acceptPeerBundle(await calliope.publicBundle());
   const fields={
+    origin:'host',
     ownerSessionSha256:session,
     threadId:'thread-a',
     recipientSignalKeySha256:await calliope.identitySha256()
@@ -60,7 +61,10 @@ test('request nonce, session, recipient and thread bind the durable reply',async
   assert.equal(typeof root,'string');
   assert.match(expected,/^[0-9]+\.[0-9]+\.[0-9]+$/);
   const room=await pair();
-  await assert.rejects(()=>room.trajectory.sendProxyStatus({}),/OWNER_SESSION_REQUIRED/);
+  await assert.rejects(()=>room.trajectory.sendProxyStatus({}),/HOST_BINDING_REQUIRED/);
+  await assert.rejects(()=>room.trajectory.sendProxyStatus({
+    ownerSessionSha256:session,threadId:'thread-a',recipientSignalKeySha256:session
+  }),/HOST_BINDING_REQUIRED/);
   await assert.rejects(()=>room.trajectory.sendProxyStatus({
     ...room.fields,recipientSignalKeySha256:'a'.repeat(64)
   }),/RECIPIENT_MISMATCH/);
@@ -91,6 +95,17 @@ test('request nonce, session, recipient and thread bind the durable reply',async
   await assert.rejects(()=>room.trajectory.readProxyStatus(again.reply,{
     ...room.fields,requestNonce:sent.nonce
   }),/STATUS_RESULT_UNBOUND/);
+  rmSync(room.home,{recursive:true,force:true});
+});
+
+test('current-time freshness rejects a result after the host clock moves forward',async()=>{
+  const room=await pair();
+  const sent=await room.trajectory.sendProxyStatus(room.fields);
+  const received=await room.calliope.receiveProxyStatus(sent.packet,sink());
+  room.setClock(room.clock()+120001);
+  await assert.rejects(()=>room.trajectory.readProxyStatus(received.reply,{
+    ...room.fields,requestNonce:sent.nonce
+  }),/STATUS_STALE/);
   rmSync(room.home,{recursive:true,force:true});
 });
 

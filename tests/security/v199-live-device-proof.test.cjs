@@ -188,6 +188,16 @@ test('V202 real signed private API routes both directions, each inbox and ACK st
    const outbound=packet(),reply={...packet(),recipient:'trajectory'};
    const send=await signed(trajectory,'POST','deliver',outbound);
    assert.equal(send.status,200,send.raw);
+   assert.equal(send.json.role,'trajectory');
+   assert.equal(send.json.recipient,'calliope');
+   assert.match(send.json.ciphertextDigest,/^[a-f0-9]{64}$/);
+   const lost=await signed(trajectory,'POST','deliver',outbound);
+   assert.equal(lost.status,200,lost.raw);
+   assert.equal(lost.json.messageId,send.json.messageId);
+   assert.equal(lost.json.ciphertextDigest,send.json.ciphertextDigest);
+   assert.equal(lost.json.role,send.json.role);
+   const clash={...outbound,ciphertextBase64url:crypto.randomBytes(88).toString('base64url')};
+   assert.equal((await signed(trajectory,'POST','deliver',clash)).status,409);
    const back=await signed(calliope,'POST','deliver',reply);
    assert.equal(back.status,200,back.raw);
    for(const [who,pkt] of [[trajectory,reply],[calliope,outbound]]){
