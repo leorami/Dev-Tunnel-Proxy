@@ -66,9 +66,10 @@ test('strict evidence rejects omitted, skipped, cancelled, todo and failing summ
 test('full gate workflow reruns for every path the candidate exercises',()=>{
  const wf=fs.readFileSync(path.join(root,'.github/workflows/devproxy-v212-secure-release.yml'),'utf8');
  const on=wf.slice(wf.indexOf('on:'),wf.indexOf('permissions:'));
- for(const entry of ["'tests/**'","'test/**'","'scripts/**'","'utils/**'","'config/**'","'utils/proxyConfigAPI.js'","'smart-build.sh'","'.github/workflows/devproxy-v212-secure-release.yml'"]){
-  assert.ok(on.includes(entry),'missing pull_request path '+entry);
- }
+ // The unit lane reads status, docs, root manifests and numerous transitive
+ // inputs. An unfiltered PR trigger cannot silently miss any of them.
+ assert.match(on,/pull_request:\s*\n\s*workflow_dispatch:/);
+ assert.doesNotMatch(on,/\bpaths(?:-ignore)?:/);
 });
 test('unit lane temp roots use the platform temporary directory, not hardcoded /private/tmp',()=>{
  const unit=section('cmd_test_unit','cmd_test_all');
@@ -89,4 +90,17 @@ test('hosted CI guard rejects ordinary host before any fixture starts',()=>{
  assert.ifError(r.error);
  assert.notEqual(r.status,0);
  assert.match(r.stderr,/RELEASE_FIXTURE_REQUIRES_ISOLATED_HOSTED_CI/);
+});
+
+test('full runner cannot return success for an unexecuted dry run',()=>{
+ const {spawnSync}=require('node:child_process');
+ const r=spawnSync('/bin/bash',[path.join(root,'smart-build.sh'),'test:all'],{
+  env:{PATH:process.env.PATH||'/usr/bin:/bin',DRY_RUN:'1'},encoding:'utf8',timeout:5000});
+ assert.ifError(r.error);
+ assert.notEqual(r.status,0);
+ assert.doesNotMatch(r.stdout,/ALL TESTS PASSED/);
+});
+test('full current contract includes all existing explicit self-check fail-closed cases',()=>{
+ const secure=section('cmd_test_secure_contract','cmd_test_thoughts');
+ assert.match(secure,/rc2-secure-self-check-fail-closed\.test\.cjs/);
 });
