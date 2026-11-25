@@ -474,7 +474,7 @@ cmd_test_nginx_fixture() {
 }
 
 cmd_test_secure_contract() {
-  strict_test_counts "node --test '$ROOT_DIR/tests/security/v212-secure-release-api.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-evidence.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-observe-explain.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-http-audit.test.cjs' '$ROOT_DIR/tests/security/rc2-readonly-app-http-scan.test.cjs' '$ROOT_DIR/tests/security/rc2-app-http-scan-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check.test.cjs' '$ROOT_DIR/tests/security/rc2-self-check-api-contract.test.cjs' '$ROOT_DIR/tests/security/v203-supported-node-runtime.test.cjs'"
+  strict_test_counts "node --test '$ROOT_DIR/tests/security/v212-secure-release-api.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-evidence.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-observe-explain.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-http-audit.test.cjs' '$ROOT_DIR/tests/security/rc2-readonly-app-http-scan.test.cjs' '$ROOT_DIR/tests/security/rc2-app-http-scan-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check-fail-closed.test.cjs' '$ROOT_DIR/tests/security/rc2-self-check-api-contract.test.cjs' '$ROOT_DIR/tests/security/v203-supported-node-runtime.test.cjs'"
 }
 
 cmd_test_thoughts() {
@@ -792,8 +792,8 @@ cmd_test_all() {
   echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}\n"
   
   if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run all tests"
-    return 0
+    echo "DRY RUN: full release tests were not executed" >&2
+    return 1
   fi
   
   require_isolated_release_ci || return 1
