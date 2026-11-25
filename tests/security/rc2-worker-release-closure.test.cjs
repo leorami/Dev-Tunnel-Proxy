@@ -109,3 +109,68 @@ test('RED: public outcome is frozen and contains neither source paths nor expect
   }
  }finally{await f.close()}
 });
+
+test('V207 RED: one external sibling change discards the entire snapshot and a fresh stable snapshot can match',async t=>{
+ const f=await fixture();let reads=0;
+ const target=path.join(f.product,'scripts/worker.cjs'),open=fs.open;
+ t.mock.method(fs,'open',async (...args)=>{
+  if(args[0]===target&&++reads===1){
+   await fs.mkdir(path.join(f.scratch,'unrelated-sibling'));
+   await fs.utimes(f.scratch,new Date(1000),new Date(1000));
+  }
+  return open(...args);
+ });
+ try{
+  assert.equal((await inspect(f)).code,'TEST_ONLY_WORKER_CLOSURE_MATCH');
+  assert.equal(reads,2,'must hash the complete stage again, not ignore changed metadata');
+ }finally{t.mock.restoreAll();await f.close();}
+});
+test('V207: continuous external ancestor churn cannot produce a match or an unbounded retry',async t=>{
+ const f=await fixture();let reads=0;
+ const target=path.join(f.product,'scripts/worker.cjs'),open=fs.open;
+ t.mock.method(fs,'open',async (...args)=>{
+  if(args[0]===target){
+   reads++;
+   await fs.mkdir(path.join(f.scratch,'unrelated-'+reads));
+   await fs.utimes(f.scratch,new Date(reads*1000),new Date(reads*1000));
+  }
+  return open(...args);
+ });
+ try{
+  assert.equal((await inspect(f)).code,'WORKER_CLOSURE_UNSAFE');
+  assert.ok(reads>=1&&reads<=3,'retry must be bounded');
+ }finally{t.mock.restoreAll();await f.close();}
+});
+test('V207: changed stage directory or file is unsafe even if a later read would be stable',async t=>{
+ for(const variant of ['stage','file']){
+  const f=await fixture();let reads=0;
+  const target=path.join(f.product,'scripts/worker.cjs'),open=fs.open;
+  t.mock.method(fs,'open',async (...args)=>{
+   if(args[0]===target&&++reads===1){
+    if(variant==='stage'){
+     await fs.mkdir(path.join(f.product,'unrelated'));
+     await fs.utimes(f.product,new Date(1000),new Date(1000));
+    }else{
+     await fs.writeFile(target,'module.exports=43;\n');
+    }
+   }
+   return open(...args);
+  });
+  try{
+   assert.equal((await inspect(f)).code,'WORKER_CLOSURE_UNSAFE');
+   assert.equal(reads,1,'do not retry changed stage or file');
+  }finally{t.mock.restoreAll();await f.close();}
+ }
+});
+test('V207: external ancestor permission or identity drift cannot be retried into a match',async t=>{
+ const f=await fixture();let reads=0;
+ const target=path.join(f.product,'scripts/worker.cjs'),open=fs.open;
+ t.mock.method(fs,'open',async (...args)=>{
+  if(args[0]===target&&++reads===1)await fs.chmod(f.scratch,0o777);
+  return open(...args);
+ });
+ try{
+  assert.equal((await inspect(f)).code,'WORKER_CLOSURE_UNSAFE');
+  assert.equal(reads,1);
+ }finally{t.mock.restoreAll();await fs.chmod(f.scratch,0o700);await f.close();}
+});

@@ -63,7 +63,7 @@ test_without_api_key() {
         -v "$PROJECT_ROOT:/app" \
         -w /app \
         -e NODE_ENV=development \
-        node:18-alpine \
+        node:24-alpine \
         node utils/proxyConfigAPI.js
     
     # Wait for service to be ready
@@ -124,7 +124,7 @@ test_with_api_key() {
         -e NODE_ENV=development \
         -e OPENAI_API_KEY="$OPENAI_API_KEY" \
         -e OPENAI_MODEL="${OPENAI_MODEL:-gpt-4o-mini}" \
-        node:18-alpine \
+        node:24-alpine \
         node utils/proxyConfigAPI.js
     
     # Wait for service to be ready

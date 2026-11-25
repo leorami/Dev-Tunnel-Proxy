@@ -234,8 +234,8 @@ cmd_setup() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   
   echo "✅ Setup complete. Run: ./smart-build.sh up"
@@ -250,8 +250,8 @@ cmd_up() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   echo "==> Starting containers (auto-scan: ${AUTO_SCAN_ENABLED}, interval: ${AUTO_SCAN_INTERVAL_SECONDS}s)..."
   (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans)
@@ -280,8 +280,8 @@ cmd_restart() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
 
   # Bring everything back up, and remove any containers that no longer exist in the compose file
@@ -324,8 +324,8 @@ cmd_apply() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans --force-recreate proxy proxy-config-api)
   (cd "$ROOT_DIR" && $COMPOSE up -d ngrok)
@@ -345,7 +345,7 @@ cmd_install_app() {
   if command -v node >/dev/null 2>&1; then
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
   fi
   cmd_reload
 }

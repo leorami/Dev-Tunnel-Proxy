@@ -648,7 +648,7 @@ proxy_set_header Authorization $upstream_auth_token;
 ```bash
 # Using Trivy (example)
 trivy image nginx:1.25-alpine
-trivy image node:18-alpine
+trivy image node:24-alpine
 trivy image ngrok/ngrok:latest
 ```
 

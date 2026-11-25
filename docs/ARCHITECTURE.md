@@ -181,7 +181,7 @@ This approach ensures:
 wget -qO- http://127.0.0.1/health.json
 ```
 
-### 2. dev-proxy-config-api (node:18-alpine)
+### 2. dev-proxy-config-api (node:24-alpine)
 
 **Purpose**: REST API for configuration management and AI assistant
 
@@ -211,7 +211,7 @@ wget -qO- http://127.0.0.1/health.json
 
 **Port**: 3001
 
-### 3. dev-auto-scan (node:18-alpine)
+### 3. dev-auto-scan (node:24-alpine)
 
 **Purpose**: Continuous health monitoring and route scanning
 

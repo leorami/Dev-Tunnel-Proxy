@@ -1,0 +1,48 @@
+name: Dev Proxy supported Node LTS source gate
+on:
+  pull_request:
+    paths:
+      - 'docker-compose*.yml'
+      - 'smart-build.sh'
+      - 'utils/calliopeHealing.js'
+      - 'utils/proxyConfigAPI.js'
+      - 'utils/recovery-image-binding.cjs'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
+      - 'tests/security/v203-supported-node-runtime.test.cjs'
+      - 'utils/rc2-worker-release-closure.cjs'
+      - 'tests/security/rc2-worker-release-closure.test.cjs'
+      - '.github/workflows/devproxy-v203-supported-node.yml'
+      - 'docs/handoffs/DEVPROXY_V203_SUPPORTED_NODE_RUNTIME.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-contract:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.x','24.x']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+      - name: Source identity and actual Node version
+        run: |
+          git log -1 --format=%H
+          node --version
+      - name: Runtime source and historical archive contracts
+        run: node --test tests/security/v203-supported-node-runtime.test.cjs tests/security/recovery-image-tag-binding.test.mjs
+      - name: Worker closure stability and fail-closed regressions
+        run: node --test tests/security/rc2-worker-release-closure.test.cjs
+      - name: Check affected executable syntax without launching any service
+        run: |
+          bash -n smart-build.sh
+          node --check utils/calliopeHealing.js
+          node --check utils/proxyConfigAPI.js

@@ -140,4 +140,69 @@ function createProductionComposeCandidate(input){
   compose,json:JSON.stringify(compose,null,2)+'\n',
   productionChangeAuthorized:false,deployed:false,ownerMacVerified:false,runtimeAttested:false});
 }
-module.exports={createProductionComposeCandidate};
+// Compare trusted, locally resolved Compose JSON documents. Never log either
+// document: resolved configuration may contain private environment values.
+// This is a supplemental static comparison, not Docker or provenance proof.
+const {isDeepStrictEqual}=require('node:util');
+const OFFICIAL_NODE_IMAGE=/^docker\.io\/library\/node@sha256:[0-9a-f]{64}$/;
+const MAX_COMPOSE_JSON=2*1024*1024;
+function imageTransitionResult(code,imageOnly=false){
+ return Object.freeze({code,imageOnly,runtimeAttested:false,
+  imageProvenanceVerified:false,productionChangeAuthorized:false,deployed:false});
+}
+function record(o){
+ return !!o&&typeof o==='object'&&!Array.isArray(o)&&Object.getPrototypeOf(o)===Object.prototype;
+}
+function hardenedApiBaseline(api){
+ if(!record(api)||api.container_name!=='dev-proxy-config-api'||
+  typeof api.user!=='string'||!/^\d+:\d+$/.test(api.user)||
+  !api.user.split(':').every(n=>Number(n)>0&&Number(n)<=65534)||
+  api.read_only!==true||(api.privileged!==undefined&&api.privileged!==false)||
+  api.build!==undefined||api.network_mode!==undefined||
+  api.pid==='host'||api.ipc==='host'||
+  (api.cap_add!==undefined&&(!Array.isArray(api.cap_add)||api.cap_add.length!==0))||
+  (api.devices!==undefined&&(!Array.isArray(api.devices)||api.devices.length!==0))||
+  !Array.isArray(api.cap_drop)||!api.cap_drop.includes('ALL')||
+  !Array.isArray(api.security_opt)||
+  !api.security_opt.some(s=>s==='no-new-privileges:true'||s==='no-new-privileges=true')||
+  !Array.isArray(api.volumes)||!Array.isArray(api.ports))return false;
+ if(!api.volumes.every(v=>record(v)&&v.type==='bind'&&validPath(v.source)&&
+   typeof v.target==='string'&&v.target.startsWith('/')&&!SOCKET.test(v.target)))return false;
+ if(!api.volumes.some(v=>v.target==='/app'&&v.read_only===true))return false;
+ if(api.ports.length!==2)return false;
+ const ports=api.ports.map(p=>{
+  if(typeof p==='string')return p;
+  if(!record(p)||p.host_ip!=='127.0.0.1'||
+     ![3001,3002].includes(Number(p.target))||
+     String(p.published)!==String(p.target)||
+     (p.protocol!==undefined&&p.protocol!=='tcp'))return '';
+  return '127.0.0.1:'+p.published+':'+p.target;
+ });
+ return ports.includes('127.0.0.1:3001:3001')&&ports.includes('127.0.0.1:3002:3002');
+}
+function assessApiImageOnlyTransition(input){
+ const invalid=()=>imageTransitionResult('RC2_API_IMAGE_ONLY_INVALID');
+ try{
+  if(!plain(input,['beforeJson','afterJson','candidateImage'])||
+   typeof input.beforeJson!=='string'||typeof input.afterJson!=='string'||
+   Buffer.byteLength(input.beforeJson)>MAX_COMPOSE_JSON||
+   Buffer.byteLength(input.afterJson)>MAX_COMPOSE_JSON||
+   typeof input.candidateImage!=='string'||!OFFICIAL_NODE_IMAGE.test(input.candidateImage))
+   return invalid();
+  const before=JSON.parse(input.beforeJson),after=JSON.parse(input.afterJson);
+  if(!record(before)||!record(after)||!record(before.services)||!record(after.services)||
+    !record(before.services.proxy)||!record(after.services.proxy))return invalid();
+  const a=before.services['proxy-config-api'],b=after.services['proxy-config-api'];
+  if(!hardenedApiBaseline(a)||!hardenedApiBaseline(b)||
+     typeof a.image!=='string'||!a.image||a.image===input.candidateImage||
+     b.image!==input.candidateImage)return invalid();
+  // Both documents are private parsed copies. Compare the complete effective
+  // configuration, allowing exactly one value to differ. No diff is emitted.
+  a.image=input.candidateImage;
+  if(!isDeepStrictEqual(before,after))
+   return imageTransitionResult('RC2_API_IMAGE_ONLY_CONFIG_DRIFT');
+  return imageTransitionResult('RC2_API_IMAGE_ONLY_SOURCE_MATCH',true);
+ }catch{return invalid();}
+}
+module.exports={createProductionComposeCandidate,assessApiImageOnlyTransition};
+
