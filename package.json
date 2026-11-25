@@ -10,5 +10,8 @@
     "bootstrap": "npm install --workspaces",
     "ui:test": "npm --workspace test/ui test",
     "auditor:build": "npm --workspace site-auditor-debug run build"
+  },
+  "engines": {
+    "node": "22.x || 24.x || 26.x"
   }
 }

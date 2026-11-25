@@ -25,7 +25,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.16.0'
+          node-version: '24.x'
+          check-latest: true
       - name: Source identity
         run: git log -1 --format=%H
       - name: Origin and retired diagnostic contracts
