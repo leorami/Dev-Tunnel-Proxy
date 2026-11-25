@@ -19,7 +19,9 @@ async function seedCandidate(root){
  await fs.writeFile(path.join(root,'config','nginx.production.conf'),'events{}\nhttp{include conf.d/*.conf;}\n',{mode:0o644});
 }
 async function workspace(){
- const root=await fs.mkdtemp(path.join(os.tmpdir(),'dpv7-ghw-'));
+ // macOS temporary ancestors are not canonical (/var -> /private/var). The
+ // quarantine rejects that path. Canonicalize the test-owned root only.
+ const root=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'dpv7-ghw-')));
  await fs.chmod(root,0o700);
  const spool=path.join(root,'spool');
  const fence=path.join(root,'fence');
@@ -107,7 +109,13 @@ test('distinct simultaneous signed request IDs serialize across separate worker 
   const t1=await client.submit({expectedCandidateSha256:dig});
   const t2=await client.submit({expectedCandidateSha256:dig});
   const p1=a.processOne(t1.requestId);
-  await gate;
+  // If the first worker settles before nginx-test, fail with that result.
+  // Do not wait on a gate that will never open.
+  const entered=await Promise.race([
+   gate.then(()=>'in-gate'),
+   p1.then(result=>({settled:result}))
+  ]);
+  assert.equal(entered,'in-gate');
   assert.equal((await b.processOne(t2.requestId)).code,'HOST_PROCESSED');
   assert.equal((await client.readResult(t2)).status,'BLOCKED_QUARANTINED');
   release();
