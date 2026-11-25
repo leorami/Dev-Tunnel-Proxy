@@ -1,0 +1,33 @@
+name: RC2 API image-only change source gate
+on:
+  pull_request:
+    paths:
+      - 'utils/rc2-production-compose-candidate.cjs'
+      - 'tests/security/v204-rc2-api-image-only.test.cjs'
+      - 'tests/security/rc2-production-compose-candidate.test.cjs'
+      - 'docs/handoffs/DEVPROXY_V204_RC2_NODE24_IMAGE_ONLY.md'
+      - '.github/workflows/devproxy-v204-rc2-node24.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-gate:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.x','24.x']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+      - name: Source identity
+        run: |
+          git rev-parse HEAD
+          node --version
+      - name: Hardened candidate and image-only regression
+        run: node --test tests/security/v204-rc2-api-image-only.test.cjs tests/security/rc2-production-compose-candidate.test.cjs
