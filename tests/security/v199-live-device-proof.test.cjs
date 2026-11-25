@@ -155,3 +155,61 @@ test('signed enrolled sender delivers opaque ciphertext; test header, replay and
   delete process.env.DEVPROXY_V199_ENROLLMENT_DIR;
   delete process.env.DEVPROXY_V199_MAILBOX_DIR;
 });
+
+
+test('V202 real signed private API routes both directions, each inbox and ACK stays recipient scoped',async()=>{
+ const enrollment=privateDir('devproxy-v202-enroll-'),mailbox=privateDir('devproxy-v202-mail-');
+ fs.mkdirSync(path.join(enrollment,'proof-nonces'),{mode:0o700});
+ const registry=openEnrollmentRegistry(enrollment);
+ const trajectory=createTransportIdentity(),calliope=createTransportIdentity();
+ try{
+  for(const [role,identity,signal,peer] of [
+    ['trajectory',trajectory,SENDER_SIGNAL,RECIPIENT_SIGNAL],
+    ['calliope',calliope,RECIPIENT_SIGNAL,SENDER_SIGNAL]
+  ]) registry.enroll({version:1,role,deviceId:identity.deviceId,revoked:false,
+    transportPublicKeySpki:identity.transportPublicKeySpki,
+    signalIdentitySha256:signal,peerSignalIdentitySha256:peer});
+  process.env.DEVPROXY_V199_ENROLLMENT_DIR=enrollment;
+  process.env.DEVPROXY_V199_MAILBOX_DIR=mailbox;
+  api.__setPrivateSignalServiceForTests(null);
+  await withServer(async port=>{
+   const logged=await request(port,{method:'POST',urlPath:'/admin/login',
+     raw:Buffer.from(JSON.stringify({password:PASSWORD})),headers:{origin:TRUSTED_ORIGIN}});
+   assert.equal(logged.status,200);
+   const cookie=String(logged.headers['set-cookie'][0]).split(';')[0];
+   const root='/devproxy/api/signal/private';
+   async function signed(identity,method,route,value){
+    const pathname=root+'/'+route;
+    const raw=value===undefined?undefined:Buffer.from(JSON.stringify(value));
+    return request(port,{method,urlPath:pathname,raw,headers:{
+      ...signedHeaders({identity,method,pathname,body:raw}),cookie
+    }});
+   }
+   const outbound=packet(),reply={...packet(),recipient:'trajectory'};
+   const send=await signed(trajectory,'POST','deliver',outbound);
+   assert.equal(send.status,200,send.raw);
+   const back=await signed(calliope,'POST','deliver',reply);
+   assert.equal(back.status,200,back.raw);
+   for(const [who,pkt] of [[trajectory,reply],[calliope,outbound]]){
+    const inbox=await signed(who,'GET','inbox');
+    assert.equal(inbox.status,200,inbox.raw);
+    assert.deepEqual(inbox.json.items.map(x=>x.messageId),[pkt.messageId]);
+    assert.equal(inbox.json.items[0].ciphertextBase64url,pkt.ciphertextBase64url);
+    const other=pkt===outbound?reply:outbound;
+    assert.equal((await signed(who,'POST','ack',{messageId:other.messageId})).status,403);
+   }
+   assert.equal((await signed(calliope,'POST','deliver',packet())).status,403,'self destination must be denied');
+   assert.equal((await signed(trajectory,'POST','deliver',{...packet(),recipient:'trajectory'})).status,403);
+   assert.equal((await signed(trajectory,'POST','ack',{messageId:reply.messageId})).status,200);
+   assert.equal((await signed(calliope,'POST','ack',{messageId:outbound.messageId})).status,200);
+   assert.equal((await signed(trajectory,'GET','inbox')).json.items.length,0);
+   registry.revoke(calliope.deviceId);
+   assert.equal((await signed(trajectory,'GET','inbox')).status,403);
+   assert.equal((await signed(calliope,'POST','deliver',{...packet(),recipient:'trajectory'})).status,503);
+  });
+ }finally{
+  delete process.env.DEVPROXY_V199_ENROLLMENT_DIR;
+  delete process.env.DEVPROXY_V199_MAILBOX_DIR;
+  fs.rmSync(enrollment,{recursive:true,force:true});fs.rmSync(mailbox,{recursive:true,force:true});
+ }
+});
