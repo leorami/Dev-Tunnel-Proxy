@@ -1,0 +1,36 @@
+name: V197 owner-signed descriptor grant admission (source only)
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-owner-describe-grant.cjs'
+      - 'tests/security/v197-signed-owner-grant-admission.test.cjs'
+      - '.github/workflows/devproxy-v197-owner-grant.yml'
+      - 'docs/architecture/DEVPROXY_V197_OWNER_GRANT_ATTESTATION.md'
+      - 'docs/handoffs/DEVPROXY_V197_OWNER_GRANT_SOURCE_REVIEW.md'
+      - 'utils/calliope-agent-envelope.cjs'
+      - 'utils/calliope-durable-replay-ledger.cjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  owner-grant-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['18.20.8','22.23.5']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Check strict trust-boundary syntax
+        run: |
+          node --check utils/calliope-owner-describe-grant.cjs
+          node --check utils/calliope-agent-envelope.cjs
+          node --check utils/calliope-durable-replay-ledger.cjs
+          node --check tests/security/v197-signed-owner-grant-admission.test.cjs
+      - name: Test signed issuer and original signed requester, no runtime changes
+        run: |
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs

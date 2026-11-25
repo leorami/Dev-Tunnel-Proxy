@@ -25,6 +25,9 @@ const { spawnSync } = require('child_process');
 const crypto = require('crypto');
 const calliopeHealing = require('./calliopeHealing');
 const { classifyManagementRequest } = require('./managementAuthPolicy.cjs');
+const {createPrivateSignalCiphertextAdmission}=require('./calliope-private-signal-admission.cjs');
+const {isPrivateSignalMailbox}=require('./calliope-private-signal-mailbox.cjs');
+const {loadLivePrivateSignalService}=require('./devproxy-v199-live-signal-service.cjs');
 const {classifySecureManagementOperation}=require('./rc2-management-safety-policy.cjs');
 const {readExistingBundleDiagnostics}=require('./rc2-readonly-bundle-diagnostics.cjs');
 const {createConstrainedLocalHttpAudit,readBoundedAuditBody}=require('./rc2-secure-http-audit.cjs');
@@ -499,6 +502,151 @@ function parseBody(req){
   });
 }
 
+const PRIVATE_SIGNAL_ROOT = () => apiPath('signal/private');
+const PRIVATE_SIGNAL_MAX_BODY = 49152;
+let privateSignalTestService = null;
+function isPrivateSignalNamespace(pathname){
+  const root=PRIVATE_SIGNAL_ROOT();
+  return pathname===root||(typeof pathname==='string'&&pathname.startsWith(root+'/'));
+}
+function privateSignalRoute(pathname){
+  const root=PRIVATE_SIGNAL_ROOT();
+  if(pathname===root+'/deliver')return 'deliver';
+  if(pathname===root+'/inbox')return 'inbox';
+  if(pathname===root+'/ack')return 'ack';
+  if(isPrivateSignalNamespace(pathname))return 'unknown';
+  return null;
+}
+function privateSignalNotEnrolled(res){
+  return send(res,503,{
+    ok:false,error:'SIGNAL_PRIVATE_SERVICE_NOT_ENROLLED',
+    ownerApprovalGranted:false,exportAuthorized:false,executionAuthorized:false,
+    healingPerformed:false,liveAttested:false,productionChangeAuthorized:false
+  });
+}
+function privateSignalDenied(res,status){
+  const code=status==='PRIVATE_MAILBOX_FULL'?503:
+    (status==='PRIVATE_MAILBOX_DUPLICATE'||status==='PRIVATE_MAILBOX_DUPLICATE_MISMATCH'?409:
+    (status==='PRIVATE_MAILBOX_MISSING'?404:403));
+  return send(res,code,{
+    ok:false,error:status||'PRIVATE_MAILBOX_DENIED',
+    ownerApprovalGranted:false,exportAuthorized:false,executionAuthorized:false,
+    healingPerformed:false,liveAttested:false,productionChangeAuthorized:false
+  });
+}
+function readBoundedPrivateSignalJson(req,maxBytes){
+  return new Promise((resolve)=>{
+    let settled=false;
+    const done=(value)=>{if(!settled){settled=true;resolve(value);}};
+    const declared=Number(req.headers['content-length']);
+    if(Number.isFinite(declared)&&declared>maxBytes){
+      req.resume();
+      return done({ok:false,code:'BODY_TOO_LARGE'});
+    }
+    const chunks=[];
+    let size=0;
+    req.on('data',(c)=>{
+      size+=c.length;
+      if(size>maxBytes){
+        req.destroy();
+        return done({ok:false,code:'BODY_TOO_LARGE'});
+      }
+      chunks.push(c);
+    });
+    req.on('end',()=>{
+      if(settled)return;
+      try{
+        const raw=Buffer.concat(chunks);
+        if(raw.length>maxBytes)return done({ok:false,code:'BODY_TOO_LARGE'});
+        const parsed=JSON.parse(raw.toString('utf8'));
+        if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+          return done({ok:false,code:'INVALID_JSON'});
+        done({ok:true,value:parsed,raw});
+      }catch{done({ok:false,code:'INVALID_JSON'});}
+    });
+    req.on('error',()=>done({ok:false,code:'INVALID_JSON'}));
+  });
+}
+function activePrivateSignalService(){
+  if(process.env.NODE_ENV==='test'&&privateSignalTestService)return privateSignalTestService;
+  try{return loadLivePrivateSignalService();}catch{return null;}
+}
+async function handlePrivateSignalMailbox(req,res){
+  const route=privateSignalRoute((url.parse(req.url,true).pathname||''));
+  if(route==='unknown'||route==null)return send(res,404,{ok:false,error:'Not found'});
+  if(!['GET','POST'].includes(req.method))return send(res,405,{ok:false,error:'Method not allowed'});
+  if((route==='inbox'&&req.method!=='GET')||(route!=='inbox'&&req.method!=='POST'))
+    return send(res,405,{ok:false,error:'Method not allowed'});
+  const svc=activePrivateSignalService();
+  const live=!!(svc&&typeof svc.authenticateRequest==='function');
+  if(!svc||!isPrivateSignalMailbox(svc.mailbox)||
+     typeof svc.resolveAuthenticatedSender!=='function'||
+     typeof svc.isRecipientEnrolled!=='function'||
+     typeof svc.authenticatedRecipient!=='function'||
+     (!live&&typeof svc.peerFromRequest!=='function'))
+    return privateSignalNotEnrolled(res);
+  let prefetched=null;
+  let proof;
+  try{
+    if(live){
+      if(req.headers['x-devproxy-signal-peer']!==undefined)return privateSignalNotEnrolled(res);
+      if(req.method==='POST'){
+        prefetched=await readBoundedPrivateSignalJson(req,route==='deliver'?PRIVATE_SIGNAL_MAX_BODY:4096);
+        if(!prefetched.ok)return send(res,prefetched.code==='BODY_TOO_LARGE'?413:400,{
+          ok:false,error:prefetched.code,ownerApprovalGranted:false,exportAuthorized:false,
+          executionAuthorized:false,healingPerformed:false,liveAttested:false,
+          productionChangeAuthorized:false});
+      }
+      proof=svc.authenticateRequest(req,prefetched?prefetched.raw:Buffer.alloc(0));
+    }else{
+      proof=svc.peerFromRequest(req);
+    }
+  }catch{return privateSignalNotEnrolled(res);}
+  if(!proof)return privateSignalNotEnrolled(res);
+  let gate;
+  try{
+    gate=createPrivateSignalCiphertextAdmission({
+      now:typeof svc.now==='function'?svc.now:Date.now,
+      resolveAuthenticatedSender:svc.resolveAuthenticatedSender,
+      isRecipientEnrolled:svc.isRecipientEnrolled
+    });
+  }catch{return privateSignalNotEnrolled(res);}
+  if(route==='deliver'){
+    const body=prefetched||await readBoundedPrivateSignalJson(req,PRIVATE_SIGNAL_MAX_BODY);
+    if(!body.ok)return send(res,body.code==='BODY_TOO_LARGE'?413:400,{
+      ok:false,error:body.code,ownerApprovalGranted:false,exportAuthorized:false,
+      executionAuthorized:false,healingPerformed:false,liveAttested:false,
+      productionChangeAuthorized:false});
+    const admitted=gate.admit(body.value,proof);
+    if(!admitted.ok)return privateSignalDenied(res,admitted.status);
+    const queued=svc.mailbox.enqueue(admitted);
+    if(!queued.ok)return privateSignalDenied(res,queued.status);
+    return send(res,200,queued);
+  }
+  let recipient;
+  try{recipient=svc.authenticatedRecipient(proof);}catch{return privateSignalDenied(res);}
+  if(typeof recipient!=='string')return privateSignalDenied(res);
+  let stillEnrolled;
+  try{stillEnrolled=svc.isRecipientEnrolled(Object.freeze({recipient}));}
+  catch{return privateSignalDenied(res);}
+  if(stillEnrolled!==true)return privateSignalDenied(res);
+  if(route==='inbox'){
+    const listed=svc.mailbox.list(recipient);
+    if(!listed.ok)return privateSignalDenied(res,listed.status);
+    return send(res,200,listed);
+  }
+  const body=prefetched||await readBoundedPrivateSignalJson(req,4096);
+  if(!body.ok)return send(res,body.code==='BODY_TOO_LARGE'?413:400,{
+    ok:false,error:body.code,ownerApprovalGranted:false,exportAuthorized:false,
+    executionAuthorized:false,healingPerformed:false,liveAttested:false,
+    productionChangeAuthorized:false});
+  const keys=body.value&&typeof body.value==='object'?Reflect.ownKeys(body.value):[];
+  if(keys.length!==1||keys[0]!=='messageId')return privateSignalDenied(res);
+  const acked=svc.mailbox.ack({recipient,messageId:body.value.messageId});
+  if(!acked.ok)return privateSignalDenied(res,acked.status);
+  return send(res,200,acked);
+}
+
 function safeConfigPath(file){
   if(typeof file!=='string'||file.includes('..'))return null;
   const m=/^(?:(apps|overrides|config)\/)?([a-zA-Z0-9_-]{1,80}\.conf|default\.production\.conf)$/.exec(file);
@@ -616,8 +764,14 @@ async function handle(req, res){
 
   console.log(`[API] ${req.method} ${u.pathname}`);
 
-  // CORS for convenience (not strictly needed when proxied)
-  if (req.method === 'OPTIONS'){
+  // Private Signal mailbox must never inherit the anonymous OPTIONS CORS
+  // wildcard. Preflight is not enrollment, pairing, or a data-plane grant.
+  if (isPrivateSignalNamespace(u.pathname)){
+    if (req.method === 'OPTIONS'){
+      return send(res, 401, { ok:false, error:'Unauthorized', message:'Authentication required' });
+    }
+  } else if (req.method === 'OPTIONS'){
+    // CORS for convenience (not strictly needed when proxied)
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
@@ -734,6 +888,11 @@ async function handle(req, res){
     const authBoundary = classifyManagementRequest(req.method, u.pathname, PROXY_API_BASE_PATH);
     if (authBoundary.requiresAuth) {
       if (!requireAuth(req, res, u)) return;
+    }
+    // Default-disabled private ciphertext mailbox. Admin session is not a
+    // Signal device identity; missing enrollment fails closed with 503.
+    if (isPrivateSignalNamespace(u.pathname)){
+      return handlePrivateSignalMailbox(req, res);
     }
     // RC2_V95_LOCAL_CHAT: existing Calliope Ask UI stays useful in secure
     // nonroot mode without silently re-enabling Docker/self-heal/external AI.
@@ -2922,5 +3081,8 @@ module.exports = {
 if (process.env.NODE_ENV === 'test') {
   module.exports.__setRouteMutationServiceForTests = function(manager){
     routeManager = manager;
+  };
+  module.exports.__setPrivateSignalServiceForTests = function(service){
+    privateSignalTestService = service;
   };
 }

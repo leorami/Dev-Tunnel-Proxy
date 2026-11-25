@@ -1,0 +1,32 @@
+name: Dev Proxy V201 Origin consumer and diagnostic retirement
+on:
+  pull_request:
+    paths:
+      - AGENTS.md
+      - CORE_PROTOCOL_LOCK.json
+      - 'docs/architecture/DEVPROXY_ORIGIN_VISUAL_EVIDENCE.md'
+      - 'docs/handoffs/DEVPROXY_V201_ORIGIN_GOVERNANCE_REAL_ROOM.md'
+      - 'scripts/devproxy-v200-live-room-exchange.mjs'
+      - 'scripts/devproxy-v200-calliope-receiver.mjs'
+      - 'tests/security/v201-*.test.cjs'
+      - 'tests/security/v201-request-binding.test.mjs'
+      - 'tests/security/v199-signal-endpoint-restart.test.mjs'
+      - 'utils/devproxy-v199-signal-endpoint.mjs'
+      - '.github/workflows/devproxy-v201-origin-adoption.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  scoped:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.16.0'
+      - name: Source identity
+        run: git log -1 --format=%H
+      - name: Origin and retired diagnostic contracts
+        run: node --test tests/security/v201-origin-adoption.test.cjs tests/security/v201-retire-v200-diagnostic.test.cjs

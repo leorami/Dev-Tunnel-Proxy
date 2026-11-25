@@ -1,0 +1,35 @@
+name: V194 encrypted signed descriptor end-to-end source proof
+on:
+  pull_request:
+    paths:
+      - 'tests/security/fixtures/v192-libsignal-peer.mjs'
+      - 'tests/security/v194-signal-signed-descriptor.test.mjs'
+      - '.github/workflows/devproxy-v194-signal-descriptor.yml'
+      - 'docs/architecture/DEVPROXY_V194_FIRST_SIGNED_E2EE_DESCRIPTOR.md'
+      - 'docs/handoffs/DEVPROXY_V194_SIGNED_E2EE_DESCRIPTOR.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signal-signed-description:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.1'
+      - name: Install official test-only libsignal under ephemeral runner temp
+        run: |
+          mkdir -p "$RUNNER_TEMP/devproxy-v194"
+          npm install --prefix "$RUNNER_TEMP/devproxy-v194" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts @signalapp/libsignal-client@0.106.0
+          node -e "const p=require(process.env.RUNNER_TEMP+'/devproxy-v194/node_modules/@signalapp/libsignal-client/package.json');if(p.version!=='0.106.0'||p.license!=='AGPL-3.0-only')process.exit(1);console.log(p.name,p.version,p.license)"
+      - name: Node 24 secure message and source-gated descriptor regression
+        env:
+          V192_LIBSIGNAL_PACKAGE_ROOT: ${{ runner.temp }}/devproxy-v194/node_modules/@signalapp/libsignal-client
+        run: |
+          node --check tests/security/fixtures/v192-libsignal-peer.mjs
+          node --check tests/security/v194-signal-signed-descriptor.test.mjs
+          node --check utils/calliope-agent-envelope.cjs
+          node --check utils/calliope-artifact-descriptor-gate.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v194-signal-signed-descriptor.test.mjs

@@ -1,0 +1,82 @@
+name: V199 official libsignal current stable native macOS pilot qualification
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/devproxy-v199-libsignal-macos-native.yml'
+      - 'tests/security/v199-mailbox-ack-filesystem.test.cjs'
+      - 'tests/security/v200-atomic-sealed-store.test.cjs'
+      - 'tests/security/v200-enrollment-replay.test.cjs'
+      - 'tests/security/v200-peer-pin.test.cjs'
+      - 'docs/architecture/DEVPROXY_V200_RC2_SAFE_OVERLAY.md'
+      - 'docs/handoffs/DEVPROXY_V200_RC2_SAFE_OVERLAY_REAL_SIGNAL_ROOM.md'
+      - 'tests/security/v199-signal-endpoint-restart.test.mjs'
+      - 'tests/security/v201-request-binding.test.mjs'
+      - 'utils/devproxy-v199-live-signal-service.cjs'
+      - 'utils/devproxy-v199-enrollment-registry.cjs'
+      - 'utils/devproxy-v200-atomic-sealed-store.cjs'
+      - 'utils/devproxy-v199-signal-endpoint.mjs'
+      - 'utils/devproxy-v202-private-relay-adapter.cjs'
+      - 'utils/calliope-private-signal-mailbox.cjs'
+      - 'tests/security/v202-private-relay-adapter.test.cjs'
+      - 'docs/architecture/DEVPROXY_V199_OWNER_MAC_PILOT.md'
+      - 'docs/handoffs/DEVPROXY_V199_REAL_OWNER_MAC_SIGNAL_PILOT.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-signal:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.18.1'
+      - name: Attest actual runner machine and exact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          uname -s
+          uname -m
+          node -p 'process.platform + " " + process.arch'
+          git log -1 --format=%H
+      - name: Require official npm latest stable equals GitHub latest stable
+        id: stable
+        shell: bash
+        env:
+          GITHUB_API_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest="$(npm view @signalapp/libsignal-client dist-tags.latest)"
+          [[ "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'NOT_A_STABLE_NPM_VERSION'; exit 1; }
+          upstream="$(curl -fsSL --retry 2 -H 'Accept: application/vnd.github+json' -H "Authorization: Bearer $GITHUB_API_TOKEN" https://api.github.com/repos/signalapp/libsignal/releases/latest | node -e 'let s="";process.stdin.on("data",b=>s+=b);process.stdin.on("end",()=>console.log(JSON.parse(s).tag_name))')"
+          [[ "v$latest" == "$upstream" ]] || { echo "LATEST_RELEASE_NOT_YET_AVAILABLE_ON_NPM: npm=$latest upstream=$upstream"; exit 1; }
+          echo "version=$latest" >> "$GITHUB_OUTPUT"
+      - name: Install official exact validated candidate ONLY into disposable macOS runner
+        shell: bash
+        env:
+          CANDIDATE: ${{ steps.stable.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/libsignal-macos-native"
+          npm install --prefix "$RUNNER_TEMP/libsignal-macos-native" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts "@signalapp/libsignal-client@$CANDIDATE"
+          node -e 'const p=require(process.env.RUNNER_TEMP+"/libsignal-macos-native/node_modules/@signalapp/libsignal-client/package.json");if(p.version!==process.env.CANDIDATE||p.license!=="AGPL-3.0-only")process.exit(1);console.log(p.name,p.version,p.license)'
+          echo "V192_LIBSIGNAL_PACKAGE_ROOT=$RUNNER_TEMP/libsignal-macos-native/node_modules/@signalapp/libsignal-client" >> "$GITHUB_ENV"
+          echo "V192_EXPECTED_LIBSIGNAL_VERSION=$CANDIDATE" >> "$GITHUB_ENV"
+      - name: Native process-separated libsignal sessions and signed-message trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v192-libsignal-two-peers.test.mjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs tests/security/v194-signal-signed-descriptor.test.mjs tests/security/v196-durable-replay-ledger.test.cjs tests/security/v197-signed-owner-grant-admission.test.cjs tests/security/v198-private-signal-ingress.test.cjs tests/security/v198-private-signal-mailbox.test.cjs tests/security/v198-private-signal-mailbox-http.test.cjs tests/security/v199-mailbox-ack-filesystem.test.cjs tests/security/v199-live-device-proof.test.cjs tests/security/v199-signal-endpoint-restart.test.mjs tests/security/v201-request-binding.test.mjs tests/security/v200-atomic-sealed-store.test.cjs tests/security/v200-enrollment-replay.test.cjs tests/security/v200-peer-pin.test.cjs tests/security/v202-private-relay-adapter.test.cjs
+      - name: Record exact vetted candidate but NEVER install into owner app
+        if: success()
+        shell: bash
+        env:
+          CANDIDATE: ${{ steps.stable.outputs.version }}
+        run: |
+          set -euo pipefail
+          echo "Official macOS native libsignal qualified: $CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Arch: $(uname -m), Node: $(node --version)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Checked-out source: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "No owner Mac or production service accessed, no real enrollment, no protected merge." >> "$GITHUB_STEP_SUMMARY"
