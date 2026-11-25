@@ -2,6 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -18,7 +19,7 @@ function sha(p) {
 }
 
 test('native tar round-trip can tie two winners that differed by tens of milliseconds', (t) => {
-  const root = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-mtime-tar-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'devproxy-mtime-tar-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const a = path.join(root, 'old.conf');
   const b = path.join(root, 'new.conf');
@@ -39,7 +40,7 @@ test('native tar round-trip can tie two winners that differed by tens of millise
 });
 
 test('manifest mtime reapplication restores generateAppsBundle winner order', (t) => {
-  const root = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-mtime-restore-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'devproxy-mtime-restore-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   const apps = path.join(root, 'apps');
   fs.mkdirSync(apps);
@@ -80,7 +81,7 @@ test('manifest mtime reapplication restores generateAppsBundle winner order', (t
 });
 
 test('restore refuses path traversal and symlink targets', (t) => {
-  const root = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-mtime-unsafe-'));
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'devproxy-mtime-unsafe-'));
   t.after(() => fs.rmSync(root, {recursive: true, force: true}));
   fs.writeFileSync(path.join(root, 'ok.conf'), 'x');
   assert.throws(
@@ -106,7 +107,7 @@ test('restore refuses path traversal and symlink targets', (t) => {
 });
 
 test('parent symlink out of the extract root cannot have mtime changed', (t) => {
-  const base = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-mtime-parent-'));
+  const base = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'devproxy-mtime-parent-'));
   t.after(() => fs.rmSync(base, {recursive: true, force: true}));
   const outside = path.join(base, 'outside');
   fs.mkdirSync(outside);
