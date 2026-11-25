@@ -25,36 +25,54 @@ function createLivePrivateSignalService({enrollmentDir,mailbox,now=Date.now}){
     if(!record)return null;
     return Object.freeze({deviceId:record.deviceId,role:record.role});
   }
+  // The same two enrolled, mutually pinned devices are the only allowed
+  // sender/recipient pair, in either direction. No caller-selected role.
+  function otherRole(role){
+    return role==='trajectory'?'calliope':role==='calliope'?'trajectory':null;
+  }
+  function activeProof(proof){
+    if(!proof||!otherRole(proof.role))return null;
+    const record=registry.lookup(proof.deviceId);
+    return record&&!record.revoked&&record.role===proof.role?record:null;
+  }
+  function enrolledPair(senderRole){
+    const recipientRole=otherRole(senderRole);
+    if(!recipientRole)return null;
+    const sender=registry.role(senderRole),recipient=registry.role(recipientRole);
+    if(!sender||!recipient||
+       sender.deviceId===recipient.deviceId||
+       sender.signalIdentitySha256===recipient.signalIdentitySha256||
+       sender.peerSignalIdentitySha256!==recipient.signalIdentitySha256||
+       recipient.peerSignalIdentitySha256!==sender.signalIdentitySha256)return null;
+    return {sender,recipient};
+  }
   function resolveAuthenticatedSender(proof){
-    if(!proof||proof.role!=='trajectory')return null;
-    const sender=registry.lookup(proof.deviceId);
-    const recipient=registry.role('calliope');
-    if(!sender||sender.revoked||sender.role!=='trajectory'||!recipient)return null;
+    const record=activeProof(proof);
+    if(!record)return null;
+    const pair=enrolledPair(record.role);
+    if(!pair||pair.sender.deviceId!==record.deviceId)return null;
     return {
-      sender:'trajectory',project:'devproxy',recipient:'calliope',
-      senderSignalKeySha256:sender.signalIdentitySha256,
-      recipientSignalKeySha256:recipient.signalIdentitySha256
+      sender:pair.sender.role,project:'devproxy',recipient:pair.recipient.role,
+      senderSignalKeySha256:pair.sender.signalIdentitySha256,
+      recipientSignalKeySha256:pair.recipient.signalIdentitySha256
     };
   }
   function authenticatedRecipient(proof){
-    if(!proof||proof.role!=='calliope')return null;
-    const record=registry.lookup(proof.deviceId);
-    if(!record||record.revoked||record.role!=='calliope')return null;
-    return 'calliope';
+    const record=activeProof(proof);
+    if(!record)return null;
+    const pair=enrolledPair(otherRole(record.role));
+    return pair&&pair.recipient.deviceId===record.deviceId?record.role:null;
   }
   function isRecipientEnrolled(principal){
-    if(!principal||principal.recipient!=='calliope')return false;
-    const recipient=registry.role('calliope');
-    const sender=registry.role('trajectory');
-    if(!recipient||!sender)return false;
-    // An authenticated transport sender is not sufficient: both ends must
-    // pin each OTHER's real libsignal identity fingerprint, not merely self.
-    if(sender.peerSignalIdentitySha256!==recipient.signalIdentitySha256||
-       recipient.peerSignalIdentitySha256!==sender.signalIdentitySha256)
-      return false;
-    if(typeof principal.senderSignalKeySha256==='string'&&
+    if(!principal||!otherRole(principal.recipient))return false;
+    const pair=enrolledPair(otherRole(principal.recipient));
+    if(!pair)return false;
+    const {sender,recipient}=pair;
+    if(principal.sender!==undefined&&principal.sender!==sender.role)return false;
+    if(principal.project!==undefined&&principal.project!=='devproxy')return false;
+    if(principal.senderSignalKeySha256!==undefined&&
        principal.senderSignalKeySha256!==sender.signalIdentitySha256)return false;
-    if(typeof principal.recipientSignalKeySha256==='string'&&
+    if(principal.recipientSignalKeySha256!==undefined&&
        principal.recipientSignalKeySha256!==recipient.signalIdentitySha256)return false;
     return true;
   }
