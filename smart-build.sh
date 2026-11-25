@@ -454,10 +454,11 @@ strict_test_counts() {
     ($1 == "#" || $1 == "ℹ") && $3 ~ /^[0-9]+$/ {
       if ($2=="tests") { tests+=$3; groups++ }
       if ($2=="pass") { passed+=$3; pass_groups++ }
-      if ($2=="fail" || $2=="cancelled" || $2=="skipped" || $2=="todo") bad+=$3
-      if ($2=="skipped") skip_groups++
+      if ($2=="fail" || $2=="cancelled" || $2=="skipped" || $2=="todo") { bad+=$3; count[$2]++ }
     }
-    END { exit !(groups>0 && tests>0 && pass_groups==groups && skip_groups==groups && passed==tests && bad==0) }
+    END { exit !(groups>0 && tests>0 && pass_groups==groups &&
+      count["fail"]==groups && count["cancelled"]==groups &&
+      count["skipped"]==groups && count["todo"]==groups && passed==tests && bad==0) }
   ' "$log"; then
     echo "TEST_COUNTS_NOT_STRICT_GREEN" >&2
     rc=1
