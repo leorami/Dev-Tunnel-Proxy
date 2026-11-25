@@ -50,9 +50,14 @@ function validManifest(rows){
 function same(a,b){return a.dev===b.dev&&a.ino===b.ino&&a.uid===b.uid&&
  a.gid===b.gid&&a.mode===b.mode&&a.nlink===b.nlink&&a.size===b.size&&
  a.mtimeNs===b.mtimeNs&&a.ctimeNs===b.ctimeNs;}
+// Metadata churn in a shared ancestor is not a valid snapshot. A later
+// attempt must redo every check; identity, ownership and mode never relax.
+const MAX_SNAPSHOT_ATTEMPTS=3;
+function sameDirectoryIdentity(a,b){return a.dev===b.dev&&a.ino===b.ino&&
+ a.uid===b.uid&&a.gid===b.gid&&a.mode===b.mode;}
 function owner(st){return typeof process.getuid!=='function'||
  st.uid===0n||st.uid===BigInt(process.getuid());}
-async function checkedDir(directory){
+async function checkedDir(directory,externalAncestor=false){
  const a=await fs.lstat(directory,{bigint:true});
  // Root-owned + sticky 01777 is accepted for /tmp-style ancestors only.
  const writable=(a.mode&0o022n)!==0n;
@@ -61,8 +66,9 @@ async function checkedDir(directory){
     (writable&&!stickyRoot)||await fs.realpath(directory)!==directory)
     throw Error('UNTRUSTED_RELEASE_DIRECTORY');
  const b=await fs.lstat(directory,{bigint:true});
- if(!same(a,b))throw Error('CHANGED_RELEASE_DIRECTORY');
- return a;
+ if(!same(a,b)&&(!externalAncestor||!sameDirectoryIdentity(a,b)))
+  throw Error('CHANGED_RELEASE_DIRECTORY');
+ return {stat:b,churned:!same(a,b)};
 }
 function directoriesFor(root,rows){
  const paths=new Set(['/']);
@@ -94,18 +100,39 @@ async function inspect(root,rows,{testOnly=false}={}){
  if(!isPath(root)||!validManifest(rows))return outcome('WORKER_CLOSURE_UNVERIFIED');
  try{
   const dirs=directoriesFor(root,rows);
-  const before=[];
-  for(const name of dirs)before.push(await checkedDir(name));
-  let matching=true;
-  for(const item of rows){
-   if(!await checkedFile(path.posix.join(root,item.path),item.gitBlobSha))matching=false;
+  const external=name=>name!==root&&!name.startsWith(root+'/');
+  for(let attempt=0;attempt<MAX_SNAPSHOT_ATTEMPTS;attempt++){
+   const before=[];
+   let churned=false;
+   for(const name of dirs){
+    const observed=await checkedDir(name,external(name));
+    before.push(observed.stat);
+    churned=churned||observed.churned;
+   }
+   let matching=true;
+   for(const item of rows){
+    if(!await checkedFile(path.posix.join(root,item.path),item.gitBlobSha))matching=false;
+   }
+   for(let i=0;i<dirs.length;i++){
+    const outside=external(dirs[i]);
+    const again=await checkedDir(dirs[i],outside);
+    if(!same(again.stat,before[i])){
+     if(!outside||!sameDirectoryIdentity(again.stat,before[i]))
+      throw Error('CHANGED_RELEASE_DIRECTORY');
+     churned=true;
+    }
+    churned=churned||again.churned;
+   }
+   if(churned){
+    // Discard the entire observation, never bless an unstable snapshot.
+    // A mismatch or any stage/file/identity change is not retryable.
+    if(!matching)throw Error('CHANGED_RELEASE_DIRECTORY');
+    continue;
+   }
+   return outcome(testOnly?(matching?'TEST_ONLY_WORKER_CLOSURE_MATCH':'TEST_ONLY_WORKER_CLOSURE_MISMATCH'):
+    (matching?'REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY':'REVIEWED_WORKER_CLOSURE_MISMATCH'));
   }
-  for(let i=0;i<dirs.length;i++){
-   const again=await checkedDir(dirs[i]);
-   if(!same(again,before[i]))throw Error('CHANGED_RELEASE_DIRECTORY');
-  }
-  return outcome(testOnly?(matching?'TEST_ONLY_WORKER_CLOSURE_MATCH':'TEST_ONLY_WORKER_CLOSURE_MISMATCH'):
-   (matching?'REVIEWED_WORKER_CLOSURE_MATCH_SOURCE_ONLY':'REVIEWED_WORKER_CLOSURE_MISMATCH'));
+  return outcome('WORKER_CLOSURE_UNSAFE');
  }catch{return outcome('WORKER_CLOSURE_UNSAFE');}
 }
 async function inspectReviewedWorkerReleaseClosure(input={}){
