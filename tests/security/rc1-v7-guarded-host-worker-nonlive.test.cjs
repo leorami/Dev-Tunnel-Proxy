@@ -56,6 +56,13 @@ test('RED first: guarded nonlive composition module is present',()=>{
  assert.equal(typeof createGuardedNonliveHostWorker,'function');
 });
 
+test('RED: test-owned fence must be a canonical real path before the quarantine check',async()=>{
+ const w=await workspace();
+ try{
+  assert.equal(await fs.realpath(w.fence),w.fence);
+ }finally{await w.close();}
+});
+
 test('verified fixed-action success through spool returns durable signed success only after fence clears',async()=>{
  const w=await workspace();const trace=[];
  try{
