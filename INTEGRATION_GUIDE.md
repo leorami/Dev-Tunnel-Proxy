@@ -283,7 +283,7 @@ services:
       - myapp-config-installer
   
   myapp-config-installer:
-    image: node:18-alpine
+    image: node:24-alpine
     working_dir: /app
     volumes:
       - ./infra/dev-proxy:/app

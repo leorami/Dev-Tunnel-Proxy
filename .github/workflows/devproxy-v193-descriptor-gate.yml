@@ -19,6 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          check-latest: true
       - name: Validate signed identity verifier and inert descriptor eligibility
         run: |
           node --check utils/calliope-agent-envelope.cjs

@@ -25,7 +25,7 @@ Use `docker-compose.overlay.yml` to run a dev instance with `NEXT_PUBLIC_BASE_PA
 ```yaml
 services:
   next_path:
-    image: node:20-alpine
+    image: node:24-alpine
     working_dir: /app
     command: ["sh","-lc","corepack enable || true; npm i; npm run dev"]
     environment:

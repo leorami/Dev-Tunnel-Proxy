@@ -25,7 +25,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24.18.1'
+          node-version: '24.x'
+          check-latest: true
       - name: Verify latest official npm stable matches upstream official release
         id: stable
         shell: bash
@@ -71,6 +72,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Official libsignal latest validated on Linux Node 24.18.1: $LIBSIGNAL_CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Official libsignal latest validated on Linux $(node --version): $LIBSIGNAL_CANDIDATE" >> "$GITHUB_STEP_SUMMARY"
           echo "Source checkout: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
           echo "No owner Mac install, live pairing, license sign-off, private keys or deployment." >> "$GITHUB_STEP_SUMMARY"
