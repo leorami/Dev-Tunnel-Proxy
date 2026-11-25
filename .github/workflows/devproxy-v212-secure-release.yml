@@ -1,15 +1,6 @@
 name: Dev Proxy V212 secure release candidate
 on:
   pull_request:
-    paths:
-      - 'smart-build.sh'
-      - 'tests/**'
-      - 'test/**'
-      - 'scripts/**'
-      - 'utils/**'
-      - 'utils/proxyConfigAPI.js'
-      - 'config/**'
-      - '.github/workflows/devproxy-v212-secure-release.yml'
   workflow_dispatch:
 permissions:
   contents: read
