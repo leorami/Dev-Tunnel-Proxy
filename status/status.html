@@ -598,7 +598,7 @@
           </nav>
           <span class="divider" aria-hidden="true"></span>
           <div class="header-tools">
-            <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>
+            <button class="btn action" id="reloadConfigs" title="Re-read the last scan report"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>
             <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>
             <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false">
               <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;">
@@ -2200,9 +2200,9 @@
           else if (status === 308) { cls = 'ok'; reason = 'Permanent redirect'; }
           else if (status >= 300 && status < 400) { cls = 'warn'; reason = 'Redirect'; }
           else if (status === 404) { cls = 'warn'; reason = 'Not found - check route configuration'; }
-          else if (status === 0) { cls = 'warn'; reason = 'No response from this target'; }
+          else if (status === 0) { cls = 'warn'; reason = 'No response recorded on that scan'; }
           else if (status >= 400 && status < 500) { cls = 'warn'; reason = 'Client error - check route configuration'; }
-          else if (status >= 500) { cls = 'err'; reason = 'Server error - upstream service issue'; }
+          else if (status >= 500) { cls = 'err'; reason = 'Reported server error on that scan'; }
           
           const labelName = (t === 'local-proxy') ? 'localhost' : t;
           const label = `${labelName}: ${status}`;
@@ -3102,21 +3102,20 @@
           reloadBtn.appendChild(loadingIcon);
           reloadBtn.disabled = true;
           
-          // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
-          let scanSuccess = false;
+          // Re-read the existing report. This does not start a scan.
+          let reportRead = false;
           const timestamp = Date.now();
           const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
             headers: { 'ngrok-skip-browser-warning': 'true' },
-            cache: 'no-cache'
+            cache: 'no-store'
           });
           if (freshRoutes.ok) {
-            scanSuccess = true;
-            logInfo('Routes data refreshed');
+            reportRead = true;
+            logInfo('Last scan report re-read');
           }
           
-          if (scanSuccess) {
-            // Success feedback
-            reloadBtn.textContent = 'Reloaded!';
+          if (reportRead) {
+            reloadBtn.textContent = 'Report re-read';
             reloadBtn.style.background = '#16402b';
             reloadBtn.style.borderColor = '#2a7f54';
             reloadBtn.style.color = '#a6f3cc';
@@ -3133,25 +3132,18 @@
           console.error('Config reload failed:', error);
           
           // Error feedback
-          reloadBtn.textContent = 'Failed - Try Manual';
+          reloadBtn.textContent = 'Report unavailable';
           reloadBtn.style.background = 'rgba(239,68,68,.15)';
           reloadBtn.style.borderColor = '#ef4444';
           reloadBtn.style.color = '#ef4444';
           
-          // Show manual instructions
-          const instructions = `
-To reload manually, run:
-node test/scanApps.js
-./scripts/smart-build.sh
-
-Or check if config files have syntax errors.
-          `.trim();
+          const instructions = 'The last scan report could not be re-read. This button does not start a new scan or change configuration.';
           
           setTimeout(async () => {
             const confirmed = await window.DTP.showDialog({
               type: 'confirm',
-              title: 'Reload Failed',
-              message: `Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page anyway to check if configs were updated externally?`
+              title: 'Report unavailable',
+              message: `${instructions}\n\nWould you like to refresh the page anyway to show the report already loaded?`
             });
             if (confirmed) {
               location.reload();
@@ -3632,11 +3624,37 @@ Or check if config files have syntax errors.
         bd.className='backdrop';
         const modal = document.createElement('div');
         modal.className='modal';
-        modal.innerHTML = `<h2>Diagnose: <code>${routeKey}</code></h2>
-          <div class="section"><h3>Detected Issues</h3><div id="issues"></div></div>
-          <div class="section"><h3>Suggested Nginx Snippet</h3><pre id="snippet"></pre></div>
-          <div class="section"><h3>Repair Commands</h3><pre id="commands"></pre></div>
-          <div class="toolbar"><button class="btn" id="copySnippet">Copy snippet</button><button class="btn" id="copyCmds">Copy commands</button><button class="btn" id="close">Close</button></div>`;
+        const heading = document.createElement('h2');
+        heading.appendChild(document.createTextNode('Diagnose: '));
+        const routeCode = document.createElement('code');
+        routeCode.textContent = String(routeKey);
+        heading.appendChild(routeCode);
+        function section(title, child){
+          const wrap = document.createElement('div');
+          wrap.className = 'section';
+          const h = document.createElement('h3');
+          h.textContent = title;
+          wrap.appendChild(h);
+          wrap.appendChild(child);
+          return wrap;
+        }
+        const issuesBox = document.createElement('div');
+        issuesBox.id = 'issues';
+        const snippetPre = document.createElement('pre');
+        snippetPre.id = 'snippet';
+        const commandsPre = document.createElement('pre');
+        commandsPre.id = 'commands';
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        for (const spec of [['copySnippet','Copy snippet'],['copyCmds','Copy commands'],['close','Close']]){
+          const button = document.createElement('button');
+          button.className = 'btn';
+          button.id = spec[0];
+          button.type = 'button';
+          button.textContent = spec[1];
+          toolbar.appendChild(button);
+        }
+        modal.append(heading, section('Detected Issues', issuesBox), section('Suggested Nginx Snippet', snippetPre), section('Repair Commands', commandsPre), toolbar);
         bd.appendChild(modal);
         document.body.appendChild(bd);
 
@@ -3651,7 +3669,13 @@ Or check if config files have syntax errors.
           if (info.websocket && !info.websocket.ok) issues.push(`${t}: websocket upgrade failed`);
         }
         if (!issues.length) issues.push('No obvious issues detected.');
-        modal.querySelector('#issues').innerHTML = `<ul>${issues.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+        const issueList = document.createElement('ul');
+        for (const issue of issues){
+          const item = document.createElement('li');
+          item.textContent = issue;
+          issueList.appendChild(item);
+        }
+        issuesBox.appendChild(issueList);
 
         // Build snippet template
         const name = routeKey.replace(/^\/(.*?)\/?$/, '$1');
