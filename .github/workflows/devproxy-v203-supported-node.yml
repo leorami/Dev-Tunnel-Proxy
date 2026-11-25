@@ -48,7 +48,7 @@ jobs:
       - name: Pinned notification launcher with synthetic engine only
         run: node --test tests/security/v209-notification-pinned-runtime.test.cjs
       - name: Historical status report evidence and safe presentation
-        run: node --test tests/security/v210-status-report-trust.test.cjs
+        run: node --test tests/security/v210-status-report-trust.test.cjs tests/security/v160-status-calliope-experience.test.cjs tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs tests/security/calliope-status-chat-singleflight.test.cjs
       - name: Check affected executable syntax without launching any service
         run: |
           bash -n smart-build.sh
