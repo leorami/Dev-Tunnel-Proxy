@@ -68,7 +68,7 @@ This guide helps you manually verify that the Calliope enable/disable logic is w
      -v $(pwd):/app \
      -w /app \
      -e NODE_ENV=development \
-     node:18-alpine \
+     node:24-alpine \
      node utils/proxyConfigAPI.js
    ```
 

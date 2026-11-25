@@ -72,13 +72,13 @@ for (const config of ['config/default.conf','config/default.production.conf']) {
   test(config+' authenticates management prefixes before they proxy the control plane', () => {
     const source=read(config);
     for (const marker of [
-      'location /devproxy/api/ai/ {',
-      'location /devproxy/api/config/ {',
+      'location ^~ /devproxy/api/ai/ {',
+      'location ^~ /devproxy/api/config/ {',
       'location ^~ /devproxy/api/apps/ {',
-      'location /devproxy/api/overrides/ {',
-      'location /devproxy/api/reports/ {',
-      'location /devproxy/api/resolve-conflict {',
-      'location /devproxy/api/rename-route {',
+      'location ^~ /devproxy/api/overrides/ {',
+      'location ^~ /devproxy/api/reports/ {',
+      'location ^~ /devproxy/api/resolve-conflict {',
+      'location ^~ /devproxy/api/rename-route {',
     ]) {
       const index=source.indexOf(marker);
       assert.notEqual(index,-1,marker);
