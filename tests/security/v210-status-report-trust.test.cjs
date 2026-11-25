@@ -54,3 +54,26 @@ test('overview explicitly distinguishes last scan observations from live status 
   const loader=region('async function loadJSON(url)', 'let routesData');
   assert.match(loader,/cache:\s*['"]no-store['"]/);
 });
+test('reachable diagnose modal does not place report-controlled values into HTML markup',()=>{
+  const fn=region('function openDiagnoseModal(routeKey, targets, routes){','function openRecommendModal');
+  assert.doesNotMatch(fn,/innerHTML\s*=\s*`/);
+  assert.doesNotMatch(fn,/issues\.map\(i=>`<li>/);
+  assert.match(fn,/textContent/);
+});
+test('report re-read does not claim a new scan or name the legacy scanner',()=>{
+  const fn=region('async function reloadConfigs()','function viewSourceJson');
+  assert.doesNotMatch(fn,/scanApps|Reloaded!|smart-build\.sh/);
+  assert.match(fn,/cache:\s*['"]no-store['"]/);
+  assert.match(fn,/Report re-read/);
+  assert.match(fn,/does not start a new scan/);
+  const button=html.slice(html.indexOf('id="reloadConfigs"'), html.indexOf('id="reloadConfigs"')+240);
+  assert.doesNotMatch(button,/rescan/);
+  assert.match(button,/last scan report/i);
+});
+test('historical server errors stay observations from that scan',()=>{
+  const fn=region('function addStatusChips(container, route, targets, routes){','function severityOf');
+  assert.doesNotMatch(fn,/upstream service issue/);
+  assert.match(fn,/Last scan only:/);
+  assert.match(fn,/Reported server error on that scan/);
+  assert.match(fn,/No response recorded on that scan/);
+});
