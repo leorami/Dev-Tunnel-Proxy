@@ -718,6 +718,11 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V210 historical status report trust (source only)" \
+      "node --test '$ROOT_DIR/tests/security/v210-status-report-trust.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "Calliope status chat single-flight and honest observation" \
       "node --test '$ROOT_DIR/tests/security/calliope-status-chat-singleflight.test.cjs'" || test_result=1
   fi
