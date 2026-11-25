@@ -1,0 +1,44 @@
+name: Dev Proxy V212 secure release candidate
+on:
+  pull_request:
+    paths:
+      - 'smart-build.sh'
+      - 'tests/security/v212-*.test.cjs'
+      - '.github/workflows/devproxy-v212-secure-release.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  runner-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Test runner source contract only
+        run: node --test tests/security/v212-secure-release-runner.test.cjs
+  full-current-contract:
+    needs: runner-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Prepare existing mandatory isolated nginx fixture
+        run: docker pull nginx:1.26.3-alpine
+      - name: Run full current secure-mode contract (no owner runtime)
+        run: |
+          git log -1 --format=%H
+          node --version
+          bash -n smart-build.sh
+          bash ./smart-build.sh test:all

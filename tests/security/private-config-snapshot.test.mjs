@@ -22,8 +22,8 @@ function writeRepo(repo,{marker='OWNER_SECRET_MARKER_TEST_999',route='location /
 }
 
 function setup(t){
-  // Use /private/tmp so ancestor walks do not false-fail on macOS /var -> /private/var.
-  const base=fs.mkdtempSync(path.join('/private/tmp','devproxy-recovery-fixture-'));
+  // Use the real platform temporary root, not a symlinked macOS ancestor or a hardcoded Linux-incompatible path.
+  const base=fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()),'devproxy-recovery-fixture-'));
   t.after(()=>fs.rmSync(base,{recursive:true,force:true}));
   const home=path.join(base,'owner-home');
   const repo=path.join(base,'test-repo');
