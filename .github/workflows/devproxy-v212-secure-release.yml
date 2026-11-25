@@ -3,7 +3,12 @@ on:
   pull_request:
     paths:
       - 'smart-build.sh'
-      - 'tests/security/v212-*.test.cjs'
+      - 'tests/**'
+      - 'test/**'
+      - 'scripts/**'
+      - 'utils/**'
+      - 'utils/proxyConfigAPI.js'
+      - 'config/**'
       - '.github/workflows/devproxy-v212-secure-release.yml'
   workflow_dispatch:
 permissions:

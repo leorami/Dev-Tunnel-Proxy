@@ -63,6 +63,24 @@ test('strict evidence rejects omitted, skipped, cancelled, todo and failing summ
  }
  assert.notEqual(run(good.map(x=>x==='# pass 2'?'# pass 1':x)),0);
 });
+test('full gate workflow reruns for every path the candidate exercises',()=>{
+ const wf=fs.readFileSync(path.join(root,'.github/workflows/devproxy-v212-secure-release.yml'),'utf8');
+ const on=wf.slice(wf.indexOf('on:'),wf.indexOf('permissions:'));
+ for(const entry of ["'tests/**'","'test/**'","'scripts/**'","'utils/**'","'config/**'","'utils/proxyConfigAPI.js'","'smart-build.sh'","'.github/workflows/devproxy-v212-secure-release.yml'"]){
+  assert.ok(on.includes(entry),'missing pull_request path '+entry);
+ }
+});
+test('unit lane temp roots use the platform temporary directory, not hardcoded /private/tmp',()=>{
+ const unit=section('cmd_test_unit','cmd_test_all');
+ const files=[...unit.matchAll(/'\$ROOT_DIR\/([^']+)'/g)].map(m=>m[1]);
+ assert.ok(files.length>0,'unit lane lists no test files');
+ const offenders=[];
+ for(const rel of files){
+  const src=fs.readFileSync(path.join(root,rel),'utf8');
+  if(/mkdtemp(?:Sync)?\(\s*(?:path\.join\(\s*)?['"]\/private\/tmp['"]/.test(src))offenders.push(rel);
+ }
+ assert.deepEqual(offenders,[]);
+});
 test('hosted CI guard rejects ordinary host before any fixture starts',()=>{
  const {spawnSync}=require('node:child_process');
  const guard=build.slice(build.indexOf('require_isolated_release_ci() {'),build.indexOf('# Require actual Node test summaries'));
