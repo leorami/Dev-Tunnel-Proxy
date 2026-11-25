@@ -24,7 +24,8 @@ test('local Ask is authenticated, trusted Origin-gated and precedes legacy Docke
 
 test('local response contract matches existing chat UI and never claims healing or AI model',()=>{
  assert.match(ui,/fetch\('\/devproxy\/api\/ai\/ask'/);
- assert.match(ui,/JSON.stringify\(\{ query: q \}\)/);
+ assert.match(ui,/JSON\.stringify\(\{\s*query\s*:\s*q\s*\}\)/);
+ assert.match(ui,/fetch\('\/devproxy\/api\/ai\/ask',\s*\{\s*method:\s*'POST',\s*credentials:\s*'include'/);
  assert.match(src,/usedAI:false,healingPerformed:false,liveAttested:false/);
  const safeStart=src.indexOf("if(req.method==='POST'&&u.pathname===apiPath('ai/ask')&&inlineHostDockerUnavailable())");
  const safeEnd=src.indexOf('// RC2_SECURE_HTTP_AUDIT',safeStart);
@@ -35,6 +36,13 @@ test('secure ai/health advertises local_documentation without claiming OpenAI as
  const healthEarly=src.indexOf('RC2_V95_LOCAL_CHAT health');
  const gate=src.indexOf('const controlGate=classifySecureManagementOperation(');
  assert.ok(healthEarly>0&&healthEarly<gate);
- assert.match(src,/mode: 'local_documentation'/);
- assert.match(src,/local_reviewed_heal_explain/);
+ const block=src.slice(healthEarly,src.indexOf('// RC2_SECURE_HTTP_AUDIT',healthEarly));
+ assert.match(block,/createMinimalPublicCalliopeHealth\(\)/);
+ assert.match(block,/publicCalliopeHealthCacheHeaders\(\)/);
+ const health=require('../../utils/rc2-public-calliope-health-privacy.cjs');
+ assert.deepEqual(health.createMinimalPublicCalliopeHealth(),{enabled:true,mode:'local_documentation',usedAI:false,healingPerformed:false,liveAttested:false});
+ const explanation=require('../../utils/rc2-local-calliope-observe-explain.cjs').explainLocalCalliopeCapability('How does Calliope fix a Next.js redirect loop?');
+ assert.equal(explanation.mode,'local_reviewed_heal_explain');
+ assert.equal(explanation.executionAuthorized,false);
+ assert.equal(explanation.healingPerformed,false);
 });
