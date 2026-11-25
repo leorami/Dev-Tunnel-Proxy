@@ -47,7 +47,7 @@ async function regenerateNginxBundle() {
     } catch (e) {
       // Fallback to docker-run only if direct node execution is unavailable
       refuseInlineDocker('docker-run-generate');
-      execSync('docker run --rm --network devproxy -v "' + ROOT + ':/app" -w /app node:18-alpine node utils/generateAppsBundle.js', { 
+      execSync('docker run --rm --network devproxy -v "' + ROOT + ':/app" -w /app node:24-alpine node utils/generateAppsBundle.js', { 
         encoding: 'utf8' 
       });
     }
@@ -1640,11 +1640,11 @@ async function advancedSelfHeal(options = {}) {
     try {
       // Prefer running locally first (mounted volume in dev-calliope-api)
       try { await exec('node test/scanApps.js', { cwd: ROOT }); } catch (_) {
-        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:18-alpine node test/scanApps.js');
+        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:24-alpine node test/scanApps.js');
       }
       // Run health check
       try { await exec('node test/run.js', { cwd: ROOT }); } catch (_) {
-        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:18-alpine node test/run.js');
+        await exec('docker run --rm --network devproxy -v ' + ROOT + ':/app -w /app node:24-alpine node test/run.js');
       }
 
       // Recreate symlinks
