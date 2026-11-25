@@ -692,7 +692,7 @@
                 <span class="icon-badge settings"><i data-lucide="alert-triangle" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
                 <div>
                   <p class="card-title">Route Conflicts</p>
-                  <p class="card-subtitle">Multiple configurations are competing for the same URL paths</p>
+                  <p class="card-subtitle">Historical observations; verify current configuration before acting</p>
                 </div>
               </div>
               <div class="header-actions">
@@ -906,7 +906,7 @@
       }
 
       async function loadJSON(url){
-        const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning':'true' } });
+        const res = await fetch(url, { cache: 'no-store', headers: { 'ngrok-skip-browser-warning':'true' } });
         if(!res.ok) throw new Error('HTTP '+res.status);
         return res.json();
       }
@@ -2206,7 +2206,7 @@
           
           const labelName = (t === 'local-proxy') ? 'localhost' : t;
           const label = `${labelName}: ${status}`;
-          const statusChip = chip(label, cls, reason);
+          const statusChip = chip(label, cls, 'Last scan only: ' + reason);
           container.appendChild(statusChip);
         }
       }
@@ -2898,7 +2898,9 @@
         // Build overview chips row with bold labels (DOM text nodes; no HTML interpolation)
         const summaryWrap = document.getElementById('summaryChips');
         summaryWrap.textContent = '';
-        const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
+        const reportTime = typeof routes.generatedAt === 'string' ? Date.parse(routes.generatedAt) : NaN;
+        const generatedTime = Number.isFinite(reportTime) && reportTime <= Date.now()
+          ? new Date(reportTime).toLocaleString() : 'Unknown';
         const targets = Object.keys(routes.summary||{});
         function appendLabeledSummaryChip(label, value) {
           const chip = chipEl('', '');
@@ -2908,14 +2910,15 @@
           chip.appendChild(document.createTextNode(' ' + String(value)));
           summaryWrap.appendChild(chip);
         }
-        appendLabeledSummaryChip('Generated', generatedTime);
+        appendLabeledSummaryChip('Last scan', generatedTime);
+        appendLabeledSummaryChip('Evidence', 'Last scan only; not live health');
         appendLabeledSummaryChip('Proxy URL', ngrokTxt);
         appendLabeledSummaryChip('Targets', targets.join(', ') || '—');
 
         // Add conflict alert chip if any
         const conf = routes.nginxConflicts || routes.conflictSummary || {};
         if (conf.totalConflicts > 0) {
-          const c = chipEl('Conflict Detected', 'err');
+          const c = chipEl('Reported conflicts', 'warn');
           c.style.fontWeight = '700';
           c.style.cursor = 'pointer';
           c.onclick = () => { 
@@ -3259,165 +3262,91 @@ Or check if config files have syntax errors.
         const conflictsDiv = document.getElementById('conflicts');
         const ackBtn = document.getElementById('conflictAckBtn');
         const fixBtn = document.getElementById('conflictFixBtn');
-        
-        const confSummary = routes.nginxConflicts || routes.conflictSummary || {};
-        const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
-                            (confSummary.totalConflicts > 0);
-        
-        // Hide indicator if user acknowledged
-        try{ 
-          const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null'); 
-          if (ack && ack.ts && (Date.now() - ack.ts < 7*24*3600*1000)) {
-            if (!hasConflicts) {
-              conflictCard.classList.add('hidden');
-              return;
-            }
-          }
-        }catch{}
-
-        if (!hasConflicts) { conflictCard.classList.add('hidden'); return; }
-        
-        conflictCard.classList.remove('hidden');
-        
-        conflictsDiv.innerHTML = '';
-        
-        // Parse nginx warnings to extract conflict information
-        const conflicts = parseConflictWarnings(routes.nginxWarnings || []);
-        
-        // Wire buttons (after conflicts are parsed)
-        if (ackBtn) {
-          ackBtn.onclick = () => { 
-            try{ localStorage.setItem('conflictsAck', JSON.stringify({ ts: Date.now() })); }catch{} 
-            conflictCard.classList.add('hidden'); 
-            window.DTP.showToast('info', 'Conflicts dismissed');
-          };
-        }
-        
-        if (fixBtn) {
-          fixBtn.onclick = () => {
-            const conflictText = conflicts.length > 0 
-              ? conflicts.map(c => `Route ${c.route} is claimed by ${c.configs.join(' and ')}.`).join('\n')
-              : `${confSummary.totalConflicts || 'Some'} route conflicts detected.`;
-            
-            const prompt = `I see some route conflicts in my configuration:\n\n${conflictText}\n\nCan you help me resolve these? I'm not sure which config should win or if I should rename some routes.`;
-            
-            // Open Calliope
-            const drawer = document.getElementById('aiDrawer');
-            if (drawer) {
-              drawer.classList.remove('collapsed');
-              document.body.classList.add('ai-open');
-              
-              // Set query and ask
-              setTimeout(() => {
-                const queryEl = document.getElementById('aiQuery');
-                if (queryEl) {
-                  queryEl.value = prompt;
-                  const askBtn = document.getElementById('aiAskBtn');
-                  if (askBtn) {
-                    setTimeout(() => askBtn.click(), 100);
-                  }
-                }
-              }, 200);
-            }
-          };
-        }
-        
-        if (conflicts.length === 0 && hasConflicts) {
-          conflictsDiv.innerHTML = `<div class="suggestion-item" style="padding: 16px; border: 1px dashed var(--err); border-radius: 8px; margin-bottom: 16px;">
-            <p style="margin: 0; color: var(--err); font-weight: 600;">⚠️ Detected ${confSummary.totalConflicts} conflicts, but couldn't parse the details.</p>
-            <p style="margin: 8px 0 0 0; opacity: 0.8;">This usually happens when the nginx logs are in an unexpected format. Try running a manual scan or ask Calliope for help.</p>
-          </div>`;
+        const summary = routes.nginxConflicts || routes.conflictSummary || {};
+        const total = Number.isSafeInteger(summary.totalConflicts) && summary.totalConflicts >= 0
+          ? summary.totalConflicts : null;
+        const warnings = Array.isArray(routes.nginxWarnings) ? routes.nginxWarnings : [];
+        const conflicts = parseConflictWarnings(warnings);
+        if (!warnings.length && !(total > 0)) {
+          conflictCard.classList.add('hidden');
           return;
         }
 
-        conflicts.forEach(conflict => {
-          const conflictDiv = document.createElement('div');
-          conflictDiv.className = 'conflict-item';
-          conflictDiv.style.marginBottom = '20px';
-          conflictDiv.style.padding = '16px';
-          conflictDiv.style.background = 'rgba(239, 68, 68, 0.05)';
-          conflictDiv.style.border = '1px solid rgba(239, 68, 68, 0.2)';
-          conflictDiv.style.borderRadius = '10px';
-          
-          conflictDiv.innerHTML = `
-            <div class="conflict-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-              <div>
-                <h3 style="margin: 0; font-size: 16px; color: var(--err);">Path: ${conflict.route}</h3>
-                <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.8;">Multiple apps are trying to use this URL path. Only one can win.</p>
-              </div>
-              <div class="conflict-status" style="background: var(--err); color: white; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">
-                CONFLICT
-              </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
-              <div class="conflict-options">
-                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Choose a winner:</p>
-                <div class="conflict-configs" style="display: flex; flex-direction: column; gap: 8px;">
-                  ${conflict.configs.map(config => `
-                    <label class="config-option ${config === conflict.winner ? 'active' : ''}" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                      <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''} style="accent-color: var(--ok);">
-                      <div style="flex: 1;">
-                        <span class="config-name" style="font-weight: 600;">${config.replace(/\.conf$/, '')}</span>
-                        ${config === conflict.winner ? '<span style="font-size: 10px; color: var(--ok); margin-left: 6px;">(Current Winner)</span>' : ''}
-                      </div>
-                      <div class="config-actions">
-                        <button class="btn-small" onclick="viewConfig('${config}')" style="padding: 4px 8px; font-size: 11px;">View</button>
-                      </div>
-                    </label>
-                  `).join('')}
-                </div>
-                <button class="btn" onclick="resolveConflict('${conflict.route}')" style="margin-top: 12px; width: 100%; background: var(--ok); border-color: var(--ok); color: white;">Save Winner Selection</button>
-              </div>
-              
-              <div class="conflict-suggestions">
-                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Other Actions:</p>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div style="padding: 12px; background: rgba(127, 176, 255, 0.1); border: 1px dashed var(--lnk); border-radius: 8px;">
-                    <p style="margin: 0; font-size: 12px; font-weight: 600; color: var(--lnk);">💡 Suggestion: Rename Route</p>
-                    <p style="margin: 4px 0 10px 0; font-size: 11px; opacity: 0.8;">Give one of these apps a unique subpath so they can both exist.</p>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      ${conflict.configs.map(config => `
-                        <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')" style="font-size: 10px;">Rename in ${config.replace(/\.conf$/, '')}</button>
-                      `).join('')}
-                    </div>
-                  </div>
-                  
-                  <button class="btn" onclick="autoFixConflict('${conflict.route}')" style="background: var(--panel); border-style: dashed; font-size: 13px;">
-                    <i data-lucide="wand-2" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 6px;"></i>
-                    Try AI Auto-Fix
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-          conflictsDiv.appendChild(conflictDiv);
-        });
-        
-        // Refresh icons for any new content
-        if (window.lucide) lucide.createIcons();
+        conflictCard.classList.remove('hidden');
+        conflictsDiv.textContent = '';
+        function appendText(parent, tag, value, className) {
+          const el = document.createElement(tag);
+          if (className) el.className = className;
+          el.textContent = value;
+          parent.appendChild(el);
+          return el;
+        }
+        appendText(conflictsDiv, 'p',
+          'Historical scan evidence - not live routing authority. No configuration changes can be made from this report.');
+        if (total !== null) {
+          appendText(conflictsDiv, 'p', 'Reported conflict count: ' + total);
+        }
+        appendText(conflictsDiv, 'p', 'Decoded route details: ' + conflicts.length);
+        if (conflicts.length === 0 || warnings.length !== conflicts.length ||
+            (total !== null && total !== conflicts.length)) {
+          appendText(conflictsDiv, 'p',
+            'Some conflict details unavailable or ambiguous. Verify current configuration before acting.', 'suggestion-item');
+        }
+
+        for (const conflict of conflicts) {
+          const item = document.createElement('div');
+          item.className = 'conflict-item';
+          appendText(item, 'h3', 'Reported path: ' + conflict.route);
+          appendText(item, 'p', 'Reported selection: ' + conflict.winner);
+          const list = document.createElement('ul');
+          for (const config of conflict.configs) {
+            appendText(list, 'li', config);
+          }
+          item.appendChild(list);
+          conflictsDiv.appendChild(item);
+        }
+
+        if (ackBtn) ackBtn.onclick = () => {
+          conflictCard.classList.add('hidden');
+          window.DTP.showToast('info', 'Historical conflict report dismissed');
+        };
+        if (fixBtn) fixBtn.onclick = () => {
+          // This is an explicit user click. Do not include report-controlled strings.
+          const drawer = document.getElementById('aiDrawer');
+          const queryEl = document.getElementById('aiQuery');
+          if (!drawer || !queryEl) return;
+          drawer.classList.remove('collapsed');
+          document.body.classList.add('ai-open');
+          queryEl.value = 'Help me understand a historical route conflict report and verify the current configuration without making any changes.';
+          const askBtn = document.getElementById('aiAskBtn');
+          if (askBtn) setTimeout(() => askBtn.click(), 100);
+        };
       }
 
       function parseConflictWarnings(warnings) {
-        const conflicts = [];
-        warnings.forEach(warning => {
-          // Parse warning like: "Route /api/: NEW CONFLICT - app2.conf wins (first config) over test-conflict.conf"
-          const routeMatch = warning.match(/Route ([^:]+):/);
-          const winnerMatch = warning.match(/- ([^\\s]+)\\.conf wins.*over ([^\\s,]+(?:\\.conf)?)/);
-          
-          if (routeMatch && winnerMatch) {
-            const route = routeMatch[1];
-            const winner = winnerMatch[1] + '.conf';
-            const loser = winnerMatch[2].endsWith('.conf') ? winnerMatch[2] : winnerMatch[2] + '.conf';
-            
-            conflicts.push({
-              route,
-              winner,
-              configs: [winner, loser]
-            });
+        if (!Array.isArray(warnings) || warnings.length > 256) return [];
+        const byRoute = new Map();
+        const ambiguous = new Set();
+        const validRoute = route => /^\/[A-Za-z0-9_@./-]*$/.test(route) &&
+          !route.includes('//') && !route.split('/').some(part => part === '.' || part === '..');
+        const validConfig = name => /^(?:(?:apps|overrides)\/)?[A-Za-z0-9_][A-Za-z0-9_.-]*\.conf$/.test(name);
+        for (const warning of warnings) {
+          if (typeof warning !== 'string' || warning.length > 4096) continue;
+          const match = /^Route ([^:]+): NEW CONFLICT - (.+?) wins \(first config\) over (.+)$/.exec(warning) ||
+            /^Route ([^:]+): Using persisted resolution - (.+?) wins \(conflicts with (.+)\)$/.exec(warning);
+          if (!match) continue;
+          const [, route, winner, others] = match;
+          const configs = [winner, ...others.split(', ')];
+          if (!validRoute(route) || configs.length < 2 || configs.length > 64 ||
+              !configs.every(validConfig) || new Set(configs).size !== configs.length) continue;
+          if (byRoute.has(route)) {
+            byRoute.delete(route);
+            ambiguous.add(route);
+          } else if (!ambiguous.has(route)) {
+            byRoute.set(route, {route, winner, configs});
           }
-        });
-        return conflicts;
+        }
+        return Array.from(byRoute.values());
       }
 
       async function resolveConflict(route) {
