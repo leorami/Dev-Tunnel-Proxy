@@ -52,7 +52,7 @@
     header.innerHTML = (
       '<div class="header-row">'+
       '  <h1>'+
-      '    <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>'+
+      '    <img class="header-logo" src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo"/>'+
       '    <span class="brand">Dev Tunnel Proxy</span>'+
       '  </h1>'+
       '  <div class="header-actions">'+

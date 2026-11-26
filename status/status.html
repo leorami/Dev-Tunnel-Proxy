@@ -491,6 +491,10 @@
       /* reserved for legacy global diagnose button (removed) */
       #aiDiagnoseGlobal{display:none}
       @media (max-width:768px){
+        .card-header-row{flex-wrap:wrap}
+        .card-header-row .header-main{flex:1 1 100%;min-width:0}
+        .card-header-row .header-actions{flex:1 1 100%;flex-shrink:1;flex-wrap:wrap;width:100%;max-width:100%}
+        .card-header-row .header-actions .btn{flex:1 1 0;min-height:44px;white-space:normal}
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
         .config-actions{margin-left:0}
@@ -3162,8 +3166,18 @@
         }, 3000);
       }
 
-      // Wire up reload button
-      document.getElementById('reloadConfigs').addEventListener('click', reloadConfigs);
+      // The shared header replaces the static button, so listen for the visible one.
+      document.addEventListener('click', (event) => {
+        const reloadBtn = event.target && event.target.closest && event.target.closest('#reloadConfigs');
+        if (!reloadBtn || reloadBtn.disabled) return;
+        reloadConfigs();
+      });
+      window.addEventListener('DOMContentLoaded', () => {
+        const reloadBtn = document.querySelector('body > header #reloadConfigs');
+        if (!reloadBtn) return;
+        reloadBtn.title = 'Re-read the last scan report';
+        reloadBtn.setAttribute('aria-label', 'Re-read the last scan report');
+      });
 
       // View JSON for specific source file
       function viewSourceJson(sourceFile, routesInSource) {

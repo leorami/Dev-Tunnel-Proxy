@@ -58,6 +58,10 @@
       .quick-actions{display:flex;gap:8px;flex-wrap:wrap}
       footer{margin:24px 0;color:#7f90b3;text-align:center}
       @media (max-width:1280px){.split{grid-template-columns:1fr}}
+      @media (max-width:899px){
+        .container,.split,.grid,.card,pre{min-width:0;max-width:100%}
+        pre{overflow:auto}
+      }
       @media (max-width:1024px){
         .header-row{flex-wrap:wrap;gap:8px}
         .header-actions{gap:6px}
