@@ -2,19 +2,22 @@ name: Dev Proxy V214 synthetic Status visuals
 on:
   push:
     branches:
-      - evidence/devproxy-v214-status-synthetic-visuals-20261126
+      - evidence/devproxy-v214-status-ux-visuals-20261126
     paths:
       - '.github/workflows/devproxy-v214-status-synthetic-visuals.yml'
       - 'scripts/visuals/capture_status_synthetic.py'
       - 'scripts/visuals/fixtures/v214_status_synthetic.json'
       - 'tests/visuals/test_v214_status_synthetic.py'
+      - 'tests/visuals/test_v214_status_ux_browser.py'
+      - 'tests/visuals/status_browser_harness.py'
+      - 'tests/visuals/fixtures/v214_status_synthetic.json'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   synthetic-status-visuals:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,7 +32,10 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Verify synthetic fixture gates
         run: python -m unittest tests.visuals.test_v214_status_synthetic -v
+      - name: Status refresh, conflict card, and mobile header browser tests
+        run: python -m unittest tests.visuals.test_v214_status_ux_browser -v
       - name: Render the reviewed Status document from the synthetic fixture
+        if: always()
         env:
           SOURCE_SHA: ${{ github.sha }}
         run: |
@@ -37,9 +43,10 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --output-dir "$RUNNER_TEMP/v214-status-synthetic"
       - name: Upload synthetic originals, manifest, and source snippets
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: devproxy-v214-status-synthetic-originals
+          name: devproxy-v214-status-ux-originals
           path: |
             ${{ runner.temp }}/v214-status-synthetic/*.png
             ${{ runner.temp }}/v214-status-synthetic/MANIFEST.json
