@@ -66,6 +66,13 @@ header h1 .brand {
   color: var(--heading);
 }
 
+.header-logo {
+  height: 40px;
+  width: auto;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+
 /* Header action buttons container */
 .header-actions {
   display: flex;
@@ -546,35 +553,27 @@ body.ai-open[data-page="reports"] .container {
 
 /* V161 mobile header: intentional multi-row nav/tools; no horizontal document scroll */
 @media (max-width: 899px) {
+  body > header {
+    padding: 8px 12px;
+  }
+
   body > header > .header-row {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
     flex-wrap: wrap;
-    gap: 10px;
+  }
+
+  body > header > .header-row > h1 {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
   }
 
   body > header > .header-row > .header-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    flex-wrap: wrap;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    gap: 8px;
-  }
-
-  body > header .header-actions .header-nav,
-  body > header .header-actions .header-tools {
-    display: flex;
-    flex-wrap: wrap;
-    width: 100%;
-    max-width: 100%;
-    gap: 8px;
-  }
-
-  body > header .header-actions .divider {
-    display: none;
+    display: contents;
   }
 
   body > header .header-actions .btn,
@@ -582,11 +581,65 @@ body.ai-open[data-page="reports"] .container {
   body > header .header-actions .action {
     min-height: 44px;
     box-sizing: border-box;
+    flex: 0 0 auto;
+  }
+
+  body > header .header-actions .header-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 16px), transparent);
+  }
+
+  body > header .header-actions .header-tools {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    max-width: 100%;
+  }
+
+  body > header .header-actions .divider {
+    display: none;
+  }
+
+  body > header .header-logo {
+    height: 32px;
+    margin-right: 8px;
+  }
+
+  body > header h1 .brand {
+    display: block;
+    min-width: 0;
+    overflow: clip;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   body > header .header-actions .action {
     min-width: 44px;
     justify-content: center;
+  }
+}
+
+@media (max-width: 379px) {
+  body > header h1 .brand {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 
