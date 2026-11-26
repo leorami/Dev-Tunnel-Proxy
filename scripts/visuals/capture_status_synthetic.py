@@ -25,11 +25,19 @@ PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
 V214_ENGINEER_TIP = "d65aa16e538aa475462f8671d0526326705f1f81"
-EXPECTED_STATUS_TREE = "6285c32f4fa81f600c8e53695a87c9b55523cd00"
+EXPECTED_STATUS_TREE = "a55d2193fc27ab8892a931566d74ea60e05d5753"
+CHANGED_FROM_V213 = (
+    "status/common.css",
+    "status/common.js",
+    "status/health.html",
+    "status/status.html",
+)
 EXPECTED_BLOBS = {
-    "status/status.html": "1728475984c35569b5b45caac0bed944ca7535a9",
-    "status/common.js": "33d757a78f2d65edcaad93d543fa955010a7e069",
-    "status/common.css": "28f006befdc02bc93f460abf04d2241a7a05ef4b",
+    "status/status.html": "29ff825452740404f712cb89424f105266a13076",
+    "status/common.js": "021fbb89e9c543924798c5ce3c509600eb077be0",
+    "status/common.css": "454d9280fa8e2a2a28b405037fddefb9c9d76cdc",
+    "status/health.html": "648bd663e26a5d34e987624e0aedc33ee17b4ad8",
+    "status/reports.html": "42aebbec2626703a8b2d9ee671ff387e637e5546",
     "status/config.js": "bd858c04942a6756dd43180830120463fe5eea5c",
     "status/vendor/lucide.min.js": "0123783f406f3141429457cf42d6afe86f01486d",
     "status/vendor/marked.min.js": "e12b0fab1b958792f45849d31abb3cdecc012d1b",
@@ -42,15 +50,20 @@ EXPECTED_BLOBS = {
 }
 LINE_ANCHORS = {
     "status/status.html": {
-        2913: "Last scan",
-        2914: "Last scan only; not live health",
-        3166: "reloadConfigs",
-        3277: "Historical scan evidence",
-        3285: "Some conflict details unavailable",
+        2917: "Last scan",
+        2918: "Last scan only; not live health",
+        3171: "reloadConfigs",
+        3291: "Historical scan evidence",
+        3299: "Some conflict details unavailable",
     },
     "status/common.js": {
+        55: "header-logo",
         68: 'id="reloadConfigs"',
         87: "replaceWith(h)",
+    },
+    "status/common.css": {
+        554: "V161 mobile header",
+        561: "display: grid",
     },
 }
 API_PATHS = {
@@ -65,6 +78,8 @@ API_PATHS = {
     "/devproxy/api/overrides/conflicts",
     "/devproxy/api/settings/auto-scan",
     "/devproxy/api/notifications",
+    "/health.json",
+    "/devproxy/api/reports/list",
 }
 FRAMES = (
     {"file": "status-desktop-light-drawer-open.png", "width": 1365, "height": 900,
@@ -76,7 +91,21 @@ FRAMES = (
     {"file": "status-mobile-dark.png", "width": 390, "height": 844,
      "theme": "dark", "state": "drawer-closed", "conflicts": "ambiguous"},
     {"file": "status-desktop-light-conflicts-decoded.png", "width": 1365, "height": 900,
-     "theme": "light", "state": "conflicts-decoded", "conflicts": "decoded"},
+     "theme": "light", "state": "conflicts-decoded", "conflicts": "decoded", "page": "status"},
+    {"file": "status-desktop-light-report-reread.png", "width": 1365, "height": 900,
+     "theme": "light", "state": "report-reread", "conflicts": "ambiguous", "page": "status"},
+    {"file": "status-mobile-light-conflicts.png", "width": 390, "height": 844,
+     "theme": "light", "state": "conflict-scrolled", "conflicts": "ambiguous", "page": "status"},
+    {"file": "status-mobile-dark-conflicts.png", "width": 390, "height": 844,
+     "theme": "dark", "state": "conflict-scrolled", "conflicts": "ambiguous", "page": "status"},
+    {"file": "health-mobile-light.png", "width": 390, "height": 844,
+     "theme": "light", "state": "header", "conflicts": "ambiguous", "page": "health"},
+    {"file": "health-mobile-dark.png", "width": 390, "height": 844,
+     "theme": "dark", "state": "header", "conflicts": "ambiguous", "page": "health"},
+    {"file": "reports-mobile-light.png", "width": 390, "height": 844,
+     "theme": "light", "state": "header", "conflicts": "ambiguous", "page": "reports"},
+    {"file": "reports-mobile-dark.png", "width": 390, "height": 844,
+     "theme": "dark", "state": "header", "conflicts": "ambiguous", "page": "reports"},
 )
 
 
@@ -104,7 +133,8 @@ def classify_request(method: str, url: str) -> str:
     if method == "HEAD":
         return "deny-fixture"
     query = parsed.query
-    if query and not re.fullmatch(r"_t=\d{1,16}", query):
+    reports_list = path == "/devproxy/api/reports/list" and re.fullmatch(r"page=\d{1,4}&limit=\d{1,4}", query or "")
+    if query and not re.fullmatch(r"_t=\d{1,16}", query) and not reports_list:
         return "deny-fixture"
     return "fulfill"
 
@@ -151,12 +181,10 @@ def verify_repository(repo: Path) -> str:
     head_tree = git_output(repo, "rev-parse", "HEAD:status")
     if head_tree != EXPECTED_STATUS_TREE:
         raise CaptureError("status_tree_drift")
-    try:
-        v213_tree = git_output(repo, "rev-parse", f"{V213_TESTED_TREE}:status")
-    except CaptureError:
-        v213_tree = ""
-    if v213_tree and v213_tree != head_tree:
-        raise CaptureError("v213_status_tree_mismatch")
+    diff = git_output(repo, "diff", "--name-only", V213_TESTED_TREE, "HEAD", "--", "status")
+    changed = tuple(sorted(line for line in diff.splitlines() if line))
+    if changed != tuple(sorted(CHANGED_FROM_V213)):
+        raise CaptureError("v213_status_diff")
     for rel, anchors in LINE_ANCHORS.items():
         lines = (repo / rel).read_text(encoding="utf-8").splitlines()
         for number, needle in anchors.items():
@@ -238,6 +266,10 @@ def response_for(repo: Path, fixture: dict, conflict_key: str, path: str) -> tup
             "ok": True, "settings": {"enabled": False, "intervalSeconds": 60},
         })),
         "/devproxy/api/notifications": ("application/json", json_body({"ok": True})),
+        "/health.json": ("application/json", json_body({"status": "ok"})),
+        "/devproxy/api/reports/list": ("application/json", json_body({
+            "ok": True, "items": [], "pagination": {"total": 0},
+        })),
     }
     return bodies.get(path)
 
@@ -313,51 +345,72 @@ def source_snippets(repo: Path) -> str:
         "These lines are the reviewed Status document and its tested dependencies.",
         "`testedSourceSha=servedSha` in the manifest is the evidence commit that rendered this fixture, not the mixed owner tree.",
         "",
-        block("status/status.html", 2913, 2914),
-        block("status/status.html", 3276, 3286),
-        block("status/status.html", 3165, 3166),
+        block("status/status.html", 2917, 2918),
+        block("status/status.html", 3289, 3299),
+        block("status/status.html", 3169, 3180),
+        block("status/common.js", 55, 55),
         block("status/common.js", 68, 68),
         block("status/common.js", 86, 87),
+        block("status/common.css", 554, 565),
         "",
-        "The visible header reload control is the `common.js` replacement.",
-        "The document binds `reloadConfigs` on the button that replacement removes, so the visible control sends nothing.",
+        "The visible header reload control is still the `common.js` replacement.",
+        "A document click listener calls `reloadConfigs` for that button, including the one installed on DOMContentLoaded.",
+        "A later DOMContentLoaded listener names the visible button as a re-read of the last scan report.",
         "",
     ])
 
 
 def _wait_ready(page, frame: dict) -> None:
     page.wait_for_function(
-        """() => {
-          const apps = document.querySelector('#apps');
-          if (!apps || apps.textContent.startsWith('Error:')) return false;
-          return !!apps.querySelector('.app')
-            && document.body.innerText.includes('Last scan only; not live health')
-            && document.body.innerText.includes('Reported conflicts');
-        }""",
-        timeout=25000,
+        "() => !!document.querySelector('body > header #reloadConfigs')",
+        timeout=15000,
     )
-    if frame["conflicts"] == "decoded":
+    if frame.get("page", "status") == "status":
         page.wait_for_function(
-            "() => document.body.innerText.includes('Decoded route details: 1') && document.body.innerText.includes('Reported path:')",
+            """() => {
+              const apps = document.querySelector('#apps');
+              if (!apps || apps.textContent.startsWith('Error:')) return false;
+              return !!apps.querySelector('.app')
+                && document.body.innerText.includes('Last scan only; not live health')
+                && document.body.innerText.includes('Reported conflicts');
+            }""",
+            timeout=25000,
+        )
+        if frame["conflicts"] == "decoded":
+            page.wait_for_function(
+                "() => document.body.innerText.includes('Decoded route details: 1') && document.body.innerText.includes('Reported path:')",
+                timeout=10000,
+            )
+        else:
+            page.wait_for_function(
+                """() => document.body.innerText.includes('Decoded route details: 0')
+                  && document.body.innerText.includes('Some conflict details unavailable or ambiguous.')""",
+                timeout=10000,
+            )
+        opened = frame["state"] == "drawer-open"
+        page.wait_for_function(
+            """(opened) => {
+              const drawer = document.getElementById('aiDrawer');
+              if (!drawer) return false;
+              const collapsed = drawer.classList.contains('collapsed');
+              return opened ? !collapsed : collapsed;
+            }""",
+            arg=opened,
             timeout=10000,
         )
-    else:
+        if frame["state"] == "conflict-scrolled":
+            page.locator("#conflictCard").scroll_into_view_if_needed()
+        if frame["state"] == "report-reread":
+            page.locator("body > header #reloadConfigs").click()
+            page.wait_for_function(
+                "() => (document.querySelector('body > header #reloadConfigs').textContent || '').includes('Report re-read')",
+                timeout=8000,
+            )
+    elif frame.get("page") == "health":
         page.wait_for_function(
-            """() => document.body.innerText.includes('Decoded route details: 0')
-              && document.body.innerText.includes('Some conflict details unavailable or ambiguous.')""",
-            timeout=10000,
+            "() => document.body.innerText.includes('example-tunnel.invalid')",
+            timeout=15000,
         )
-    opened = frame["state"] == "drawer-open"
-    page.wait_for_function(
-        """(opened) => {
-          const drawer = document.getElementById('aiDrawer');
-          if (!drawer) return false;
-          const collapsed = drawer.classList.contains('collapsed');
-          return opened ? !collapsed : collapsed;
-        }""",
-        arg=opened,
-        timeout=10000,
-    )
     theme = page.evaluate("() => document.documentElement.getAttribute('data-theme')")
     if theme != frame["theme"]:
         raise CaptureError("theme_not_applied")
@@ -419,15 +472,23 @@ def capture(repo: Path, fixture_path: Path, output_dir: Path, source_sha: str) -
                     return handle
 
                 page.route("**/*", make_handler(frame["conflicts"]))
-                page.goto(FIXTURE_ORIGIN + PAGE_PATH, wait_until="domcontentloaded", timeout=25000)
+                page_path = {
+                    "status": "/status/status.html",
+                    "health": "/status/health.html",
+                    "reports": "/status/reports.html",
+                }[frame.get("page", "status")]
+                page.goto(FIXTURE_ORIGIN + page_path, wait_until="domcontentloaded", timeout=25000)
                 _wait_ready(page, frame)
-                page.wait_for_timeout(400)
+                if frame["state"] != "report-reread":
+                    page.wait_for_timeout(400)
                 raw = page.screenshot(type="png", animations="disabled", caret="hide")
                 width, height = png_size(raw)
                 if (width, height) != (frame["width"], frame["height"]):
                     raise CaptureError(f"viewport_mismatch:{frame['file']}:{width}x{height}")
                 visible = page.locator("body").inner_text()
-                if "example-tunnel.invalid" not in visible:
+                if "ngrok.app" in visible or "127.0.0.1" in visible:
+                    raise CaptureError("owner_host_visible")
+                if frame.get("page", "status") != "reports" and "example-tunnel.invalid" not in visible:
                     raise CaptureError("synthetic_proxy_not_visible")
                 images[frame["file"]] = (raw, width, height)
                 context.close()
