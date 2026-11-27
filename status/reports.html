@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="stylesheet" href="/status/global.css" />
-    <link rel="stylesheet" href="/status/common.css" />
+    <link rel="stylesheet" href="/status/common.v215-42c0928ec30a.css" data-dtp-shared-style="v215" />
     <script src="/status/vendor/lucide.min.js"></script>
     <script src="/status/config.js"></script>
-    <script src="/status/common.js"></script>
+    <script src="/status/common.v215-dfd52e64df59.js"></script>
     <style>
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
       .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.12);margin-bottom:16px}
@@ -80,6 +80,51 @@
     <script>
       let currentPage = 1;
       const itemsPerPage = 10;
+      let reportRead = 0;
+
+      function safeTotal(value){
+        return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+      }
+
+      function classifyCatalog(data, page){
+        if (!data || data.ok !== true || !Array.isArray(data.items) || !data.pagination) return { kind: 'malformed' };
+        const total = data.pagination.total;
+        if (!safeTotal(total) || data.items.length > total) return { kind: 'malformed' };
+        const start = (page - 1) * itemsPerPage;
+        if (page > 1 && start >= total) return { kind: 'out-of-range', total: total };
+        if (total === 0 && page === 1 && data.items.length === 0) return { kind: 'empty', total: total };
+        if (data.items.length === 0) return { kind: 'malformed' };
+        return { kind: 'populated', total: total, items: data.items };
+      }
+
+      function clearCatalogChrome(){
+        document.getElementById('pagination-info').textContent = '';
+        document.getElementById('pagination-controls').textContent = '';
+      }
+
+      function paintCatalogMessage(kind, title, detail){
+        const tbody = document.getElementById('rows');
+        tbody.textContent = '';
+        tbody.dataset.catalog = kind;
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        const box = document.createElement('div');
+        box.className = 'empty-state';
+        const heading = document.createElement('div');
+        heading.style.fontSize = '16px';
+        heading.style.fontWeight = '600';
+        heading.style.marginBottom = '8px';
+        heading.textContent = title;
+        const note = document.createElement('div');
+        note.textContent = detail;
+        box.appendChild(heading);
+        box.appendChild(note);
+        td.appendChild(box);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        clearCatalogChrome();
+      }
       
       async function api(path, opts){
         const r = await fetch(path, { 
@@ -105,41 +150,35 @@
         return name.split('.').pop();
       }
       
-      async function load(page = 1){
+      async function load(page = 1, recovery = 0){
+        const read = ++reportRead;
         try {
           currentPage = page;
           const data = await api(`${window.DTP.config.apiPath('reports/list')}?page=${page}&limit=${itemsPerPage}`);
+          if (read !== reportRead) return 'stale';
           const tbody = document.getElementById('rows');
-          tbody.textContent = '';
 
           // V138: honor API contract {ok,items,pagination.total,mtimeMs}.
-          const items = (data && Array.isArray(data.items)) ? data.items : null;
-          const total = (data && data.pagination && Number.isFinite(Number(data.pagination.total)))
-            ? Number(data.pagination.total)
-            : (items ? items.length : 0);
           if (data && data.ok === false) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = 4;
-            const box = document.createElement('div');
-            box.className = 'empty-state';
-            const title = document.createElement('div');
-            title.style.fontSize = '16px';
-            title.style.fontWeight = '600';
-            title.style.marginBottom = '8px';
-            title.textContent = 'Could not load reports';
-            const detail = document.createElement('div');
-            detail.textContent = String((data && data.error) || 'reports_error');
-            box.appendChild(title);
-            box.appendChild(detail);
-            td.appendChild(box);
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            document.getElementById('pagination-info').textContent = '';
-            document.getElementById('pagination-controls').textContent = '';
+            paintCatalogMessage('failed', 'Could not load reports', String((data && data.error) || 'reports_error'));
             return 'failed';
           }
-          if (!items || items.length === 0) {
+          const state = classifyCatalog(data, page);
+          if (state.kind === 'out-of-range' && recovery < 1) {
+            return load(1, recovery + 1);
+          }
+          if (read !== reportRead) return 'stale';
+          if (state.kind === 'malformed') {
+            paintCatalogMessage('malformed', 'Report list could not be read', 'The response was not a valid report catalog.');
+            return 'malformed';
+          }
+          if (state.kind === 'out-of-range') {
+            paintCatalogMessage('out-of-range', 'That page is outside the catalog', 'Nothing was changed.');
+            return 'out-of-range';
+          }
+          if (state.kind === 'empty') {
+            tbody.textContent = '';
+            tbody.dataset.catalog = 'empty';
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 4;
@@ -162,10 +201,13 @@
             td.appendChild(box);
             tr.appendChild(td);
             tbody.appendChild(tr);
-            document.getElementById('pagination-info').textContent = '';
-            document.getElementById('pagination-controls').textContent = '';
+            clearCatalogChrome();
             return 'empty';
           }
+          const items = state.items;
+          const total = state.total;
+          tbody.textContent = '';
+          tbody.dataset.catalog = 'populated';
 
           items.forEach(r => {
             const row = document.createElement('tr');
@@ -254,7 +296,9 @@
           }
           return 'populated';
         } catch (err) {
+          if (read !== reportRead) return 'stale';
           document.getElementById('rows').textContent = '';
+          document.getElementById('rows').dataset.catalog = 'failed';
           const tr = document.createElement('tr');
           const td = document.createElement('td');
           td.colSpan = 4;
@@ -278,9 +322,19 @@
 
       async function refreshReportList(status){
         const outcome = await load(currentPage);
-        if (!status) return;
+        if (!status || outcome === 'stale') return;
         if (outcome === 'failed') {
           status.textContent = 'Could not re-read the report list.';
+          status.classList.add('is-error');
+          return;
+        }
+        if (outcome === 'malformed') {
+          status.textContent = 'Report list could not be read.';
+          status.classList.add('is-error');
+          return;
+        }
+        if (outcome === 'out-of-range') {
+          status.textContent = 'That page is outside the catalog.';
           status.classList.add('is-error');
           return;
         }
