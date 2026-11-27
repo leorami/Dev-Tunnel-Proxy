@@ -26,7 +26,7 @@ PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
 V214_ENGINEER_TIP = "63854b07c6b71945b5eb415441d17112ff10ba5b"
 V215_ENGINEER_TIP = "1238912de95c6b262fdbd82b8da9f7c342d2d460"
-EXPECTED_STATUS_TREE = "f1c1693ae4fd9c2e406b639406727985892fef43"
+EXPECTED_STATUS_TREE = "1696cc771f415725863617b1392ef4324e8c1149"
 CHANGED_FROM_V213 = (
     "status/common.css",
     "status/common.js",
@@ -42,8 +42,8 @@ EXPECTED_BLOBS = {
     "status/common.css": "e2da6231d921893311bda441be3a0161454bd72a",
     "status/common.v215-42c0928ec30a.css": "e2da6231d921893311bda441be3a0161454bd72a",
     "status/common.v215-dfd52e64df59.js": "a3cb96da695e81382737a7c63796c4cba76d149f",
-    "status/health.html": "6b2bd77795fe6e3ca4d2750ad61b24bcd83e166a",
-    "status/reports.html": "22c0d26af6bdbc7cedee6fe82e0b543ab267a777",
+    "status/health.html": "014d74dd771a71c7958263cb9fd584ceb5de472c",
+    "status/reports.html": "1d2184b674afc7fbda6f2c6c2511685726f3e32c",
     "status/config.js": "bd858c04942a6756dd43180830120463fe5eea5c",
     "status/vendor/lucide.min.js": "0123783f406f3141429457cf42d6afe86f01486d",
     "status/vendor/marked.min.js": "e12b0fab1b958792f45849d31abb3cdecc012d1b",
