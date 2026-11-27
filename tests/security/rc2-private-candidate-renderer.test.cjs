@@ -10,17 +10,20 @@ async function fixture(fn){
  await fs.chmod(stage,0o700);
  const manifestPath=path.join(stage,'rc2-candidate-pins.json');
  const outPath=path.join(stage,'rc2-compose-candidate.json');
+ // Host binds must be durable paths. The stage stays in a temp directory;
+ // the product refuses to render a candidate whose binds are under one.
+ const durable='/var/lib/devproxy-rc2-fixture';
  const input={proxyImage:'registry.example.invalid/p@sha256:'+'a'.repeat(64),
  apiImage:'registry.example.invalid/api@sha256:'+'b'.repeat(64),apiUid:504,apiGid:20,
- paths:{sourceRoot:stage+'/source',ownerEnvFile:stage+'/private/owner.env',
- secretHostFile:stage+'/private/activation.secret',spoolHostDir:stage+'/private/spool',
- appsDir:stage+'/data/apps',overridesDir:stage+'/data/overrides',
- sitesDir:stage+'/data/sites-enabled',artifactsDir:stage+'/data/artifacts',
- nginxConf:stage+'/source/config/nginx.production.conf',
- defaultConf:stage+'/source/config/default.production.conf',
- nginxEntrypoint:stage+'/source/scripts/nginx-entrypoint.sh',
- certsDir:stage+'/data/certs',statusDir:stage+'/data/status',
- dashboardDir:stage+'/source/dashboard/public'}};
+ paths:{sourceRoot:durable+'/source',ownerEnvFile:durable+'/env/owner.env',
+ secretHostFile:durable+'/secrets/activation.secret',spoolHostDir:durable+'/spool',
+ appsDir:durable+'/data/apps',overridesDir:durable+'/data/overrides',
+ sitesDir:durable+'/data/sites-enabled',artifactsDir:durable+'/data/artifacts',
+ nginxConf:durable+'/source/config/nginx.production.conf',
+ defaultConf:durable+'/source/config/default.production.conf',
+ nginxEntrypoint:durable+'/source/scripts/nginx-entrypoint.sh',
+ certsDir:durable+'/data/certs',statusDir:durable+'/data/status',
+ dashboardDir:durable+'/source/dashboard/public'}};
  try{
   await fs.writeFile(manifestPath,JSON.stringify(input)+'\n',{mode:0o600});
   return await fn({stage,manifestPath,outPath,input});

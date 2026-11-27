@@ -1,0 +1,287 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Dev Proxy Health</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
+    <link rel="shortcut icon" href="/status/assets/favicon.svg" />
+    <link rel="stylesheet" href="/status/global.css" />
+    <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/common.js"></script>
+    <style>
+      :root{
+        --bg:#0b1220;--bg2:#0e1627;--panel:#111a2b;--panelGlass:rgba(17,26,43,.92);--muted:#5b6b8a;--text:#d9e2f1;--heading:#cfe0ff;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640;
+        --btnBg:#132a4d;--btnBgHover:#16345f;--btnBorder:#24406e;--btnText:#cfe0ff;--border:#1f2a44;--headerBg:rgba(10,16,30,.55)
+      }
+      :root[data-theme="light"]{
+        --bg:#edf2fb;--bg2:#f8fbff;--panel:#ffffff;--panelGlass:rgba(255,255,255,.88);--muted:#5b6b8a;--text:#0b1220;--heading:#0b1220;--accent:#2d6cdf;--ok:#0f9d6a;--warn:#b7791f;--err:#c24141;--chip:#e8eefc;
+        --btnBg:#eef2ff;--btnBgHover:#e2e8ff;--btnBorder:#bfd1ff;--btnText:#0b1220;--border:#d6e0f5;--headerBg:rgba(255,255,255,.78);--codeBg:#f6f8ff;--codeBorder:#d6e0f5
+      }
+      *{box-sizing:border-box}
+      body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg2));color:var(--text);font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Helvetica Neue,Arial,Noto Sans}
+      header{padding:16px 20px;border-bottom:1px solid var(--border);background:var(--headerBg);backdrop-filter:saturate(180%) blur(8px);position:sticky;top:0}
+      .header-row{display:flex;align-items:center;justify-content:space-between}
+      .header-actions{display:flex;gap:8px;align-items:center}
+      header h1{font-size:16px;margin:0;display:flex;gap:10px;align-items:center}
+      header h1 span{display:inline-block;padding:6px 10px;border-radius:999px;background:var(--chip);color:#cbd5e8;font-weight:600}
+      .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);transition:transform .12s ease, box-shadow .12s ease}
+      .card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.30)}
+      .card h2{margin:0 0 10px 0;font-size:14px;color:var(--heading);letter-spacing:.2px}
+      .row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+      .label{color:var(--muted)}
+      .value{font-weight:600}
+      .ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}
+      .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#132140;border:1px solid #223054;color:#b8c8e6;font-weight:600}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+      button, a.btn{appearance:none;border:1px solid var(--btnBorder);background:var(--btnBg);color:var(--btnText);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:600;text-decoration:none;text-align:center}
+      button:hover, a.btn:hover{background:var(--btnBgHover)}
+      /* Header nav + actions grouping */
+      .header-actions{display:flex;align-items:center;gap:8px}
+      .header-actions .tab{background:var(--btnBg)}
+      .header-actions .tab.active{background:#d9e2ff;color:#0b1220;border-color:#bfd1ff}
+      [data-theme="dark"] .header-actions .tab.active{background:#1a2a4b;color:#cfe0ff;border-color:#36568c}
+      .header-actions .action{background:#0f2242;border-color:#2a4a7e}
+      :root[data-theme="light"] .header-actions .action{background:#eef2ff;border-color:#bfd1ff;color:#0b1220}
+      .header-actions .divider{display:inline-block;width:10px;height:28px;margin:0 6px;border-left:1px solid var(--border)}
+      header h1 .brand{font-weight:700;color:var(--heading);background:transparent;padding:0;border-radius:0}
+      .split{display:grid;grid-template-columns: repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start}
+      pre{margin:0;background:var(--codeBg, #0a1223);border:1px solid var(--codeBorder, #1b2a48);padding:12px;border-radius:10px;max-height:420px;overflow:auto}
+      /* Ensure Calliope chat inherits shared theme styles */
+      /* Stronger specificity to override any theme or page defaults */
+      body[data-page="health"] #aiDrawer .ai-chat,#aiDrawer .ai-chat#aiChat{background:var(--codeBg) !important;border:1px solid var(--codeBorder) !important}
+      .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px}
+      .quick-actions-card{grid-column:1 / -1}
+      .quick-actions{display:flex;gap:8px;flex-wrap:wrap}
+      footer{margin:24px 0;color:#7f90b3;text-align:center}
+      @media (max-width:1280px){.split{grid-template-columns:1fr}}
+      @media (max-width:1024px){
+        .header-row{flex-wrap:wrap;gap:8px}
+        .header-actions{gap:6px}
+        .quick-actions{gap:6px}
+      }
+    </style>
+  </head>
+  <body data-page="health">
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('health'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
+    <header style="display:none">
+      <div class="header-row">
+        <h1>
+          <img src="/status/assets/logo.svg" alt="Dev Tunnel Proxy logo" style="height:40px;vertical-align:middle;margin-right:10px"/>
+          <span class="brand">Dev Tunnel Proxy</span>
+        </h1>
+        <div class="header-actions">
+          <a class="btn tab" href="/status" title="Open status dashboard">Status</a>
+          <a class="btn tab active" href="/health" title="Health dashboard">Health</a>
+          <a class="btn tab" href="/reports" title="Browse generated reports">Reports</a>
+          <a class="btn tab" href="/dashboard/" target="_blank" rel="noopener">Dashboard</a>
+          <span class="divider" aria-hidden="true"></span>
+          <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps">Reload</button>
+          <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">Theme</button>
+          <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false"><img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:16px;height:16px;vertical-align:middle;"></button>
+        </div>
+      </div>
+    </header>
+    <div class="container">
+      <div class="grid">
+        <div class="card">
+          <h2>Overall</h2>
+          <div class="row"><div class="label">Status</div><div class="value ok" id="overall-status">—</div></div>
+          <div class="row"><div class="label">Proxy</div><div class="value" id="ngrok-url">—</div></div>
+          <div class="row"><div class="label">Route conflicts</div><div class="value" id="api-owner">—</div></div>
+        </div>
+        <div class="card">
+          <h2>Checks</h2>
+          <div class="row"><div class="label">Last run</div><div class="value" id="last-run">—</div></div>
+          <div class="row"><div class="label">Targets</div><div class="value" id="targets">—</div></div>
+        </div>
+        <div class="card quick-actions-card">
+          <h2>Quick Actions</h2>
+          <div class="quick-actions">
+            <a class="btn" href="/health.json">Health JSON</a>
+            <a class="btn" href="/status.json">Status JSON</a>
+            <a class="btn" href="/routes.json">Routes JSON</a>
+            <a class="btn" href="/reports/">Reports Directory</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="split">
+        <div class="card">
+          <h2>Latest Status JSON</h2>
+          <pre id="status-json">Loading…</pre>
+        </div>
+        <div class="card">
+          <h2>Latest Routes JSON</h2>
+          <pre id="routes-json">Loading…</pre>
+        </div>
+      </div>
+
+      <footer>
+        Built for fast, reliable, <strong>sharable</strong> local development.
+      </footer>
+    </div>
+    <script>
+      async function getJson(url){
+        const res=await fetch(url,{headers:{'ngrok-skip-browser-warning':'true'},cache:'no-cache'});
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        return res.json();
+      }
+      async function getJsonWithFallbacks(urls){
+        for(const u of urls){
+          try{
+            const res=await fetch(u,{headers:{'ngrok-skip-browser-warning':'true'},cache:'no-cache'});
+            if(res.ok) return res.json();
+          }catch(e){/* try next */}
+        }
+        throw new Error('All sources failed');
+      }
+      function initTheme(){
+        const stored = localStorage.getItem('dtpTheme');
+        const theme = stored || 'dark';
+        document.documentElement.setAttribute('data-theme', theme==='light'?'light':'dark');
+        document.getElementById('themeToggle').textContent = 'Theme';
+        document.getElementById('themeToggle').setAttribute('title', theme==='light'?'Switch to dark':'Switch to light');
+      }
+      function toggleTheme(){
+        const cur = document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';
+        const next = cur==='light'?'dark':'light';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('dtpTheme', next);
+        document.getElementById('themeToggle').textContent = 'Theme';
+        document.getElementById('themeToggle').setAttribute('title', next==='light'?'Switch to dark':'Switch to light');
+      }
+      async function refresh(){
+        try{
+          const health = await getJson('/health.json').catch(()=>({status:'unknown'}));
+          const status = await getJsonWithFallbacks(['/status.json','/.artifacts/reports/health-latest.json']).catch(()=>null);
+          const routes = await getJson('/routes.json').catch(()=>null);
+          
+          // Calculate conflict information first
+          const conflicts = (routes && routes.nginxConflicts) || {};
+          const conflictCount = (conflicts && typeof conflicts.totalConflicts === 'number') ? conflicts.totalConflicts : 
+                               ((routes && routes.conflictWarnings?.length>0) ? 1 : 0);
+          const routeCount = Object.keys((routes && routes.metadata) || {}).length;
+          
+          // Calculate overall status based on proxy health and routes
+          const proxyHealthy = health.status === 'ok';
+          const hasConflicts = conflictCount > 0;
+          
+          let overallStatus = 'ok';
+          if (!proxyHealthy) overallStatus = 'err';
+          else if (hasConflicts) overallStatus = 'warn';
+          
+          document.getElementById('overall-status').textContent = proxyHealthy ? 
+            (hasConflicts ? `OK (${conflictCount} conflicts)` : `OK (${routeCount} routes)`) : 'ERROR';
+          document.getElementById('overall-status').className='value '+(overallStatus==='ok'?'ok':overallStatus==='warn'?'warn':'err');
+          document.getElementById('ngrok-url').textContent=(status && status.ngrok)||'not discovered';
+          
+          const conflictEl = document.getElementById('api-owner');
+          if (conflictCount > 0) {
+            conflictEl.innerHTML = `<a href="/status#conflictCard" style="color: inherit; text-decoration: underline;">${conflictCount} route conflicts</a>`;
+            conflictEl.className = 'value err';
+          } else {
+            conflictEl.textContent = 'No conflicts';
+            conflictEl.className = 'value ok';
+          }
+          document.getElementById('last-run').textContent=(routes&&routes.generatedAt)||(status&&status.generatedAt)||new Date().toISOString();
+          const t = (status&&status.results)? Object.keys(status.results).join(', '): '—';
+          document.getElementById('targets').textContent=t;
+          // panels
+          document.getElementById('status-json').textContent=status?JSON.stringify(status,null,2):'Unavailable (404)';
+          document.getElementById('routes-json').textContent=routes?JSON.stringify(routes,null,2):'Unavailable (404)';
+        }catch(e){
+          document.getElementById('status-json').textContent='Error: '+e.message;
+        }
+      }
+
+      async function reloadConfigs() {
+        const reloadBtn = document.getElementById('reloadConfigs');
+        const originalText = reloadBtn.textContent;
+        
+        try {
+          // Show loading state
+          reloadBtn.textContent = 'Reloading...';
+          reloadBtn.disabled = true;
+          
+          // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
+          let scanSuccess = false;
+          const timestamp = Date.now();
+          const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' },
+            cache: 'no-cache'
+          });
+          if (freshRoutes.ok) {
+            scanSuccess = true;
+            console.log('Routes data refreshed');
+          }
+          
+          if (scanSuccess) {
+            // Success feedback
+            reloadBtn.textContent = 'Reloaded';
+            reloadBtn.style.background = '#16402b';
+            reloadBtn.style.borderColor = '#2a7f54';
+            reloadBtn.style.color = '#a6f3cc';
+            window.DTP.showToast('Configurations reloaded', 'success');
+            
+            // Refresh the health data after successful reload
+            setTimeout(async () => {
+              await refresh();
+            }, 500);
+          } else {
+            throw new Error('Unable to reload configs');
+          }
+          
+        } catch (error) {
+          console.error('Config reload failed:', error);
+          
+          // Error feedback
+          reloadBtn.textContent = 'Failed';
+          reloadBtn.style.background = 'rgba(239,68,68,.15)';
+          reloadBtn.style.borderColor = '#ef4444';
+          reloadBtn.style.color = '#ef4444';
+          
+          // Show manual instructions
+          const instructions = `
+To reload manually, run:
+node test/scanApps.js
+./scripts/smart-build.sh
+
+Or check if config files have syntax errors.
+          `.trim();
+          
+          setTimeout(async () => {
+            const confirmed = await window.DTP.showDialog({
+              type: 'confirm',
+              title: 'Reload Failed',
+              message: `Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page data anyway?`
+            });
+            if (confirmed) {
+              refresh();
+            }
+          }, 1500);
+        }
+        
+        // Reset button after delay
+        setTimeout(() => {
+          reloadBtn.textContent = originalText;
+          reloadBtn.disabled = false;
+          reloadBtn.style.background = '';
+          reloadBtn.style.borderColor = '';
+          reloadBtn.style.color = '';
+        }, 3000);
+      }
+      try{ document.getElementById('reloadConfigs').addEventListener('click',reloadConfigs); }catch{}
+      try{ document.getElementById('themeToggle').addEventListener('click', toggleTheme); }catch{}
+      // Use shared theme and Calliope drawer if available
+      try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}
+      try{ if (window.DTP && DTP.initTheme) DTP.initTheme(); else initTheme(); }catch{}
+      refresh();
+    </script>
+  </body>
+  </html>
+
+

@@ -22,7 +22,11 @@ async function setup(body){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'devproxy-p2-nginx-'));
  await fs.mkdir(path.join(root,'logs'));
  await fs.mkdir(path.join(root,'conf'));
- await fs.writeFile(path.join(root,'conf','nginx.conf'),body,{mode:0o600});
+ const withAccess=body.includes('access_log ')
+  ? body
+  : body.replace('http {','http {\naccess_log logs/access.log;');
+ const conf=`worker_processes 1;\nerror_log logs/error.log;\npid logs/nginx.pid;\n${withAccess}`;
+ await fs.writeFile(path.join(root,'conf','nginx.conf'),conf,{mode:0o600});
  return root;
 }
 function nginxCheck(root){
@@ -55,7 +59,7 @@ test('native nginx: static missing hostname rejects cold-start config', {skip:!a
 test('native nginx: resolved hostname with stopped process is not itself a startup DNS failure', {skip:!available}, async t=>{
  const root=await setup("events {}\nhttp { server { listen 127.0.0.1:12454; location /offline/ { proxy_pass http://127.0.0.1:20424; } } }\n");
  t.after(()=>fs.rm(root,{recursive:true,force:true}));
- assert.equal(nginxCheck(root).status,0);
+ const checked=nginxCheck(root);assert.equal(checked.status,0,checked.stderr);
 });
 test('native nginx: absent, delayed, returning backend affects route, never nginx master', {skip:!available,timeout:15000}, async t=>{
  const [proxyPort,backendPort]=await Promise.all([freePort(),freePort()]);
@@ -70,7 +74,7 @@ test('native nginx: absent, delayed, returning backend affects route, never ngin
   }
   await fs.rm(root,{recursive:true,force:true});
  });
- assert.equal(nginxCheck(root).status,0);
+ const checked=nginxCheck(root);assert.equal(checked.status,0,checked.stderr);
  child=spawn(NGINX,['-p',root+'/','-c','conf/nginx.conf','-g','daemon off;'],{stdio:['ignore','ignore','pipe']});
  let stderr='';child.stderr.on('data',d=>{stderr+=String(d).slice(0,1000);});
  assert.equal(await healthReady(proxyPort),true,'nginx health must become available');

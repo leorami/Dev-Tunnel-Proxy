@@ -10,7 +10,6 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const {execFileSync}=require('node:child_process');
 const root=path.resolve(__dirname,'../..');
 const MAIN='590bcf2a980b434f533ddacac43a24a777a933e7';
 const CONFIGS=Object.freeze([
@@ -27,7 +26,14 @@ const PROTECTED=Object.freeze([
   '/devproxy/api/resolve-conflict',
   '/devproxy/api/rename-route'
 ]);
-function gitSource(name){return execFileSync('git',['show',MAIN+':config/'+name],{cwd:root,encoding:'utf8',maxBuffer:1024*1024});}
+function gitSource(name){
+  // Bytes of config/<name> at protected main. A hosted checkout of this branch
+  // is shallow and does not contain that commit, so the blob is stored next to
+  // the test. sha() still has to match the pinned blob.
+  const file=path.join(__dirname,'fixtures/v190-main-nginx',name);
+  if(!fs.existsSync(file))throw new Error('missing '+MAIN+' preimage '+name);
+  return fs.readFileSync(file,'utf8');
+}
 function worktree(name){return fs.readFileSync(path.join(root,'config',name),'utf8');}
 function sha(source){const b=Buffer.from(source);return crypto.createHash('sha1').update('blob '+b.length+'\0').update(b).digest('hex');}
 function count(s,word){return s.split(word).length-1;}

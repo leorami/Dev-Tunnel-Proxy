@@ -19,7 +19,10 @@ on:
       - 'tests/security/v210-status-report-trust.test.cjs'
       - 'tests/security/v214-shared-shell.test.cjs'
       - 'tests/security/v215-versioned-shared-assets.test.cjs'
+      - 'tests/security/v216-response-contract.test.cjs'
+      - 'tests/security/v216-frontend-install.test.cjs'
       - 'scripts/v215-frontend-install.cjs'
+      - 'scripts/v216-frontend-install.cjs'
       - 'status/common.v215-42c0928ec30a.css'
       - 'status/common.v215-dfd52e64df59.js'
       - 'tests/visuals/test_v214_shared_shell_browser.py'
@@ -48,6 +51,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
+      - name: Install filesystem metadata tools
+        run: sudo apt-get update && sudo apt-get install -y acl attr
       - name: Source identity and actual Node version
         run: |
           git log -1 --format=%H
@@ -59,7 +64,7 @@ jobs:
       - name: Pinned notification launcher with synthetic engine only
         run: node --test tests/security/v209-notification-pinned-runtime.test.cjs
       - name: Historical status report evidence and safe presentation
-        run: node --test tests/security/v210-status-report-trust.test.cjs tests/security/v214-shared-shell.test.cjs tests/security/v215-versioned-shared-assets.test.cjs tests/security/v160-status-calliope-experience.test.cjs tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs tests/security/calliope-status-chat-singleflight.test.cjs
+        run: node --test tests/security/v210-status-report-trust.test.cjs tests/security/v214-shared-shell.test.cjs tests/security/v215-versioned-shared-assets.test.cjs tests/security/v216-response-contract.test.cjs tests/security/v216-frontend-install.test.cjs tests/security/v160-status-calliope-experience.test.cjs tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs tests/security/calliope-status-chat-singleflight.test.cjs
       - name: Check affected executable syntax without launching any service
         run: |
           bash -n smart-build.sh

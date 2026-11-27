@@ -1,0 +1,319 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Dev Proxy Reports</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
+    <link rel="stylesheet" href="/status/global.css" />
+    <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/config.js"></script>
+    <script src="/status/common.js"></script>
+    <style>
+      .container{max-width:1160px;margin:24px auto;padding:0 16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);margin-bottom:16px}
+      .card h2{margin:0 0 16px 0;font-size:15px;color:var(--heading);font-weight:700}
+      .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+      button{padding:10px 16px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600;font-size:13px;transition:all .2s}
+      button:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+      button.danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:transparent}
+      button.warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:transparent}
+      table{width:100%;border-collapse:collapse}
+      thead{background:var(--btnBg);border-radius:8px}
+      th{padding:12px;text-align:left;font-weight:700;color:var(--heading);font-size:13px;border-bottom:2px solid var(--border)}
+      td{padding:12px;border-bottom:1px solid var(--border);font-size:13px}
+      tr:hover{background:var(--btnBg)}
+      .tag{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--chipText);font-weight:600;font-size:11px;border:1px solid var(--chipBorder)}
+      .tag.health-json{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
+      .tag.health-md{background:rgba(16,185,129,.15);color:#10b981;border-color:rgba(16,185,129,.3)}
+      .tag.scan-apps{background:rgba(245,158,11,.15);color:#f59e0b;border-color:rgba(245,158,11,.3)}
+      .pagination{display:flex;gap:8px;justify-content:center;align-items:center;margin-top:16px}
+      .pagination button{padding:8px 12px}
+      .pagination button.active{background:var(--lnk);color:#fff;border-color:var(--lnk)}
+      .pagination-info{color:var(--muted);font-size:13px;margin-bottom:12px}
+      .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+      .empty-state svg{width:64px;height:64px;margin-bottom:16px;opacity:0.5}
+    </style>
+  </head>
+  <body data-page="reports">
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
+    <header style="display:none"></header>
+    
+    <div class="container">
+      <div class="card">
+        <h2>Reports Management</h2>
+        <div class="toolbar">
+          <button id="refresh">Refresh</button>
+          <button id="prune7" class="warning">Prune > 7 days</button>
+          <button id="prune30" class="warning">Prune > 30 days</button>
+          <button id="pruneAllButLatest" class="danger">Keep Latest Only</button>
+        </div>
+        <div id="pagination-info" class="pagination-info"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Size</th>
+              <th>Last Modified</th>
+            </tr>
+          </thead>
+          <tbody id="rows">
+            <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--muted)">Loading reports...</td></tr>
+          </tbody>
+        </table>
+        <div class="pagination" id="pagination-controls"></div>
+      </div>
+    </div>
+
+    <script>
+      let currentPage = 1;
+      const itemsPerPage = 10;
+      
+      async function api(path, opts){
+        const r = await fetch(path, { 
+          credentials: 'include',
+          headers:{'ngrok-skip-browser-warning':'true','content-type':'application/json'}, 
+          ...opts 
+        });
+        if(!r.ok) throw new Error(await r.text());
+        return r.json();
+      }
+      
+      function fmtSize(n){ 
+        if(!n && n!==0) return '—'; 
+        const kb = n/1024; 
+        return kb<1024?`${kb.toFixed(1)} KB`:`${(kb/1024).toFixed(2)} MB`; 
+      }
+      
+      function kindOf(name){
+        if (/health-.*\.json$/.test(name)) return 'health-json';
+        if (/health-.*\.md$/.test(name)) return 'health-md';
+        if (/scan-apps-.*\.json$/.test(name)) return 'scan-apps';
+        if (/latest\./.test(name)) return 'alias';
+        return name.split('.').pop();
+      }
+      
+      async function load(page = 1){
+        try {
+          currentPage = page;
+          const data = await api(`${window.DTP.config.apiPath('reports/list')}?page=${page}&limit=${itemsPerPage}`);
+          const tbody = document.getElementById('rows');
+          tbody.textContent = '';
+
+          // V138: honor API contract {ok,items,pagination.total,mtimeMs}.
+          const items = (data && Array.isArray(data.items)) ? data.items : null;
+          const total = (data && data.pagination && Number.isFinite(Number(data.pagination.total)))
+            ? Number(data.pagination.total)
+            : (items ? items.length : 0);
+          if (data && data.ok === false) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            const box = document.createElement('div');
+            box.className = 'empty-state';
+            const title = document.createElement('div');
+            title.style.fontSize = '16px';
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '8px';
+            title.textContent = 'Could not load reports';
+            const detail = document.createElement('div');
+            detail.textContent = String((data && data.error) || 'reports_error');
+            box.appendChild(title);
+            box.appendChild(detail);
+            td.appendChild(box);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            document.getElementById('pagination-info').textContent = '';
+            document.getElementById('pagination-controls').textContent = '';
+            return;
+          }
+          if (!items || items.length === 0) {
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 4;
+            const box = document.createElement('div');
+            box.className = 'empty-state';
+            const glyph = document.createElement('div');
+            glyph.style.fontSize = '48px';
+            glyph.style.opacity = '0.3';
+            glyph.textContent = '(No Reports)';
+            const title = document.createElement('div');
+            title.style.fontSize = '16px';
+            title.style.fontWeight = '600';
+            title.style.marginBottom = '8px';
+            title.textContent = 'No reports found';
+            const detail = document.createElement('div');
+            detail.textContent = 'Reports will appear here as they are generated';
+            box.appendChild(glyph);
+            box.appendChild(title);
+            box.appendChild(detail);
+            td.appendChild(box);
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+            document.getElementById('pagination-info').textContent = '';
+            document.getElementById('pagination-controls').textContent = '';
+            return;
+          }
+
+          items.forEach(r => {
+            const row = document.createElement('tr');
+            const nameTd = document.createElement('td');
+            nameTd.style.fontFamily = 'monospace';
+            nameTd.style.fontSize = '12px';
+            nameTd.textContent = String(r && r.name != null ? r.name : '');
+            const kindTd = document.createElement('td');
+            const kind = kindOf(r && r.name);
+            const tag = document.createElement('span');
+            tag.className = 'tag ' + kind;
+            tag.textContent = kind;
+            kindTd.appendChild(tag);
+            const sizeTd = document.createElement('td');
+            sizeTd.textContent = fmtSize(r && r.size);
+            const mtimeTd = document.createElement('td');
+            mtimeTd.style.color = 'var(--muted)';
+            const ms = r && Number(r.mtimeMs);
+            mtimeTd.textContent = Number.isFinite(ms) ? new Date(ms).toLocaleString() : '';
+            row.appendChild(nameTd);
+            row.appendChild(kindTd);
+            row.appendChild(sizeTd);
+            row.appendChild(mtimeTd);
+            tbody.appendChild(row);
+          });
+
+          const start = (page - 1) * itemsPerPage + 1;
+          const end = Math.min(page * itemsPerPage, total);
+          document.getElementById('pagination-info').textContent =
+            `Showing ${start}-${end} of ${total} reports`;
+
+          const totalPages = Math.ceil(total / itemsPerPage) || 0;
+          const controls = document.getElementById('pagination-controls');
+          controls.textContent = '';
+
+          if (totalPages > 1) {
+            const prev = document.createElement('button');
+            prev.textContent = '← Previous';
+            prev.disabled = page === 1;
+            prev.onclick = () => load(page - 1);
+            controls.appendChild(prev);
+
+            const maxButtons = 5;
+            let startPage = Math.max(1, page - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            if (endPage - startPage < maxButtons - 1) {
+              startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+            if (startPage > 1) {
+              const first = document.createElement('button');
+              first.textContent = '1';
+              first.onclick = () => load(1);
+              controls.appendChild(first);
+              if (startPage > 2) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.padding = '0 6px';
+                controls.appendChild(dots);
+              }
+            }
+            for (let i = startPage; i <= endPage; i++) {
+              const btn = document.createElement('button');
+              btn.textContent = String(i);
+              if (i === page) btn.disabled = true;
+              btn.onclick = () => load(i);
+              controls.appendChild(btn);
+            }
+            if (endPage < totalPages) {
+              if (endPage < totalPages - 1) {
+                const dots = document.createElement('span');
+                dots.textContent = '…';
+                dots.style.padding = '0 6px';
+                controls.appendChild(dots);
+              }
+              const last = document.createElement('button');
+              last.textContent = String(totalPages);
+              last.onclick = () => load(totalPages);
+              controls.appendChild(last);
+            }
+
+            const next = document.createElement('button');
+            next.textContent = 'Next →';
+            next.disabled = page === totalPages;
+            next.onclick = () => load(page + 1);
+            controls.appendChild(next);
+          }
+        } catch (err) {
+          document.getElementById('rows').textContent = '';
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          const box = document.createElement('div');
+          box.className = 'empty-state';
+          const title = document.createElement('div');
+          title.style.fontSize = '16px';
+          title.style.fontWeight = '600';
+          title.style.marginBottom = '8px';
+          title.textContent = 'Error loading reports';
+          const detail = document.createElement('div');
+          detail.textContent = String((err && err.message) || err || 'error');
+          box.appendChild(title);
+          box.appendChild(detail);
+          td.appendChild(box);
+          tr.appendChild(td);
+          document.getElementById('rows').appendChild(tr);
+        }
+      }
+
+      document.getElementById('refresh').onclick = () => load(currentPage);
+      
+      document.getElementById('prune7').onclick = async () => {
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune Reports',
+          message: 'Delete all reports older than 7 days?'
+        });
+        if (!confirmed) return;
+        try {
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 7 }) });
+          window.DTP.showToast('Reports older than 7 days pruned', 'success');
+          load(1);
+        } catch(e) {
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
+        }
+      };
+      
+      document.getElementById('prune30').onclick = async () => {
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune Reports',
+          message: 'Delete all reports older than 30 days?'
+        });
+        if (!confirmed) return;
+        try {
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ olderThanDays: 30 }) });
+          window.DTP.showToast('Reports older than 30 days pruned', 'success');
+          load(1);
+        } catch(e) {
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
+        }
+      };
+      
+      document.getElementById('pruneAllButLatest').onclick = async () => {
+        const confirmed = await window.DTP.showDialog({
+          type: 'confirm',
+          title: 'Prune All Except Latest',
+          message: 'Delete all reports except the latest of each kind? This cannot be undone!'
+        });
+        if (!confirmed) return;
+        try {
+          await api(window.DTP.config.apiPath('reports/prune'), { method:'POST', body: JSON.stringify({ keepLatestPerKind: true }) });
+          window.DTP.showToast('Kept latest reports only', 'success');
+          load(1);
+        } catch(e) {
+          window.DTP.showDialog({ title: 'Prune Failed', message: e.message });
+        }
+      };
+      
+      load(1);
+    </script>
+  </body>
+</html>
