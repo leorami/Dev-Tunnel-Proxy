@@ -1,0 +1,20 @@
+{
+  "schema": "origin.project-experience.v1",
+  "displayName": "Dev Tunnel Proxy",
+  "summary": "Development infrastructure that routes and tunnels local services, with one status surface for health and reports.",
+  "kind": "service",
+  "experience": {
+    "applicability": "user-facing",
+    "directionDocument": "docs/design/PROJECT_DESIGN_DIRECTION.md",
+    "themes": {
+      "light": {
+        "accent": "#2D6CDF"
+      },
+      "dark": {
+        "accent": "#6AA6FF"
+      }
+    },
+    "visualCharacter": "An operations glass panel: navy depth, a clear blue signal, and status that is always written out.",
+    "visualPriority": "What is healthy, routed and actionable comes first. Ports and internals stay behind that answer."
+  }
+}
