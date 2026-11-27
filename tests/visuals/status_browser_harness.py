@@ -92,11 +92,32 @@ class StatusBrowser:
         self.page = None
         self.traffic: list[dict] = []
         self.conflict_key = "ambiguous"
+        self.health_mode = "ok"
+        self.routes_mode = "report"
+        self.status_mode = "present"
+        self.reports_mode = "empty"
+        self.fail_stamped = False
 
-    def open(self, path: str, width: int, height: int, theme: str, conflict_key: str = "ambiguous"):
+    def open(
+        self,
+        path: str,
+        width: int,
+        height: int,
+        theme: str,
+        conflict_key: str = "ambiguous",
+        health: str = "ok",
+        routes: str = "report",
+        status_json: str = "present",
+        reports: str = "empty",
+    ):
         self.close_page()
         self.traffic = []
         self.conflict_key = conflict_key
+        self.health_mode = health
+        self.routes_mode = routes
+        self.status_mode = status_json
+        self.reports_mode = reports
+        self.fail_stamped = False
         self.context = self.browser.new_context(
             viewport={"width": width, "height": height},
             device_scale_factor=1,
@@ -147,6 +168,15 @@ class StatusBrowser:
             self.traffic.append(record)
             route.abort()
             return
+        if (
+            self.fail_stamped
+            and (parsed.path or "/") == "/routes.json"
+            and (parsed.query or "").startswith("_t=")
+        ):
+            record["outcome"] = "deny-fixture"
+            self.traffic.append(record)
+            route.abort()
+            return
         payload = self._response(parsed.path or "/")
         if payload is None:
             record["outcome"] = "deny-fixture"
@@ -163,14 +193,44 @@ class StatusBrowser:
         if target is not None:
             return _content_type(target), target.read_bytes()
         if path == "/routes.json":
-            return "application/json", _json(routes_document(self.fixture, self.conflict_key))
+            if self.routes_mode == "missing":
+                return None
+            if self.routes_mode == "invalid":
+                return "application/json", b"{"
+            document = routes_document(self.fixture, self.conflict_key)
+            if self.routes_mode == "zero":
+                document["nginxConflicts"] = {"totalConflicts": 0}
+                document["nginxWarnings"] = []
+            return "application/json", _json(document)
         if path == "/config":
             return "application/json", _json({"apiBasePath": "/devproxy/api", "version": "1.0.0"})
         if path in ("/status.json", "/.artifacts/reports/health-latest.json"):
-            return "application/json", _json({"ngrok": self.fixture["proxyUrl"]})
+            if self.status_mode == "missing":
+                return None
+            if self.status_mode == "invalid":
+                return "application/json", b"{"
+            return "application/json", _json({"ngrok": self.fixture["proxyUrl"], "generatedAt": self.fixture["generatedAt"]})
         if path == "/health.json":
+            if self.health_mode == "missing":
+                return None
+            if self.health_mode == "invalid":
+                return "application/json", b"{"
+            if self.health_mode == "not-ok":
+                return "application/json", _json({"status": "error"})
             return "application/json", _json({"status": "ok"})
         if path.startswith("/devproxy/api/reports/list"):
+            if self.reports_mode == "failed":
+                return "application/json", _json({"ok": False, "error": "reports_unavailable"})
+            if self.reports_mode == "populated":
+                return "application/json", _json({
+                    "ok": True,
+                    "items": [{
+                        "name": "health-synthetic.json",
+                        "size": 128,
+                        "mtimeMs": 1762144381466,
+                    }],
+                    "pagination": {"total": 1},
+                })
             return "application/json", _json({"ok": True, "items": [], "pagination": {"total": 0}})
         if path.startswith("/devproxy/api/"):
             return "application/json", _json({"ok": True})
