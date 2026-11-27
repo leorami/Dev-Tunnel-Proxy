@@ -25,7 +25,7 @@ PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
 V214_ENGINEER_TIP = "63854b07c6b71945b5eb415441d17112ff10ba5b"
-V215_ENGINEER_TIP = "4c0e53c0346de1a58d9faee89a39bddac01b48d8"
+V215_ENGINEER_TIP = "1238912de95c6b262fdbd82b8da9f7c342d2d460"
 EXPECTED_STATUS_TREE = "f1c1693ae4fd9c2e406b639406727985892fef43"
 CHANGED_FROM_V213 = (
     "status/common.css",
@@ -462,7 +462,7 @@ def _wait_ready(page, frame: dict) -> None:
             )
         else:
             page.wait_for_function(
-                "() => document.body.innerText.includes('example-tunnel.invalid') && document.body.innerText.includes('Responding')",
+                "() => document.body.innerText.includes('example-tunnel.invalid') && document.body.innerText.includes('Proxy responding')",
                 timeout=15000,
             )
     elif frame.get("page") == "reports":
