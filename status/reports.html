@@ -7,22 +7,31 @@
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="stylesheet" href="/status/global.css" />
     <link rel="stylesheet" href="/status/common.css" />
+    <script src="/status/vendor/lucide.min.js"></script>
     <script src="/status/config.js"></script>
     <script src="/status/common.js"></script>
     <style>
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
-      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);margin-bottom:16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.12);margin-bottom:16px}
       .card h2{margin:0 0 16px 0;font-size:15px;color:var(--heading);font-weight:700}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
       button{padding:10px 16px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600;font-size:13px;transition:all .2s}
-      button:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+      button:hover{background:var(--btnBgHover)}
       button.danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:transparent}
       button.warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:transparent}
       table{width:100%;border-collapse:collapse}
       thead{background:var(--btnBg);border-radius:8px}
       th{padding:12px;text-align:left;font-weight:700;color:var(--heading);font-size:13px;border-bottom:2px solid var(--border)}
       td{padding:12px;border-bottom:1px solid var(--border);font-size:13px}
-      tr:hover{background:var(--btnBg)}
+      .report-cleanup{margin-top:8px}
+      .report-cleanup summary{cursor:pointer;font-weight:700;color:var(--heading)}
+      .cleanup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      @media (max-width:560px){
+        table,tbody,tr,td{display:block;width:100%}
+        thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+        td{padding:6px 0;border-bottom:none}
+        tr{padding:8px 0;border-bottom:1px solid var(--border)}
+      }
       .tag{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--chipText);font-weight:600;font-size:11px;border:1px solid var(--chipBorder)}
       .tag.health-json{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
       .tag.health-md{background:rgba(16,185,129,.15);color:#10b981;border-color:rgba(16,185,129,.3)}
@@ -36,18 +45,20 @@
     </style>
   </head>
   <body data-page="reports">
-    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} try{ window.DTP && DTP.registerHeaderRefresh && DTP.registerHeaderRefresh({ label: 'Re-read the report list', run: function(status){ return refreshReportList(status); } }); }catch{} });</script>
     <header style="display:none"></header>
     
     <div class="container">
       <div class="card">
         <h2>Reports Management</h2>
-        <div class="toolbar">
-          <button id="refresh">Refresh</button>
-          <button id="prune7" class="warning">Prune > 7 days</button>
-          <button id="prune30" class="warning">Prune > 30 days</button>
-          <button id="pruneAllButLatest" class="danger">Keep Latest Only</button>
-        </div>
+        <details id="reportCleanup" class="report-cleanup">
+          <summary>Clean up old reports</summary>
+          <div class="cleanup-actions">
+            <button id="prune7" class="warning" type="button">Prune &gt; 7 days</button>
+            <button id="prune30" class="warning" type="button">Prune &gt; 30 days</button>
+            <button id="pruneAllButLatest" class="danger" type="button">Keep Latest Only</button>
+          </div>
+        </details>
         <div id="pagination-info" class="pagination-info"></div>
         <table>
           <thead>
@@ -126,7 +137,7 @@
             tbody.appendChild(tr);
             document.getElementById('pagination-info').textContent = '';
             document.getElementById('pagination-controls').textContent = '';
-            return;
+            return 'failed';
           }
           if (!items || items.length === 0) {
             const tr = document.createElement('tr');
@@ -153,7 +164,7 @@
             tbody.appendChild(tr);
             document.getElementById('pagination-info').textContent = '';
             document.getElementById('pagination-controls').textContent = '';
-            return;
+            return 'empty';
           }
 
           items.forEach(r => {
@@ -241,6 +252,7 @@
             next.onclick = () => load(page + 1);
             controls.appendChild(next);
           }
+          return 'populated';
         } catch (err) {
           document.getElementById('rows').textContent = '';
           const tr = document.createElement('tr');
@@ -260,10 +272,21 @@
           td.appendChild(box);
           tr.appendChild(td);
           document.getElementById('rows').appendChild(tr);
+          return 'failed';
         }
       }
 
-      document.getElementById('refresh').onclick = () => load(currentPage);
+      async function refreshReportList(status){
+        const outcome = await load(currentPage);
+        if (!status) return;
+        if (outcome === 'failed') {
+          status.textContent = 'Could not re-read the report list.';
+          status.classList.add('is-error');
+          return;
+        }
+        status.textContent = 'Report list re-read';
+        status.classList.remove('is-error');
+      }
       
       document.getElementById('prune7').onclick = async () => {
         const confirmed = await window.DTP.showDialog({
