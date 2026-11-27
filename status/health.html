@@ -8,9 +8,9 @@
     <link rel="icon" type="image/png" href="/status/assets/favicon.png" />
     <link rel="shortcut icon" href="/status/assets/favicon.svg" />
     <link rel="stylesheet" href="/status/global.css" />
-    <link rel="stylesheet" href="/status/common.css" />
+    <link rel="stylesheet" href="/status/common.v215-42c0928ec30a.css" data-dtp-shared-style="v215" />
     <script src="/status/vendor/lucide.min.js"></script>
-    <script src="/status/common.js"></script>
+    <script src="/status/common.v215-dfd52e64df59.js"></script>
     <style>
       :root{
         --bg:#0b1220;--bg2:#0e1627;--panel:#111a2b;--panelGlass:rgba(17,26,43,.92);--muted:#5b6b8a;--text:#d9e2f1;--heading:#cfe0ff;--accent:#6aa6ff;--ok:#16c784;--warn:#f59e0b;--err:#ef4444;--chip:#1b2640;
@@ -97,14 +97,16 @@
       <div class="grid">
         <div class="card">
           <h2>Observed now</h2>
-          <div class="row"><div class="label">Health endpoint</div><div class="value" id="observed-health">—</div></div>
-          <div class="row"><div class="label">Proxy</div><div class="value" id="ngrok-url">—</div></div>
+          <div class="row"><div class="label">Proxy liveness</div><div class="value" id="observed-health">—</div></div>
+          <p id="liveness-note">This only says whether /health.json responded. It is not upstream or application health.</p>
         </div>
         <div class="card">
           <h2>Last scan report</h2>
+          <div class="row"><div class="label">Historical report</div><div class="value" id="report-available">—</div></div>
+          <div class="row"><div class="label">Historical proxy</div><div class="value" id="ngrok-url">—</div></div>
           <div class="row"><div class="label">Report time</div><div class="value" id="scan-time">—</div></div>
           <div class="row"><div class="label">Conflicts on that scan</div><div class="value" id="scan-conflicts">—</div></div>
-          <div class="row"><div class="label">Targets</div><div class="value" id="targets">—</div></div>
+          <div class="row"><div class="label">Historical targets</div><div class="value" id="targets">—</div></div>
           <p id="scan-caveat">Last scan only; not live health</p>
         </div>
         <div class="card quick-actions-card">
@@ -148,13 +150,17 @@
         }
         throw new Error('All sources failed');
       }
+      let healthGeneration = 0;
+      function safeCount(value){
+        return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+      }
       function reportedTime(value){
         if (typeof value !== 'string' || !value.trim() || !Number.isFinite(Date.parse(value))) return 'Unknown';
         return value;
       }
       function conflictText(routes){
         const count = routes && routes.nginxConflicts && routes.nginxConflicts.totalConflicts;
-        if (typeof count !== 'number' || !Number.isFinite(count)) return 'Unknown';
+        if (!safeCount(count)) return 'Unknown';
         return count + ' reported on that scan';
       }
       async function readJson(url){
@@ -163,6 +169,7 @@
         return res.json();
       }
       async function refreshHealth(status){
+        const generation = ++healthGeneration;
         let health = null, report = null, routes = null;
         let healthFailed = false, statusFailed = false, routesFailed = false;
         try { health = await readJson('/health.json'); }
@@ -174,44 +181,61 @@
         }
         try { routes = await readJson('/routes.json'); }
         catch (e) { routesFailed = true; }
+        if (generation !== healthGeneration) return { stale: true };
 
+        const healthMalformed = !healthFailed && (!health || typeof health.status !== 'string');
         const observed = document.getElementById('observed-health');
-        if (healthFailed || !health || typeof health.status !== 'string') {
+        if (healthFailed || healthMalformed) {
           observed.textContent = 'Unavailable';
           observed.className = 'value';
         } else if (health.status === 'ok') {
-          observed.textContent = 'Responding';
+          observed.textContent = 'Proxy responding';
           observed.className = 'value ok';
         } else {
-          observed.textContent = 'Not ok';
+          observed.textContent = 'Proxy not ok';
           observed.className = 'value err';
         }
+        const reportReady = !routesFailed && !!routes && typeof routes === 'object' && !Array.isArray(routes);
+        const reportFact = document.getElementById('report-available');
+        reportFact.textContent = reportReady ? 'Available' : 'Unavailable';
+        reportFact.className = 'value';
         const proxy = report && typeof report.ngrok === 'string' && report.ngrok ? report.ngrok : 'Unknown';
         document.getElementById('ngrok-url').textContent = proxy;
-        const when = reportedTime((routes && routes.generatedAt) || (report && report.generatedAt));
+        const when = reportedTime(reportReady ? routes.generatedAt : '');
         document.getElementById('scan-time').textContent = when;
         const conflicts = document.getElementById('scan-conflicts');
-        const conflictLabel = routesFailed ? 'Unknown' : conflictText(routes);
-        const conflictCount = routes && routes.nginxConflicts ? routes.nginxConflicts.totalConflicts : null;
+        const conflictCount = reportReady && routes.nginxConflicts ? routes.nginxConflicts.totalConflicts : null;
+        const conflictLabel = reportReady ? conflictText(routes) : 'Unknown';
         conflicts.textContent = conflictLabel;
         conflicts.className = 'value' + (conflictLabel === 'Unknown' ? '' : (conflictCount > 0 ? ' err' : ' ok'));
-        const names = report && report.results ? Object.keys(report.results) : [];
+        const names = report && report.results && typeof report.results === 'object' ? Object.keys(report.results) : [];
         document.getElementById('targets').textContent = names.length ? names.join(', ') : 'Unknown';
         document.getElementById('status-json').textContent = report ? JSON.stringify(report, null, 2) : 'Unavailable';
         document.getElementById('routes-json').textContent = routes ? JSON.stringify(routes, null, 2) : 'Unavailable';
         if (status) {
-          if (healthFailed && statusFailed && routesFailed) {
+          const healthBad = healthFailed || healthMalformed;
+          const countBad = reportReady && conflictLabel === 'Unknown';
+          if (healthBad && statusFailed && routesFailed) {
             status.textContent = 'Could not re-read. Nothing was changed.';
             status.classList.add('is-error');
-          } else if (healthFailed) {
-            status.textContent = 'Observed health is unavailable.';
+          } else if (healthBad || statusFailed || routesFailed || countBad) {
+            const parts = [];
+            if (healthBad) parts.push('Observed proxy liveness is unavailable.');
+            if (statusFailed) parts.push('Historical status report is unavailable.');
+            if (routesFailed) parts.push('Routes report is unavailable.');
+            else if (countBad) parts.push('Conflict count on that scan is not a usable number.');
+            status.textContent = parts.join(' ');
             status.classList.add('is-error');
           } else {
             status.textContent = 'Health re-read';
             status.classList.remove('is-error');
           }
         }
-        return { unreadable: healthFailed && statusFailed && routesFailed, observedUnavailable: healthFailed };
+        return {
+          stale: false,
+          unreadable: healthFailed && statusFailed && routesFailed,
+          observedUnavailable: healthFailed || healthMalformed
+        };
       }
       try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}
       try{ if (window.DTP && DTP.initTheme) DTP.initTheme(); }catch{}
