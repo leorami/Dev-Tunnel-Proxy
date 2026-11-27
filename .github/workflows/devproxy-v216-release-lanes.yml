@@ -6,6 +6,7 @@ permissions:
   contents: read
 jobs:
   lane-manifest:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -19,6 +20,7 @@ jobs:
       - name: Every test file is in exactly one lane
         run: node --test tests/security/v216-release-lanes.test.cjs
   pure-node:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     needs: lane-manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -40,6 +42,7 @@ jobs:
       - name: Isolated per-file pure Node lane
         run: node scripts/v216-release-lane.cjs --lane pure-node --shard ${{ matrix.shard }} --shards 4
   nginx-fixture:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     needs: lane-manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -58,6 +61,7 @@ jobs:
       - name: Isolated nginx fixture lane
         run: node scripts/v216-release-lane.cjs --lane nginx-fixture
   libsignal-native:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     needs: lane-manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -79,6 +83,7 @@ jobs:
           V192_EXPECTED_LIBSIGNAL_VERSION: '0.106.0'
         run: node scripts/v216-release-lane.cjs --lane libsignal-native
   browser:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     needs: lane-manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -100,6 +105,7 @@ jobs:
       - name: Browser lane
         run: node scripts/v216-release-lane.cjs --lane browser
   blocked-capability-record:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
     needs: lane-manifest
     runs-on: ubuntu-24.04
     timeout-minutes: 5

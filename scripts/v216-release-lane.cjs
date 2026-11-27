@@ -50,9 +50,14 @@ function runFile(file) {
     TMPDIR: tmp,
     LANG: process.env.LANG || 'C',
     NODE_PATH: process.env.NODE_PATH || '',
+    PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH
+      || path.join(process.env.HOME || os.homedir(), '.cache', 'ms-playwright'),
   };
-  if (process.env.V192_LIBSIGNAL_PACKAGE_ROOT) {
-    env.V192_LIBSIGNAL_PACKAGE_ROOT = process.env.V192_LIBSIGNAL_PACKAGE_ROOT;
+  for (const key of ['GITHUB_ACTIONS', 'RUNNER_ENVIRONMENT', 'RUNNER_TEMP', 'CI']) {
+    if (process.env[key]) env[key] = process.env[key];
+  }
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith('V192_') && value) env[key] = value;
   }
   let command = process.execPath;
   let args = ['--test', '--test-timeout=180000', path.join(ROOT, file)];
