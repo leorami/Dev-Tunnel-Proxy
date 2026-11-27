@@ -22,7 +22,10 @@ async function setup(body){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'devproxy-p2-nginx-'));
  await fs.mkdir(path.join(root,'logs'));
  await fs.mkdir(path.join(root,'conf'));
- const conf=`worker_processes 1;\nerror_log logs/error.log;\npid logs/nginx.pid;\n${body}`;
+ const withAccess=body.includes('access_log ')
+  ? body
+  : body.replace('http {','http {\naccess_log logs/access.log;');
+ const conf=`worker_processes 1;\nerror_log logs/error.log;\npid logs/nginx.pid;\n${withAccess}`;
  await fs.writeFile(path.join(root,'conf','nginx.conf'),conf,{mode:0o600});
  return root;
 }
