@@ -25,20 +25,25 @@ PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
 V214_ENGINEER_TIP = "63854b07c6b71945b5eb415441d17112ff10ba5b"
-EXPECTED_STATUS_TREE = "8c45bf494cd95401b6a82330e24b0b237ce5e28d"
+V215_ENGINEER_TIP = "4c0e53c0346de1a58d9faee89a39bddac01b48d8"
+EXPECTED_STATUS_TREE = "f1c1693ae4fd9c2e406b639406727985892fef43"
 CHANGED_FROM_V213 = (
     "status/common.css",
     "status/common.js",
+    "status/common.v215-42c0928ec30a.css",
+    "status/common.v215-dfd52e64df59.js",
     "status/health.html",
     "status/reports.html",
     "status/status.html",
 )
 EXPECTED_BLOBS = {
-    "status/status.html": "765584fef92244a02e8d919d89ca2eb86f05c520",
+    "status/status.html": "928ef41dfbb3d160862a38f22f36ce1543df72d1",
     "status/common.js": "121ea9440a357fb79b8e896b5ae9cbef4f69acb3",
     "status/common.css": "e2da6231d921893311bda441be3a0161454bd72a",
-    "status/health.html": "cdc245be0ddbef49d5171f8d15a89bfdce6c4bef",
-    "status/reports.html": "08e84d0398894b3b7f11520b9e3b7fd10d207d07",
+    "status/common.v215-42c0928ec30a.css": "e2da6231d921893311bda441be3a0161454bd72a",
+    "status/common.v215-dfd52e64df59.js": "a3cb96da695e81382737a7c63796c4cba76d149f",
+    "status/health.html": "6b2bd77795fe6e3ca4d2750ad61b24bcd83e166a",
+    "status/reports.html": "22c0d26af6bdbc7cedee6fe82e0b543ab267a777",
     "status/config.js": "bd858c04942a6756dd43180830120463fe5eea5c",
     "status/vendor/lucide.min.js": "0123783f406f3141429457cf42d6afe86f01486d",
     "status/vendor/marked.min.js": "e12b0fab1b958792f45849d31abb3cdecc012d1b",
@@ -70,7 +75,7 @@ LINE_ANCHORS = {
     },
     "status/health.html": {
         100: 'id="observed-health"',
-        108: "Last scan only; not live health",
+        110: "Last scan only; not live health",
     },
     "status/reports.html": {
         54: 'id="reportCleanup"',
@@ -358,6 +363,7 @@ def build_manifest(source_sha: str, frames: list, **extra) -> dict:
         "statusDocumentBlob": EXPECTED_BLOBS["status/status.html"],
         "v213TestedTree": V213_TESTED_TREE,
         "v214EngineerTip": V214_ENGINEER_TIP,
+        "v215EngineerTip": V215_ENGINEER_TIP,
         "dependencyBlobs": dict(EXPECTED_BLOBS),
         "fixtureSha256": extra["fixture_sha256"],
         "deniedRequests": extra.get("denied_requests", []),
