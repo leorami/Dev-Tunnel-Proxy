@@ -89,9 +89,12 @@
       function classifyCatalog(data, page){
         if (!data || data.ok !== true || !Array.isArray(data.items) || !data.pagination) return { kind: 'malformed' };
         const total = data.pagination.total;
-        if (!safeTotal(total) || data.items.length > total) return { kind: 'malformed' };
+        if (!safeTotal(total) || data.items.length > total || data.items.length > itemsPerPage) return { kind: 'malformed' };
+        if (!data.items.every((item) => item && typeof item === 'object' && !Array.isArray(item))) return { kind: 'malformed' };
+        if (!Number.isSafeInteger(page) || page < 1) return { kind: 'malformed' };
         const start = (page - 1) * itemsPerPage;
         if (page > 1 && start >= total) return { kind: 'out-of-range', total: total };
+        if (start + data.items.length > total) return { kind: 'malformed' };
         if (total === 0 && page === 1 && data.items.length === 0) return { kind: 'empty', total: total };
         if (data.items.length === 0) return { kind: 'malformed' };
         return { kind: 'populated', total: total, items: data.items };

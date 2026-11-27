@@ -32,6 +32,8 @@ jobs:
           check-latest: true
       - name: Prepare existing mandatory isolated nginx fixture
         run: docker pull nginx:1.26.3-alpine
+      - name: Install filesystem metadata tools for the isolated installer proof
+        run: sudo apt-get update && sudo apt-get install -y acl attr
       - name: Run full current secure-mode contract (no owner runtime)
         run: |
           git log -1 --format=%H

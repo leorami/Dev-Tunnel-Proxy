@@ -470,11 +470,11 @@ strict_test_counts() {
 cmd_test_nginx_fixture() {
   require_isolated_release_ci || return 1
   docker image inspect nginx:1.26.3-alpine >/dev/null || return 1
-  strict_test_counts "node --test '$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs' '$ROOT_DIR/tests/security/v190-eight-api-native-nginx.test.cjs' '$ROOT_DIR/tests/security/v215-frontend-install-nginx.test.cjs'"
+  strict_test_counts "node --test '$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs' '$ROOT_DIR/tests/security/v190-eight-api-native-nginx.test.cjs' '$ROOT_DIR/tests/security/v215-frontend-install-nginx.test.cjs' '$ROOT_DIR/tests/security/v216-frontend-install-nginx.test.cjs'"
 }
 
 cmd_test_secure_contract() {
-  strict_test_counts "node --test '$ROOT_DIR/tests/security/v212-secure-release-api.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-evidence.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-observe-explain.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-http-audit.test.cjs' '$ROOT_DIR/tests/security/rc2-readonly-app-http-scan.test.cjs' '$ROOT_DIR/tests/security/rc2-app-http-scan-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check-fail-closed.test.cjs' '$ROOT_DIR/tests/security/rc2-self-check-api-contract.test.cjs' '$ROOT_DIR/tests/security/v203-supported-node-runtime.test.cjs' '$ROOT_DIR/tests/security/v214-shared-shell.test.cjs' '$ROOT_DIR/tests/security/v215-versioned-shared-assets.test.cjs'"
+  strict_test_counts "node --test '$ROOT_DIR/tests/security/v212-secure-release-api.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-evidence.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-observe-explain.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-http-audit.test.cjs' '$ROOT_DIR/tests/security/rc2-readonly-app-http-scan.test.cjs' '$ROOT_DIR/tests/security/rc2-app-http-scan-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check-fail-closed.test.cjs' '$ROOT_DIR/tests/security/rc2-self-check-api-contract.test.cjs' '$ROOT_DIR/tests/security/v203-supported-node-runtime.test.cjs' '$ROOT_DIR/tests/security/v214-shared-shell.test.cjs' '$ROOT_DIR/tests/security/v215-versioned-shared-assets.test.cjs' '$ROOT_DIR/tests/security/v216-response-contract.test.cjs' '$ROOT_DIR/tests/security/v216-frontend-install.test.cjs'"
 }
 
 cmd_test_thoughts() {

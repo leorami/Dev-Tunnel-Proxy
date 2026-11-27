@@ -183,9 +183,9 @@
         catch (e) { routesFailed = true; }
         if (generation !== healthGeneration) return { stale: true };
 
-        const healthMalformed = !healthFailed && (!health || typeof health.status !== 'string');
+        const knownLiveness = !healthFailed && !!health && (health.status === 'ok' || health.status === 'unavailable');
         const observed = document.getElementById('observed-health');
-        if (healthFailed || healthMalformed) {
+        if (!knownLiveness) {
           observed.textContent = 'Unavailable';
           observed.className = 'value';
         } else if (health.status === 'ok') {
@@ -195,34 +195,38 @@
           observed.textContent = 'Proxy not ok';
           observed.className = 'value err';
         }
-        const reportReady = !routesFailed && !!routes && typeof routes === 'object' && !Array.isArray(routes);
+        const routesObject = !routesFailed && !!routes && typeof routes === 'object' && !Array.isArray(routes);
         const reportFact = document.getElementById('report-available');
-        reportFact.textContent = reportReady ? 'Available' : 'Unavailable';
+        reportFact.textContent = routesObject ? 'Available' : 'Unavailable';
         reportFact.className = 'value';
         const proxy = report && typeof report.ngrok === 'string' && report.ngrok ? report.ngrok : 'Unknown';
         document.getElementById('ngrok-url').textContent = proxy;
-        const when = reportedTime(reportReady ? routes.generatedAt : '');
+        const when = reportedTime(routesObject ? routes.generatedAt : '');
+        const scanTimeKnown = when !== 'Unknown';
         document.getElementById('scan-time').textContent = when;
         const conflicts = document.getElementById('scan-conflicts');
-        const conflictCount = reportReady && routes.nginxConflicts ? routes.nginxConflicts.totalConflicts : null;
-        const conflictLabel = reportReady ? conflictText(routes) : 'Unknown';
+        const conflictCount = routesObject && routes.nginxConflicts ? routes.nginxConflicts.totalConflicts : null;
+        const conflictLabel = routesObject ? conflictText(routes) : 'Unknown';
         conflicts.textContent = conflictLabel;
-        conflicts.className = 'value' + (conflictLabel === 'Unknown' ? '' : (conflictCount > 0 ? ' err' : ' ok'));
+        const conflictKnown = scanTimeKnown && conflictLabel !== 'Unknown';
+        conflicts.className = 'value' + (!conflictKnown ? '' : (conflictCount > 0 ? ' err' : ' ok'));
         const names = report && report.results && typeof report.results === 'object' ? Object.keys(report.results) : [];
         document.getElementById('targets').textContent = names.length ? names.join(', ') : 'Unknown';
         document.getElementById('status-json').textContent = report ? JSON.stringify(report, null, 2) : 'Unavailable';
-        document.getElementById('routes-json').textContent = routes ? JSON.stringify(routes, null, 2) : 'Unavailable';
+        document.getElementById('routes-json').textContent = routesObject ? JSON.stringify(routes, null, 2) : 'Unavailable';
         if (status) {
-          const healthBad = healthFailed || healthMalformed;
-          const countBad = reportReady && conflictLabel === 'Unknown';
+          const healthBad = !knownLiveness;
+          const countBad = routesObject && conflictLabel === 'Unknown';
+          const scanBad = routesObject && !scanTimeKnown;
           if (healthBad && statusFailed && routesFailed) {
             status.textContent = 'Could not re-read. Nothing was changed.';
             status.classList.add('is-error');
-          } else if (healthBad || statusFailed || routesFailed || countBad) {
+          } else if (healthBad || statusFailed || !routesObject || scanBad || countBad) {
             const parts = [];
             if (healthBad) parts.push('Observed proxy liveness is unavailable.');
             if (statusFailed) parts.push('Historical status report is unavailable.');
-            if (routesFailed) parts.push('Routes report is unavailable.');
+            if (!routesObject) parts.push('Routes report is unavailable.');
+            else if (scanBad) parts.push('Scan time on that report is missing.');
             else if (countBad) parts.push('Conflict count on that scan is not a usable number.');
             status.textContent = parts.join(' ');
             status.classList.add('is-error');
@@ -234,7 +238,7 @@
         return {
           stale: false,
           unreadable: healthFailed && statusFailed && routesFailed,
-          observedUnavailable: healthFailed || healthMalformed
+          observedUnavailable: !knownLiveness
         };
       }
       try{ if (window.DTP && DTP.attachCalliope) DTP.attachCalliope(); }catch{}

@@ -26,6 +26,7 @@ test('nginx fixture must have the image and run real cases, never silently skip'
  assert.match(fixture,/require_isolated_release_ci/);
  assert.match(fixture,/docker image inspect nginx:1\.26\.3-alpine/);
  assert.match(fixture,/v171-four-auth-prefix-nginx\.test\.cjs/);
+ assert.match(fixture,/v216-frontend-install-nginx\.test\.cjs/);
  assert.match(fixture,/strict_test_counts/);
 });
 test('historical localhost/network commands are not ordinary test entrypoints',()=>{
@@ -103,4 +104,6 @@ test('full runner cannot return success for an unexecuted dry run',()=>{
 test('full current contract includes all existing explicit self-check fail-closed cases',()=>{
  const secure=section('cmd_test_secure_contract','cmd_test_thoughts');
  assert.match(secure,/rc2-secure-self-check-fail-closed\.test\.cjs/);
+ assert.match(secure,/v216-response-contract\.test\.cjs/);
+ assert.match(secure,/v216-frontend-install\.test\.cjs/);
 });

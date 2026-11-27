@@ -1,0 +1,115 @@
+name: Dev Proxy V216 release lanes
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lane-manifest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Every test file is in exactly one lane
+        run: node --test tests/security/v216-release-lanes.test.cjs
+  pure-node:
+    needs: lane-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.x', '24.x']
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+      - name: Install filesystem metadata tools
+        run: sudo apt-get update && sudo apt-get install -y acl attr
+      - name: Isolated per-file pure Node lane
+        run: node scripts/v216-release-lane.cjs --lane pure-node --shard ${{ matrix.shard }} --shards 4
+  nginx-fixture:
+    needs: lane-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Install filesystem metadata tools and the pinned nginx image
+        run: |
+          sudo apt-get update && sudo apt-get install -y acl attr
+          docker pull nginx:1.26.3-alpine
+      - name: Isolated nginx fixture lane
+        run: node scripts/v216-release-lane.cjs --lane nginx-fixture
+  libsignal-native:
+    needs: lane-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Install the qualified libsignal pin outside the repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/devproxy-v216-libsignal"
+          npm install --prefix "$RUNNER_TEMP/devproxy-v216-libsignal" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts @signalapp/libsignal-client@0.106.0
+      - name: Native libsignal lane
+        env:
+          V192_LIBSIGNAL_PACKAGE_ROOT: ${{ runner.temp }}/devproxy-v216-libsignal/node_modules/@signalapp/libsignal-client
+          V192_EXPECTED_LIBSIGNAL_VERSION: '0.106.0'
+        run: node scripts/v216-release-lane.cjs --lane libsignal-native
+  browser:
+    needs: lane-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the intercepted-browser test runner
+        run: |
+          python -m pip install 'playwright==1.56.0'
+          python -m playwright install --with-deps chromium
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Browser lane
+        run: node scripts/v216-release-lane.cjs --lane browser
+  blocked-capability-record:
+    needs: lane-manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Record blocked tests without counting them as passes
+        run: node scripts/v216-release-lane.cjs --lane blocked-capability
