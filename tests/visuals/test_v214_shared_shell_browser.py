@@ -217,7 +217,8 @@ class SharedShellBrowser(unittest.TestCase):
             health="not-ok", routes="invalid", status_json="invalid",
         )
         page.wait_for_timeout(400)
-        self.assertIn("not ok", page.locator("#observed-health").inner_text().lower())
+        # An unrecognized /health.json status is unavailable, not a known liveness failure.
+        self.assertIn("unavailable", page.locator("#observed-health").inner_text().lower())
         self.assertIn("unknown", page.locator("#scan-conflicts").inner_text().lower())
         self.assertIn("unknown", page.locator("#scan-time").inner_text().lower())
         self.assertIn("unknown", page.locator("#targets").inner_text().lower())
