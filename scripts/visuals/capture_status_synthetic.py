@@ -24,20 +24,21 @@ PNG_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*\.png$")
 PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
-V214_ENGINEER_TIP = "d65aa16e538aa475462f8671d0526326705f1f81"
-EXPECTED_STATUS_TREE = "a55d2193fc27ab8892a931566d74ea60e05d5753"
+V214_ENGINEER_TIP = "ef31413a15cda81baf196e6604c2f6daa72c5e6e"
+EXPECTED_STATUS_TREE = "b3d9f1ca111e5330ea4e8eda9315315a76ae4b39"
 CHANGED_FROM_V213 = (
     "status/common.css",
     "status/common.js",
     "status/health.html",
+    "status/reports.html",
     "status/status.html",
 )
 EXPECTED_BLOBS = {
-    "status/status.html": "29ff825452740404f712cb89424f105266a13076",
-    "status/common.js": "021fbb89e9c543924798c5ce3c509600eb077be0",
-    "status/common.css": "454d9280fa8e2a2a28b405037fddefb9c9d76cdc",
-    "status/health.html": "648bd663e26a5d34e987624e0aedc33ee17b4ad8",
-    "status/reports.html": "42aebbec2626703a8b2d9ee671ff387e637e5546",
+    "status/status.html": "765584fef92244a02e8d919d89ca2eb86f05c520",
+    "status/common.js": "121ea9440a357fb79b8e896b5ae9cbef4f69acb3",
+    "status/common.css": "47bb73c283c6a37658f547b4b1d42e16245383e9",
+    "status/health.html": "cdc245be0ddbef49d5171f8d15a89bfdce6c4bef",
+    "status/reports.html": "08e84d0398894b3b7f11520b9e3b7fd10d207d07",
     "status/config.js": "bd858c04942a6756dd43180830120463fe5eea5c",
     "status/vendor/lucide.min.js": "0123783f406f3141429457cf42d6afe86f01486d",
     "status/vendor/marked.min.js": "e12b0fab1b958792f45849d31abb3cdecc012d1b",
@@ -52,18 +53,28 @@ LINE_ANCHORS = {
     "status/status.html": {
         2917: "Last scan",
         2918: "Last scan only; not live health",
-        3171: "reloadConfigs",
-        3291: "Historical scan evidence",
-        3299: "Some conflict details unavailable",
+        3097: "async function reloadConfigs()",
+        3112: "Report re-read",
+        3279: "Historical conflict report dismissed",
     },
     "status/common.js": {
-        55: "header-logo",
-        68: 'id="reloadConfigs"',
-        87: "replaceWith(h)",
+        76: "headerRefreshStatus",
+        83: "registerHeaderRefresh",
+        143: "replaceWith(h)",
+        195: "inert",
     },
     "status/common.css": {
-        554: "V161 mobile header",
-        561: "display: grid",
+        557: "V161 mobile header",
+        564: "display: grid",
+        682: "translateY(calc(100% + 24px))",
+    },
+    "status/health.html": {
+        100: 'id="observed-health"',
+        108: "Last scan only; not live health",
+    },
+    "status/reports.html": {
+        54: 'id="reportCleanup"',
+        55: "Clean up old reports",
     },
 }
 API_PATHS = {
@@ -83,29 +94,38 @@ API_PATHS = {
 }
 FRAMES = (
     {"file": "status-desktop-light-drawer-open.png", "width": 1365, "height": 900,
-     "theme": "light", "state": "drawer-open", "conflicts": "ambiguous"},
-    {"file": "status-mobile-light-drawer-closed.png", "width": 390, "height": 844,
-     "theme": "light", "state": "drawer-closed", "conflicts": "ambiguous"},
+     "theme": "light", "state": "drawer-open", "conflicts": "ambiguous", "page": "status"},
     {"file": "status-desktop-dark.png", "width": 1365, "height": 900,
-     "theme": "dark", "state": "drawer-closed", "conflicts": "ambiguous"},
-    {"file": "status-mobile-dark.png", "width": 390, "height": 844,
-     "theme": "dark", "state": "drawer-closed", "conflicts": "ambiguous"},
+     "theme": "dark", "state": "drawer-closed", "conflicts": "ambiguous", "page": "status"},
+    {"file": "status-mobile-light-drawer-closed.png", "width": 390, "height": 844,
+     "theme": "light", "state": "drawer-closed", "conflicts": "ambiguous", "page": "status"},
+    {"file": "status-430-light.png", "width": 430, "height": 844,
+     "theme": "light", "state": "drawer-closed", "conflicts": "ambiguous", "page": "status"},
+    {"file": "status-320-light.png", "width": 320, "height": 844,
+     "theme": "light", "state": "drawer-closed", "conflicts": "ambiguous", "page": "status"},
     {"file": "status-desktop-light-conflicts-decoded.png", "width": 1365, "height": 900,
      "theme": "light", "state": "conflicts-decoded", "conflicts": "decoded", "page": "status"},
     {"file": "status-desktop-light-report-reread.png", "width": 1365, "height": 900,
      "theme": "light", "state": "report-reread", "conflicts": "ambiguous", "page": "status"},
     {"file": "status-mobile-light-conflicts.png", "width": 390, "height": 844,
      "theme": "light", "state": "conflict-scrolled", "conflicts": "ambiguous", "page": "status"},
-    {"file": "status-mobile-dark-conflicts.png", "width": 390, "height": 844,
-     "theme": "dark", "state": "conflict-scrolled", "conflicts": "ambiguous", "page": "status"},
     {"file": "health-mobile-light.png", "width": 390, "height": 844,
      "theme": "light", "state": "header", "conflicts": "ambiguous", "page": "health"},
     {"file": "health-mobile-dark.png", "width": 390, "height": 844,
      "theme": "dark", "state": "header", "conflicts": "ambiguous", "page": "health"},
-    {"file": "reports-mobile-light.png", "width": 390, "height": 844,
-     "theme": "light", "state": "header", "conflicts": "ambiguous", "page": "reports"},
-    {"file": "reports-mobile-dark.png", "width": 390, "height": 844,
-     "theme": "dark", "state": "header", "conflicts": "ambiguous", "page": "reports"},
+    {"file": "health-desktop-light-missing.png", "width": 1365, "height": 900,
+     "theme": "light", "state": "report-missing", "conflicts": "ambiguous", "page": "health",
+     "health": "missing"},
+    {"file": "reports-mobile-light-empty.png", "width": 390, "height": 844,
+     "theme": "light", "state": "empty", "conflicts": "ambiguous", "page": "reports", "reports": "empty"},
+    {"file": "reports-mobile-dark-empty.png", "width": 390, "height": 844,
+     "theme": "dark", "state": "empty", "conflicts": "ambiguous", "page": "reports", "reports": "empty"},
+    {"file": "reports-430-light-populated.png", "width": 430, "height": 844,
+     "theme": "light", "state": "populated", "conflicts": "ambiguous", "page": "reports", "reports": "populated"},
+    {"file": "reports-mobile-light-failed.png", "width": 390, "height": 844,
+     "theme": "light", "state": "failed", "conflicts": "ambiguous", "page": "reports", "reports": "failed"},
+    {"file": "reports-desktop-light-cleanup.png", "width": 1365, "height": 900,
+     "theme": "light", "state": "cleanup-open", "conflicts": "ambiguous", "page": "reports", "reports": "populated"},
 )
 
 
@@ -238,7 +258,14 @@ def json_body(payload: dict) -> bytes:
     return json.dumps(payload).encode("utf-8")
 
 
-def response_for(repo: Path, fixture: dict, conflict_key: str, path: str) -> tuple[str, bytes] | None:
+def response_for(
+    repo: Path,
+    fixture: dict,
+    conflict_key: str,
+    path: str,
+    health: str = "ok",
+    reports: str = "empty",
+) -> tuple[str, bytes] | None:
     target = status_file(repo, path)
     if target is not None:
         kind = {
@@ -267,10 +294,21 @@ def response_for(repo: Path, fixture: dict, conflict_key: str, path: str) -> tup
         })),
         "/devproxy/api/notifications": ("application/json", json_body({"ok": True})),
         "/health.json": ("application/json", json_body({"status": "ok"})),
-        "/devproxy/api/reports/list": ("application/json", json_body({
-            "ok": True, "items": [], "pagination": {"total": 0},
-        })),
     }
+    if health == "missing" and path in {
+        "/health.json", "/routes.json", "/status.json", "/.artifacts/reports/health-latest.json",
+    }:
+        return None
+    if path == "/devproxy/api/reports/list":
+        if reports == "failed":
+            return "application/json", json_body({"ok": False, "error": "reports_unavailable"})
+        if reports == "populated":
+            return "application/json", json_body({
+                "ok": True,
+                "items": [{"name": "health-synthetic.json", "size": 128, "mtimeMs": 1762144381466}],
+                "pagination": {"total": 1},
+            })
+        return "application/json", json_body({"ok": True, "items": [], "pagination": {"total": 0}})
     return bodies.get(path)
 
 
@@ -345,17 +383,16 @@ def source_snippets(repo: Path) -> str:
         "These lines are the reviewed Status document and its tested dependencies.",
         "`testedSourceSha=servedSha` in the manifest is the evidence commit that rendered this fixture, not the mixed owner tree.",
         "",
-        block("status/status.html", 2917, 2918),
-        block("status/status.html", 3289, 3299),
-        block("status/status.html", 3169, 3180),
-        block("status/common.js", 55, 55),
-        block("status/common.js", 68, 68),
-        block("status/common.js", 86, 87),
-        block("status/common.css", 554, 565),
+        block("status/status.html", 3097, 3114),
+        block("status/status.html", 3277, 3280),
+        block("status/common.js", 76, 84),
+        block("status/health.html", 96, 108),
+        block("status/reports.html", 52, 58),
+        block("status/common.css", 674, 684),
         "",
-        "The visible header reload control is still the `common.js` replacement.",
-        "A document click listener calls `reloadConfigs` for that button, including the one installed on DOMContentLoaded.",
-        "A later DOMContentLoaded listener names the visible button as a re-read of the last scan report.",
+        "The visible header refresh stays an icon. Feedback is the separate header status.",
+        "Health separates the observed endpoint from the historical scan.",
+        "Reports cleanup stays inside a closed disclosure until the person opens it.",
         "",
     ])
 
@@ -403,14 +440,34 @@ def _wait_ready(page, frame: dict) -> None:
         if frame["state"] == "report-reread":
             page.locator("body > header #reloadConfigs").click()
             page.wait_for_function(
-                "() => (document.querySelector('body > header #reloadConfigs').textContent || '').includes('Report re-read')",
+                "() => (document.getElementById('headerRefreshStatus').textContent || '').includes('Report re-read')",
                 timeout=8000,
             )
     elif frame.get("page") == "health":
-        page.wait_for_function(
-            "() => document.body.innerText.includes('example-tunnel.invalid')",
-            timeout=15000,
-        )
+        if frame.get("health") == "missing":
+            page.wait_for_function(
+                """() => {
+                  const observed = document.getElementById('observed-health');
+                  const conflicts = document.getElementById('scan-conflicts');
+                  return !!observed && /unavailable/i.test(observed.textContent)
+                    && !!conflicts && /unknown/i.test(conflicts.textContent);
+                }""",
+                timeout=15000,
+            )
+        else:
+            page.wait_for_function(
+                "() => document.body.innerText.includes('example-tunnel.invalid') && document.body.innerText.includes('Responding')",
+                timeout=15000,
+            )
+    elif frame.get("page") == "reports":
+        if frame.get("reports") == "failed":
+            page.wait_for_function("() => document.body.innerText.includes('Could not load reports')", timeout=15000)
+        elif frame.get("reports") == "populated":
+            page.wait_for_function("() => document.body.innerText.includes('health-synthetic.json')", timeout=15000)
+        else:
+            page.wait_for_function("() => document.body.innerText.includes('No reports found')", timeout=15000)
+        if frame["state"] == "cleanup-open":
+            page.locator("#reportCleanup").evaluate("el => { el.open = true }")
     theme = page.evaluate("() => document.documentElement.getAttribute('data-theme')")
     if theme != frame["theme"]:
         raise CaptureError("theme_not_applied")
@@ -450,7 +507,7 @@ def capture(repo: Path, fixture_path: Path, output_dir: Path, source_sha: str) -
                 )
                 page = context.new_page()
 
-                def make_handler(conflict_key: str):
+                def make_handler(spec: dict):
                     def handle(route):
                         nonlocal denied_external
                         request = route.request
@@ -462,7 +519,22 @@ def capture(repo: Path, fixture_path: Path, output_dir: Path, source_sha: str) -
                             route.abort()
                             return
                         path = urlparse(request.url).path
-                        payload = response_for(repo, fixture, conflict_key, path)
+                        if spec.get("health") == "missing" and path in {
+                            "/health.json",
+                            "/routes.json",
+                            "/status.json",
+                            "/.artifacts/reports/health-latest.json",
+                        }:
+                            route.abort()
+                            return
+                        payload = response_for(
+                            repo,
+                            fixture,
+                            spec["conflicts"],
+                            path,
+                            spec.get("health", "ok"),
+                            spec.get("reports", "empty"),
+                        )
                         if payload is None:
                             record_denial(denied, request.method, request.url)
                             route.abort()
@@ -471,7 +543,7 @@ def capture(repo: Path, fixture_path: Path, output_dir: Path, source_sha: str) -
                         route.fulfill(status=200, content_type=content_type, body=body)
                     return handle
 
-                page.route("**/*", make_handler(frame["conflicts"]))
+                page.route("**/*", make_handler(frame))
                 page_path = {
                     "status": "/status/status.html",
                     "health": "/status/health.html",
@@ -488,7 +560,8 @@ def capture(repo: Path, fixture_path: Path, output_dir: Path, source_sha: str) -
                 visible = page.locator("body").inner_text()
                 if "ngrok.app" in visible or "127.0.0.1" in visible:
                     raise CaptureError("owner_host_visible")
-                if frame.get("page", "status") != "reports" and "example-tunnel.invalid" not in visible:
+                shows_proxy = frame.get("page", "status") != "reports" and frame.get("state") != "report-missing"
+                if shows_proxy and "example-tunnel.invalid" not in visible:
                     raise CaptureError("synthetic_proxy_not_visible")
                 images[frame["file"]] = (raw, width, height)
                 context.close()
