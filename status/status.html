@@ -491,6 +491,10 @@
       /* reserved for legacy global diagnose button (removed) */
       #aiDiagnoseGlobal{display:none}
       @media (max-width:768px){
+        .card-header-row{flex-wrap:wrap}
+        .card-header-row .header-main{flex:1 1 100%;min-width:0}
+        .card-header-row .header-actions{flex:1 1 100%;flex-shrink:1;flex-wrap:wrap;width:100%;max-width:100%}
+        .card-header-row .header-actions .btn{flex:1 1 0;min-height:44px;white-space:normal}
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
         .config-actions{margin-left:0}
@@ -3089,20 +3093,10 @@
         }
       })();
 
-      // Reload configurations functionality
+      // Re-read the last scan report. This does not start a scan.
       async function reloadConfigs() {
-        const reloadBtn = document.getElementById('reloadConfigs');
-        const originalHTML = reloadBtn.innerHTML;
-        
+        const status = document.getElementById('headerRefreshStatus');
         try {
-          // Show loading state
-          reloadBtn.innerHTML = '';
-          const loadingIcon = createIcon('loader-2', 18);
-          loadingIcon.style.animation = 'spin 1s linear infinite';
-          reloadBtn.appendChild(loadingIcon);
-          reloadBtn.disabled = true;
-          
-          // Re-read the existing report. This does not start a scan.
           let reportRead = false;
           const timestamp = Date.now();
           const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
@@ -3115,30 +3109,20 @@
           }
           
           if (reportRead) {
-            reloadBtn.textContent = 'Report re-read';
-            reloadBtn.style.background = '#16402b';
-            reloadBtn.style.borderColor = '#2a7f54';
-            reloadBtn.style.color = '#a6f3cc';
-            
-            // Reload the page after short delay to show success
+            if (status) status.textContent = 'Report re-read';
             setTimeout(() => {
               location.reload();
             }, 1000);
-          } else {
-            throw new Error('Unable to reload configs');
+            return { hold: true };
           }
-          
+          throw new Error('Unable to re-read the last scan report');
         } catch (error) {
           console.error('Config reload failed:', error);
-          
-          // Error feedback
-          reloadBtn.textContent = 'Report unavailable';
-          reloadBtn.style.background = 'rgba(239,68,68,.15)';
-          reloadBtn.style.borderColor = '#ef4444';
-          reloadBtn.style.color = '#ef4444';
-          
+          if (status) {
+            status.textContent = 'Could not re-read. Nothing was changed.';
+            status.classList.add('is-error');
+          }
           const instructions = 'The last scan report could not be re-read. This button does not start a new scan or change configuration.';
-          
           setTimeout(async () => {
             const confirmed = await window.DTP.showDialog({
               type: 'confirm',
@@ -3150,20 +3134,12 @@
             }
           }, 1500);
         }
-        
-        // Reset button after delay
-        setTimeout(() => {
-          reloadBtn.innerHTML = originalHTML;
-          refreshIcons();
-          reloadBtn.disabled = false;
-          reloadBtn.style.background = '';
-          reloadBtn.style.borderColor = '';
-          reloadBtn.style.color = '';
-        }, 3000);
       }
 
-      // Wire up reload button
-      document.getElementById('reloadConfigs').addEventListener('click', reloadConfigs);
+      window.DTP.registerHeaderRefresh({
+        label: 'Re-read the last scan report',
+        run: function () { return reloadConfigs(); }
+      });
 
       // View JSON for specific source file
       function viewSourceJson(sourceFile, routesInSource) {
@@ -3300,7 +3276,7 @@
 
         if (ackBtn) ackBtn.onclick = () => {
           conflictCard.classList.add('hidden');
-          window.DTP.showToast('info', 'Historical conflict report dismissed');
+          window.DTP.showToast('Historical conflict report dismissed', 'info');
         };
         if (fixBtn) fixBtn.onclick = () => {
           // This is an explicit user click. Do not include report-controlled strings.
