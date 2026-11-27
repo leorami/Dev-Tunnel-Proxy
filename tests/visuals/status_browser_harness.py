@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 FIXTURE_HOST = "devproxy-fixture.invalid"
 FIXTURE_ORIGIN = f"https://{FIXTURE_HOST}"
@@ -55,6 +55,18 @@ def routes_document(fixture: dict, conflict_key: str) -> dict:
     }
 
 
+def _dashboard_file(repo: Path, url_path: str) -> Path | None:
+    if url_path not in ("/dashboard", "/dashboard/", "/dashboard/index.html"):
+        return None
+    root = (repo / "dashboard" / "public").resolve()
+    target = (root / "index.html").resolve()
+    if target.is_symlink() or not target.is_file():
+        return None
+    if root != target and root not in target.parents:
+        return None
+    return target
+
+
 def _status_file(repo: Path, url_path: str) -> Path | None:
     if not url_path.startswith("/status/") or url_path.endswith("/"):
         return None
@@ -97,6 +109,9 @@ class StatusBrowser:
         self.status_mode = "present"
         self.reports_mode = "empty"
         self.fail_stamped = False
+        self.status_generated_at = None
+        self.hold_once = []
+        self.held_routes = []
 
     def open(
         self,
@@ -109,6 +124,9 @@ class StatusBrowser:
         routes: str = "report",
         status_json: str = "present",
         reports: str = "empty",
+        status_at: str | None = None,
+        hold_once: tuple[str, ...] = (),
+        ready: str = "header",
     ):
         self.close_page()
         self.traffic = []
@@ -118,6 +136,9 @@ class StatusBrowser:
         self.status_mode = status_json
         self.reports_mode = reports
         self.fail_stamped = False
+        self.status_generated_at = status_at
+        self.hold_once = list(hold_once)
+        self.held_routes = []
         self.context = self.browser.new_context(
             viewport={"width": width, "height": height},
             device_scale_factor=1,
@@ -134,17 +155,53 @@ class StatusBrowser:
         self.page = self.context.new_page()
         self.page.route("**/*", self._handle)
         self.page.goto(FIXTURE_ORIGIN + path, wait_until="domcontentloaded", timeout=25000)
-        self.page.wait_for_function(
-            "() => !!document.querySelector('body > header #reloadConfigs')",
-            timeout=15000,
-        )
+        if ready == "header":
+            self.page.wait_for_function(
+                "() => !!document.querySelector('body > header #reloadConfigs')",
+                timeout=15000,
+            )
+        elif ready == "dashboard":
+            self.page.wait_for_function(
+                "() => !!document.querySelector('body > header #themeToggle')",
+                timeout=15000,
+            )
+        elif ready != "dom":
+            raise RuntimeError("unknown_ready_mode")
         return self.page
 
     def close_page(self) -> None:
+        for item in list(self.held_routes):
+            try:
+                item["route"].abort()
+            except Exception:
+                pass
+        self.held_routes = []
         if self.context is not None:
             self.context.close()
         self.context = None
         self.page = None
+
+    def release_held(self, path_prefix: str, *, body: bytes, content_type: str = "application/json", status: int = 200) -> int:
+        keep = []
+        released = 0
+        for item in self.held_routes:
+            matched = item["path"] == path_prefix or item["path"].startswith(path_prefix)
+            if not matched:
+                keep.append(item)
+                continue
+            item["route"].fulfill(status=status, content_type=content_type, body=body)
+            item["record"]["outcome"] = "fulfill"
+            released += 1
+        self.held_routes = keep
+        return released
+
+    def _take_hold(self, path: str) -> bool:
+        for index, item in enumerate(self.hold_once):
+            prefix = item[:-1] if item.endswith("*") else None
+            if (prefix is not None and path.startswith(prefix)) or path == item:
+                del self.hold_once[index]
+                return True
+        return False
 
     def _handle(self, route) -> None:
         request = route.request
@@ -168,6 +225,11 @@ class StatusBrowser:
             self.traffic.append(record)
             route.abort()
             return
+        if self._take_hold(parsed.path or "/"):
+            record["outcome"] = "held"
+            self.traffic.append(record)
+            self.held_routes.append({"path": parsed.path or "/", "route": route, "record": record})
+            return
         if (
             self.fail_stamped
             and (parsed.path or "/") == "/routes.json"
@@ -177,7 +239,7 @@ class StatusBrowser:
             self.traffic.append(record)
             route.abort()
             return
-        payload = self._response(parsed.path or "/")
+        payload = self._response(parsed.path or "/", parsed.query or "")
         if payload is None:
             record["outcome"] = "deny-fixture"
             self.traffic.append(record)
@@ -188,10 +250,13 @@ class StatusBrowser:
         content_type, body = payload
         route.fulfill(status=200, content_type=content_type, body=body)
 
-    def _response(self, path: str) -> tuple[str, bytes] | None:
+    def _response(self, path: str, query: str = "") -> tuple[str, bytes] | None:
         target = _status_file(self.repo, path)
         if target is not None:
             return _content_type(target), target.read_bytes()
+        dashboard = _dashboard_file(self.repo, path)
+        if dashboard is not None:
+            return _content_type(dashboard), dashboard.read_bytes()
         if path == "/routes.json":
             if self.routes_mode == "missing":
                 return None
@@ -201,6 +266,19 @@ class StatusBrowser:
             if self.routes_mode == "zero":
                 document["nginxConflicts"] = {"totalConflicts": 0}
                 document["nginxWarnings"] = []
+            elif self.routes_mode == "negative":
+                document["nginxConflicts"] = {"totalConflicts": -1}
+            elif self.routes_mode == "fraction":
+                document["nginxConflicts"] = {"totalConflicts": 1.5}
+            elif self.routes_mode == "text":
+                document["nginxConflicts"] = {"totalConflicts": "2"}
+            elif self.routes_mode == "unsafe":
+                raw = _json(document).decode("utf-8").replace(
+                    '"totalConflicts": 2',
+                    '"totalConflicts": 9007199254740993',
+                    1,
+                )
+                return "application/json", raw.encode("utf-8")
             return "application/json", _json(document)
         if path == "/config":
             return "application/json", _json({"apiBasePath": "/devproxy/api", "version": "1.0.0"})
@@ -209,32 +287,64 @@ class StatusBrowser:
                 return None
             if self.status_mode == "invalid":
                 return "application/json", b"{"
-            return "application/json", _json({"ngrok": self.fixture["proxyUrl"], "generatedAt": self.fixture["generatedAt"]})
+            generated = self.status_generated_at or self.fixture["generatedAt"]
+            return "application/json", _json({"ngrok": self.fixture["proxyUrl"], "generatedAt": generated})
         if path == "/health.json":
             if self.health_mode == "missing":
                 return None
             if self.health_mode == "invalid":
                 return "application/json", b"{"
+            if self.health_mode == "malformed":
+                return "application/json", b"{}"
             if self.health_mode == "not-ok":
                 return "application/json", _json({"status": "error"})
             return "application/json", _json({"status": "ok"})
         if path.startswith("/devproxy/api/reports/list"):
-            if self.reports_mode == "failed":
-                return "application/json", _json({"ok": False, "error": "reports_unavailable"})
-            if self.reports_mode == "populated":
-                return "application/json", _json({
-                    "ok": True,
-                    "items": [{
-                        "name": "health-synthetic.json",
-                        "size": 128,
-                        "mtimeMs": 1762144381466,
-                    }],
-                    "pagination": {"total": 1},
-                })
-            return "application/json", _json({"ok": True, "items": [], "pagination": {"total": 0}})
+            return "application/json", self._reports_body(query)
         if path.startswith("/devproxy/api/"):
             return "application/json", _json({"ok": True})
         return None
+
+    def _reports_body(self, query: str) -> bytes:
+        page = (parse_qs(query).get("page") or ["1"])[0]
+        mode = self.reports_mode
+        if mode == "failed":
+            return _json({"ok": False, "error": "reports_unavailable"})
+        if mode == "malformed":
+            return b"{}"
+        if mode == "ok-no-items":
+            return _json({"ok": True})
+        if mode == "bad-total":
+            return _json({"ok": True, "items": [], "pagination": {"total": 1.5}})
+        if mode == "negative-total":
+            return _json({"ok": True, "items": [], "pagination": {"total": -1}})
+        if mode == "unsafe-total":
+            return b'{"ok":true,"items":[],"pagination":{"total":9007199254740993}}'
+        if mode == "page-gap":
+            return _json({"ok": True, "items": [], "pagination": {"total": 25}})
+        if mode == "shrunk":
+            return _json({"ok": True, "items": [], "pagination": {"total": 0}})
+        if mode == "recover-malformed":
+            if page == "1":
+                return b"{}"
+            return _json({"ok": True, "items": [], "pagination": {"total": 0}})
+        if mode == "paged":
+            items = [
+                {"name": f"health-synthetic-{index}.json", "size": 128, "mtimeMs": 1762144381466}
+                for index in range(10)
+            ]
+            return _json({"ok": True, "items": items, "pagination": {"total": 15}})
+        if mode == "populated":
+            return _json({
+                "ok": True,
+                "items": [{
+                    "name": "health-synthetic.json",
+                    "size": 128,
+                    "mtimeMs": 1762144381466,
+                }],
+                "pagination": {"total": 1},
+            })
+        return _json({"ok": True, "items": [], "pagination": {"total": 0}})
 
     def stamped_route_reads(self) -> list[dict]:
         return [
