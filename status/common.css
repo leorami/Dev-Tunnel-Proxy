@@ -557,12 +557,12 @@ body.ai-open[data-page="reports"] .container {
 /* V161 mobile header: intentional multi-row nav/tools; no horizontal document scroll */
 @media (max-width: 899px) {
   body > header {
-    padding: 4px 8px 6px;
+    padding: 4px 6px 4px;
   }
 
   body > header > .header-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) max-content;
     align-items: center;
     column-gap: 6px;
     row-gap: 4px;
@@ -572,8 +572,8 @@ body.ai-open[data-page="reports"] .container {
   body > header > .header-row > h1 {
     grid-column: 1;
     grid-row: 1;
-    min-width: 0;
-    font-size: 13px;
+    min-width: max-content;
+    font-size: 12px;
   }
 
   body > header > .header-row > .header-actions {
@@ -592,17 +592,18 @@ body.ai-open[data-page="reports"] .container {
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 2px;
-    min-width: 0;
+    gap: 1px;
+    min-width: max-content;
     max-width: 100%;
   }
 
   body > header .header-actions .header-nav .tab {
-    padding: 0 4px;
-    font-size: 12px;
+    padding: 0 2px;
+    font-size: 11px;
     line-height: 1.1;
+    min-width: 44px;
     white-space: nowrap;
   }
 
@@ -610,9 +611,10 @@ body.ai-open[data-page="reports"] .container {
     grid-column: 2;
     grid-row: 1;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     justify-content: flex-end;
-    gap: 4px;
+    gap: 2px;
+    min-width: max-content;
     max-width: 100%;
   }
 
@@ -621,8 +623,8 @@ body.ai-open[data-page="reports"] .container {
   }
 
   body > header .header-logo {
-    height: 22px;
-    margin-right: 6px;
+    height: 20px;
+    margin-right: 4px;
   }
 
   body > header h1 .brand {
@@ -640,9 +642,25 @@ body.ai-open[data-page="reports"] .container {
   }
 }
 
+@media (max-width: 390px) {
+  body > header > .header-row > h1 {
+    font-size: 11px;
+  }
+
+  body > header .header-actions .header-nav .tab {
+    padding: 0 1px;
+    font-size: 10px;
+  }
+}
+
 @media (max-width: 359px) {
+  body > header {
+    padding: 2px 6px 2px;
+  }
+
   body > header > .header-row {
     grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
   }
 
   body > header > .header-row > h1 {
@@ -658,11 +676,6 @@ body.ai-open[data-page="reports"] .container {
 
   body > header .header-actions .header-nav {
     grid-row: 3;
-  }
-
-  body > header .header-actions .header-nav .tab {
-    padding: 0 3px;
-    font-size: 11px;
   }
 }
 
