@@ -517,6 +517,8 @@
           const drawer = document.getElementById('aiDrawer');
           if (drawer && drawer.classList.contains('collapsed')) {
             drawer.classList.remove('collapsed');
+            drawer.inert = false;
+            drawer.removeAttribute('aria-hidden');
             document.body.classList.add('ai-open');
             // Update button states
             const btns = document.querySelectorAll('#calliopeOpen, #aiSelfCheckGlobal');
