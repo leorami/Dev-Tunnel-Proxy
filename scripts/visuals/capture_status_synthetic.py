@@ -24,8 +24,8 @@ PNG_NAME = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*\.png$")
 PNG_SIG = bytes.fromhex("89504e470d0a1a0a")
 
 V213_TESTED_TREE = "6e05877b076f9edc188382622cd4912abec7ed17"
-V214_ENGINEER_TIP = "ef31413a15cda81baf196e6604c2f6daa72c5e6e"
-EXPECTED_STATUS_TREE = "b3d9f1ca111e5330ea4e8eda9315315a76ae4b39"
+V214_ENGINEER_TIP = "63854b07c6b71945b5eb415441d17112ff10ba5b"
+EXPECTED_STATUS_TREE = "8c45bf494cd95401b6a82330e24b0b237ce5e28d"
 CHANGED_FROM_V213 = (
     "status/common.css",
     "status/common.js",
@@ -36,7 +36,7 @@ CHANGED_FROM_V213 = (
 EXPECTED_BLOBS = {
     "status/status.html": "765584fef92244a02e8d919d89ca2eb86f05c520",
     "status/common.js": "121ea9440a357fb79b8e896b5ae9cbef4f69acb3",
-    "status/common.css": "47bb73c283c6a37658f547b4b1d42e16245383e9",
+    "status/common.css": "e2da6231d921893311bda441be3a0161454bd72a",
     "status/health.html": "cdc245be0ddbef49d5171f8d15a89bfdce6c4bef",
     "status/reports.html": "08e84d0398894b3b7f11520b9e3b7fd10d207d07",
     "status/config.js": "bd858c04942a6756dd43180830120463fe5eea5c",
@@ -66,7 +66,7 @@ LINE_ANCHORS = {
     "status/common.css": {
         557: "V161 mobile header",
         564: "display: grid",
-        682: "translateY(calc(100% + 24px))",
+        695: "translateY(calc(100% + 24px))",
     },
     "status/health.html": {
         100: 'id="observed-health"',
@@ -388,7 +388,7 @@ def source_snippets(repo: Path) -> str:
         block("status/common.js", 76, 84),
         block("status/health.html", 96, 108),
         block("status/reports.html", 52, 58),
-        block("status/common.css", 674, 684),
+        block("status/common.css", 687, 696),
         "",
         "The visible header refresh stays an icon. Feedback is the separate header status.",
         "Health separates the observed endpoint from the historical scan.",
