@@ -82,7 +82,7 @@ The first push failed those same gates. Node run [46073084254](https://github.co
 
 Local checks before the push, on the engineer worktree: the V215 intercepted browser file plus the two V214 browser files, 30 tests passed; the versioned-stylesheet browser check passed; the Node lane files in the supported-Node workflow, 81 passed; the nginx install fixture, 1 passed.
 
-This document does not change `status/` or the tests those gates run. The Node workflow's path filter does not include this handoff, so that gate stays the `1238912` run. The secure workflow has no path filter and will run again for this commit. A docs commit is not a new product claim.
+This document does not change `status/` or the tests those gates run. Pushing it starts the same pull-request workflows again. The return comment on #271 names the runs for this commit. A docs commit is not a new product claim.
 
 ## The broad suite is still not green
 
