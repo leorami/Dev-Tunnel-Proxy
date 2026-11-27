@@ -8,17 +8,17 @@ const http = require('node:http');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync, spawn, spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { sha256, installRelease, rollbackRelease } = require('../../scripts/v215-frontend-install.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 const STATUS = path.join(ROOT, 'status');
-const BASE = 'd646eba26cd3b5bbf4657ce3e79d834c30247203';
+const PREIMAGE = path.join(__dirname, 'fixtures', 'v215-v214-documents');
 const IMAGE = 'nginx:1.26.3-alpine';
 const DOCUMENTS = ['health.html', 'reports.html', 'status.html'];
 
-function gitShow(spec) {
-  return execFileSync('git', ['show', `${BASE}:${spec}`], { cwd: ROOT });
+function preimage(name) {
+  return fs.readFileSync(path.join(PREIMAGE, name));
 }
 
 function releaseFromRepo() {
@@ -28,7 +28,7 @@ function releaseFromRepo() {
   const previous = {};
   const documents = {};
   for (const name of DOCUMENTS) {
-    previous[name.replace('.html', '')] = sha256(gitShow(`status/${name}`));
+    previous[name.replace('.html', '')] = sha256(preimage(name));
     documents[name.replace('.html', '')] = fs.readFileSync(path.join(STATUS, name));
   }
   return {
@@ -133,7 +133,7 @@ test('isolated nginx serves each install boundary and the inverse, without calli
     await fsp.mkdir(path.join(html, '.artifacts', 'reports'), { recursive: true });
     await fsp.cp(STATUS, statusDir, { recursive: true });
     for (const docName of DOCUMENTS) {
-      await fsp.writeFile(path.join(statusDir, docName), gitShow(`status/${docName}`));
+      await fsp.writeFile(path.join(statusDir, docName), preimage(docName));
     }
     await fsp.rm(path.join(statusDir, release.cssName), { force: true });
     await fsp.rm(path.join(statusDir, release.jsName), { force: true });
@@ -198,7 +198,7 @@ test('isolated nginx serves each install boundary and the inverse, without calli
     rollbackRelease(statusDir, partial.concat(rest));
     const restored = await request(port, '/status/health.html', owner);
     assert.doesNotMatch(restored.body.toString('utf8'), /Proxy liveness/);
-    assert.deepEqual(restored.body, gitShow('status/health.html'));
+    assert.deepEqual(restored.body, preimage('health.html'));
     const cachedAfter = await request(port, '/status/common.js', owner);
     assert.deepEqual(cachedAfter.body, cachedJs);
 

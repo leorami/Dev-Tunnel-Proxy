@@ -6,7 +6,6 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const {
   sha256,
   assertIsolated,
@@ -16,13 +15,18 @@ const {
 
 const ROOT = path.resolve(__dirname, '../..');
 const STATUS = path.join(ROOT, 'status');
-const BASE = 'd646eba26cd3b5bbf4657ce3e79d834c30247203';
+const PREIMAGE = path.join(__dirname, 'fixtures', 'v215-v214-documents');
 const OLD_JS_BLOB = '121ea9440a357fb79b8e896b5ae9cbef4f69acb3';
 const OLD_CSS_BLOB = 'e2da6231d921893311bda441be3a0161454bd72a';
+const OLD_DOCUMENT_BLOBS = {
+  'health.html': 'cdc245be0ddbef49d5171f8d15a89bfdce6c4bef',
+  'reports.html': '08e84d0398894b3b7f11520b9e3b7fd10d207d07',
+  'status.html': '765584fef92244a02e8d919d89ca2eb86f05c520',
+};
 const DOCUMENTS = ['health.html', 'reports.html', 'status.html'];
 
-function gitShow(spec) {
-  return execFileSync('git', ['show', `${BASE}:${spec}`], { cwd: ROOT });
+function preimage(name) {
+  return fs.readFileSync(path.join(PREIMAGE, name));
 }
 
 function gitBlob(bytes) {
@@ -36,7 +40,7 @@ function releaseFromRepo() {
   const previous = {};
   const documents = {};
   for (const name of DOCUMENTS) {
-    previous[name.replace('.html', '')] = sha256(gitShow(`status/${name}`));
+    previous[name.replace('.html', '')] = sha256(preimage(name));
     documents[name.replace('.html', '')] = fs.readFileSync(path.join(STATUS, name));
   }
   return {
@@ -53,7 +57,7 @@ function oldTree(release) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'devproxy-v215-install-'));
   fs.cpSync(STATUS, dir, { recursive: true });
   for (const name of DOCUMENTS) {
-    fs.writeFileSync(path.join(dir, name), gitShow(`status/${name}`));
+    fs.writeFileSync(path.join(dir, name), preimage(name));
   }
   fs.rmSync(path.join(dir, release.cssName), { force: true });
   fs.rmSync(path.join(dir, release.jsName), { force: true });
@@ -70,8 +74,7 @@ test('unversioned shared assets stay the V214 bytes', () => {
   const css = fs.readFileSync(path.join(STATUS, 'common.css'));
   assert.equal(gitBlob(js), OLD_JS_BLOB);
   assert.equal(gitBlob(css), OLD_CSS_BLOB);
-  assert.deepEqual(js, gitShow('status/common.js'));
-  assert.deepEqual(css, gitShow('status/common.css'));
+  for (const name of DOCUMENTS) assert.equal(gitBlob(preimage(name)), OLD_DOCUMENT_BLOBS[name]);
   assert.match(js.toString('utf8'), /link\[href\$="\/status\/common\.css"\]/);
   assert.match(js.toString('utf8'), /l\.href='\/status\/common\.css'/);
 });
@@ -97,7 +100,7 @@ test('the three documents name one shared css and js, and the names are their ha
 test('each install boundary can stop and roll back without touching old shared assets', () => {
   const release = releaseFromRepo();
   const old = {};
-  for (const name of DOCUMENTS) old[name] = sha256(gitShow(`status/${name}`));
+  for (const name of DOCUMENTS) old[name] = sha256(preimage(name));
   for (let step = 0; step <= 5; step += 1) {
     const dir = oldTree(release);
     try {
