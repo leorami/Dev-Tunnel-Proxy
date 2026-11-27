@@ -76,6 +76,9 @@ class SharedShellBrowser(unittest.TestCase):
     def test_status_refresh_keeps_the_icon_button_still_and_reads_once(self):
         page = self.session.open(PAGES["status"], 1365, 900, "light")
         self._wait_status(page)
+        # The status page probes the local notification bridge once it finishes
+        # drawing. Let that pre-existing read settle so it is not blamed on refresh.
+        page.wait_for_timeout(600)
         self._assert_refresh_is_single_flight(
             page,
             predicate=lambda: len(self.session.stamped_route_reads()) == 1,
@@ -297,6 +300,7 @@ class SharedShellBrowser(unittest.TestCase):
         self.assertNotIn("attachHeader", header)
 
     def _assert_refresh_is_single_flight(self, page, predicate):
+        self.session.traffic.clear()
         before = page.evaluate(_BUTTON_BOX_JS)
         page.evaluate(
             """() => {
@@ -312,6 +316,8 @@ class SharedShellBrowser(unittest.TestCase):
         self.assertLess(after["dh"], 2, after)
         self.assertLess(abs(after["x"] - before["x"]), 2, {"before": before, "after": after})
         self.assertTrue(predicate(), self.session.traffic)
+        self.assertEqual(self.session.non_get(), [], self.session.traffic)
+        self.assertEqual(self.session.external(), [], self.session.traffic)
         feedback = page.evaluate(
             """() => {
               const status = document.getElementById('headerRefreshStatus');

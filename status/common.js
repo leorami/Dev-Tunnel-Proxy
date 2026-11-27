@@ -72,9 +72,65 @@
       '      <span id="aiTab" class="tag" style="display:none;cursor:pointer" title="Open Calliope">Calliope</span>'+
       '    </div>'+
       '  </div>'+
-      '</div>'
+      '</div>'+
+      '<span id="headerRefreshStatus" class="header-refresh-status" role="status" aria-live="polite"></span>'
     );
     return header;
+  }
+  let headerRefreshHandler = null;
+  let headerRefreshButton = null;
+  let headerRefreshBusy = false;
+  function registerHeaderRefresh(options){
+    headerRefreshHandler = options || null;
+    bindHeaderRefresh();
+  }
+  function bindHeaderRefresh(){
+    const btn = document.querySelector('body > header #reloadConfigs');
+    if (!btn) return;
+    if (!headerRefreshHandler || typeof headerRefreshHandler.run !== 'function'){
+      btn.hidden = true;
+      btn.disabled = true;
+      btn.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    btn.hidden = false;
+    btn.removeAttribute('aria-hidden');
+    if (!headerRefreshBusy) btn.disabled = false;
+    const label = String(headerRefreshHandler.label || 'Refresh');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    if (headerRefreshButton !== btn){
+      headerRefreshButton = btn;
+      btn.addEventListener('click', onHeaderRefresh);
+    }
+  }
+  function onHeaderRefresh(event){
+    const btn = event.currentTarget;
+    if (!headerRefreshHandler || headerRefreshBusy || btn.disabled) return;
+    headerRefreshBusy = true;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    const status = document.getElementById('headerRefreshStatus');
+    if (status){
+      status.textContent = '';
+      status.classList.remove('is-error');
+    }
+    let hold = false;
+    Promise.resolve()
+      .then(() => headerRefreshHandler.run(status))
+      .then((result) => { hold = !!(result && result.hold); })
+      .catch(() => {
+        if (status && !String(status.textContent || '').trim()){
+          status.textContent = 'Could not re-read. Nothing was changed.';
+          status.classList.add('is-error');
+        }
+      })
+      .finally(() => {
+        headerRefreshBusy = false;
+        if (hold) return;
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+      });
   }
   function attachHeader(active){
     if (!document.querySelector('link[href$="/status/common.css"]')){
@@ -99,6 +155,8 @@
     if (aiTab){ aiTab.addEventListener('click', ()=>{ try{ openCalliopeWithContext(); }catch{} }); }
     initTheme();
     initView();
+    try{ if (window.lucide) lucide.createIcons(); }catch{}
+    bindHeaderRefresh();
   }
 
   function attachCalliope(){
@@ -134,7 +192,18 @@
       '  </div>'+
       '</div>'
     );
+    drawer.inert = true;
+    drawer.setAttribute('aria-hidden', 'true');
     document.body.appendChild(drawer);
+    if (!window.__dtpDrawerEscape){
+      window.__dtpDrawerEscape = true;
+      document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        const current = document.getElementById('aiDrawer');
+        if (!current || current.classList.contains('collapsed')) return;
+        openCalliopeWithContext();
+      });
+    }
     // legacy tab is suppressed; rely on header button
     // Chat persistence helpers
     const LS_KEY = 'dtpCalliopeChat';
@@ -505,7 +574,11 @@
       if (isCollapsed){
         // Opening drawer
         drawer.classList.remove('collapsed');
+        drawer.inert = false;
+        drawer.removeAttribute('aria-hidden');
         document.body.classList.add('ai-open');
+        const query = document.getElementById('aiQuery');
+        if (query) query.focus();
         // Save state
         try { localStorage.setItem('dtpCalliopeOpen', 'true'); } catch {}
         const path = location.pathname;
@@ -542,7 +615,11 @@
       } else {
         // Closing drawer
         drawer.classList.add('collapsed');
+        drawer.inert = true;
+        drawer.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('ai-open');
+        const opener = document.querySelector('body > header #calliopeOpen');
+        if (opener) opener.focus();
         // Save state
         try { localStorage.setItem('dtpCalliopeOpen', 'false'); } catch {}
       }
@@ -696,6 +773,7 @@
   window.DTP.showDialog = showDialog;
   window.DTP.showPrompt = showPrompt;
   window.DTP.attachHeader = attachHeader;
+  window.DTP.registerHeaderRefresh = registerHeaderRefresh;
   window.DTP.attachCalliope = attachCalliope;
   window.DTP.initTheme = initTheme;
   window.DTP.initView = initView;

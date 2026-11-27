@@ -3093,20 +3093,10 @@
         }
       })();
 
-      // Reload configurations functionality
+      // Re-read the last scan report. This does not start a scan.
       async function reloadConfigs() {
-        const reloadBtn = document.getElementById('reloadConfigs');
-        const originalHTML = reloadBtn.innerHTML;
-        
+        const status = document.getElementById('headerRefreshStatus');
         try {
-          // Show loading state
-          reloadBtn.innerHTML = '';
-          const loadingIcon = createIcon('loader-2', 18);
-          loadingIcon.style.animation = 'spin 1s linear infinite';
-          reloadBtn.appendChild(loadingIcon);
-          reloadBtn.disabled = true;
-          
-          // Re-read the existing report. This does not start a scan.
           let reportRead = false;
           const timestamp = Date.now();
           const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
@@ -3119,30 +3109,20 @@
           }
           
           if (reportRead) {
-            reloadBtn.textContent = 'Report re-read';
-            reloadBtn.style.background = '#16402b';
-            reloadBtn.style.borderColor = '#2a7f54';
-            reloadBtn.style.color = '#a6f3cc';
-            
-            // Reload the page after short delay to show success
+            if (status) status.textContent = 'Report re-read';
             setTimeout(() => {
               location.reload();
             }, 1000);
-          } else {
-            throw new Error('Unable to reload configs');
+            return { hold: true };
           }
-          
+          throw new Error('Unable to re-read the last scan report');
         } catch (error) {
           console.error('Config reload failed:', error);
-          
-          // Error feedback
-          reloadBtn.textContent = 'Report unavailable';
-          reloadBtn.style.background = 'rgba(239,68,68,.15)';
-          reloadBtn.style.borderColor = '#ef4444';
-          reloadBtn.style.color = '#ef4444';
-          
+          if (status) {
+            status.textContent = 'Could not re-read. Nothing was changed.';
+            status.classList.add('is-error');
+          }
           const instructions = 'The last scan report could not be re-read. This button does not start a new scan or change configuration.';
-          
           setTimeout(async () => {
             const confirmed = await window.DTP.showDialog({
               type: 'confirm',
@@ -3154,29 +3134,11 @@
             }
           }, 1500);
         }
-        
-        // Reset button after delay
-        setTimeout(() => {
-          reloadBtn.innerHTML = originalHTML;
-          refreshIcons();
-          reloadBtn.disabled = false;
-          reloadBtn.style.background = '';
-          reloadBtn.style.borderColor = '';
-          reloadBtn.style.color = '';
-        }, 3000);
       }
 
-      // The shared header replaces the static button, so listen for the visible one.
-      document.addEventListener('click', (event) => {
-        const reloadBtn = event.target && event.target.closest && event.target.closest('#reloadConfigs');
-        if (!reloadBtn || reloadBtn.disabled) return;
-        reloadConfigs();
-      });
-      window.addEventListener('DOMContentLoaded', () => {
-        const reloadBtn = document.querySelector('body > header #reloadConfigs');
-        if (!reloadBtn) return;
-        reloadBtn.title = 'Re-read the last scan report';
-        reloadBtn.setAttribute('aria-label', 'Re-read the last scan report');
+      window.DTP.registerHeaderRefresh({
+        label: 'Re-read the last scan report',
+        run: function () { return reloadConfigs(); }
       });
 
       // View JSON for specific source file
@@ -3314,7 +3276,7 @@
 
         if (ackBtn) ackBtn.onclick = () => {
           conflictCard.classList.add('hidden');
-          window.DTP.showToast('info', 'Historical conflict report dismissed');
+          window.DTP.showToast('Historical conflict report dismissed', 'info');
         };
         if (fixBtn) fixBtn.onclick = () => {
           // This is an explicit user click. Do not include report-controlled strings.

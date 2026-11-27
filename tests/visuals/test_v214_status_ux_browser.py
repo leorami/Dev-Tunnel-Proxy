@@ -48,8 +48,8 @@ class StatusUxBrowser(unittest.TestCase):
             """() => {
               window.__sawReportReread = false;
               const watch = () => {
-                const control = document.querySelector('body > header #reloadConfigs');
-                if (control && (control.textContent || '').includes('Report re-read')) {
+                const status = document.getElementById('headerRefreshStatus');
+                if (status && (status.textContent || '').includes('Report re-read')) {
                   window.__sawReportReread = true;
                 }
               };
