@@ -1,0 +1,44 @@
+{
+  "syntheticOnly": true,
+  "ownerData": false,
+  "generatedAt": "2026-11-03T06:33:01.466Z",
+  "proxyUrl": "https://example-tunnel.invalid",
+  "routes": [
+    {
+      "path": "/alpha-web/",
+      "sourceFile": "apps/alpha-web.conf",
+      "upstream": "http://alpha-web.invalid:3000",
+      "localStatus": 503,
+      "tunnelStatus": 404
+    },
+    {
+      "path": "/beta-api/",
+      "sourceFile": "apps/beta-api.conf",
+      "upstream": "http://beta-api.invalid:4000",
+      "localStatus": 200,
+      "tunnelStatus": 308
+    },
+    {
+      "path": "/gamma-docs/",
+      "sourceFile": "apps/gamma-docs.conf",
+      "upstream": "http://gamma-docs.invalid:8080",
+      "localStatus": 401,
+      "tunnelStatus": 307
+    }
+  ],
+  "conflicts": {
+    "ambiguous": {
+      "totalConflicts": 2,
+      "nginxWarnings": [
+        "Scan note without a route grammar",
+        "Route /not a route: NEW CONFLICT - apps/one.conf wins (first config) over apps/two.conf"
+      ]
+    },
+    "decoded": {
+      "totalConflicts": 1,
+      "nginxWarnings": [
+        "Route /gamma-docs/: NEW CONFLICT - apps/gamma-docs.conf wins (first config) over overrides/gamma-docs.conf"
+      ]
+    }
+  }
+}

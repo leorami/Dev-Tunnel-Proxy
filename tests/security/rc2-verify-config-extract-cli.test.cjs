@@ -21,12 +21,16 @@ function fixture(fn,dirty=true){
   ['apps/owner.conf','pass\n',0o644]
  ];
  const files=[];
+ let index=0;
  for(const [rel,body,mode] of entries){
+  const mtimeMs=1_700_000_000_000+index*1000;
+  index+=1;
   for(const root of [extract,live]){
    const dst=path.join(root,rel);fs.mkdirSync(path.dirname(dst),{recursive:true});
    fs.writeFileSync(dst,body,{mode});fs.chmodSync(dst,mode);
+   fs.utimesSync(dst,new Date(mtimeMs),new Date(mtimeMs));
   }
-  files.push({path:rel,bytes:Buffer.byteLength(body),mode,mtimeMs:fs.statSync(path.join(extract,rel)).mtimeMs,sha256:sha(body)});
+  files.push({path:rel,bytes:Buffer.byteLength(body),mode,mtimeMs,sha256:sha(body)});
  }
  const manifest={version:2,sourceRoot:'/Users/owner/project',sourceHead:'a'.repeat(40),sourceDirty:dirty,
   composePresent:{yml:true,override:false,production:true},fileCount:files.length,

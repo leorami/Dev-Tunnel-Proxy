@@ -1,0 +1,603 @@
+{
+  "version": 1,
+  "lanes": {
+    "pure-node": [
+      "test/calliope-embeddings-integration.test.js",
+      "test/collect-docs.test.js",
+      "tests/docs/v177-current-capability-truth.test.cjs",
+      "tests/security/admin-session-foundation.test.mjs",
+      "tests/security/calliope-async-history-and-cancel-consistency.test.cjs",
+      "tests/security/calliope-crosspage-singleflight.test.cjs",
+      "tests/security/calliope-disposable-nginx-syntax.test.cjs",
+      "tests/security/calliope-first-safe-heal.test.cjs",
+      "tests/security/calliope-legacy-kb-quarantine.test.cjs",
+      "tests/security/calliope-lesson-evidence-compiler.test.cjs",
+      "tests/security/calliope-lesson-reuse.test.cjs",
+      "tests/security/calliope-owner-nextjs-heal-skill.test.cjs",
+      "tests/security/calliope-recorded-browser-heal-evidence.test.cjs",
+      "tests/security/calliope-redirect-loop-proposal.test.cjs",
+      "tests/security/calliope-status-chat-singleflight.test.cjs",
+      "tests/security/calliope-teaching-contract.test.cjs",
+      "tests/security/cto-observer-access-policy.test.cjs",
+      "tests/security/login-redirect-same-origin.test.mjs",
+      "tests/security/management-perimeter.test.mjs",
+      "tests/security/nginx-readonly-startup.test.mjs",
+      "tests/security/nginx-safe-reload.test.mjs",
+      "tests/security/notification-bridge-authorization.test.mjs",
+      "tests/security/notification-bridge-containment-policy.test.cjs",
+      "tests/security/notification-bridge-readonly-policy-probe.test.cjs",
+      "tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs",
+      "tests/security/p0-restoration-evidence.test.cjs",
+      "tests/security/private-config-snapshot.test.mjs",
+      "tests/security/private-rollback-export.test.mjs",
+      "tests/security/production-packaging-gate.test.mjs",
+      "tests/security/public-health-privacy.test.mjs",
+      "tests/security/rc1-activation-spool.test.cjs",
+      "tests/security/rc1-api-only-postcheck.test.cjs",
+      "tests/security/rc1-closure-gated-host-driver.test.cjs",
+      "tests/security/rc1-config-parity.test.cjs",
+      "tests/security/rc1-content-bound-activation-request.test.cjs",
+      "tests/security/rc1-cutover-preflight.test.mjs",
+      "tests/security/rc1-disposable-compose-bypass.RED.test.cjs",
+      "tests/security/rc1-effective-nginx-config-closure.test.cjs",
+      "tests/security/rc1-empty-dotenv-target.test.cjs",
+      "tests/security/rc1-fixed-activation-host-worker.test.cjs",
+      "tests/security/rc1-host-mount-closure-gate.integration.test.cjs",
+      "tests/security/rc1-host-mount-locked-docker-driver.test.cjs",
+      "tests/security/rc1-host-operation-quarantine.test.cjs",
+      "tests/security/rc1-loaded-nginx-file-identity.test.cjs",
+      "tests/security/rc1-mount-continuity.test.cjs",
+      "tests/security/rc1-nested-mount-targets.test.cjs",
+      "tests/security/rc1-nginx-include-graph-signature-gap.test.cjs",
+      "tests/security/rc1-release-drift-guard.test.cjs",
+      "tests/security/rc1-release-drift-policy.test.cjs",
+      "tests/security/rc1-route-candidate-manifest.test.cjs",
+      "tests/security/rc1-route-host-trust-gate.test.cjs",
+      "tests/security/rc1-secure-rollback-contract.test.cjs",
+      "tests/security/rc1-two-phase-host-settlement.test.cjs",
+      "tests/security/rc1-v10-loaded-config-identity-nonlive.test.cjs",
+      "tests/security/rc1-v11-host-mount-attestation-nonlive.test.cjs",
+      "tests/security/rc1-v12-nonlive-settlement-route-integration.test.cjs",
+      "tests/security/rc1-v12-two-phase-settlement-nonlive.test.cjs",
+      "tests/security/rc1-v13-durable-final-receipt.test.cjs",
+      "tests/security/rc1-v13-final-receipt-smoke.test.cjs",
+      "tests/security/rc1-v7-guarded-host-worker-nonlive.test.cjs",
+      "tests/security/rc1-v8-api-host-closeout-nonlive.test.cjs",
+      "tests/security/rc1-v8-guarded-host-closeout.test.cjs",
+      "tests/security/rc1-v8-route-transaction-spool-integration.test.cjs",
+      "tests/security/rc1-v8-spool-activation-adapter.test.cjs",
+      "tests/security/rc1-v9-closure-spool-guard-integration.test.cjs",
+      "tests/security/rc1-v9-loaded-file-gate.integration.test.cjs",
+      "tests/security/rc2-ai-heal-degraded-scope.test.cjs",
+      "tests/security/rc2-app-http-scan-api-contract.test.cjs",
+      "tests/security/rc2-approved-api-only-postcheck.test.cjs",
+      "tests/security/rc2-approved-owner-preimage.test.cjs",
+      "tests/security/rc2-cold-start-availability-contract.test.cjs",
+      "tests/security/rc2-cross-process-settlement.test.cjs",
+      "tests/security/rc2-current-image-export.test.cjs",
+      "tests/security/rc2-dirty-path-only-vs-byte-replay.test.cjs",
+      "tests/security/rc2-dirty-source-recoverability.test.cjs",
+      "tests/security/rc2-exclusive-host-worker-service.test.cjs",
+      "tests/security/rc2-generated-offline-app-bundle.test.cjs",
+      "tests/security/rc2-host-worker-singleton-inspection.test.cjs",
+      "tests/security/rc2-isolated-nonroot-restore-candidate.test.cjs",
+      "tests/security/rc2-live-durable-mount-paths.test.cjs",
+      "tests/security/rc2-local-calliope-api-contract.test.cjs",
+      "tests/security/rc2-local-calliope-evidence.test.cjs",
+      "tests/security/rc2-local-calliope-observe-explain.test.cjs",
+      "tests/security/rc2-macos-worker-launchagent-candidate.test.cjs",
+      "tests/security/rc2-management-safety-policy.test.cjs",
+      "tests/security/rc2-nginx-image-provenance.test.cjs",
+      "tests/security/rc2-nginx-startup-dns-exposure.test.cjs",
+      "tests/security/rc2-offline-upstream-native-nginx.integration.test.cjs",
+      "tests/security/rc2-owner-dirty-byte-replay.test.cjs",
+      "tests/security/rc2-owner-dirty-replay-cli.test.cjs",
+      "tests/security/rc2-owner-heal-proposal-ticket.test.cjs",
+      "tests/security/rc2-owner-heal-review-gate.test.cjs",
+      "tests/security/rc2-pending-host-worker.test.cjs",
+      "tests/security/rc2-pending-terminal-refusal.test.cjs",
+      "tests/security/rc2-privacy-api-gate-contract.test.cjs",
+      "tests/security/rc2-privacy-egress-policy.test.cjs",
+      "tests/security/rc2-private-candidate-renderer.test.cjs",
+      "tests/security/rc2-private-host-worker-pin.test.cjs",
+      "tests/security/rc2-private-owner-browser-origin-parity.test.cjs",
+      "tests/security/rc2-production-compose-candidate.test.cjs",
+      "tests/security/rc2-production-compose-preflight.test.cjs",
+      "tests/security/rc2-public-calliope-health-privacy.test.cjs",
+      "tests/security/rc2-public-health-route-privacy-integration.test.cjs",
+      "tests/security/rc2-pure-diagnostics-api-contract.test.cjs",
+      "tests/security/rc2-pure-diagnostics-reader.test.cjs",
+      "tests/security/rc2-readonly-app-http-scan.test.cjs",
+      "tests/security/rc2-readonly-config-evidence.test.cjs",
+      "tests/security/rc2-readonly-image-evidence.test.cjs",
+      "tests/security/rc2-readonly-production-preflight.test.cjs",
+      "tests/security/rc2-recoverable-dirty-preservation.test.cjs",
+      "tests/security/rc2-recovered-activation-secret-continuity.test.cjs",
+      "tests/security/rc2-restore-content-attestation.test.cjs",
+      "tests/security/rc2-restore-env-example-mode.test.cjs",
+      "tests/security/rc2-reviewed-worker-source-stage.test.cjs",
+      "tests/security/rc2-safe-audit-route-contract.test.cjs",
+      "tests/security/rc2-secure-apps-inventory.test.cjs",
+      "tests/security/rc2-secure-http-audit.test.cjs",
+      "tests/security/rc2-secure-self-check-fail-closed.test.cjs",
+      "tests/security/rc2-secure-self-check.test.cjs",
+      "tests/security/rc2-self-check-api-contract.test.cjs",
+      "tests/security/rc2-supervised-mac-host-worker.test.cjs",
+      "tests/security/rc2-supervisor-only-direct-cli-guard.test.cjs",
+      "tests/security/rc2-v120-signed-refusal-cutover-integration.test.cjs",
+      "tests/security/rc2-v83-api-created-spool.test.cjs",
+      "tests/security/rc2-v83-api-spool-identity.test.cjs",
+      "tests/security/rc2-v83-compose-parent.test.cjs",
+      "tests/security/rc2-v83-host-worker-provision.test.cjs",
+      "tests/security/rc2-v83-operator-api-bind.test.cjs",
+      "tests/security/rc2-v83-production-compose-candidate.test.cjs",
+      "tests/security/rc2-v83-production-compose-preflight.test.cjs",
+      "tests/security/rc2-verify-config-extract-cli.test.cjs",
+      "tests/security/rc2-worker-launchagent-path-provenance.test.cjs",
+      "tests/security/rc2-worker-only-recovery-preflight.test.cjs",
+      "tests/security/rc2-worker-release-closure.test.cjs",
+      "tests/security/recovery-image-tag-binding.test.mjs",
+      "tests/security/release-decision-readonly.test.mjs",
+      "tests/security/reports-list-contract.test.cjs",
+      "tests/security/restore-route-precedence.test.mjs",
+      "tests/security/security-release-integration.test.mjs",
+      "tests/security/trusted-origin-compose-gate.test.mjs",
+      "tests/security/trusted-origin-csrf.test.mjs",
+      "tests/security/v151-calliope-preserve-integrate.test.cjs",
+      "tests/security/v153-calliope-grounded-followup.test.cjs",
+      "tests/security/v154-create-route-install-intent.test.cjs",
+      "tests/security/v160-status-calliope-experience.test.cjs",
+      "tests/security/v162-secure-dashboard-truthful-actions.test.cjs",
+      "tests/security/v179-production-auth-prefix-parity.test.cjs",
+      "tests/security/v190-private-api-regex-auth-precedence.test.cjs",
+      "tests/security/v191-calliope-agent-envelope.test.cjs",
+      "tests/security/v193-calliope-artifact-descriptor-gate.test.cjs",
+      "tests/security/v196-durable-replay-ledger.test.cjs",
+      "tests/security/v197-signed-owner-grant-admission.test.cjs",
+      "tests/security/v198-private-signal-ingress.test.cjs",
+      "tests/security/v198-private-signal-mailbox-http.test.cjs",
+      "tests/security/v198-private-signal-mailbox.test.cjs",
+      "tests/security/v199-live-device-proof.test.cjs",
+      "tests/security/v199-mailbox-ack-filesystem.test.cjs",
+      "tests/security/v200-atomic-sealed-store.test.cjs",
+      "tests/security/v200-enrollment-replay.test.cjs",
+      "tests/security/v200-peer-pin.test.cjs",
+      "tests/security/v200-rc2-overlay-preservation.test.cjs",
+      "tests/security/v201-origin-adoption.test.cjs",
+      "tests/security/v201-retire-v200-diagnostic.test.cjs",
+      "tests/security/v202-private-relay-adapter.test.cjs",
+      "tests/security/v203-supported-node-runtime.test.cjs",
+      "tests/security/v204-rc2-api-image-only.test.cjs",
+      "tests/security/v209-notification-pinned-runtime.test.cjs",
+      "tests/security/v210-status-report-trust.test.cjs",
+      "tests/security/v212-secure-release-api.test.cjs",
+      "tests/security/v212-secure-release-runner.test.cjs",
+      "tests/security/v214-shared-shell.test.cjs",
+      "tests/security/v215-versioned-shared-assets.test.cjs",
+      "tests/security/v216-frontend-install.test.cjs",
+      "tests/security/v216-release-lanes.test.cjs",
+      "tests/security/v216-response-contract.test.cjs",
+      "tests/security/v217-frontend-install-safety.test.cjs",
+      "tests/security/v217-release-lane-python.test.cjs",
+      "test/dashboard-dropdown-bug.test.js",
+      "test/unit/route-promotion-filtering.test.js",
+      "tests/security/v217-current-source-ui.test.cjs",
+      "tests/security/v217-coverage-dispositions.test.cjs"
+    ],
+    "nginx-fixture": [
+      "tests/security/v171-four-auth-prefix-nginx.test.cjs",
+      "tests/security/v190-eight-api-native-nginx.test.cjs",
+      "tests/security/v215-frontend-install-nginx.test.cjs",
+      "tests/security/v216-frontend-install-nginx.test.cjs"
+    ],
+    "libsignal-native": [
+      "tests/security/v192-libsignal-two-peers.test.mjs",
+      "tests/security/v194-signal-signed-descriptor.test.mjs",
+      "tests/security/v199-signal-endpoint-restart.test.mjs",
+      "tests/security/v201-request-binding.test.mjs"
+    ],
+    "browser": [
+      "tests/visuals/test_public_login_capture.py",
+      "tests/visuals/test_v178_public_proxied_app_gate.py",
+      "tests/visuals/test_v180_fullpage_scroll_fidelity.py",
+      "tests/visuals/test_v214_shared_shell_browser.py",
+      "tests/visuals/test_v214_status_ux_browser.py",
+      "tests/visuals/test_v215_frontend_truth_browser.py",
+      "tests/visuals/test_verified_public_login_artifact.py"
+    ],
+    "blocked-capability": [
+      {
+        "path": "test/browser-console-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "browser console diagnostic"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/calliope-comprehensive-tests.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope comprehensive manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/calliope-enable-disable-visual-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope enable and disable visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/calliope-real-time-ui-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope real-time UI runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/calliope-simple-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope simple manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/calliope-ui-interaction-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope UI interaction runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/comprehensive-browser-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "comprehensive browser runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/e2e/nginx-proxy-pass.test.js",
+        "disposition": "capability-blocked",
+        "capability": "a disposable nginx process loading the historical dashboard proxy_pass file",
+        "originalTests": [
+          "should correctly proxy /devproxy/api/apps/install through nginx",
+          "should correctly proxy /devproxy/api/ai/reindex through nginx",
+          "should correctly proxy /devproxy/api/config/ paths through nginx",
+          "should verify nginx config does not have trailing slash on apps proxy_pass",
+          "should verify all API proxy_pass directives use deferred DNS resolution"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs a disposable nginx process loading the historical dashboard proxy_pass file V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/integration-layout.test.js",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "Full User Journey",
+          "Masonry with View Density",
+          "Performance & Stability"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/integration/api-apps-install.test.js",
+        "disposition": "capability-blocked",
+        "capability": "an authenticated disposable config API with a writable fixture spool",
+        "originalTests": [
+          "should require authentication",
+          "should install a valid config file",
+          "should reject invalid app names",
+          "should reject missing name or content",
+          "should reject invalid nginx config"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an authenticated disposable config API with a writable fixture spool V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/integration/api-reindex.test.js",
+        "disposition": "superseded",
+        "originalTests": [
+          "should return 503 when OPENAI_API_KEY is not set",
+          "should be accessible without authentication (public endpoint)",
+          "should return proper response structure when successful"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Public unauthenticated reindex is refused by the current secure-mode policy. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
+      },
+      {
+        "path": "test/layout-responsive.test.js",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can resize a disposable status origin",
+        "originalTests": [
+          "Responsive Layout & Masonry",
+          "Desktop Layout (≥1400px)",
+          "Tablet/Desktop Layout (900-1399px)"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can resize a disposable status origin V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/lyra-auth-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "lyra auth visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/mixed-content-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "mixed-content manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/nextjs-auth-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "nextjs auth visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/quick-calliope-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "quick calliope manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/quick-validate-layout.js",
+        "disposition": "manual",
+        "originalTests": [
+          "quick layout validation runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/run-calliope-puppeteer.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope puppeteer runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/run-iterative.js",
+        "disposition": "manual",
+        "originalTests": [
+          "iterative visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/run.js",
+        "disposition": "manual",
+        "originalTests": [
+          "historical test runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/scanApps.js",
+        "disposition": "manual",
+        "originalTests": [
+          "scanApps manual diagnostic"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/site-auditor-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "site auditor manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/status-chip-mechanism-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "status chip mechanism runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/status-chip-test.js",
+        "disposition": "manual",
+        "originalTests": [
+          "status chip manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/status-model.js",
+        "disposition": "manual",
+        "originalTests": [
+          "status model manual script"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/test-calliope-button-behavior.js",
+        "disposition": "manual",
+        "originalTests": [
+          "calliope button behavior runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/ui-fixes-verification.js",
+        "disposition": "manual",
+        "originalTests": [
+          "UI fixes verification runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/ui/tests/calliope-chips.spec.ts",
+        "disposition": "ported",
+        "originalTests": [
+          "${url} chips present and styled in ${theme}"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The chip and toggle elements are checked on the current source. Computed styles were not executed and are not a pass."
+      },
+      {
+        "path": "test/ui/tests/calliope-computed-styles.spec.ts",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can read computed styles from a disposable origin",
+        "originalTests": [
+          "${url}: toggle behavior and positioning via computed styles"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can read computed styles from a disposable origin V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/ui/tests/calliope-fixes.spec.ts",
+        "disposition": "superseded",
+        "originalTests": [
+          "Chat shows user bubble before thinking; renders Markdown; no post-processing rewrite",
+          "Health check posts heal:true and thinking bubble appears after ack"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "The spec expects a heal:true post. Secure mode refuses that request. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
+      },
+      {
+        "path": "test/ui/tests/calliope-layout.spec.ts",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "drawer push + bubbles + buttons on ${url}"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/ui/tests/calliope-style-parity.spec.ts",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can compare computed styles on a disposable origin",
+        "originalTests": [
+          "${url} matches chat/textarea/button styles in ${theme}"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can compare computed styles on a disposable origin V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/ui/tests/calliope-toggle-comprehensive.spec.ts",
+        "disposition": "ported",
+        "originalTests": [
+          "${url}: button toggles drawer open/close with correct states",
+          "${url}: drawer positioned with 16px gap below header and above viewport bottom"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The toggle, aria-pressed state, and drawer markup are on the current source. Pixel positioning was not executed and is not a pass."
+      },
+      {
+        "path": "test/ui/tests/calliope-toggle.spec.ts",
+        "disposition": "ported",
+        "originalTests": [
+          "toggle open/close and aria-pressed on ${url}"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The toggle and aria-pressed contract are on the current source. A live click was not executed and is not a pass."
+      },
+      {
+        "path": "test/ui/tests/dashboard-dropdown.spec.ts",
+        "disposition": "superseded",
+        "originalTests": [
+          "should load the dashboard page",
+          "should populate all three dropdowns with routes",
+          "should have optgroups for config files",
+          "should display console logs for debugging",
+          "should be able to select a route from dropdown"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "The spec expects Audit + Heal and Advanced Heal controls. Secure mode does not offer them. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
+      },
+      {
+        "path": "test/ui/tests/routes-audit-half.spec.ts",
+        "disposition": "capability-blocked",
+        "capability": "an isolated dashboard origin with disposable route fixtures",
+        "originalTests": [
+          "Calliope audits half of discovered routes via Dashboard"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated dashboard origin with disposable route fixtures V217 does not start that capability and does not use the owner host."
+      },
+      {
+        "path": "test/ui/tests/status.spec.ts",
+        "disposition": "ported",
+        "originalTests": [
+          "renders and shows Calliope, captures console and styles",
+          "Clicking stethoscope runs Calliope health when enabled"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The current status document still has the Calliope toggle and drawer. Live console capture was not executed and is not a pass."
+      },
+      {
+        "path": "test/verify-realtime-thoughts.js",
+        "disposition": "manual",
+        "originalTests": [
+          "realtime thoughts manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/verify-thoughts-pushed.js",
+        "disposition": "manual",
+        "originalTests": [
+          "thoughts pushed manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
+      },
+      {
+        "path": "test/view-density-toggle.test.js",
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "View Density Toggle",
+          "Toggle Button",
+          "Toggle Functionality"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
+      }
+    ]
+  }
+}

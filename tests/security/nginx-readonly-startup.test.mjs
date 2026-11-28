@@ -9,7 +9,8 @@ import {spawnSync} from 'node:child_process';
 const source = fs.readFileSync(new URL('../../scripts/nginx-entrypoint.sh', import.meta.url), 'utf8');
 
 function fixture(t, {nginxPassesOnRetry = false, readOnlyBundle = true} = {}) {
-  const root = fs.mkdtempSync(path.join('/private/tmp', 'devproxy-nginx-ro-'));
+  // Use the real platform temporary root, not a hardcoded macOS-only /private/tmp.
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'devproxy-nginx-ro-'));
   const bin = path.join(root, 'bin');
   const sites = path.join(root, 'sites-enabled');
   t.after(() => {

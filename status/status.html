@@ -491,6 +491,10 @@
       /* reserved for legacy global diagnose button (removed) */
       #aiDiagnoseGlobal{display:none}
       @media (max-width:768px){
+        .card-header-row{flex-wrap:wrap}
+        .card-header-row .header-main{flex:1 1 100%;min-width:0}
+        .card-header-row .header-actions{flex:1 1 100%;flex-shrink:1;flex-wrap:wrap;width:100%;max-width:100%}
+        .card-header-row .header-actions .btn{flex:1 1 0;min-height:44px;white-space:normal}
         .conflict-options{gap:10px}
         .config-option{flex-direction:column;align-items:flex-start;gap:10px}
         .config-actions{margin-left:0}
@@ -577,9 +581,9 @@
         *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
       }
     </style>
-    <link rel="stylesheet" href="/status/common.css" />
+    <link rel="stylesheet" href="/status/common.v215-42c0928ec30a.css" data-dtp-shared-style="v215" />
     <script src="/status/config.js"></script>
-    <script src="/status/common.js"></script>
+    <script src="/status/common.v215-dfd52e64df59.js"></script>
   </head>
   <body data-page="status">
     <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('status'); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
@@ -598,7 +602,7 @@
           </nav>
           <span class="divider" aria-hidden="true"></span>
           <div class="header-tools">
-            <button class="btn action" id="reloadConfigs" title="Reload all configurations and rescan apps"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>
+            <button class="btn action" id="reloadConfigs" title="Re-read the last scan report"><i data-lucide="refresh-cw" stroke-width="2.5" style="width:18px;height:18px"></i></button>
             <button class="btn action" id="themeToggle" title="Toggle theme" aria-label="Toggle theme"><i data-lucide="moon" stroke-width="2.5" style="width:18px;height:18px"></i></button>
             <button class="btn action" id="calliopeOpen" title="Toggle Calliope" aria-label="Toggle Calliope" aria-pressed="false">
               <img src="/status/assets/calliope_heart_stethoscope.svg" alt="Calliope" style="width:20px;height:20px;">
@@ -692,7 +696,7 @@
                 <span class="icon-badge settings"><i data-lucide="alert-triangle" stroke-width="2.5" style="width:18px;height:18px;"></i></span>
                 <div>
                   <p class="card-title">Route Conflicts</p>
-                  <p class="card-subtitle">Multiple configurations are competing for the same URL paths</p>
+                  <p class="card-subtitle">Historical observations; verify current configuration before acting</p>
                 </div>
               </div>
               <div class="header-actions">
@@ -906,7 +910,7 @@
       }
 
       async function loadJSON(url){
-        const res = await fetch(url, { headers: { 'ngrok-skip-browser-warning':'true' } });
+        const res = await fetch(url, { cache: 'no-store', headers: { 'ngrok-skip-browser-warning':'true' } });
         if(!res.ok) throw new Error('HTTP '+res.status);
         return res.json();
       }
@@ -2200,13 +2204,13 @@
           else if (status === 308) { cls = 'ok'; reason = 'Permanent redirect'; }
           else if (status >= 300 && status < 400) { cls = 'warn'; reason = 'Redirect'; }
           else if (status === 404) { cls = 'warn'; reason = 'Not found - check route configuration'; }
-          else if (status === 0) { cls = 'warn'; reason = 'No response from this target'; }
+          else if (status === 0) { cls = 'warn'; reason = 'No response recorded on that scan'; }
           else if (status >= 400 && status < 500) { cls = 'warn'; reason = 'Client error - check route configuration'; }
-          else if (status >= 500) { cls = 'err'; reason = 'Server error - upstream service issue'; }
+          else if (status >= 500) { cls = 'err'; reason = 'Reported server error on that scan'; }
           
           const labelName = (t === 'local-proxy') ? 'localhost' : t;
           const label = `${labelName}: ${status}`;
-          const statusChip = chip(label, cls, reason);
+          const statusChip = chip(label, cls, 'Last scan only: ' + reason);
           container.appendChild(statusChip);
         }
       }
@@ -2898,7 +2902,9 @@
         // Build overview chips row with bold labels (DOM text nodes; no HTML interpolation)
         const summaryWrap = document.getElementById('summaryChips');
         summaryWrap.textContent = '';
-        const generatedTime = routes.generatedAt ? new Date(routes.generatedAt).toLocaleString() : '—';
+        const reportTime = typeof routes.generatedAt === 'string' ? Date.parse(routes.generatedAt) : NaN;
+        const generatedTime = Number.isFinite(reportTime) && reportTime <= Date.now()
+          ? new Date(reportTime).toLocaleString() : 'Unknown';
         const targets = Object.keys(routes.summary||{});
         function appendLabeledSummaryChip(label, value) {
           const chip = chipEl('', '');
@@ -2908,14 +2914,15 @@
           chip.appendChild(document.createTextNode(' ' + String(value)));
           summaryWrap.appendChild(chip);
         }
-        appendLabeledSummaryChip('Generated', generatedTime);
+        appendLabeledSummaryChip('Last scan', generatedTime);
+        appendLabeledSummaryChip('Evidence', 'Last scan only; not live health');
         appendLabeledSummaryChip('Proxy URL', ngrokTxt);
         appendLabeledSummaryChip('Targets', targets.join(', ') || '—');
 
         // Add conflict alert chip if any
         const conf = routes.nginxConflicts || routes.conflictSummary || {};
         if (conf.totalConflicts > 0) {
-          const c = chipEl('Conflict Detected', 'err');
+          const c = chipEl('Reported conflicts', 'warn');
           c.style.fontWeight = '700';
           c.style.cursor = 'pointer';
           c.onclick = () => { 
@@ -3086,89 +3093,53 @@
         }
       })();
 
-      // Reload configurations functionality
+      // Re-read the last scan report. This does not start a scan.
       async function reloadConfigs() {
-        const reloadBtn = document.getElementById('reloadConfigs');
-        const originalHTML = reloadBtn.innerHTML;
-        
+        const status = document.getElementById('headerRefreshStatus');
         try {
-          // Show loading state
-          reloadBtn.innerHTML = '';
-          const loadingIcon = createIcon('loader-2', 18);
-          loadingIcon.style.animation = 'spin 1s linear infinite';
-          reloadBtn.appendChild(loadingIcon);
-          reloadBtn.disabled = true;
-          
-          // Force refresh of routes.json with cache busting (no API endpoint exists for scan-apps)
-          let scanSuccess = false;
+          let reportRead = false;
           const timestamp = Date.now();
           const freshRoutes = await fetch(`/routes.json?_t=${timestamp}`, {
             headers: { 'ngrok-skip-browser-warning': 'true' },
-            cache: 'no-cache'
+            cache: 'no-store'
           });
           if (freshRoutes.ok) {
-            scanSuccess = true;
-            logInfo('Routes data refreshed');
+            reportRead = true;
+            logInfo('Last scan report re-read');
           }
           
-          if (scanSuccess) {
-            // Success feedback
-            reloadBtn.textContent = 'Reloaded!';
-            reloadBtn.style.background = '#16402b';
-            reloadBtn.style.borderColor = '#2a7f54';
-            reloadBtn.style.color = '#a6f3cc';
-            
-            // Reload the page after short delay to show success
+          if (reportRead) {
+            if (status) status.textContent = 'Report re-read';
             setTimeout(() => {
               location.reload();
             }, 1000);
-          } else {
-            throw new Error('Unable to reload configs');
+            return { hold: true };
           }
-          
+          throw new Error('Unable to re-read the last scan report');
         } catch (error) {
           console.error('Config reload failed:', error);
-          
-          // Error feedback
-          reloadBtn.textContent = 'Failed - Try Manual';
-          reloadBtn.style.background = 'rgba(239,68,68,.15)';
-          reloadBtn.style.borderColor = '#ef4444';
-          reloadBtn.style.color = '#ef4444';
-          
-          // Show manual instructions
-          const instructions = `
-To reload manually, run:
-node test/scanApps.js
-./scripts/smart-build.sh
-
-Or check if config files have syntax errors.
-          `.trim();
-          
+          if (status) {
+            status.textContent = 'Could not re-read. Nothing was changed.';
+            status.classList.add('is-error');
+          }
+          const instructions = 'The last scan report could not be re-read. This button does not start a new scan or change configuration.';
           setTimeout(async () => {
             const confirmed = await window.DTP.showDialog({
               type: 'confirm',
-              title: 'Reload Failed',
-              message: `Automatic reload failed.\n\n${instructions}\n\nWould you like to refresh the page anyway to check if configs were updated externally?`
+              title: 'Report unavailable',
+              message: `${instructions}\n\nWould you like to refresh the page anyway to show the report already loaded?`
             });
             if (confirmed) {
               location.reload();
             }
           }, 1500);
         }
-        
-        // Reset button after delay
-        setTimeout(() => {
-          reloadBtn.innerHTML = originalHTML;
-          refreshIcons();
-          reloadBtn.disabled = false;
-          reloadBtn.style.background = '';
-          reloadBtn.style.borderColor = '';
-          reloadBtn.style.color = '';
-        }, 3000);
       }
 
-      // Wire up reload button
-      document.getElementById('reloadConfigs').addEventListener('click', reloadConfigs);
+      window.DTP.registerHeaderRefresh({
+        label: 'Re-read the last scan report',
+        run: function () { return reloadConfigs(); }
+      });
 
       // View JSON for specific source file
       function viewSourceJson(sourceFile, routesInSource) {
@@ -3259,165 +3230,91 @@ Or check if config files have syntax errors.
         const conflictsDiv = document.getElementById('conflicts');
         const ackBtn = document.getElementById('conflictAckBtn');
         const fixBtn = document.getElementById('conflictFixBtn');
-        
-        const confSummary = routes.nginxConflicts || routes.conflictSummary || {};
-        const hasConflicts = (routes.nginxWarnings && routes.nginxWarnings.length > 0) || 
-                            (confSummary.totalConflicts > 0);
-        
-        // Hide indicator if user acknowledged
-        try{ 
-          const ack = JSON.parse(localStorage.getItem('conflictsAck')||'null'); 
-          if (ack && ack.ts && (Date.now() - ack.ts < 7*24*3600*1000)) {
-            if (!hasConflicts) {
-              conflictCard.classList.add('hidden');
-              return;
-            }
-          }
-        }catch{}
-
-        if (!hasConflicts) { conflictCard.classList.add('hidden'); return; }
-        
-        conflictCard.classList.remove('hidden');
-        
-        conflictsDiv.innerHTML = '';
-        
-        // Parse nginx warnings to extract conflict information
-        const conflicts = parseConflictWarnings(routes.nginxWarnings || []);
-        
-        // Wire buttons (after conflicts are parsed)
-        if (ackBtn) {
-          ackBtn.onclick = () => { 
-            try{ localStorage.setItem('conflictsAck', JSON.stringify({ ts: Date.now() })); }catch{} 
-            conflictCard.classList.add('hidden'); 
-            window.DTP.showToast('info', 'Conflicts dismissed');
-          };
-        }
-        
-        if (fixBtn) {
-          fixBtn.onclick = () => {
-            const conflictText = conflicts.length > 0 
-              ? conflicts.map(c => `Route ${c.route} is claimed by ${c.configs.join(' and ')}.`).join('\n')
-              : `${confSummary.totalConflicts || 'Some'} route conflicts detected.`;
-            
-            const prompt = `I see some route conflicts in my configuration:\n\n${conflictText}\n\nCan you help me resolve these? I'm not sure which config should win or if I should rename some routes.`;
-            
-            // Open Calliope
-            const drawer = document.getElementById('aiDrawer');
-            if (drawer) {
-              drawer.classList.remove('collapsed');
-              document.body.classList.add('ai-open');
-              
-              // Set query and ask
-              setTimeout(() => {
-                const queryEl = document.getElementById('aiQuery');
-                if (queryEl) {
-                  queryEl.value = prompt;
-                  const askBtn = document.getElementById('aiAskBtn');
-                  if (askBtn) {
-                    setTimeout(() => askBtn.click(), 100);
-                  }
-                }
-              }, 200);
-            }
-          };
-        }
-        
-        if (conflicts.length === 0 && hasConflicts) {
-          conflictsDiv.innerHTML = `<div class="suggestion-item" style="padding: 16px; border: 1px dashed var(--err); border-radius: 8px; margin-bottom: 16px;">
-            <p style="margin: 0; color: var(--err); font-weight: 600;">⚠️ Detected ${confSummary.totalConflicts} conflicts, but couldn't parse the details.</p>
-            <p style="margin: 8px 0 0 0; opacity: 0.8;">This usually happens when the nginx logs are in an unexpected format. Try running a manual scan or ask Calliope for help.</p>
-          </div>`;
+        const summary = routes.nginxConflicts || routes.conflictSummary || {};
+        const total = Number.isSafeInteger(summary.totalConflicts) && summary.totalConflicts >= 0
+          ? summary.totalConflicts : null;
+        const warnings = Array.isArray(routes.nginxWarnings) ? routes.nginxWarnings : [];
+        const conflicts = parseConflictWarnings(warnings);
+        if (!warnings.length && !(total > 0)) {
+          conflictCard.classList.add('hidden');
           return;
         }
 
-        conflicts.forEach(conflict => {
-          const conflictDiv = document.createElement('div');
-          conflictDiv.className = 'conflict-item';
-          conflictDiv.style.marginBottom = '20px';
-          conflictDiv.style.padding = '16px';
-          conflictDiv.style.background = 'rgba(239, 68, 68, 0.05)';
-          conflictDiv.style.border = '1px solid rgba(239, 68, 68, 0.2)';
-          conflictDiv.style.borderRadius = '10px';
-          
-          conflictDiv.innerHTML = `
-            <div class="conflict-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-              <div>
-                <h3 style="margin: 0; font-size: 16px; color: var(--err);">Path: ${conflict.route}</h3>
-                <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.8;">Multiple apps are trying to use this URL path. Only one can win.</p>
-              </div>
-              <div class="conflict-status" style="background: var(--err); color: white; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700;">
-                CONFLICT
-              </div>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
-              <div class="conflict-options">
-                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Choose a winner:</p>
-                <div class="conflict-configs" style="display: flex; flex-direction: column; gap: 8px;">
-                  ${conflict.configs.map(config => `
-                    <label class="config-option ${config === conflict.winner ? 'active' : ''}" style="display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                      <input type="radio" name="conflict-${conflict.route}" value="${config}" ${config === conflict.winner ? 'checked' : ''} style="accent-color: var(--ok);">
-                      <div style="flex: 1;">
-                        <span class="config-name" style="font-weight: 600;">${config.replace(/\.conf$/, '')}</span>
-                        ${config === conflict.winner ? '<span style="font-size: 10px; color: var(--ok); margin-left: 6px;">(Current Winner)</span>' : ''}
-                      </div>
-                      <div class="config-actions">
-                        <button class="btn-small" onclick="viewConfig('${config}')" style="padding: 4px 8px; font-size: 11px;">View</button>
-                      </div>
-                    </label>
-                  `).join('')}
-                </div>
-                <button class="btn" onclick="resolveConflict('${conflict.route}')" style="margin-top: 12px; width: 100%; background: var(--ok); border-color: var(--ok); color: white;">Save Winner Selection</button>
-              </div>
-              
-              <div class="conflict-suggestions">
-                <p style="margin: 0 0 8px 0; font-weight: 600; font-size: 13px;">Other Actions:</p>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div style="padding: 12px; background: rgba(127, 176, 255, 0.1); border: 1px dashed var(--lnk); border-radius: 8px;">
-                    <p style="margin: 0; font-size: 12px; font-weight: 600; color: var(--lnk);">💡 Suggestion: Rename Route</p>
-                    <p style="margin: 4px 0 10px 0; font-size: 11px; opacity: 0.8;">Give one of these apps a unique subpath so they can both exist.</p>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      ${conflict.configs.map(config => `
-                        <button class="btn-small" onclick="renameRoute('${conflict.route}', '${config}')" style="font-size: 10px;">Rename in ${config.replace(/\.conf$/, '')}</button>
-                      `).join('')}
-                    </div>
-                  </div>
-                  
-                  <button class="btn" onclick="autoFixConflict('${conflict.route}')" style="background: var(--panel); border-style: dashed; font-size: 13px;">
-                    <i data-lucide="wand-2" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 6px;"></i>
-                    Try AI Auto-Fix
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-          conflictsDiv.appendChild(conflictDiv);
-        });
-        
-        // Refresh icons for any new content
-        if (window.lucide) lucide.createIcons();
+        conflictCard.classList.remove('hidden');
+        conflictsDiv.textContent = '';
+        function appendText(parent, tag, value, className) {
+          const el = document.createElement(tag);
+          if (className) el.className = className;
+          el.textContent = value;
+          parent.appendChild(el);
+          return el;
+        }
+        appendText(conflictsDiv, 'p',
+          'Historical scan evidence - not live routing authority. No configuration changes can be made from this report.');
+        if (total !== null) {
+          appendText(conflictsDiv, 'p', 'Reported conflict count: ' + total);
+        }
+        appendText(conflictsDiv, 'p', 'Decoded route details: ' + conflicts.length);
+        if (conflicts.length === 0 || warnings.length !== conflicts.length ||
+            (total !== null && total !== conflicts.length)) {
+          appendText(conflictsDiv, 'p',
+            'Some conflict details unavailable or ambiguous. Verify current configuration before acting.', 'suggestion-item');
+        }
+
+        for (const conflict of conflicts) {
+          const item = document.createElement('div');
+          item.className = 'conflict-item';
+          appendText(item, 'h3', 'Reported path: ' + conflict.route);
+          appendText(item, 'p', 'Reported selection: ' + conflict.winner);
+          const list = document.createElement('ul');
+          for (const config of conflict.configs) {
+            appendText(list, 'li', config);
+          }
+          item.appendChild(list);
+          conflictsDiv.appendChild(item);
+        }
+
+        if (ackBtn) ackBtn.onclick = () => {
+          conflictCard.classList.add('hidden');
+          window.DTP.showToast('Historical conflict report dismissed', 'info');
+        };
+        if (fixBtn) fixBtn.onclick = () => {
+          // This is an explicit user click. Do not include report-controlled strings.
+          const drawer = document.getElementById('aiDrawer');
+          const queryEl = document.getElementById('aiQuery');
+          if (!drawer || !queryEl) return;
+          drawer.classList.remove('collapsed');
+          document.body.classList.add('ai-open');
+          queryEl.value = 'Help me understand a historical route conflict report and verify the current configuration without making any changes.';
+          const askBtn = document.getElementById('aiAskBtn');
+          if (askBtn) setTimeout(() => askBtn.click(), 100);
+        };
       }
 
       function parseConflictWarnings(warnings) {
-        const conflicts = [];
-        warnings.forEach(warning => {
-          // Parse warning like: "Route /api/: NEW CONFLICT - app2.conf wins (first config) over test-conflict.conf"
-          const routeMatch = warning.match(/Route ([^:]+):/);
-          const winnerMatch = warning.match(/- ([^\\s]+)\\.conf wins.*over ([^\\s,]+(?:\\.conf)?)/);
-          
-          if (routeMatch && winnerMatch) {
-            const route = routeMatch[1];
-            const winner = winnerMatch[1] + '.conf';
-            const loser = winnerMatch[2].endsWith('.conf') ? winnerMatch[2] : winnerMatch[2] + '.conf';
-            
-            conflicts.push({
-              route,
-              winner,
-              configs: [winner, loser]
-            });
+        if (!Array.isArray(warnings) || warnings.length > 256) return [];
+        const byRoute = new Map();
+        const ambiguous = new Set();
+        const validRoute = route => /^\/[A-Za-z0-9_@./-]*$/.test(route) &&
+          !route.includes('//') && !route.split('/').some(part => part === '.' || part === '..');
+        const validConfig = name => /^(?:(?:apps|overrides)\/)?[A-Za-z0-9_][A-Za-z0-9_.-]*\.conf$/.test(name);
+        for (const warning of warnings) {
+          if (typeof warning !== 'string' || warning.length > 4096) continue;
+          const match = /^Route ([^:]+): NEW CONFLICT - (.+?) wins \(first config\) over (.+)$/.exec(warning) ||
+            /^Route ([^:]+): Using persisted resolution - (.+?) wins \(conflicts with (.+)\)$/.exec(warning);
+          if (!match) continue;
+          const [, route, winner, others] = match;
+          const configs = [winner, ...others.split(', ')];
+          if (!validRoute(route) || configs.length < 2 || configs.length > 64 ||
+              !configs.every(validConfig) || new Set(configs).size !== configs.length) continue;
+          if (byRoute.has(route)) {
+            byRoute.delete(route);
+            ambiguous.add(route);
+          } else if (!ambiguous.has(route)) {
+            byRoute.set(route, {route, winner, configs});
           }
-        });
-        return conflicts;
+        }
+        return Array.from(byRoute.values());
       }
 
       async function resolveConflict(route) {
@@ -3703,11 +3600,37 @@ Or check if config files have syntax errors.
         bd.className='backdrop';
         const modal = document.createElement('div');
         modal.className='modal';
-        modal.innerHTML = `<h2>Diagnose: <code>${routeKey}</code></h2>
-          <div class="section"><h3>Detected Issues</h3><div id="issues"></div></div>
-          <div class="section"><h3>Suggested Nginx Snippet</h3><pre id="snippet"></pre></div>
-          <div class="section"><h3>Repair Commands</h3><pre id="commands"></pre></div>
-          <div class="toolbar"><button class="btn" id="copySnippet">Copy snippet</button><button class="btn" id="copyCmds">Copy commands</button><button class="btn" id="close">Close</button></div>`;
+        const heading = document.createElement('h2');
+        heading.appendChild(document.createTextNode('Diagnose: '));
+        const routeCode = document.createElement('code');
+        routeCode.textContent = String(routeKey);
+        heading.appendChild(routeCode);
+        function section(title, child){
+          const wrap = document.createElement('div');
+          wrap.className = 'section';
+          const h = document.createElement('h3');
+          h.textContent = title;
+          wrap.appendChild(h);
+          wrap.appendChild(child);
+          return wrap;
+        }
+        const issuesBox = document.createElement('div');
+        issuesBox.id = 'issues';
+        const snippetPre = document.createElement('pre');
+        snippetPre.id = 'snippet';
+        const commandsPre = document.createElement('pre');
+        commandsPre.id = 'commands';
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
+        for (const spec of [['copySnippet','Copy snippet'],['copyCmds','Copy commands'],['close','Close']]){
+          const button = document.createElement('button');
+          button.className = 'btn';
+          button.id = spec[0];
+          button.type = 'button';
+          button.textContent = spec[1];
+          toolbar.appendChild(button);
+        }
+        modal.append(heading, section('Detected Issues', issuesBox), section('Suggested Nginx Snippet', snippetPre), section('Repair Commands', commandsPre), toolbar);
         bd.appendChild(modal);
         document.body.appendChild(bd);
 
@@ -3722,7 +3645,13 @@ Or check if config files have syntax errors.
           if (info.websocket && !info.websocket.ok) issues.push(`${t}: websocket upgrade failed`);
         }
         if (!issues.length) issues.push('No obvious issues detected.');
-        modal.querySelector('#issues').innerHTML = `<ul>${issues.map(i=>`<li>${i}</li>`).join('')}</ul>`;
+        const issueList = document.createElement('ul');
+        for (const issue of issues){
+          const item = document.createElement('li');
+          item.textContent = issue;
+          issueList.appendChild(item);
+        }
+        issuesBox.appendChild(issueList);
 
         // Build snippet template
         const name = routeKey.replace(/^\/(.*?)\/?$/, '$1');

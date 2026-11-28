@@ -6,23 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/status/assets/favicon.svg" />
     <link rel="stylesheet" href="/status/global.css" />
-    <link rel="stylesheet" href="/status/common.css" />
+    <link rel="stylesheet" href="/status/common.v215-42c0928ec30a.css" data-dtp-shared-style="v215" />
+    <script src="/status/vendor/lucide.min.js"></script>
     <script src="/status/config.js"></script>
-    <script src="/status/common.js"></script>
+    <script src="/status/common.v215-dfd52e64df59.js"></script>
     <style>
       .container{max-width:1160px;margin:24px auto;padding:0 16px}
-      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.25);backdrop-filter:saturate(160%) blur(6px);margin-bottom:16px}
+      .card{background:var(--panelGlass);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,.12);margin-bottom:16px}
       .card h2{margin:0 0 16px 0;font-size:15px;color:var(--heading);font-weight:700}
       .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
       button{padding:10px 16px;border:1px solid var(--btnBorder);border-radius:8px;background:var(--btnBg);color:var(--btnText);cursor:pointer;font-weight:600;font-size:13px;transition:all .2s}
-      button:hover{background:var(--btnBgHover);transform:translateY(-1px)}
+      button:hover{background:var(--btnBgHover)}
       button.danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:transparent}
       button.warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:transparent}
       table{width:100%;border-collapse:collapse}
       thead{background:var(--btnBg);border-radius:8px}
       th{padding:12px;text-align:left;font-weight:700;color:var(--heading);font-size:13px;border-bottom:2px solid var(--border)}
       td{padding:12px;border-bottom:1px solid var(--border);font-size:13px}
-      tr:hover{background:var(--btnBg)}
+      .report-cleanup{margin-top:8px}
+      .report-cleanup summary{cursor:pointer;font-weight:700;color:var(--heading)}
+      .cleanup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+      @media (max-width:560px){
+        table,tbody,tr,td{display:block;width:100%}
+        thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+        td{padding:6px 0;border-bottom:none}
+        tr{padding:8px 0;border-bottom:1px solid var(--border)}
+      }
       .tag{display:inline-block;padding:4px 10px;border-radius:999px;background:var(--chip);color:var(--chipText);font-weight:600;font-size:11px;border:1px solid var(--chipBorder)}
       .tag.health-json{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
       .tag.health-md{background:rgba(16,185,129,.15);color:#10b981;border-color:rgba(16,185,129,.3)}
@@ -36,18 +45,20 @@
     </style>
   </head>
   <body data-page="reports">
-    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} });</script>
+    <script>window.addEventListener('DOMContentLoaded', function(){ try{ window.DTP && DTP.attachHeader && DTP.attachHeader('reports'); }catch{} try{ window.DTP && DTP.attachCalliope && DTP.attachCalliope(); }catch{} try{ window.DTP && DTP.initTheme && DTP.initTheme(); }catch{} try{ window.DTP && DTP.registerHeaderRefresh && DTP.registerHeaderRefresh({ label: 'Re-read the report list', run: function(status){ return refreshReportList(status); } }); }catch{} });</script>
     <header style="display:none"></header>
     
     <div class="container">
       <div class="card">
         <h2>Reports Management</h2>
-        <div class="toolbar">
-          <button id="refresh">Refresh</button>
-          <button id="prune7" class="warning">Prune > 7 days</button>
-          <button id="prune30" class="warning">Prune > 30 days</button>
-          <button id="pruneAllButLatest" class="danger">Keep Latest Only</button>
-        </div>
+        <details id="reportCleanup" class="report-cleanup">
+          <summary>Clean up old reports</summary>
+          <div class="cleanup-actions">
+            <button id="prune7" class="warning" type="button">Prune &gt; 7 days</button>
+            <button id="prune30" class="warning" type="button">Prune &gt; 30 days</button>
+            <button id="pruneAllButLatest" class="danger" type="button">Keep Latest Only</button>
+          </div>
+        </details>
         <div id="pagination-info" class="pagination-info"></div>
         <table>
           <thead>
@@ -69,6 +80,54 @@
     <script>
       let currentPage = 1;
       const itemsPerPage = 10;
+      let reportRead = 0;
+
+      function safeTotal(value){
+        return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+      }
+
+      function classifyCatalog(data, page){
+        if (!data || data.ok !== true || !Array.isArray(data.items) || !data.pagination) return { kind: 'malformed' };
+        const total = data.pagination.total;
+        if (!safeTotal(total) || data.items.length > total || data.items.length > itemsPerPage) return { kind: 'malformed' };
+        if (!data.items.every((item) => item && typeof item === 'object' && !Array.isArray(item))) return { kind: 'malformed' };
+        if (!Number.isSafeInteger(page) || page < 1) return { kind: 'malformed' };
+        const start = (page - 1) * itemsPerPage;
+        if (page > 1 && start >= total) return { kind: 'out-of-range', total: total };
+        if (start + data.items.length > total) return { kind: 'malformed' };
+        if (total === 0 && page === 1 && data.items.length === 0) return { kind: 'empty', total: total };
+        if (data.items.length === 0) return { kind: 'malformed' };
+        return { kind: 'populated', total: total, items: data.items };
+      }
+
+      function clearCatalogChrome(){
+        document.getElementById('pagination-info').textContent = '';
+        document.getElementById('pagination-controls').textContent = '';
+      }
+
+      function paintCatalogMessage(kind, title, detail){
+        const tbody = document.getElementById('rows');
+        tbody.textContent = '';
+        tbody.dataset.catalog = kind;
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.colSpan = 4;
+        const box = document.createElement('div');
+        box.className = 'empty-state';
+        const heading = document.createElement('div');
+        heading.style.fontSize = '16px';
+        heading.style.fontWeight = '600';
+        heading.style.marginBottom = '8px';
+        heading.textContent = title;
+        const note = document.createElement('div');
+        note.textContent = detail;
+        box.appendChild(heading);
+        box.appendChild(note);
+        td.appendChild(box);
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        clearCatalogChrome();
+      }
       
       async function api(path, opts){
         const r = await fetch(path, { 
@@ -94,41 +153,35 @@
         return name.split('.').pop();
       }
       
-      async function load(page = 1){
+      async function load(page = 1, recovery = 0){
+        const read = ++reportRead;
         try {
           currentPage = page;
           const data = await api(`${window.DTP.config.apiPath('reports/list')}?page=${page}&limit=${itemsPerPage}`);
+          if (read !== reportRead) return 'stale';
           const tbody = document.getElementById('rows');
-          tbody.textContent = '';
 
           // V138: honor API contract {ok,items,pagination.total,mtimeMs}.
-          const items = (data && Array.isArray(data.items)) ? data.items : null;
-          const total = (data && data.pagination && Number.isFinite(Number(data.pagination.total)))
-            ? Number(data.pagination.total)
-            : (items ? items.length : 0);
           if (data && data.ok === false) {
-            const tr = document.createElement('tr');
-            const td = document.createElement('td');
-            td.colSpan = 4;
-            const box = document.createElement('div');
-            box.className = 'empty-state';
-            const title = document.createElement('div');
-            title.style.fontSize = '16px';
-            title.style.fontWeight = '600';
-            title.style.marginBottom = '8px';
-            title.textContent = 'Could not load reports';
-            const detail = document.createElement('div');
-            detail.textContent = String((data && data.error) || 'reports_error');
-            box.appendChild(title);
-            box.appendChild(detail);
-            td.appendChild(box);
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            document.getElementById('pagination-info').textContent = '';
-            document.getElementById('pagination-controls').textContent = '';
-            return;
+            paintCatalogMessage('failed', 'Could not load reports', String((data && data.error) || 'reports_error'));
+            return 'failed';
           }
-          if (!items || items.length === 0) {
+          const state = classifyCatalog(data, page);
+          if (state.kind === 'out-of-range' && recovery < 1) {
+            return load(1, recovery + 1);
+          }
+          if (read !== reportRead) return 'stale';
+          if (state.kind === 'malformed') {
+            paintCatalogMessage('malformed', 'Report list could not be read', 'The response was not a valid report catalog.');
+            return 'malformed';
+          }
+          if (state.kind === 'out-of-range') {
+            paintCatalogMessage('out-of-range', 'That page is outside the catalog', 'Nothing was changed.');
+            return 'out-of-range';
+          }
+          if (state.kind === 'empty') {
+            tbody.textContent = '';
+            tbody.dataset.catalog = 'empty';
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = 4;
@@ -151,10 +204,13 @@
             td.appendChild(box);
             tr.appendChild(td);
             tbody.appendChild(tr);
-            document.getElementById('pagination-info').textContent = '';
-            document.getElementById('pagination-controls').textContent = '';
-            return;
+            clearCatalogChrome();
+            return 'empty';
           }
+          const items = state.items;
+          const total = state.total;
+          tbody.textContent = '';
+          tbody.dataset.catalog = 'populated';
 
           items.forEach(r => {
             const row = document.createElement('tr');
@@ -241,8 +297,11 @@
             next.onclick = () => load(page + 1);
             controls.appendChild(next);
           }
+          return 'populated';
         } catch (err) {
+          if (read !== reportRead) return 'stale';
           document.getElementById('rows').textContent = '';
+          document.getElementById('rows').dataset.catalog = 'failed';
           const tr = document.createElement('tr');
           const td = document.createElement('td');
           td.colSpan = 4;
@@ -260,10 +319,31 @@
           td.appendChild(box);
           tr.appendChild(td);
           document.getElementById('rows').appendChild(tr);
+          return 'failed';
         }
       }
 
-      document.getElementById('refresh').onclick = () => load(currentPage);
+      async function refreshReportList(status){
+        const outcome = await load(currentPage);
+        if (!status || outcome === 'stale') return;
+        if (outcome === 'failed') {
+          status.textContent = 'Could not re-read the report list.';
+          status.classList.add('is-error');
+          return;
+        }
+        if (outcome === 'malformed') {
+          status.textContent = 'Report list could not be read.';
+          status.classList.add('is-error');
+          return;
+        }
+        if (outcome === 'out-of-range') {
+          status.textContent = 'That page is outside the catalog.';
+          status.classList.add('is-error');
+          return;
+        }
+        status.textContent = 'Report list re-read';
+        status.classList.remove('is-error');
+      }
       
       document.getElementById('prune7').onclick = async () => {
         const confirmed = await window.DTP.showDialog({

@@ -4,19 +4,52 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# LaunchAgents don't inherit full PATH, so check explicit paths first
-if [[ -x "/opt/homebrew/bin/node" ]]; then
-  NODE_BIN="/opt/homebrew/bin/node"
-elif [[ -x "/usr/local/bin/node" ]]; then
-  NODE_BIN="/usr/local/bin/node"
-elif [[ -x "$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | tail -1)/bin/node" ]]; then
-  NODE_BIN="$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" | tail -1)/bin/node"
-elif command -v node &>/dev/null; then
-  NODE_BIN="$(command -v node)"
+# Explicit owner-reviewed job pin takes precedence over all legacy discovery.
+# Partial pins are errors, never a reason to fall back. The digest/version
+# checks are a launcher guard, not a substitute for private path provenance
+# review or authorization to install/restart a job.
+reject_pin() {
+  echo 'NOTIFICATION_RUNTIME_PIN_REJECTED' >&2
+  exit 2
+}
+supported_version() {
+  [[ "$1" =~ ^v(22|24|26)\.[0-9]+\.[0-9]+$ ]]
+}
+if [[ ${DEVPROXY_NOTIFICATION_NODE_EXECUTABLE+x} || ${DEVPROXY_NOTIFICATION_NODE_SHA256+x} || ${DEVPROXY_NOTIFICATION_NODE_VERSION+x} ]]; then
+  NODE_BIN="${DEVPROXY_NOTIFICATION_NODE_EXECUTABLE-}"
+  expected_digest="${DEVPROXY_NOTIFICATION_NODE_SHA256-}"
+  expected_version="${DEVPROXY_NOTIFICATION_NODE_VERSION-}"
+  [[ "$NODE_BIN" == /*/node && -f "$NODE_BIN" && -x "$NODE_BIN" && ! -L "$NODE_BIN" ]] || reject_pin
+  [[ "$expected_digest" =~ ^[a-f0-9]{64}$ ]] || reject_pin
+  supported_version "$expected_version" || reject_pin
+  physical_dir=$(cd -P -- "$(/usr/bin/dirname -- "$NODE_BIN")" 2>/dev/null && pwd -P) || reject_pin
+  [[ "$NODE_BIN" == "$physical_dir/node" ]] || reject_pin
+  digest_output=$(/usr/bin/shasum -a 256 "$NODE_BIN" 2>/dev/null) || reject_pin
+  [[ "${digest_output%% *}" == "$expected_digest" ]] || reject_pin
+  actual_version=$("$NODE_BIN" --version 2>/dev/null) || reject_pin
+  [[ "$actual_version" == "$expected_version" ]] || reject_pin
 else
-  echo "Error: node not found in PATH or common locations" >&2
-  echo "Searched: /opt/homebrew/bin, /usr/local/bin, ~/.nvm, PATH" >&2
-  exit 1
+  # LaunchAgents don't inherit full PATH, so check explicit paths first
+  if [[ -x "/opt/homebrew/bin/node" ]]; then
+    NODE_BIN="/opt/homebrew/bin/node"
+  elif [[ -x "/usr/local/bin/node" ]]; then
+    NODE_BIN="/usr/local/bin/node"
+  elif [[ -x "$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | tail -1)/bin/node" ]]; then
+    NODE_BIN="$HOME/.nvm/versions/node/$(ls -1 "$HOME/.nvm/versions/node" | tail -1)/bin/node"
+  elif command -v node &>/dev/null; then
+    NODE_BIN="$(command -v node)"
+  else
+    echo "Error: node not found in PATH or common locations" >&2
+    echo "Searched: /opt/homebrew/bin, /usr/local/bin, ~/.nvm, PATH" >&2
+    exit 1
+  fi
+  
+  # Preserve supported legacy callers, but never start an EOL Node runtime.
+  actual_version=$("$NODE_BIN" --version 2>/dev/null) || exit 2
+  if ! supported_version "$actual_version"; then
+    echo 'NOTIFICATION_RUNTIME_UNSUPPORTED' >&2
+    exit 2
+  fi
 fi
 
 exec "$NODE_BIN" "$SCRIPT_DIR/notifications-engine.js" "$@"

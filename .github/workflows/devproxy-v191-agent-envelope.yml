@@ -1,0 +1,25 @@
+name: V191 source-only Calliope signed agent envelope
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-agent-envelope.cjs'
+      - 'tests/security/v191-calliope-agent-envelope.test.cjs'
+      - '.github/workflows/devproxy-v191-agent-envelope.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verified-envelope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          check-latest: true
+      - name: Verify syntax and focused trust/replay contracts
+        run: |
+          node --check utils/calliope-agent-envelope.cjs
+          node --check tests/security/v191-calliope-agent-envelope.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs

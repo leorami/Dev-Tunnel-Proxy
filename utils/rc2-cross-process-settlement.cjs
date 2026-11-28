@@ -145,7 +145,12 @@ function createCrossProcessSettlementHost({
     const deadline=now()+ackTimeoutMs;
     let ack=null;
     while(now()<deadline){
-     ack=await readPinnedJson(path.join(spoolDirectory,'acks'),id);
+     try{ack=await readPinnedJson(path.join(spoolDirectory,'acks'),id);}
+     catch(error){
+      // A same-directory hardlink publish is briefly nlink 2. That is not a failed settlement.
+      if(error?.message!=='UNSAFE_SPOOL_MESSAGE')throw error;
+      ack=null;
+     }
      if(ack)break;
      await pause(pollMs);
     }

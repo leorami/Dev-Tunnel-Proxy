@@ -234,8 +234,8 @@ cmd_setup() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   
   echo "✅ Setup complete. Run: ./smart-build.sh up"
@@ -250,8 +250,8 @@ cmd_up() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   echo "==> Starting containers (auto-scan: ${AUTO_SCAN_ENABLED}, interval: ${AUTO_SCAN_INTERVAL_SECONDS}s)..."
   (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans)
@@ -280,8 +280,8 @@ cmd_restart() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
 
   # Bring everything back up, and remove any containers that no longer exist in the compose file
@@ -324,8 +324,8 @@ cmd_apply() {
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
     node "$ROOT_DIR/utils/generateAppsBundle.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/generateAppsBundle.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/generateAppsBundle.js || true
   fi
   (cd "$ROOT_DIR" && $COMPOSE up -d --remove-orphans --force-recreate proxy proxy-config-api)
   (cd "$ROOT_DIR" && $COMPOSE up -d ngrok)
@@ -345,7 +345,7 @@ cmd_install_app() {
   if command -v node >/dev/null 2>&1; then
     node "$ROOT_DIR/utils/hardenUpstreams.js" || true
   else
-    docker run --rm -v "$ROOT_DIR":/app -w /app node:18-alpine node utils/hardenUpstreams.js || true
+    docker run --rm -v "$ROOT_DIR":/app -w /app node:24-alpine node utils/hardenUpstreams.js || true
   fi
   cmd_reload
 }
@@ -419,7 +419,7 @@ run_test_with_progress() {
   start_time=$(date +%s)
   
   # Run test and capture exit code
-  if eval "$test_cmd"; then
+  if strict_test_counts "$test_cmd"; then
     end_time=$(date +%s)
     duration=$((end_time - start_time))
     echo -e "\n${GREEN}✓ ${test_name} passed (${duration}s)${NC}"
@@ -433,75 +433,73 @@ run_test_with_progress() {
   fi
 }
 
-cmd_test_thoughts() {
-  if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run thought tests"
-    return 0
+# Release tests run only in a disposable, independently verified hosted CI
+# checkout. These environment checks are a misuse guard, not authorization.
+require_isolated_release_ci() {
+  if [[ "${GITHUB_ACTIONS:-}" != "true" || "${RUNNER_ENVIRONMENT:-}" != "github-hosted" ||
+        "$(uname -s)" != "Linux" || -z "${GITHUB_WORKSPACE:-}" ||
+        "$ROOT_DIR" != "$GITHUB_WORKSPACE" || -z "${RUNNER_TEMP:-}" ]]; then
+    echo "RELEASE_FIXTURE_REQUIRES_ISOLATED_HOSTED_CI" >&2
+    return 1
   fi
-  
-  local test_result=0
-  run_test_with_progress "Real-time Thoughts System" \
-    "node '$ROOT_DIR/test/calliope-simple-test.js' && bash '$ROOT_DIR/test/test-incremental-thoughts.sh'" || test_result=1
-  
-  return $test_result
+}
+
+# Require actual Node test summaries, not exit zero alone or an absent fixture.
+strict_test_counts() {
+  local log rc=0
+  log=$(mktemp "${TMPDIR:-/tmp}/devproxy-test.XXXXXXXX") || return 1
+  if eval "$1" >"$log" 2>&1; then :; else rc=$?; fi
+  cat "$log"
+  if ! awk '
+    ($1 == "#" || $1 == "ℹ") && $3 ~ /^[0-9]+$/ {
+      if ($2=="tests") { tests+=$3; groups++ }
+      if ($2=="pass") { passed+=$3; pass_groups++ }
+      if ($2=="fail" || $2=="cancelled" || $2=="skipped" || $2=="todo") { bad+=$3; count[$2]++ }
+    }
+    END { exit !(groups>0 && tests>0 && pass_groups==groups &&
+      count["fail"]==groups && count["cancelled"]==groups &&
+      count["skipped"]==groups && count["todo"]==groups && passed==tests && bad==0) }
+  ' "$log"; then
+    echo "TEST_COUNTS_NOT_STRICT_GREEN" >&2
+    rc=1
+  fi
+  rm -f "$log"
+  return "$rc"
+}
+
+cmd_test_nginx_fixture() {
+  require_isolated_release_ci || return 1
+  docker image inspect nginx:1.26.3-alpine >/dev/null || return 1
+  strict_test_counts "node --test '$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs' '$ROOT_DIR/tests/security/v190-eight-api-native-nginx.test.cjs' '$ROOT_DIR/tests/security/v215-frontend-install-nginx.test.cjs' '$ROOT_DIR/tests/security/v216-frontend-install-nginx.test.cjs'"
+}
+
+cmd_test_secure_contract() {
+  strict_test_counts "node --test '$ROOT_DIR/tests/security/v212-secure-release-api.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-evidence.test.cjs' '$ROOT_DIR/tests/security/rc2-local-calliope-observe-explain.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-http-audit.test.cjs' '$ROOT_DIR/tests/security/rc2-readonly-app-http-scan.test.cjs' '$ROOT_DIR/tests/security/rc2-app-http-scan-api-contract.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check.test.cjs' '$ROOT_DIR/tests/security/rc2-secure-self-check-fail-closed.test.cjs' '$ROOT_DIR/tests/security/rc2-self-check-api-contract.test.cjs' '$ROOT_DIR/tests/security/v203-supported-node-runtime.test.cjs' '$ROOT_DIR/tests/security/v214-shared-shell.test.cjs' '$ROOT_DIR/tests/security/v215-versioned-shared-assets.test.cjs' '$ROOT_DIR/tests/security/v216-response-contract.test.cjs' '$ROOT_DIR/tests/security/v216-frontend-install.test.cjs'"
+}
+
+cmd_test_thoughts() {
+  echo "Current secure contract: authenticated empty thoughts stub; no live stream or heal claim."
+  cmd_test_secure_contract
 }
 
 cmd_test_calliope() {
-  if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run Calliope tests"
-    return 0
-  fi
-  
-  local test_result=0
-  run_test_with_progress "Calliope Core Functionality" \
-    "node '$ROOT_DIR/test/calliope-simple-test.js'" || test_result=1
-  
-  if [ $test_result -eq 0 ]; then
-    run_test_with_progress "Calliope Site Auditor" \
-      "node '$ROOT_DIR/test/site-auditor-test.js'" || test_result=1
-  fi
-  
-  return $test_result
+  echo "Current secure contract: local documented Ask and bounded HEAD observation; no external AI or browser-audit claim."
+  cmd_test_secure_contract
 }
 
 cmd_test_auditor() {
-  if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run auditor tests"
-    return 0
-  fi
-  
-  run_test_with_progress "Site Auditor" \
-    "node '$ROOT_DIR/test/site-auditor-test.js'"
+  echo "Historical browser auditor is not a supported secure-mode release test; use test:secure-contract for current HEAD observations." >&2
+  return 1
 }
 
 cmd_test_browser() {
-  if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run browser tests"
-    return 0
-  fi
-  
-  if [ -f "$ROOT_DIR/test/browser-console-test.js" ]; then
-    run_test_with_progress "Browser/Console Errors" \
-      "node '$ROOT_DIR/test/browser-console-test.js'"
-  else
-    warn "Browser test not found (test/browser-console-test.js)"
-    return 1
-  fi
+  echo "Historical browser diagnostic is not an ordinary release command. Use the approved canonical-app visual verification contract." >&2
+  return 1
 }
 
 cmd_test_mixed_content() {
-  if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run mixed content test"
-    return 0
-  fi
-  
-  if [ -f "$ROOT_DIR/test/mixed-content-test.js" ]; then
-    run_test_with_progress "Mixed Content Detection" \
-      "node '$ROOT_DIR/test/mixed-content-test.js'"
-  else
-    warn "Mixed content test not found"
-    return 1
-  fi
+  echo "Historical network diagnostic is not an ordinary release command. Use the approved canonical-app verification contract." >&2
+  return 1
 }
 
 cmd_test_unit() {
@@ -708,8 +706,18 @@ cmd_test_unit() {
   fi
 
   if [ $test_result -eq 0 ]; then
+    run_test_with_progress "Notification launcher explicit runtime pin (synthetic engine only)" \
+      "node --test '$ROOT_DIR/tests/security/v209-notification-pinned-runtime.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
     run_test_with_progress "Paired status page script trust and safe HTML sinks" \
       "node --test '$ROOT_DIR/tests/security/notification-bridge-status-thirdparty-script-trust.test.cjs'" || test_result=1
+  fi
+
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V210 historical status report trust (source only)" \
+      "node --test '$ROOT_DIR/tests/security/v210-status-report-trust.test.cjs'" || test_result=1
   fi
 
   if [ $test_result -eq 0 ]; then
@@ -752,9 +760,9 @@ cmd_test_unit() {
       "node --test '$ROOT_DIR/tests/security/v162-secure-dashboard-truthful-actions.test.cjs'" || test_result=1
   fi
 
-  if [ $test_result -eq 0 ] && [ -f "$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs" ]; then
-    run_test_with_progress "V171 four auth-prefix ^~ nested-JSON precedence (source + disposable nginx)" \
-      "node --test '$ROOT_DIR/tests/security/v171-four-auth-prefix-nginx.test.cjs'" || test_result=1
+  if [ $test_result -eq 0 ]; then
+    run_test_with_progress "V212 safe release runner contract" \
+      "node --test '$ROOT_DIR/tests/security/v212-secure-release-runner.test.cjs'" || test_result=1
   fi
 
   if [ $test_result -eq 0 ]; then
@@ -784,23 +792,17 @@ cmd_test_all() {
   echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}\n"
   
   if [ "${DRY_RUN:-}" = "1" ]; then
-    echo "DRY RUN: would run all tests"
-    return 0
+    echo "DRY RUN: full release tests were not executed" >&2
+    return 1
   fi
   
+  require_isolated_release_ci || return 1
   start_time=$(date +%s)
-  
-  # Run unit tests first (fast)
+
+  # All current-contract lanes are mandatory; a failed lane cannot be green.
   cmd_test_unit || failed=1
-  
-  # Run Calliope tests
-  if [ $failed -eq 0 ]; then
-    cmd_test_thoughts || failed=1
-  fi
-  
-  if [ $failed -eq 0 ]; then
-    cmd_test_calliope || failed=1
-  fi
+  cmd_test_nginx_fixture || failed=1
+  cmd_test_secure_contract || failed=1
   
   end_time=$(date +%s)
   total_duration=$((end_time - start_time))
@@ -841,13 +843,14 @@ Commands:
                    when documentation changes are detected)
   
   # Tests
-  test:unit            Run unit tests (collect-docs, embeddings)
-  test:thoughts        Test real-time thoughts system
-  test:calliope        Test Calliope AI functionality
-  test:auditor         Test site auditor (Puppeteer-based)
-  test:browser         Test browser/console error detection
-  test:mixed-content   Test mixed content detection
-  test:all             Run all tests (unit + integration)
+  test:unit            Run source/unit tests in an isolated checkout (no nginx container)
+  test:thoughts        Test current secure thoughts/Ask contract (not a live stream)
+  test:calliope        Test current secure local Ask and observation contract
+  test:auditor         Historical browser auditor; unavailable in secure release
+  test:browser         Historical diagnostic; use approved visual verification
+  test:mixed-content   Historical diagnostic; use approved visual verification
+  test:secure-contract Test actual secure handler and current observation contracts
+  test:all             Full current secure-mode candidate (hosted CI only)
 
 Examples:
   ./smart-build.sh setup          # First-time setup
@@ -885,6 +888,7 @@ main() {
     test:auditor) cmd_test_auditor;;
     test:browser) cmd_test_browser;;
     test:mixed-content) cmd_test_mixed_content;;
+    test:secure-contract) cmd_test_secure_contract;;
     test:all) cmd_test_all;;
     
     ""|"help"|"-h"|"--help") usage;;

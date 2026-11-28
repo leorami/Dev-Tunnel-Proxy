@@ -1,0 +1,28 @@
+name: V193 Calliope artifact descriptor trust boundary (source only)
+on:
+  pull_request:
+    paths:
+      - 'utils/calliope-artifact-descriptor-gate.cjs'
+      - 'tests/security/v193-calliope-artifact-descriptor-gate.test.cjs'
+      - '.github/workflows/devproxy-v193-descriptor-gate.yml'
+      - 'docs/architecture/DEVPROXY_V193_ARTIFACT_DESCRIPTOR_BOUNDARY.md'
+      - 'docs/handoffs/DEVPROXY_V193_DESCRIBE_SOURCE_ONLY.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  descriptor-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          check-latest: true
+      - name: Validate signed identity verifier and inert descriptor eligibility
+        run: |
+          node --check utils/calliope-agent-envelope.cjs
+          node --check utils/calliope-artifact-descriptor-gate.cjs
+          node --check tests/security/v193-calliope-artifact-descriptor-gate.test.cjs
+          node --test tests/security/v191-calliope-agent-envelope.test.cjs tests/security/v193-calliope-artifact-descriptor-gate.test.cjs
