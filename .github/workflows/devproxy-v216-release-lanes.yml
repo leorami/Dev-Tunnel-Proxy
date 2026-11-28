@@ -119,3 +119,18 @@ jobs:
           check-latest: true
       - name: Record blocked tests without counting them as passes
         run: node scripts/v216-release-lane.cjs --lane blocked-capability
+  installer-macos:
+    if: ${{ !startsWith(github.head_ref, 'evidence/') && !startsWith(github.ref_name, 'evidence/') }}
+    needs: lane-manifest
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          check-latest: true
+      - name: Installer safety and recovery on hosted macOS
+        run: node --test --test-timeout=180000 tests/security/v217-frontend-install-safety.test.cjs tests/security/v216-frontend-install.test.cjs

@@ -176,7 +176,9 @@
       "tests/security/v215-versioned-shared-assets.test.cjs",
       "tests/security/v216-frontend-install.test.cjs",
       "tests/security/v216-release-lanes.test.cjs",
-      "tests/security/v216-response-contract.test.cjs"
+      "tests/security/v216-response-contract.test.cjs",
+      "tests/security/v217-frontend-install-safety.test.cjs",
+      "tests/security/v217-release-lane-python.test.cjs"
     ],
     "nginx-fixture": [
       "tests/security/v171-four-auth-prefix-nginx.test.cjs",
