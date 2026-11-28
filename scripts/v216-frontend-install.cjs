@@ -189,9 +189,15 @@ function writeXattrs(file, attrs) {
     return;
   }
   if (process.platform === 'linux') {
-    const lines = ['# file: tracked'];
-    for (const [name, spec] of entries) lines.push(`${name}=0s${spec.bytes}`);
-    runTool('setfattr', ['--restore=-', '--', file], { input: `${lines.join('\n')}\n` });
+    if (!path.isAbsolute(file) || /[\n\r]/.test(file)) throw new Error('metadata uncopyable: xattr path');
+    const lines = [`# file: ${file}`];
+    for (const [name, spec] of entries) {
+      if (!spec || spec.encoding !== 'base64' || typeof spec.bytes !== 'string' || /[\n\r]/.test(name) || /[\n\r]/.test(spec.bytes)) {
+        throw new Error(`metadata uncopyable: ${name}`);
+      }
+      lines.push(`${name}=0s${spec.bytes}`);
+    }
+    runTool('setfattr', ['--restore=-'], { input: `${lines.join('\n')}\n` });
     return;
   }
   throw new Error('metadata uncopyable: platform');
