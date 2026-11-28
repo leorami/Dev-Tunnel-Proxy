@@ -90,9 +90,14 @@ test('cross-process settlement succeeds only when API independently ACKs prepare
   });
   const manifest=await createCandidateManifest({approvedRoot:root});
   const activatePromise=activation.activate({expectedBundleSha256:manifest.parts[0].sha256});
-  await new Promise(r=>setTimeout(r,40));
-  const names=await fs.readdir(path.join(spool,'requests'));
-  const id=names[0].replace(/\.json$/,'');
+  const requestDir=path.join(spool,'requests');
+  let id='';
+  for(let attempt=0;attempt<200 && !id;attempt+=1){
+   const names=(await fs.readdir(requestDir)).filter(name=>name.endsWith('.json'));
+   if(names.length===1) id=names[0].replace(/\.json$/,'');
+   else await new Promise(r=>setTimeout(r,15));
+  }
+  assert.match(id,/^[0-9a-f]{32}$/);
   const hostPromise=host.processOne(id);
   const [apiResult,hostResult]=await Promise.all([activatePromise,hostPromise]);
   assert.equal(hostResult.status,'RELOAD_AND_VERIFICATION_REPORTED');

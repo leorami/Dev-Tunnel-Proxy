@@ -178,7 +178,11 @@
       "tests/security/v216-release-lanes.test.cjs",
       "tests/security/v216-response-contract.test.cjs",
       "tests/security/v217-frontend-install-safety.test.cjs",
-      "tests/security/v217-release-lane-python.test.cjs"
+      "tests/security/v217-release-lane-python.test.cjs",
+      "test/dashboard-dropdown-bug.test.js",
+      "test/unit/route-promotion-filtering.test.js",
+      "tests/security/v217-current-source-ui.test.cjs",
+      "tests/security/v217-coverage-dispositions.test.cjs"
     ],
     "nginx-fixture": [
       "tests/security/v171-four-auth-prefix-nginx.test.cjs",
@@ -204,171 +208,395 @@
     "blocked-capability": [
       {
         "path": "test/browser-console-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "browser console diagnostic"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/calliope-comprehensive-tests.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope comprehensive manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/calliope-enable-disable-visual-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope enable and disable visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/calliope-real-time-ui-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope real-time UI runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/calliope-simple-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope simple manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/calliope-ui-interaction-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope UI interaction runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/comprehensive-browser-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
-      },
-      {
-        "path": "test/dashboard-dropdown-bug.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "comprehensive browser runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/e2e/nginx-proxy-pass.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "a disposable nginx process loading the historical dashboard proxy_pass file",
+        "originalTests": [
+          "should correctly proxy /devproxy/api/apps/install through nginx",
+          "should correctly proxy /devproxy/api/ai/reindex through nginx",
+          "should correctly proxy /devproxy/api/config/ paths through nginx",
+          "should verify nginx config does not have trailing slash on apps proxy_pass",
+          "should verify all API proxy_pass directives use deferred DNS resolution"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs a disposable nginx process loading the historical dashboard proxy_pass file V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/integration-layout.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "Full User Journey",
+          "Masonry with View Density",
+          "Performance & Stability"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/integration/api-apps-install.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an authenticated disposable config API with a writable fixture spool",
+        "originalTests": [
+          "should require authentication",
+          "should install a valid config file",
+          "should reject invalid app names",
+          "should reject missing name or content",
+          "should reject invalid nginx config"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an authenticated disposable config API with a writable fixture spool V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/integration/api-reindex.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "superseded",
+        "originalTests": [
+          "should return 503 when OPENAI_API_KEY is not set",
+          "should be accessible without authentication (public endpoint)",
+          "should return proper response structure when successful"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Public unauthenticated reindex is refused by the current secure-mode policy. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
       },
       {
         "path": "test/layout-responsive.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can resize a disposable status origin",
+        "originalTests": [
+          "Responsive Layout & Masonry",
+          "Desktop Layout (≥1400px)",
+          "Tablet/Desktop Layout (900-1399px)"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can resize a disposable status origin V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/lyra-auth-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "lyra auth visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/mixed-content-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "mixed-content manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/nextjs-auth-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "nextjs auth visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/quick-calliope-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "quick calliope manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/quick-validate-layout.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "quick layout validation runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/run-calliope-puppeteer.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope puppeteer runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/run-iterative.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "iterative visual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/run.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "historical test runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/scanApps.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "scanApps manual diagnostic"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/site-auditor-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "site auditor manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/status-chip-mechanism-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "status chip mechanism runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/status-chip-test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "status chip manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/status-model.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "status model manual script"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/test-calliope-button-behavior.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "calliope button behavior runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/ui-fixes-verification.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "UI fixes verification runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/ui/tests/calliope-chips.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "ported",
+        "originalTests": [
+          "${url} chips present and styled in ${theme}"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The chip and toggle elements are checked on the current source. Computed styles were not executed and are not a pass."
       },
       {
         "path": "test/ui/tests/calliope-computed-styles.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can read computed styles from a disposable origin",
+        "originalTests": [
+          "${url}: toggle behavior and positioning via computed styles"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can read computed styles from a disposable origin V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/ui/tests/calliope-fixes.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "superseded",
+        "originalTests": [
+          "Chat shows user bubble before thinking; renders Markdown; no post-processing rewrite",
+          "Health check posts heal:true and thinking bubble appears after ack"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "The spec expects a heal:true post. Secure mode refuses that request. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
       },
       {
         "path": "test/ui/tests/calliope-layout.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "drawer push + bubbles + buttons on ${url}"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/ui/tests/calliope-style-parity.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session that can compare computed styles on a disposable origin",
+        "originalTests": [
+          "${url} matches chat/textarea/button styles in ${theme}"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session that can compare computed styles on a disposable origin V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/ui/tests/calliope-toggle-comprehensive.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "ported",
+        "originalTests": [
+          "${url}: button toggles drawer open/close with correct states",
+          "${url}: drawer positioned with 16px gap below header and above viewport bottom"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The toggle, aria-pressed state, and drawer markup are on the current source. Pixel positioning was not executed and is not a pass."
       },
       {
         "path": "test/ui/tests/calliope-toggle.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "ported",
+        "originalTests": [
+          "toggle open/close and aria-pressed on ${url}"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The toggle and aria-pressed contract are on the current source. A live click was not executed and is not a pass."
       },
       {
         "path": "test/ui/tests/dashboard-dropdown.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "superseded",
+        "originalTests": [
+          "should load the dashboard page",
+          "should populate all three dropdowns with routes",
+          "should have optgroups for config files",
+          "should display console logs for debugging",
+          "should be able to select a route from dropdown"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "The spec expects Audit + Heal and Advanced Heal controls. Secure mode does not offer them. See tests/security/v162-secure-dashboard-truthful-actions.test.cjs."
       },
       {
         "path": "test/ui/tests/routes-audit-half.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated dashboard origin with disposable route fixtures",
+        "originalTests": [
+          "Calliope audits half of discovered routes via Dashboard"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated dashboard origin with disposable route fixtures V217 does not start that capability and does not use the owner host."
       },
       {
         "path": "test/ui/tests/status.spec.ts",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
-      },
-      {
-        "path": "test/unit/route-promotion-filtering.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "ported",
+        "originalTests": [
+          "renders and shows Calliope, captures console and styles",
+          "Clicking stethoscope runs Calliope health when enabled"
+        ],
+        "evidence": "tests/security/v217-current-source-ui.test.cjs",
+        "reason": "The current status document still has the Calliope toggle and drawer. Live console capture was not executed and is not a pass."
       },
       {
         "path": "test/verify-realtime-thoughts.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "realtime thoughts manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/verify-thoughts-pushed.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "manual",
+        "originalTests": [
+          "thoughts pushed manual runner"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Manual script. It is not a test suite and V217 does not point it at the owner."
       },
       {
         "path": "test/view-density-toggle.test.js",
-        "reason": "Historical manual, browser, or live-app diagnostic. It is not an isolated release test. V216 does not run it and does not point it at the owner."
+        "disposition": "capability-blocked",
+        "capability": "an isolated browser session against a disposable status origin",
+        "originalTests": [
+          "View Density Toggle",
+          "Toggle Button",
+          "Toggle Functionality"
+        ],
+        "evidence": "tests/security/fixtures/v217-dispositions.cjs",
+        "reason": "Needs an isolated browser session against a disposable status origin V217 does not start that capability and does not use the owner host."
       }
     ]
   }

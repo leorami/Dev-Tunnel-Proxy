@@ -73,8 +73,9 @@ jobs:
         with:
           node-version: '24.x'
           check-latest: true
-      - name: Install the qualified libsignal pin outside the repo
+      - name: Install historical native pin 0.106.0 outside the repo
         run: |
+          echo "0.106.0 is the historical native pin. It is not current-latest proof."
           mkdir -p "$RUNNER_TEMP/devproxy-v216-libsignal"
           npm install --prefix "$RUNNER_TEMP/devproxy-v216-libsignal" --no-save --no-package-lock --no-audit --no-fund --ignore-scripts @signalapp/libsignal-client@0.106.0
       - name: Native libsignal lane

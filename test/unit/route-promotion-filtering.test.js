@@ -141,8 +141,10 @@ it('should not hide routes when no promotions exist', () => {
   assert.strictEqual(visible.length, 3, 'Should show all routes when no promotions');
 });
 
-// Run tests
-if (require.main === module) {
+if (process.env.NODE_TEST_CONTEXT) {
+  const nodeTest = require('node:test');
+  for (const item of tests) nodeTest(item.name, item.fn);
+} else if (require.main === module) {
   console.log('Running Route Promotion Filtering Tests...\n');
   
   let passed = 0;

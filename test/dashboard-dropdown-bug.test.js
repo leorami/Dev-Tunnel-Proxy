@@ -71,7 +71,12 @@ console.log('🧪 Running Dashboard Dropdown Reproduction Tests...\n');
 let passed = 0;
 let failed = 0;
 
+const collected = [];
 function runTest(name, fn) {
+  if (process.env.NODE_TEST_CONTEXT) {
+    collected.push({ name, fn });
+    return;
+  }
   try {
     fn();
     console.log(`✅ ${name}`);
@@ -160,6 +165,11 @@ runTest('optgroup structure should be correct', () => {
   });
 });
 
-console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+if (process.env.NODE_TEST_CONTEXT) {
+  const nodeTest = require('node:test');
+  for (const item of collected) nodeTest(item.name, item.fn);
+} else if (require.main === module) {
+  console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
+  process.exit(failed > 0 ? 1 : 0);
+}
 

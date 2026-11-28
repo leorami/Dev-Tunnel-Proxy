@@ -18,19 +18,25 @@ const OPEN_EXCLUSIVE = fs.constants.O_WRONLY
   | fs.constants.O_EXCL
   | fs.constants.O_NOFOLLOW;
 const OPEN_READ = fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW;
+const PHASES = ['intent', 'created', 'written', 'metadata', 'pre-rename', 'renamed', 'journaled'];
+const KNOWN_FLAGS = [
+  [0x1, 'nodump'],
+  [0x2, 'uchg'],
+  [0x4, 'uappnd'],
+  [0x8, 'opaque'],
+  [0x8000, 'hidden'],
+];
 
 const CRASH_POINTS = ['journal:written'];
 for (let step = 0; step < STEPS; step += 1) {
-  for (const where of ['created', 'written', 'renamed', 'journaled']) {
-    CRASH_POINTS.push(`step:${step}:${where}`);
-  }
+  for (const where of PHASES) CRASH_POINTS.push(`step:${step}:${where}`);
 }
 for (const name of DOCUMENTS) {
-  CRASH_POINTS.push(`inverse:${name}:renamed`, `inverse:${name}:journaled`);
+  for (const where of PHASES) CRASH_POINTS.push(`inverse:${name}:${where}`);
 }
 
 function crash(point) {
-  if (process.env.V216_CRASH_AT === point) process.kill(process.pid, 'SIGKILL');
+  if (point && process.env.V216_CRASH_AT === point) process.kill(process.pid, 'SIGKILL');
 }
 
 function sha256(bytes) {
@@ -57,12 +63,36 @@ function assertIsolated(targetDir) {
   return target;
 }
 
-function assertCustody(custodyDir, targetDir) {
+function assertNoSymlinkEntries(dir) {
+  for (const name of fs.readdirSync(dir)) {
+    const file = path.join(dir, name);
+    const link = fs.lstatSync(file);
+    if (link.isSymbolicLink()) throw new Error('custody symlink');
+    if (link.isDirectory()) assertNoSymlinkEntries(file);
+  }
+}
+
+function assertCustody(custodyDir, targetDir, docroot) {
+  if (!docroot) throw new Error('docroot required');
+  const custodyLink = fs.lstatSync(custodyDir);
+  if (custodyLink.isSymbolicLink()) throw new Error('custody symlink');
   const custody = assertIsolated(custodyDir);
-  const target = fs.realpathSync(targetDir);
+  const target = assertIsolated(targetDir);
+  const root = assertIsolated(docroot);
+  if (target !== root && !target.startsWith(root + path.sep)) {
+    throw new Error('target must stay inside the document root');
+  }
   if (custody === target || custody.startsWith(target + path.sep) || target.startsWith(custody + path.sep)) {
     throw new Error('custody must stay outside the served directory');
   }
+  if (custody === root || custody.startsWith(root + path.sep) || root.startsWith(custody + path.sep)) {
+    throw new Error('custody must stay outside the served document root');
+  }
+  if (!custodyLink.isDirectory() || (custodyLink.mode & 0o777) !== 0o700) {
+    throw new Error('custody mode must be 0700');
+  }
+  if (custodyLink.uid !== process.getuid()) throw new Error('custody owner');
+  assertNoSymlinkEntries(custody);
   return custody;
 }
 
@@ -79,7 +109,18 @@ function runTool(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { encoding: 'utf8', ...options });
   if (result.error || result.status !== 0) {
     const detail = (result.stderr || result.error && result.error.message || '').trim();
-    throw new Error(`metadata unsupported: ${cmd}${detail ? ` (${detail})` : ''}`);
+    throw new Error(`metadata uncopyable: ${cmd}${detail ? ` (${detail})` : ''}`);
+  }
+  return result.stdout || '';
+}
+
+function runToolOptional(cmd, args) {
+  const result = spawnSync(cmd, args, { encoding: 'utf8' });
+  if (result.error) throw new Error(`metadata uncopyable: ${cmd} (${result.error.message})`);
+  if (result.status !== 0) {
+    const detail = (result.stderr || '').trim();
+    if (!result.stdout && /no such attribute|no matches|operation not supported/i.test(detail)) return '';
+    throw new Error(`metadata uncopyable: ${cmd}${detail ? ` (${detail})` : ''}`);
   }
   return result.stdout || '';
 }
@@ -92,7 +133,7 @@ function readAcl(file) {
   if (process.platform === 'linux') {
     return runTool('getfacl', ['-c', '-p', '--', file]).replace(/\n$/, '');
   }
-  throw new Error('metadata unsupported: platform');
+  throw new Error('metadata uncopyable: platform');
 }
 
 function writeAcl(file, acl) {
@@ -106,44 +147,84 @@ function writeAcl(file, acl) {
     runTool('setfacl', ['--set-file=-', '--', file], { input: `${acl}\n` });
     return;
   }
-  throw new Error('metadata unsupported: platform');
+  throw new Error('metadata uncopyable: platform');
+}
+
+function encodeAttr(bytes) {
+  return { encoding: 'base64', bytes: Buffer.from(bytes).toString('base64') };
 }
 
 function readXattrs(file) {
   if (process.platform === 'darwin') {
-    const names = runTool('xattr', [file]).split('\n').filter(Boolean);
+    const names = runToolOptional('xattr', [file]).split('\n').filter(Boolean);
     const attrs = {};
-    for (const name of names) attrs[name] = runTool('xattr', ['-p', name, file]).replace(/\n$/, '');
-    return attrs;
-  }
-  if (process.platform === 'linux') {
-    const stdout = runTool('getfattr', ['-d', '--absolute-names', '--', file]);
-    const attrs = {};
-    for (const line of stdout.split('\n')) {
-      const match = line.match(/^(user\.[^=]+)="(.*)"$/);
-      if (match) attrs[match[1]] = match[2].replace(/\\"/g, '"');
+    for (const name of names) {
+      const hex = runTool('xattr', ['-px', name, file]).replace(/\s+/g, '').toLowerCase();
+      if (!/^[0-9a-f]*$/.test(hex) || hex.length % 2 !== 0) throw new Error(`metadata uncopyable: ${name}`);
+      attrs[name] = encodeAttr(Buffer.from(hex, 'hex'));
     }
     return attrs;
   }
-  throw new Error('metadata unsupported: platform');
+  if (process.platform === 'linux') {
+    const stdout = runToolOptional('getfattr', ['-d', '-m', '-', '-e', 'base64', '--absolute-names', '--', file]);
+    const attrs = {};
+    for (const line of stdout.split('\n')) {
+      const match = line.match(/^([A-Za-z0-9_.-]+)=0s([A-Za-z0-9+/=]*)$/);
+      if (!match) continue;
+      attrs[match[1]] = { encoding: 'base64', bytes: match[2] };
+    }
+    return attrs;
+  }
+  throw new Error('metadata uncopyable: platform');
 }
 
 function writeXattrs(file, attrs) {
+  const entries = Object.entries(attrs || {});
+  if (entries.length === 0) return;
   if (process.platform === 'darwin') {
-    for (const [name, value] of Object.entries(attrs)) runTool('xattr', ['-w', name, value, file]);
+    for (const [name, spec] of entries) {
+      const hex = Buffer.from(spec.bytes, 'base64').toString('hex');
+      runTool('xattr', ['-wx', name, hex, file]);
+    }
     return;
   }
   if (process.platform === 'linux') {
-    for (const [name, value] of Object.entries(attrs)) runTool('setfattr', ['-n', name, '-v', value, '--', file]);
+    const lines = ['# file: tracked'];
+    for (const [name, spec] of entries) lines.push(`${name}=0s${spec.bytes}`);
+    runTool('setfattr', ['--restore=-', '--', file], { input: `${lines.join('\n')}\n` });
     return;
   }
-  throw new Error('metadata unsupported: platform');
+  throw new Error('metadata uncopyable: platform');
+}
+
+function readFlags(file) {
+  if (process.platform !== 'darwin') return 0;
+  const raw = runTool('stat', ['-f', '%f', file]).trim();
+  const flags = Number(raw);
+  if (!Number.isInteger(flags) || flags < 0) throw new Error('metadata uncopyable: flags');
+  return flags;
+}
+
+function writeFlags(file, flags) {
+  if (!flags) return;
+  if (process.platform !== 'darwin') throw new Error('metadata uncopyable: flags');
+  const names = [];
+  let known = 0;
+  for (const [bit, name] of KNOWN_FLAGS) {
+    known |= bit;
+    if (flags & bit) names.push(name);
+  }
+  if ((flags & ~known) !== 0 || names.length === 0) throw new Error('metadata uncopyable: flags');
+  runTool('chflags', [names.join(','), file]);
 }
 
 function metadataEqual(left, right) {
-  return left.uid === right.uid && left.gid === right.gid && left.mode === right.mode
-    && JSON.stringify(left.acl) === JSON.stringify(right.acl)
-    && JSON.stringify(left.xattrs) === JSON.stringify(right.xattrs);
+  if (left.uid !== right.uid || left.gid !== right.gid || left.mode !== right.mode || left.flags !== right.flags) {
+    return false;
+  }
+  if (right.acl != null && JSON.stringify(left.acl) !== JSON.stringify(right.acl)) return false;
+  if (right.xattrs != null && JSON.stringify(left.xattrs) !== JSON.stringify(right.xattrs)) return false;
+  return true;
 }
 
 function readFileNoFollow(file) {
@@ -171,60 +252,25 @@ function inspectFile(dir, name) {
     uid: stat.uid,
     gid: stat.gid,
     mode: stat.mode & 0o777,
+    flags: readFlags(file),
+    dev: stat.dev,
+    ino: stat.ino,
     acl: readAcl(file),
     xattrs: readXattrs(file),
   };
 }
 
-function exclusiveTemp(dir, forceName) {
-  const names = [];
-  if (forceName && process.env.V216_TEMP_NAME) names.push(process.env.V216_TEMP_NAME);
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    names.push(`${TEMP_PREFIX}${crypto.randomBytes(8).toString('hex')}`);
+function rawExclusiveTemp(dir) {
+  const name = `${TEMP_PREFIX}${crypto.randomBytes(8).toString('hex')}`;
+  const tmp = path.join(dir, name);
+  const fd = fs.openSync(tmp, OPEN_EXCLUSIVE, 0o600);
+  const stat = fs.fstatSync(fd);
+  const link = fs.lstatSync(tmp);
+  if (!stat.isFile() || stat.nlink !== 1 || link.isSymbolicLink() || !link.isFile() || link.nlink !== 1) {
+    fs.closeSync(fd);
+    throw new Error('temp was not an exclusive file');
   }
-  let last = new Error('temp create failed');
-  for (const name of names) {
-    const tmp = path.join(dir, name);
-    let fd;
-    try {
-      fd = fs.openSync(tmp, OPEN_EXCLUSIVE, 0o600);
-    } catch (error) {
-      last = error;
-      if (error.code === 'EEXIST' || error.code === 'ELOOP' || error.code === 'EPERM') continue;
-      throw error;
-    }
-    const stat = fs.fstatSync(fd);
-    const link = fs.lstatSync(tmp);
-    if (!stat.isFile() || stat.nlink !== 1 || link.isSymbolicLink() || !link.isFile() || link.nlink !== 1) {
-      fs.closeSync(fd);
-      throw new Error('temp was not an exclusive file');
-    }
-    return { fd, path: tmp };
-  }
-  throw last;
-}
-
-function writeExclusive(dir, name, bytes, mode) {
-  const tmp = exclusiveTemp(dir);
-  try {
-    fs.writeSync(tmp.fd, bytes);
-    fs.fsyncSync(tmp.fd);
-    fs.fchmodSync(tmp.fd, mode);
-    fs.fsyncSync(tmp.fd);
-    fs.closeSync(tmp.fd);
-    tmp.fd = null;
-    fs.renameSync(tmp.path, path.join(dir, name));
-    fsyncDir(dir);
-  } catch (error) {
-    if (tmp.fd != null) fs.closeSync(tmp.fd);
-    if (tmp.path) {
-      try {
-        const link = fs.lstatSync(tmp.path);
-        if (link.isFile() && !link.isSymbolicLink()) fs.unlinkSync(tmp.path);
-      } catch { /* already gone */ }
-    }
-    throw error;
-  }
+  return { fd, path: tmp, name, dev: stat.dev, ino: stat.ino };
 }
 
 function journalPath(custodyDir) {
@@ -234,7 +280,7 @@ function journalPath(custodyDir) {
 function writeJournal(custodyDir, journal, point) {
   fs.mkdirSync(custodyDir, { recursive: true, mode: 0o700 });
   const bytes = Buffer.from(JSON.stringify(journal));
-  const tmp = exclusiveTemp(custodyDir, false);
+  const tmp = rawExclusiveTemp(custodyDir);
   try {
     fs.writeSync(tmp.fd, bytes);
     fs.fsyncSync(tmp.fd);
@@ -244,103 +290,156 @@ function writeJournal(custodyDir, journal, point) {
     fsyncDir(custodyDir);
   } catch (error) {
     if (tmp.fd != null) fs.closeSync(tmp.fd);
+    try {
+      const link = fs.lstatSync(tmp.path);
+      if (link.isFile() && !link.isSymbolicLink() && link.dev === tmp.dev && link.ino === tmp.ino) fs.unlinkSync(tmp.path);
+    } catch { /* already renamed */ }
     throw error;
   }
   if (point) crash(point);
 }
 
+function isSha(value) {
+  return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+}
+
 function readJournal(custodyDir) {
-  const { bytes } = readFileNoFollow(journalPath(custodyDir));
-  const journal = JSON.parse(bytes.toString('utf8'));
-  if (!journal || journal.version !== 1 || !journal.documents || !journal.assets) {
-    throw new Error('journal is not a V216 custody record');
+  let bytes;
+  try {
+    bytes = readFileNoFollow(journalPath(custodyDir)).bytes;
+  } catch (error) {
+    throw new Error(`journal is not readable (${error.code || error.message})`);
+  }
+  let journal;
+  try {
+    journal = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new Error('journal is not a V217 custody record');
+  }
+  if (!journal || journal.version !== 2 || !/^[0-9a-f]{32}$/.test(journal.transactionId || '')) {
+    throw new Error('journal is not a V217 custody record');
+  }
+  if (!journal.identity || !Number.isInteger(journal.identity.docroot?.dev) || !Number.isInteger(journal.identity.target?.ino)) {
+    throw new Error('journal is not a V217 custody record');
+  }
+  if (!journal.documents || !journal.assets || !Array.isArray(journal.temps)) {
+    throw new Error('journal is not a V217 custody record');
+  }
+  for (const name of DOCUMENTS) {
+    const spec = journal.documents[name];
+    if (!spec || !isSha(spec.previousSha) || !isSha(spec.installedSha)) {
+      throw new Error('journal is not a V217 custody record');
+    }
+  }
+  if (!journal.assets[journal.cssName] || !isSha(journal.assets[journal.cssName].sha)) {
+    throw new Error('journal is not a V217 custody record');
+  }
+  if (!journal.assets[journal.jsName] || !isSha(journal.assets[journal.jsName].sha)) {
+    throw new Error('journal is not a V217 custody record');
+  }
+  for (const temp of journal.temps) {
+    if (!temp || typeof temp.name !== 'string' || !temp.name.startsWith(TEMP_PREFIX)) {
+      throw new Error('journal temp is not transaction owned');
+    }
+    if (temp.transactionId !== journal.transactionId || !isSha(temp.expectedHash)) {
+      throw new Error('journal temp is not transaction owned');
+    }
+    if (temp.dev !== null && (!Number.isInteger(temp.dev) || !Number.isInteger(temp.ino))) {
+      throw new Error('journal temp is not transaction owned');
+    }
   }
   return journal;
 }
 
-function payloadPath(custodyDir, name) {
-  return path.join(custodyDir, 'payload', name);
+function directoryIdentity(dir) {
+  const stat = fs.statSync(dir);
+  return { dev: stat.dev, ino: stat.ino };
 }
 
-function preimagePath(custodyDir, name) {
-  return path.join(custodyDir, 'preimages', name);
-}
-
-function buildJournal(targetDir, custodyDir, release) {
-  const documents = {};
-  const inspected = {};
-  for (const name of DOCUMENTS) {
-    const info = inspectFile(targetDir, name);
-    const key = name.replace('.html', '');
-    if (info.sha !== release.previous[key]) throw new Error(`drift:${name}`);
-    const installed = Buffer.from(release.documents[key]);
-    documents[name] = {
-      previousSha: info.sha,
-      installedSha: sha256(installed),
-      uid: info.uid,
-      gid: info.gid,
-      mode: info.mode,
-      acl: info.acl,
-      xattrs: info.xattrs,
-      state: 'pending',
-    };
-    inspected[name] = installed;
+function assertStableIdentity(journal, docroot, targetDir) {
+  const root = directoryIdentity(docroot);
+  const target = directoryIdentity(targetDir);
+  if (root.dev !== journal.identity.docroot.dev || root.ino !== journal.identity.docroot.ino) {
+    throw new Error('identity drift:docroot');
   }
-  fs.mkdirSync(path.join(custodyDir, 'preimages'), { recursive: true, mode: 0o700 });
-  fs.mkdirSync(path.join(custodyDir, 'payload'), { recursive: true, mode: 0o700 });
-  for (const name of DOCUMENTS) {
-    writeExclusive(path.join(custodyDir, 'preimages'), name, readFileNoFollow(path.join(targetDir, name)).bytes, 0o600);
-    writeExclusive(path.join(custodyDir, 'payload'), name, inspected[name], 0o600);
+  if (target.dev !== journal.identity.target.dev || target.ino !== journal.identity.target.ino) {
+    throw new Error('identity drift:target');
   }
-  const assets = {};
-  const css = Buffer.from(release.cssBytes);
-  const js = Buffer.from(release.jsBytes);
-  assets[release.cssName] = { sha: sha256(css), state: 'pending' };
-  assets[release.jsName] = { sha: sha256(js), state: 'pending' };
-  writeExclusive(path.join(custodyDir, 'payload'), 'asset-css', css, 0o600);
-  writeExclusive(path.join(custodyDir, 'payload'), 'asset-js', js, 0o600);
-  const journal = {
-    version: 1,
-    cssName: release.cssName,
-    jsName: release.jsName,
-    documents,
-    assets,
+}
+
+function trackedTemp(dir, journal, custodyDir, point, bytes) {
+  const expectedHash = sha256(bytes);
+  if (process.env.V216_TEMP_NAME) {
+    const planted = path.join(dir, process.env.V216_TEMP_NAME);
+    try {
+      const link = fs.lstatSync(planted);
+      if (link.isSymbolicLink() || link.isFile()) {
+        // An existing name is not this transaction. Leave it in place.
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
+  const name = `${TEMP_PREFIX}${crypto.randomBytes(8).toString('hex')}`;
+  const intent = {
+    name,
+    transactionId: journal.transactionId,
+    dev: null,
+    ino: null,
+    expectedSize: bytes.length,
+    expectedHash,
+    phase: 'intent',
   };
-  writeJournal(custodyDir, journal, 'journal:written');
-  return journal;
+  journal.temps.push(intent);
+  writeJournal(custodyDir, journal);
+  crash(point ? `${point}:intent` : '');
+  const tmp = path.join(dir, name);
+  let fd;
+  try {
+    fd = fs.openSync(tmp, OPEN_EXCLUSIVE, 0o600);
+  } catch (error) {
+    intent.phase = 'refused';
+    writeJournal(custodyDir, journal);
+    throw error;
+  }
+  const stat = fs.fstatSync(fd);
+  const link = fs.lstatSync(tmp);
+  if (!stat.isFile() || stat.nlink !== 1 || link.isSymbolicLink() || !link.isFile() || link.nlink !== 1) {
+    fs.closeSync(fd);
+    throw new Error('temp was not an exclusive file');
+  }
+  intent.dev = stat.dev;
+  intent.ino = stat.ino;
+  intent.phase = 'created';
+  writeJournal(custodyDir, journal);
+  crash(point ? `${point}:created` : '');
+  return { fd, path: tmp, intent };
 }
 
-function currentMetadata(dir, name) {
-  const info = inspectFile(dir, name);
-  return {
-    sha: info.sha,
-    uid: info.uid,
-    gid: info.gid,
-    mode: info.mode,
-    acl: info.acl,
-    xattrs: info.xattrs,
-  };
+function releaseIntent(journal, intent) {
+  journal.temps = journal.temps.filter((temp) => temp !== intent);
 }
 
-function assertDocumentReady(targetDir, name, spec, expectedSha) {
-  const info = currentMetadata(targetDir, name);
-  if (info.sha !== expectedSha) throw new Error(`drift:${name}`);
-  if (!metadataEqual(info, spec)) throw new Error(`metadata drift:${name}`);
-}
-
-function commitBytes(dir, name, bytes, meta, point) {
+function commitBytes(dir, name, bytes, meta, point, journal, custodyDir, docroot) {
+  assertStableIdentity(journal, docroot, dir);
   const dest = path.join(dir, name);
-  const tmp = exclusiveTemp(dir, true);
-  crash(`${point}:created`);
+  if (fs.existsSync(dest)) {
+    const current = fs.lstatSync(dest);
+    const recorded = journal.documents[name];
+    if (recorded && (current.dev !== recorded.dev || current.ino !== recorded.ino)) {
+      throw new Error(`identity drift:${name}`);
+    }
+  }
+  const tmp = trackedTemp(dir, journal, custodyDir, point, bytes);
   try {
     fs.writeSync(tmp.fd, bytes);
-    crash(`${point}:written`);
+    crash(point ? `${point}:written` : '');
     fs.fsyncSync(tmp.fd);
     fs.fchmodSync(tmp.fd, meta.mode);
     try {
       fs.fchownSync(tmp.fd, meta.uid, meta.gid);
     } catch (error) {
-      throw new Error(`metadata unsupported: owner ${name} (${error.code || error.message})`);
+      throw new Error(`metadata uncopyable: owner ${name} (${error.code || error.message})`);
     }
     fs.fsyncSync(tmp.fd);
     const beforeClose = fs.fstatSync(tmp.fd);
@@ -349,13 +448,30 @@ function commitBytes(dir, name, bytes, meta, point) {
     if (!beforeClose.isFile() || beforeClose.nlink !== 1 || (beforeClose.mode & 0o777) !== meta.mode) {
       throw new Error(`temp integrity:${name}`);
     }
-    writeAcl(tmp.path, meta.acl);
+    if (beforeClose.dev !== tmp.intent.dev || beforeClose.ino !== tmp.intent.ino) {
+      throw new Error(`temp integrity:${name}`);
+    }
+    if (meta.acl != null) writeAcl(tmp.path, meta.acl);
     writeXattrs(tmp.path, meta.xattrs);
+    writeFlags(tmp.path, meta.flags);
+    crash(point ? `${point}:metadata` : '');
     const wrote = readFileNoFollow(tmp.path);
-    if (!wrote.bytes.equals(bytes) || wrote.stat.nlink !== 1) throw new Error(`temp integrity:${name}`);
+    const copied = {
+      uid: wrote.stat.uid,
+      gid: wrote.stat.gid,
+      mode: wrote.stat.mode & 0o777,
+      flags: readFlags(tmp.path),
+      acl: readAcl(tmp.path),
+      xattrs: readXattrs(tmp.path),
+    };
+    if (!wrote.bytes.equals(bytes) || wrote.stat.nlink !== 1 || !metadataEqual(copied, meta)) {
+      throw new Error(`metadata uncopyable:${name}`);
+    }
+    assertStableIdentity(journal, docroot, dir);
+    crash(point ? `${point}:pre-rename` : '');
     fs.renameSync(tmp.path, dest);
     fsyncDir(dir);
-    crash(`${point}:renamed`);
+    crash(point ? `${point}:renamed` : '');
     const after = readFileNoFollow(dest);
     const link = fs.lstatSync(dest);
     if (!after.bytes.equals(bytes) || !link.isFile() || link.isSymbolicLink() || link.nlink !== 1) {
@@ -364,13 +480,19 @@ function commitBytes(dir, name, bytes, meta, point) {
     if ((link.mode & 0o777) !== meta.mode || link.uid !== meta.uid || link.gid !== meta.gid) {
       throw new Error(`metadata drift:${name}`);
     }
+    assertStableIdentity(journal, docroot, dir);
+    if (journal.documents[name]) {
+      journal.documents[name].dev = link.dev;
+      journal.documents[name].ino = link.ino;
+    }
+    releaseIntent(journal, tmp.intent);
   } catch (error) {
     if (tmp.fd != null) {
       try { fs.closeSync(tmp.fd); } catch { /* already closed */ }
     }
     try {
       const link = fs.lstatSync(tmp.path);
-      if ((link.isFile() || link.isSymbolicLink()) && path.basename(tmp.path).startsWith(TEMP_PREFIX)) {
+      if (link.isFile() && !link.isSymbolicLink() && link.dev === tmp.intent.dev && link.ino === tmp.intent.ino) {
         fs.unlinkSync(tmp.path);
       }
     } catch { /* temp already renamed or absent */ }
@@ -384,7 +506,146 @@ function storedBytes(file, expectedSha) {
   return bytes;
 }
 
-function applyAsset(targetDir, custodyDir, journal, name, payloadName, point) {
+function payloadPath(custodyDir, name) {
+  return path.join(custodyDir, 'payload', name);
+}
+
+function preimagePath(custodyDir, name) {
+  return path.join(custodyDir, 'preimages', name);
+}
+
+function copyExclusive(dir, name, bytes, journal, custodyDir) {
+  const tmp = trackedTemp(dir, journal, custodyDir, '', bytes);
+  try {
+    fs.writeSync(tmp.fd, bytes);
+    fs.fsyncSync(tmp.fd);
+    fs.closeSync(tmp.fd);
+    tmp.fd = null;
+    const wrote = readFileNoFollow(tmp.path);
+    if (!wrote.bytes.equals(bytes) || wrote.stat.dev !== tmp.intent.dev || wrote.stat.ino !== tmp.intent.ino) {
+      throw new Error(`temp integrity:${name}`);
+    }
+    fs.renameSync(tmp.path, path.join(dir, name));
+    fsyncDir(dir);
+    releaseIntent(journal, tmp.intent);
+  } catch (error) {
+    if (tmp.fd != null) fs.closeSync(tmp.fd);
+    try {
+      const link = fs.lstatSync(tmp.path);
+      if (link.isFile() && link.dev === tmp.intent.dev && link.ino === tmp.intent.ino) fs.unlinkSync(tmp.path);
+    } catch { /* already gone */ }
+    throw error;
+  }
+}
+
+function probeMetadata(custodyDir, spec) {
+  const tmp = rawExclusiveTemp(custodyDir);
+  try {
+    fs.fchmodSync(tmp.fd, spec.mode);
+    try {
+      fs.fchownSync(tmp.fd, spec.uid, spec.gid);
+    } catch (error) {
+      throw new Error(`metadata uncopyable: owner (${error.code || error.message})`);
+    }
+    fs.closeSync(tmp.fd);
+    tmp.fd = null;
+    writeAcl(tmp.path, spec.acl);
+    writeXattrs(tmp.path, spec.xattrs);
+    writeFlags(tmp.path, spec.flags);
+    const copied = {
+      uid: fs.statSync(tmp.path).uid,
+      gid: fs.statSync(tmp.path).gid,
+      mode: fs.statSync(tmp.path).mode & 0o777,
+      flags: readFlags(tmp.path),
+      acl: readAcl(tmp.path),
+      xattrs: readXattrs(tmp.path),
+    };
+    if (!metadataEqual(copied, spec)) throw new Error('metadata uncopyable: probe');
+  } finally {
+    if (tmp.fd != null) {
+      try { fs.closeSync(tmp.fd); } catch { /* closed */ }
+    }
+    try {
+      const link = fs.lstatSync(tmp.path);
+      if (link.isFile() && link.dev === tmp.dev && link.ino === tmp.ino) fs.unlinkSync(tmp.path);
+    } catch { /* already gone */ }
+  }
+}
+
+function buildJournal(targetDir, custodyDir, docroot, release) {
+  const documents = {};
+  const inspected = {};
+  for (const name of DOCUMENTS) {
+    const info = inspectFile(targetDir, name);
+    const key = name.replace('.html', '');
+    if (info.sha !== release.previous[key]) throw new Error(`drift:${name}`);
+    const installed = Buffer.from(release.documents[key]);
+    documents[name] = {
+      previousSha: info.sha,
+      installedSha: sha256(installed),
+      uid: info.uid,
+      gid: info.gid,
+      mode: info.mode,
+      flags: info.flags,
+      acl: info.acl,
+      xattrs: info.xattrs,
+      dev: info.dev,
+      ino: info.ino,
+      state: 'pending',
+    };
+    inspected[name] = installed;
+    probeMetadata(custodyDir, documents[name]);
+  }
+  const journal = {
+    version: 2,
+    transactionId: crypto.randomBytes(16).toString('hex'),
+    cssName: release.cssName,
+    jsName: release.jsName,
+    identity: {
+      docroot: directoryIdentity(docroot),
+      target: directoryIdentity(targetDir),
+    },
+    documents,
+    assets: {},
+    temps: [],
+  };
+  const css = Buffer.from(release.cssBytes);
+  const js = Buffer.from(release.jsBytes);
+  journal.assets[release.cssName] = { sha: sha256(css), state: 'pending' };
+  journal.assets[release.jsName] = { sha: sha256(js), state: 'pending' };
+  fs.mkdirSync(path.join(custodyDir, 'preimages'), { recursive: true, mode: 0o700 });
+  fs.mkdirSync(path.join(custodyDir, 'payload'), { recursive: true, mode: 0o700 });
+  writeJournal(custodyDir, journal);
+  for (const name of DOCUMENTS) {
+    copyExclusive(path.join(custodyDir, 'preimages'), name, readFileNoFollow(path.join(targetDir, name)).bytes, journal, custodyDir);
+    copyExclusive(path.join(custodyDir, 'payload'), name, inspected[name], journal, custodyDir);
+  }
+  copyExclusive(path.join(custodyDir, 'payload'), 'asset-css', css, journal, custodyDir);
+  copyExclusive(path.join(custodyDir, 'payload'), 'asset-js', js, journal, custodyDir);
+  writeJournal(custodyDir, journal, 'journal:written');
+  return journal;
+}
+
+function currentMetadata(dir, name) {
+  const info = inspectFile(dir, name);
+  return {
+    sha: info.sha,
+    uid: info.uid,
+    gid: info.gid,
+    mode: info.mode,
+    flags: info.flags,
+    acl: info.acl,
+    xattrs: info.xattrs,
+  };
+}
+
+function assertDocumentReady(targetDir, name, spec, expectedSha) {
+  const info = currentMetadata(targetDir, name);
+  if (info.sha !== expectedSha) throw new Error(`drift:${name}`);
+  if (!metadataEqual(info, spec)) throw new Error(`metadata drift:${name}`);
+}
+
+function applyAsset(targetDir, custodyDir, docroot, journal, name, payloadName, point) {
   const spec = journal.assets[name];
   const dest = path.join(targetDir, name);
   const bytes = storedBytes(payloadPath(custodyDir, payloadName), spec.sha);
@@ -405,24 +666,25 @@ function applyAsset(targetDir, custodyDir, journal, name, payloadName, point) {
     mode: 0o644,
     uid: process.getuid(),
     gid: process.getgid(),
-    acl: process.platform === 'linux' ? '' : [],
+    flags: 0,
+    acl: null,
     xattrs: {},
   };
-  commitBytes(targetDir, name, bytes, meta, point);
+  commitBytes(targetDir, name, bytes, meta, point, journal, custodyDir, docroot);
   spec.state = 'installed';
 }
 
-function applyDocument(targetDir, custodyDir, journal, name, point) {
+function applyDocument(targetDir, custodyDir, docroot, journal, name, point) {
   const spec = journal.documents[name];
   assertDocumentReady(targetDir, name, spec, spec.previousSha);
   const bytes = storedBytes(payloadPath(custodyDir, name), spec.installedSha);
-  commitBytes(targetDir, name, bytes, spec, point);
+  commitBytes(targetDir, name, bytes, spec, point, journal, custodyDir, docroot);
   spec.state = 'installed';
 }
 
 function installRelease(targetDir, release, options = {}) {
   assertIsolated(targetDir);
-  assertCustody(options.custodyDir, targetDir);
+  assertCustody(options.custodyDir, targetDir, options.docroot);
   const through = options.through == null ? STEPS : options.through;
   const from = options.from == null ? 0 : options.from;
   if (!Number.isInteger(through) || !Number.isInteger(from) || from < 0 || through > STEPS || from > through) {
@@ -430,13 +692,14 @@ function installRelease(targetDir, release, options = {}) {
   }
   let journal;
   if (fs.existsSync(journalPath(options.custodyDir))) journal = readJournal(options.custodyDir);
-  else journal = buildJournal(targetDir, options.custodyDir, release);
+  else journal = buildJournal(targetDir, options.custodyDir, options.docroot, release);
+  assertStableIdentity(journal, options.docroot, targetDir);
   const steps = [
-    () => applyAsset(targetDir, options.custodyDir, journal, journal.cssName, 'asset-css', 'step:0'),
-    () => applyAsset(targetDir, options.custodyDir, journal, journal.jsName, 'asset-js', 'step:1'),
-    () => applyDocument(targetDir, options.custodyDir, journal, 'health.html', 'step:2'),
-    () => applyDocument(targetDir, options.custodyDir, journal, 'reports.html', 'step:3'),
-    () => applyDocument(targetDir, options.custodyDir, journal, 'status.html', 'step:4'),
+    () => applyAsset(targetDir, options.custodyDir, options.docroot, journal, journal.cssName, 'asset-css', 'step:0'),
+    () => applyAsset(targetDir, options.custodyDir, options.docroot, journal, journal.jsName, 'asset-js', 'step:1'),
+    () => applyDocument(targetDir, options.custodyDir, options.docroot, journal, 'health.html', 'step:2'),
+    () => applyDocument(targetDir, options.custodyDir, options.docroot, journal, 'reports.html', 'step:3'),
+    () => applyDocument(targetDir, options.custodyDir, options.docroot, journal, 'status.html', 'step:4'),
   ];
   for (let index = from; index < through; index += 1) {
     steps[index]();
@@ -446,48 +709,62 @@ function installRelease(targetDir, release, options = {}) {
   return journal;
 }
 
-function restoreDocument(targetDir, custodyDir, journal, name) {
+function restoreDocument(targetDir, custodyDir, docroot, journal, name) {
   const spec = journal.documents[name];
   if (spec.state !== 'installed') return;
   assertDocumentReady(targetDir, name, spec, spec.installedSha);
   const bytes = storedBytes(preimagePath(custodyDir, name), spec.previousSha);
-  commitBytes(targetDir, name, bytes, spec, `inverse:${name}`);
+  commitBytes(targetDir, name, bytes, spec, `inverse:${name}`, journal, custodyDir, docroot);
   spec.state = 'restored';
 }
 
-function rollbackRelease(targetDir, custodyDir) {
+function rollbackRelease(targetDir, custodyDir, docroot) {
   assertIsolated(targetDir);
-  assertCustody(custodyDir, targetDir);
+  assertCustody(custodyDir, targetDir, docroot);
   const journal = readJournal(custodyDir);
+  assertStableIdentity(journal, docroot, targetDir);
   for (const name of [...DOCUMENTS].reverse()) {
-    restoreDocument(targetDir, custodyDir, journal, name);
+    restoreDocument(targetDir, custodyDir, docroot, journal, name);
     writeJournal(custodyDir, journal);
     crash(`inverse:${name}:journaled`);
   }
   return journal;
 }
 
-function removeTemps(dir) {
-  for (const name of fs.readdirSync(dir)) {
-    if (!name.startsWith(TEMP_PREFIX)) continue;
-    const file = path.join(dir, name);
-    const link = fs.lstatSync(file);
-    if (link.isSymbolicLink() || link.isFile()) fs.unlinkSync(file);
+function removeOwnedTemps(dir, journal) {
+  for (const temp of journal.temps) {
+    if (temp.dev === null || temp.ino === null) continue;
+    const file = path.join(dir, temp.name);
+    let link;
+    try {
+      link = fs.lstatSync(file);
+    } catch (error) {
+      if (error.code === 'ENOENT') continue;
+      throw error;
+    }
+    if (link.isSymbolicLink() || !link.isFile()) continue;
+    if (link.dev !== temp.dev || link.ino !== temp.ino) continue;
+    fs.unlinkSync(file);
   }
 }
 
-function recoverRelease(targetDir, custodyDir) {
+function recoverRelease(targetDir, custodyDir, docroot) {
   assertIsolated(targetDir);
-  assertCustody(custodyDir, targetDir);
-  removeTemps(targetDir);
-  removeTemps(custodyDir);
+  assertCustody(custodyDir, targetDir, docroot);
   const journal = readJournal(custodyDir);
+  assertStableIdentity(journal, docroot, targetDir);
+  removeOwnedTemps(targetDir, journal);
+  removeOwnedTemps(custodyDir, journal);
+  journal.temps = [];
   for (const name of DOCUMENTS) {
     const spec = journal.documents[name];
     const info = inspectFile(targetDir, name);
     if (info.sha === spec.previousSha) spec.state = 'pending';
     else if (info.sha === spec.installedSha) spec.state = 'installed';
     else throw new Error(`unrecoverable:${name}`);
+    if (!metadataEqual(info, spec)) throw new Error(`metadata drift:${name}`);
+    spec.dev = info.dev;
+    spec.ino = info.ino;
   }
   for (const [name, spec] of Object.entries(journal.assets)) {
     const file = path.join(targetDir, name);
@@ -522,21 +799,25 @@ function decodeRelease(file) {
 }
 
 function main(argv) {
-  const [command, targetDir, custodyDir, releaseFile, through, from] = argv;
+  const [command, ...rest] = argv;
   if (command === 'install') {
+    const [targetDir, custodyDir, releaseFile, docroot, through, from] = rest;
     installRelease(targetDir, decodeRelease(releaseFile), {
       custodyDir,
+      docroot,
       through: through == null ? undefined : Number(through),
       from: from == null ? undefined : Number(from),
     });
     return;
   }
   if (command === 'rollback') {
-    rollbackRelease(targetDir, custodyDir);
+    const [targetDir, custodyDir, docroot] = rest;
+    rollbackRelease(targetDir, custodyDir, docroot);
     return;
   }
   if (command === 'recover') {
-    recoverRelease(targetDir, custodyDir);
+    const [targetDir, custodyDir, docroot] = rest;
+    recoverRelease(targetDir, custodyDir, docroot);
     return;
   }
   throw new Error('usage: install|rollback|recover');

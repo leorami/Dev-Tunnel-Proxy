@@ -147,7 +147,7 @@ test('isolated nginx serves the baseline install, cache, types, and auth, and ca
   let run;
   try {
     await fsp.mkdir(path.join(html, '.artifacts', 'reports'), { recursive: true });
-    await fsp.mkdir(custody);
+    await fsp.mkdir(custody, { mode: 0o700 });
     await fsp.cp(STATUS, statusDir, { recursive: true });
     for (const docName of DOCUMENTS) await fsp.writeFile(path.join(statusDir, docName), baseline(docName));
     await fsp.writeFile(path.join(statusDir, 'common.js'), baseline('common.js'));
@@ -205,7 +205,7 @@ test('isolated nginx serves the baseline install, cache, types, and auth, and ca
     assert.equal(oldHealth.headers['content-type'], 'text/html');
     assert.match(oldHealth.body.toString('utf8'), /src="\/status\/common\.js"/);
 
-    installRelease(statusDir, release, { custodyDir: custody });
+    installRelease(statusDir, release, { custodyDir: custody, docroot: html });
     const names = await fsp.readdir(statusDir);
     assert.deepEqual(names.filter((entry) => entry.startsWith('.v216-')), []);
     const hidden = await request(port, '/status/.v216-preimage', owner);
@@ -230,7 +230,7 @@ test('isolated nginx serves the baseline install, cache, types, and auth, and ca
     });
     assert.equal(stillRevalidated.status, 304);
 
-    rollbackRelease(statusDir, custody);
+    rollbackRelease(statusDir, custody, html);
     const restored = await request(port, '/status/health.html', owner);
     assert.deepEqual(restored.body, baseline('health.html'));
     assert.match(restored.body.toString('utf8'), /src="\/status\/common\.js"/);

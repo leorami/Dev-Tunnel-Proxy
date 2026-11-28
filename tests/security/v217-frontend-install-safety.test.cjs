@@ -236,8 +236,8 @@ printf '%s\\n' '# file: fixture' 'user.bin=0sAAECAw==' 'security.selinux=0sc3lz'
 exit 0
 `);
     writeExecutable(bin, 'setfattr', `#!/bin/sh
-printf '%s\\n' "$@" | grep -q 'security' && { echo refused >&2; exit 1; }
-if [ -n "$1" ]; then cat >/dev/null; fi
+data=$(printf '%s\\n' "$@"; cat)
+printf '%s\\n' "$data" | grep -q 'security' && { echo refused >&2; exit 1; }
 exit 0
 `);
   } else {

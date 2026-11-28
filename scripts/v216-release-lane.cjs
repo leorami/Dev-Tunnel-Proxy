@@ -32,6 +32,39 @@ function summary(text) {
   return { ...counts, strict: bad === 0 && counts.pass === counts.tests };
 }
 
+function pythonSummary(text, status, error) {
+  const ran = [...text.matchAll(/^Ran (\d+) tests?\b/gm)];
+  const tests = ran.length ? Number(ran[ran.length - 1][1]) : null;
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  const verdict = [...lines].reverse().find((line) => line === 'OK' || line.startsWith('OK (') || line.startsWith('FAILED'));
+  const counts = {};
+  if (verdict) {
+    for (const match of verdict.matchAll(/([a-z][a-z ]*?)=(\d+)/g)) counts[match[1]] = Number(match[2]);
+  }
+  const failures = counts.failures || 0;
+  const errors = counts.errors || 0;
+  const skipped = counts.skipped || 0;
+  const expected = counts['expected failures'] || 0;
+  const unexpected = counts['unexpected successes'] || 0;
+  const failedLine = verdict ? verdict.startsWith('FAILED') : false;
+  const ok = !error && status === 0 && verdict && !failedLine && tests >= 1
+    && failures === 0 && errors === 0 && skipped === 0 && expected === 0 && unexpected === 0;
+  if (ok) {
+    return { tests, pass: tests, fail: 0, cancelled: 0, skipped: 0, todo: 0, strict: true };
+  }
+  const fail = failures + errors + unexpected;
+  const known = tests == null ? 0 : tests;
+  return {
+    tests: known,
+    pass: 0,
+    fail,
+    cancelled: 0,
+    skipped,
+    todo: expected,
+    strict: false,
+  };
+}
+
 function emit(totals) {
   console.log(`# tests ${totals.tests}`);
   console.log(`# pass ${totals.pass}`);
@@ -79,11 +112,7 @@ function runFile(file) {
   fs.rmSync(home, { recursive: true, force: true });
   fs.rmSync(tmp, { recursive: true, force: true });
   if (file.endsWith('.py')) {
-    const skipped = /skipped/i.test(output);
-    const ok = result.status === 0 && !skipped && !result.error;
-    return ok
-      ? { tests: 1, pass: 1, fail: 0, cancelled: 0, skipped: 0, todo: 0, strict: true }
-      : { tests: 1, pass: 0, fail: 1, cancelled: 0, skipped: skipped ? 1 : 0, todo: 0, strict: false };
+    return pythonSummary(output, result.status, result.error);
   }
   const parsed = summary(output);
   if (!parsed || result.status !== 0 || result.signal) {
@@ -113,8 +142,8 @@ function main() {
     console.log(`BLOCKED_CAPABILITY count=${entries.length}`);
     console.log('These files were not executed. A blocked file is not a pass.');
     for (const entry of entries) {
-      if (!entry.reason) throw new Error(`missing reason ${entry.path}`);
-      console.log(`${entry.path} ${entry.reason}`);
+      if (!entry.reason || !entry.disposition || !entry.evidence) throw new Error(`missing disposition ${entry.path}`);
+      console.log(`${entry.path} ${entry.disposition} ${entry.reason}`);
     }
     return;
   }

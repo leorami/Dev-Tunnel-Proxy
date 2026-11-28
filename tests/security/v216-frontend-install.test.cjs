@@ -61,15 +61,20 @@ function releaseFromRepo() {
 
 function makeDirs() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'devproxy-v216-'));
-  const target = path.join(root, 'status');
+  const docroot = path.join(root, 'www');
+  const target = path.join(docroot, 'status');
   const custody = path.join(root, 'custody');
-  fs.mkdirSync(target);
-  fs.mkdirSync(custody);
+  fs.mkdirSync(target, { recursive: true });
+  fs.mkdirSync(custody, { mode: 0o700 });
   for (const name of DOCUMENTS) fs.writeFileSync(path.join(target, name), baseline(name));
   fs.writeFileSync(path.join(target, 'common.js'), baseline('common.js'));
   fs.writeFileSync(path.join(target, 'common.css'), baseline('common.css'));
   fs.writeFileSync(path.join(target, 'owner-note.txt'), 'preserve-me');
-  return { root, target, custody };
+  return { root, docroot, target, custody };
+}
+
+function releaseOptions(dirs, extra = {}) {
+  return { custodyDir: dirs.custody, docroot: dirs.docroot, ...extra };
 }
 
 function encodeRelease(release, file) {
@@ -157,12 +162,12 @@ test('old and new documents keep their own shared assets when both trees are pre
 
 test('a drifted later document does not change the earlier document and leaves no journal', () => {
   const release = releaseFromRepo();
-  const { root, target, custody } = makeDirs();
+  const { root, docroot, target, custody } = makeDirs();
   try {
     const health = path.join(target, 'health.html');
     const before = fs.readFileSync(health);
     fs.writeFileSync(path.join(target, 'reports.html'), Buffer.concat([baseline('reports.html'), Buffer.from('x')]));
-    assert.throws(() => installRelease(target, release, { custodyDir: custody }), /drift:reports\.html/);
+    assert.throws(() => installRelease(target, release, releaseOptions({ custody, docroot })), /drift:reports\.html/);
     assert.deepEqual(fs.readFileSync(health), before);
     assert.equal(fs.existsSync(path.join(custody, 'journal.json')), false);
   } finally {
@@ -172,13 +177,13 @@ test('a drifted later document does not change the earlier document and leaves n
 
 test('a preexisting temporary-name symlink cannot overwrite an unrelated file', () => {
   const release = releaseFromRepo();
-  const { root, target, custody } = makeDirs();
+  const { root, docroot, target, custody } = makeDirs();
   const victim = path.join(target, 'victim.txt');
   fs.writeFileSync(victim, 'owned-by-test');
   fs.symlinkSync(victim, path.join(target, `${TEMP_PREFIX}planted`));
   process.env.V216_TEMP_NAME = `${TEMP_PREFIX}planted`;
   try {
-    installRelease(target, release, { custodyDir: custody });
+    installRelease(target, release, releaseOptions({ custody, docroot }));
     assert.equal(fs.readFileSync(victim, 'utf8'), 'owned-by-test');
     const health = fs.lstatSync(path.join(target, 'health.html'));
     assert.equal(health.isSymbolicLink(), false);
@@ -193,13 +198,13 @@ test('a preexisting temporary-name symlink cannot overwrite an unrelated file', 
 
 test('a hardlinked preimage is refused before any byte changes', () => {
   const release = releaseFromRepo();
-  const { root, target, custody } = makeDirs();
+  const { root, docroot, target, custody } = makeDirs();
   try {
     const health = path.join(target, 'health.html');
     const link = path.join(target, 'health-link');
     fs.linkSync(health, link);
     const before = fs.readFileSync(health);
-    assert.throws(() => installRelease(target, release, { custodyDir: custody }), /single-link:health\.html/);
+    assert.throws(() => installRelease(target, release, releaseOptions({ custody, docroot })), /single-link:health\.html/);
     assert.equal(fs.statSync(health).nlink, 2);
     assert.deepEqual(fs.readFileSync(health), before);
     assert.deepEqual(fs.readFileSync(link), before);
@@ -211,7 +216,7 @@ test('a hardlinked preimage is refused before any byte changes', () => {
 
 test('ownership, mode, ACL, and xattrs survive install and rollback, and later metadata drift is refused', () => {
   const release = releaseFromRepo();
-  const { root, target, custody } = makeDirs();
+  const { root, docroot, target, custody } = makeDirs();
   try {
     const health = path.join(target, 'health.html');
     fs.chmodSync(health, 0o640);
@@ -224,7 +229,7 @@ test('ownership, mode, ACL, and xattrs survive install and rollback, and later m
       assert.equal(spawnSync('setfattr', ['-n', 'user.v216', '-v', 'kept', health], { encoding: 'utf8' }).status, 0);
     }
     const before = inspectFile(target, 'health.html');
-    installRelease(target, release, { custodyDir: custody, through: 3 });
+    installRelease(target, release, releaseOptions({ custody, docroot }, { through: 3 }));
     const installed = inspectFile(target, 'health.html');
     assert.equal(installed.sha, sha256(release.documents.health));
     assert.equal(installed.mode, before.mode);
@@ -235,10 +240,10 @@ test('ownership, mode, ACL, and xattrs survive install and rollback, and later m
     const reports = path.join(target, 'reports.html');
     const reportsBefore = fs.readFileSync(reports);
     fs.chmodSync(reports, 0o604);
-    assert.throws(() => installRelease(target, release, { custodyDir: custody, from: 3 }), /metadata drift:reports\.html/);
+    assert.throws(() => installRelease(target, release, releaseOptions({ custody, docroot }, { from: 3 })), /metadata drift:reports\.html/);
     assert.deepEqual(fs.readFileSync(reports), reportsBefore);
     fs.chmodSync(reports, before.mode & 0o777 || 0o644);
-    rollbackRelease(target, custody);
+    rollbackRelease(target, custody, docroot);
     const restored = inspectFile(target, 'health.html');
     assert.equal(restored.sha, sha256(baseline('health.html')));
     assert.equal(restored.mode, before.mode);
@@ -255,23 +260,23 @@ test('a killed install or inverse recovers from custody without a hidden docroot
   const release = releaseFromRepo();
   assert.ok(CRASH_POINTS.some((point) => point.startsWith('step:')) && CRASH_POINTS.some((point) => point.startsWith('inverse:')));
   for (const point of CRASH_POINTS) {
-    const { root, target, custody } = makeDirs();
+    const { root, docroot, target, custody } = makeDirs();
     const releaseFile = path.join(root, 'release.json');
     encodeRelease(release, releaseFile);
     try {
       const install = runInstaller(
-        ['install', target, custody, releaseFile],
+        ['install', target, custody, releaseFile, docroot],
         point.startsWith('inverse:') ? {} : { V216_CRASH_AT: point },
       );
       if (!point.startsWith('inverse:')) assert.equal(install.signal, 'SIGKILL', point);
       else assert.equal(install.status, 0, install.stderr);
       if (point.startsWith('inverse:')) {
-        const inverse = runInstaller(['rollback', target, custody], { V216_CRASH_AT: point });
+        const inverse = runInstaller(['rollback', target, custody, docroot], { V216_CRASH_AT: point });
         assert.equal(inverse.signal, 'SIGKILL', `${point} ${inverse.stderr}`);
       }
-      const recovered = runInstaller(['recover', target, custody], { V216_CRASH_AT: '' });
+      const recovered = runInstaller(['recover', target, custody, docroot], { V216_CRASH_AT: '' });
       assert.equal(recovered.status, 0, `${point} ${recovered.stderr}`);
-      const rolled = runInstaller(['rollback', target, custody], { V216_CRASH_AT: '' });
+      const rolled = runInstaller(['rollback', target, custody, docroot], { V216_CRASH_AT: '' });
       assert.equal(rolled.status, 0, `${point} ${rolled.stderr}`);
       for (const name of DOCUMENTS) {
         assert.deepEqual(fs.readFileSync(path.join(target, name)), baseline(name), `${point} ${name}`);
@@ -289,9 +294,9 @@ test('a killed install or inverse recovers from custody without a hidden docroot
 
 test('custody inside the served directory and the source tree are refused', () => {
   const release = releaseFromRepo();
-  const { root, target, custody } = makeDirs();
+  const { root, docroot, target, custody } = makeDirs();
   try {
-    assert.throws(() => installRelease(target, release, { custodyDir: target }), /outside the served directory|temporary directory|git checkout/);
+    assert.throws(() => installRelease(target, release, { custodyDir: target, docroot }), /outside the served directory|temporary directory|git checkout/);
     assert.throws(() => assertIsolated(STATUS), /temporary directory|git checkout/);
     assert.equal(fs.existsSync(path.join(custody, 'journal.json')), false);
   } finally {
